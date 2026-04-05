@@ -1,0 +1,6 @@
+@YSocial.Api_HostAddress = http://localhost:5125
+
+GET {{YSocial.Api_HostAddress}}/posts/
+Accept: application/json
+
+###

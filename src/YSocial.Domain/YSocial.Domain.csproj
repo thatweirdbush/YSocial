@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Common" Version="8.4.0" />
+    <PackageReference Include="StronglyTypedId" Version="0.2.1" />
+  </ItemGroup>
+
+	<ItemGroup>
+		<CompilerVisibleProperty Include="StronglyTypedId_DefaultBackingType" />
+		<CompilerVisibleProperty Include="StronglyTypedId_DefaultConverters" />
+	</ItemGroup>
+
+	<PropertyGroup>
+		<StronglyTypedId_DefaultBackingType>Guid</StronglyTypedId_DefaultBackingType>
+		<StronglyTypedId_DefaultConverters>
+			SystemTextJson;EfCoreValueConverter;TypeConverter
+		</StronglyTypedId_DefaultConverters>
+	</PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Microservice.BuildingBlocks\Microservice.BuildingBlocks.Domain\Microservice.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
