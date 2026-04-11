@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Microservice.BuildingBlocks\Microservice.BuildingBlocks.CQRS\Microservice.BuildingBlocks.CQRS.csproj" />
+    <ProjectReference Include="..\..\..\Microservice.BuildingBlocks\src\Microservice.BuildingBlocks.CQRS\Microservice.BuildingBlocks.CQRS.csproj" />
     <ProjectReference Include="..\YSocial.Domain\YSocial.Domain.csproj" />
   </ItemGroup>
 

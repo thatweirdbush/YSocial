@@ -4,6 +4,7 @@ namespace YSocial.Domain.Posts.Rules;
 
 internal sealed record PostContentLengthLimitRule(string Content) : IBusinessRule
 {
-    public string Message => "Content must not exceed 2000 characters.";
-    public bool BrokenWhen => Content?.Length > 2000;
+    private const int Limit = 2000;
+    public string Message => $"Post's content must not exceed {Limit} characters.";
+    public bool BrokenWhen => Content?.Length > Limit;
 }

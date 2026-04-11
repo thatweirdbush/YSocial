@@ -3,7 +3,6 @@
 namespace YSocial.Domain.Users;
 public record Address : ValueObject
 {
-    public Guid Id { get; set; }
     public string Street { get; set; }
     public string City { get; set; }
     public string State { get; set; }

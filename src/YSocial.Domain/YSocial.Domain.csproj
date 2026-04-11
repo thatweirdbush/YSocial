@@ -16,15 +16,15 @@
 		<CompilerVisibleProperty Include="StronglyTypedId_DefaultConverters" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\Microservice.BuildingBlocks\src\Microservice.BuildingBlocks.Domain\Microservice.BuildingBlocks.Domain.csproj" />
+	</ItemGroup>
+
 	<PropertyGroup>
 		<StronglyTypedId_DefaultBackingType>Guid</StronglyTypedId_DefaultBackingType>
 		<StronglyTypedId_DefaultConverters>
 			SystemTextJson;EfCoreValueConverter;TypeConverter
 		</StronglyTypedId_DefaultConverters>
 	</PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Microservice.BuildingBlocks\Microservice.BuildingBlocks.Domain\Microservice.BuildingBlocks.Domain.csproj" />
-  </ItemGroup>
 
 </Project>

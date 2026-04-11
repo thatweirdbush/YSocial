@@ -24,7 +24,6 @@ public class PostsController : ApiController
         return HandleResult(result);
     }
 
-
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreatePostRequest request)
     {

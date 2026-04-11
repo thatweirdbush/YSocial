@@ -1,4 +1,5 @@
 ﻿using Microservice.BuildingBlocks.Domain.Repositories;
+using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Posts;
 
