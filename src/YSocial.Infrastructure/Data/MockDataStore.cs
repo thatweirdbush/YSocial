@@ -2,6 +2,7 @@
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using YSocial.Domain.Posts;
+using YSocial.Domain.Users;
 using YSocial.Infrastructure.Services.UnitOfWorks.DataStorage;
 using YSocial.Infrastructure.Services.UnitOfWorks.DomainEventsDispatching;
 

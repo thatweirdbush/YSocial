@@ -1,8 +1,9 @@
-﻿using MediatR;
+using MediatR;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Application.Models;
 using YSocial.Domain.Posts;
+using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.GetPost;
 

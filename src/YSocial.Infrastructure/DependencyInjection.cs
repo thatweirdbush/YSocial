@@ -1,4 +1,4 @@
-﻿using Microservice.BuildingBlocks.Domain.Events;
+using Microservice.BuildingBlocks.Domain.Events;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -22,6 +22,11 @@ public static class DependencyInjection
             opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddSingleton<IPostRepository, MockDataStore>();
+        services.AddSingleton<YSocial.Domain.Identities.IAccountRepository, MockAccountRepository>();
+        services.AddSingleton<YSocial.Domain.Likes.ILikeRepository, MockLikeRepository>();
+        services.AddSingleton<YSocial.Domain.Users.IUserRepository, MockUserRepository>();
+        
+        services.AddTransient<YSocial.Domain.Likes.LikeToggleService>();
         //services.AddSingleton<IPostRepository, MockDataStore>();
 
         //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());
