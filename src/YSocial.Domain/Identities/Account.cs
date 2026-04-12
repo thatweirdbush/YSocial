@@ -11,9 +11,10 @@ public class Account : AggregateRoot<AccountId>
     public PasswordHash PasswordHash { get; private set; }
     public UserRole Role { get; private set; }
     public DateTime CreatedAt { get; private set; }
-    public string? RefreshToken { get; private set; }
-    public DateTime? RefreshTokenExpiryTime { get; private set; }
     public bool IsActive { get; private set; }
+
+    private readonly List<RefreshToken> _refreshTokens = new();
+    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
     #endregion
 
@@ -46,21 +47,38 @@ public class Account : AggregateRoot<AccountId>
     public void ChangePassword(PasswordHash newPassword)
     {
         PasswordHash = newPassword;
+        RevokeAllRefreshTokens();
     }
 
-    public void SetRefreshToken(string token, DateTime expiryTime)
+    public void AddRefreshToken(string token, DateTime expiryTime, string deviceId)
     {
-        CheckRule(new RefreshTokenMustBeValidRule(token));
-        CheckRule(new RefreshTokenMustNotBeExpiredRule(expiryTime));
+        // Loại bỏ các tokens hết hạn hoặc bị thu hồi trước khi đếm session active
+        RemoveExpiredTokens();
 
-        RefreshToken = token;
-        RefreshTokenExpiryTime = expiryTime;
+        var activeSessionCount = _refreshTokens.Count(t => t.IsActive);
+        CheckRule(new DeviceSessionLimitRule(activeSessionCount));
+
+        var refreshTokenEntity = RefreshToken.Create(Id, token, expiryTime, deviceId);
+        _refreshTokens.Add(refreshTokenEntity);
     }
 
-    public void RevokeRefreshToken()
+    public void RevokeRefreshToken(string token)
     {
-        RefreshToken = null;
-        RefreshTokenExpiryTime = null;
+        var refreshToken = _refreshTokens.FirstOrDefault(t => t.Token == token);
+        refreshToken?.Revoke();
+    }
+
+    public void RevokeAllRefreshTokens()
+    {
+        foreach (var token in _refreshTokens.Where(t => t.IsActive))
+        {
+            token.Revoke();
+        }
+    }
+
+    public void RemoveExpiredTokens()
+    {
+        _refreshTokens.RemoveAll(t => !t.IsActive);
     }
 
     public void Deactivate()
