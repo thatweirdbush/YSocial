@@ -14,8 +14,11 @@ internal sealed class ToggleLikeCommandValidator : AbstractValidator<ToggleLikeC
 {
     public ToggleLikeCommandValidator()
     {
-        RuleFor(x => x.UserId).NotEmpty();
-        RuleFor(x => x.PostId).NotEmpty();
+        RuleFor(x => x.UserId)
+            .NotEmpty();
+
+        RuleFor(x => x.PostId)
+            .NotEmpty();
     }
 }
 

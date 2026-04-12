@@ -3,7 +3,10 @@ using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using YSocial.Domain.Identities;
+using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
+using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Services.UnitOfWorks;
 using YSocial.Infrastructure.Services.UnitOfWorks.DataStorage;
@@ -22,11 +25,11 @@ public static class DependencyInjection
             opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddSingleton<IPostRepository, MockDataStore>();
-        services.AddSingleton<YSocial.Domain.Identities.IAccountRepository, MockAccountRepository>();
-        services.AddSingleton<YSocial.Domain.Likes.ILikeRepository, MockLikeRepository>();
-        services.AddSingleton<YSocial.Domain.Users.IUserRepository, MockUserRepository>();
+        services.AddSingleton<IAccountRepository, MockAccountRepository>();
+        services.AddSingleton<ILikeRepository, MockLikeRepository>();
+        services.AddSingleton<IUserRepository, MockUserRepository>();
         
-        services.AddTransient<YSocial.Domain.Likes.LikeToggleService>();
+        services.AddTransient<LikeToggleService>();
         //services.AddSingleton<IPostRepository, MockDataStore>();
 
         //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());

@@ -12,8 +12,14 @@ internal sealed class RegisterAccountCommandValidator : AbstractValidator<Regist
 {
     public RegisterAccountCommandValidator()
     {
-        RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.Password).NotEmpty().MinimumLength(6);
+        RuleFor(x => x.Email)
+            .NotEmpty()
+            .EmailAddress()
+            .WithMessage("Invalid email address.");
+
+        RuleFor(x => x.Password)
+            .NotEmpty()
+            .MinimumLength(6);
     }
 }
 

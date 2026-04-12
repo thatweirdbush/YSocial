@@ -12,8 +12,13 @@ internal sealed class LogoutUserCommandValidator : AbstractValidator<LogoutUserC
 {
     public LogoutUserCommandValidator()
     {
-        RuleFor(x => x.Email).NotEmpty().EmailAddress();
-        RuleFor(x => x.RefreshToken).NotEmpty();
+        RuleFor(x => x.Email)
+            .NotEmpty()
+            .EmailAddress()
+            .WithMessage("Invalid email address.");
+
+        RuleFor(x => x.RefreshToken)
+            .NotEmpty();
     }
 }
 
