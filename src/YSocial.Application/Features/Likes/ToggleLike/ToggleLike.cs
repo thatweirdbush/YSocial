@@ -22,7 +22,11 @@ internal sealed class ToggleLikeCommandValidator : AbstractValidator<ToggleLikeC
     }
 }
 
-internal sealed class ToggleLikeCommandHandler(ILikeRepository likeRepository, LikeToggleService likeToggleService)
+internal sealed class ToggleLikeCommandHandler(
+    IPostRepository postRepository,
+    IUserRepository userRepository,
+    ILikeRepository likeRepository,
+    LikeToggleService likeToggleService)
     : ICommandHandler<ToggleLikeCommand, Result<ToggleLikeResponse>>
 {
     public async Task<Result<ToggleLikeResponse>> Handle(ToggleLikeCommand request, CancellationToken cancellationToken)
@@ -30,6 +34,21 @@ internal sealed class ToggleLikeCommandHandler(ILikeRepository likeRepository, L
         var userId = new UserId(request.UserId);
         var postId = new PostId(request.PostId);
 
+        // Check if the user exists
+        var existingUser = await userRepository.GetByIdAsync(userId, cancellationToken);
+        if (existingUser is null)
+        {
+            return Result<ToggleLikeResponse>.NotFound("User not found.");
+        }
+
+        // Check if the post exists
+        var existingPost = await postRepository.GetByIdAsync(postId, cancellationToken);
+        if (existingPost is null)
+        {
+            return Result<ToggleLikeResponse>.NotFound("Post not found.");
+        }
+
+        // Check if like already exists
         var existingLike = await likeRepository.GetByUserAndPostAsync(userId, postId, cancellationToken);
 
         var toggleResult = likeToggleService.ToggleLike(existingLike, postId, userId);

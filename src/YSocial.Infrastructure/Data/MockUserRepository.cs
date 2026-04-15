@@ -1,3 +1,4 @@
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Users;
 
@@ -10,7 +11,7 @@ public class MockUserRepository : IUserRepository
 {
     private readonly ConcurrentDictionary<UserId, User> _users = new();
 
-    public Microservice.BuildingBlocks.Domain.UnitOfWorks.IUnitOfWork UnitOfWork => null!;
+    public IUnitOfWork UnitOfWork => null!;
 
     public Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default)
     {

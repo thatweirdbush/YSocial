@@ -1,8 +1,7 @@
 ﻿using Microservice.BuildingBlocks.Domain.Events;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
-using YSocial.Infrastructure.Services.UnitOfWorks.DataStorage;
 
-namespace YSocial.Infrastructure.Services.UnitOfWorks;
+namespace YSocial.Infrastructure.Persistence.UnitOfWork;
 
 public partial class UnitOfWork(IDataStorage dataStorageDispatcher, IDomainEventsDispatcher domainEventsDispatcher) : IUnitOfWork
 {

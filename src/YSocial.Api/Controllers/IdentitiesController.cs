@@ -38,7 +38,7 @@ public class IdentitiesController : ApiController
     [HttpPost("logout")]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
     {
-        var command = new LogoutUserCommand(request.Email, request.RefreshToken);
+        var command = new LogoutUserCommand(request.RefreshToken);
 
         var result = await Mediator.Send(command);
 

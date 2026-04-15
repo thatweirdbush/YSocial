@@ -1,7 +1,7 @@
 ﻿using MediatR;
 using Microservice.BuildingBlocks.Domain.Events;
 
-namespace YSocial.Infrastructure.Services.UnitOfWorks.DomainEventsDispatching;
+namespace YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 
 /// <inheritdoc cref="IDomainEventsDispatcher"/>
 public sealed class DomainEventsDispatcher(IMediator mediator, IDomainEventsProvider domainEventsProvider) : IDomainEventsDispatcher

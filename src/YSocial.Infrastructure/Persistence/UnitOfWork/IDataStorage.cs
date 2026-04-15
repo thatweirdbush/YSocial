@@ -1,4 +1,4 @@
-﻿namespace YSocial.Infrastructure.Services.UnitOfWorks.DataStorage;
+﻿namespace YSocial.Infrastructure.Persistence.UnitOfWork;
 
 /// <summary>
 /// Encapsulation of the current data storage.

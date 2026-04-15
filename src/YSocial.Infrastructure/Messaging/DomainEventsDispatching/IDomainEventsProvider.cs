@@ -1,6 +1,6 @@
 ﻿using Microservice.BuildingBlocks.Domain.Events;
 
-namespace YSocial.Infrastructure.Services.UnitOfWorks.DomainEventsDispatching;
+namespace YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 
 public interface IDomainEventsProvider
 {

@@ -3,14 +3,15 @@ using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using YSocial.Application.Abstractions.Identity;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Services.UnitOfWorks;
-using YSocial.Infrastructure.Services.UnitOfWorks.DataStorage;
-using YSocial.Infrastructure.Services.UnitOfWorks.DomainEventsDispatching;
+using YSocial.Infrastructure.Identity;
+using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
+using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure;
 
@@ -29,6 +30,8 @@ public static class DependencyInjection
         services.AddSingleton<ILikeRepository, MockLikeRepository>();
         services.AddSingleton<IUserRepository, MockUserRepository>();
         
+        services.AddScoped<IUserContext, UserContext>();
+
         services.AddTransient<LikeToggleService>();
         //services.AddSingleton<IPostRepository, MockDataStore>();
 

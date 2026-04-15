@@ -3,8 +3,8 @@ using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Services.UnitOfWorks.DataStorage;
-using YSocial.Infrastructure.Services.UnitOfWorks.DomainEventsDispatching;
+using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
+using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure.Data;
 public class MockDataStore : DbContext, IPostRepository, IDataStorage, IDomainEventsProvider

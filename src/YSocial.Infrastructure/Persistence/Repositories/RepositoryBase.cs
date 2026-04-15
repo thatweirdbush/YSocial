@@ -3,7 +3,7 @@ using Microservice.BuildingBlocks.Domain.Repositories;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 
-namespace YSocial.Infrastructure.Services.Repositories;
+namespace YSocial.Infrastructure.Persistence.Repositories;
 
 public abstract class RepositoryBase<T, TId, TDbContext>(TDbContext context)
     : IRepository<T, TId>
