@@ -25,7 +25,7 @@ public static class DependencyInjection
         services.AddDbContext<MockDataStore>(opt =>
             opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-        services.AddSingleton<IPostRepository, MockDataStore>();
+        services.AddSingleton<IPostRepository, MockPostRepository>();
         services.AddSingleton<IAccountRepository, MockAccountRepository>();
         services.AddSingleton<ILikeRepository, MockLikeRepository>();
         services.AddSingleton<IUserRepository, MockUserRepository>();

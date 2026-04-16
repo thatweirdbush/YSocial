@@ -1,3 +1,4 @@
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
@@ -10,9 +11,9 @@ namespace YSocial.Infrastructure.Data;
 /// </summary>
 public class MockLikeRepository : ILikeRepository
 {
-    private readonly ConcurrentDictionary<LikeId, Like> _likes = new();
+    private readonly ConcurrentDictionary<LikeId, Like> _likes = MockDataStore.Likes;
 
-    public Microservice.BuildingBlocks.Domain.UnitOfWorks.IUnitOfWork UnitOfWork => null!;
+    public IUnitOfWork UnitOfWork => null!;
 
     public Task<Like?> GetByIdAsync(LikeId id, CancellationToken cancellationToken = default)
     {

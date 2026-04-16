@@ -14,7 +14,14 @@ internal sealed class GetPostQueryHandler(IPostRepository postRepository)
 {
     public async Task<Result<PostInfo>> Handle(GetPostQuery request, CancellationToken cancellationToken)
     {
-        var post = Post.Create(UserId.New(), "Đây là method GET Post");
+        var postId = new PostId(request.PostId);
+        var post = await postRepository.GetByIdAsync(postId, cancellationToken);
+
+        if (post is null)
+        {
+            return Result<PostInfo>.NotFound($"Post with ID {request.PostId} not found.");
+        }
+
         var response = new PostInfo(
             post.Id.Value,
             post.Content,

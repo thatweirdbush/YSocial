@@ -9,7 +9,7 @@ namespace YSocial.Infrastructure.Data;
 /// </summary>
 public class MockUserRepository : IUserRepository
 {
-    private readonly ConcurrentDictionary<UserId, User> _users = new();
+    private readonly ConcurrentDictionary<UserId, User> _users = MockDataStore.Users;
 
     public IUnitOfWork UnitOfWork => null!;
 

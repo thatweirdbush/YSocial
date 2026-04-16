@@ -1,3 +1,4 @@
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Identities;
 
@@ -8,9 +9,9 @@ namespace YSocial.Infrastructure.Data;
 /// </summary>
 public class MockAccountRepository : IAccountRepository
 {
-    private readonly ConcurrentDictionary<AccountId, Account> _accounts = new();
+    private readonly ConcurrentDictionary<AccountId, Account> _accounts = MockDataStore.Accounts;
 
-    public Microservice.BuildingBlocks.Domain.UnitOfWorks.IUnitOfWork UnitOfWork => null!;
+    public IUnitOfWork UnitOfWork => null!;
 
     public Task<Account?> GetByIdAsync(AccountId id, CancellationToken cancellationToken = default)
     {

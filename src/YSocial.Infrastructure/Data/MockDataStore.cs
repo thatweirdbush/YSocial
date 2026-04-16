@@ -1,77 +1,85 @@
-﻿using Microservice.BuildingBlocks.Domain.Events;
-using Microservice.BuildingBlocks.Domain.UnitOfWorks;
+using Microservice.BuildingBlocks.Domain.Events;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
+using YSocial.Domain.Countries;
+using YSocial.Domain.Identities;
+using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure.Data;
-public class MockDataStore : DbContext, IPostRepository, IDataStorage, IDomainEventsProvider
+
+public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
 {
-    public static List<Post> Posts { get; set; } =
-    [
-        Post.Create(UserId.New(), "Welcome to YSocial!"),
-        Post.Create(UserId.New(), "Today's weather is nice."),
-    ];
+    public static ConcurrentDictionary<AccountId, Account> Accounts { get; set; } = [];
+    public static ConcurrentDictionary<UserId, User> Users { get; set; } = [];
+    public static ConcurrentDictionary<PostId, Post> Posts { get; set; } = [];
+    public static ConcurrentDictionary<LikeId, Like> Likes { get; set; } = [];
 
-    public IUnitOfWork UnitOfWork => throw new NotImplementedException();
-
-    public Task AddAsync(Post post)
+    static MockDataStore()
     {
-        return Task.CompletedTask;
+        SeedMockData();
     }
 
-    public Task<List<Post>> GetByAuthorIdAsync(UserId authorId)
+    private static void SeedMockData()
     {
-        return Task.FromResult(Posts.Where(p => p.AuthorId == authorId).ToList());
-    }
+        // 1. Create fake Accounts
+        var passwordHash = PasswordHash.Create("Password123!");
+        var account1 = Account.Create("test@example.com", passwordHash);
+        var account2 = Account.Create("demo@example.com", passwordHash);
 
-    public Task<Post?> GetByIdAsync(PostId id, CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(Posts.FirstOrDefault(p => p.Id == id));
+        account1.ClearDomainEvents();
+        account2.ClearDomainEvents();
+
+        Accounts.TryAdd(account1.Id, account1);
+        Accounts.TryAdd(account2.Id, account2);
+
+        // 2. Create fake Users
+        // Currently User aggregate doesn't tightly couple AccountId, so we just create users loosely.
+        var user1 = User.Create("test_user", Country.Vietnam);
+        var user2 = User.Create("demo_user", Country.Vietnam);
+
+        user1.ClearDomainEvents();
+        user2.ClearDomainEvents();
+
+        Users.TryAdd(user1.Id, user1);
+        Users.TryAdd(user2.Id, user2);
+
+        // 3. Create fake Posts
+        var post1 = Post.Create(user1.Id, "Welcome to YSocial!");
+        var post2 = Post.Create(user2.Id, "The weather is nice.");
+
+        post1.ClearDomainEvents();
+        post2.ClearDomainEvents();
+
+        Posts.TryAdd(post1.Id, post1);
+        Posts.TryAdd(post2.Id, post2);
     }
 
     public void ClearAllDomainEvents()
     {
-        //foreach (var entry in ChangeTracker.Entries<AggregateRoot>())
-        foreach (var entry in Posts)
-        {
-            //entry.Entity.ClearDomainEvents();
-            entry.ClearDomainEvents();
-        }
+        foreach (var entry in Accounts.Values) entry.ClearDomainEvents();
+        foreach (var entry in Users.Values) entry.ClearDomainEvents();
+        foreach (var entry in Posts.Values) entry.ClearDomainEvents();
+        foreach (var entry in Likes.Values) entry.ClearDomainEvents();
     }
 
     public IReadOnlyCollection<IDomainEvent> GetAllDomainEvents()
     {
-        //return ChangeTracker.Entries<AggregateRoot>()
-        //	.Select(e => e.Entity)
-        //	.SelectMany(e => e.DomainEvents)
-        //	.ToList()
-        //	.AsReadOnly();
-        return Posts
-            .SelectMany(e => e.DomainEvents)
-            .ToList()
-            .AsReadOnly();
+        var events = new List<IDomainEvent>();
+
+        events.AddRange(Accounts.Values.SelectMany(e => e.DomainEvents));
+        events.AddRange(Users.Values.SelectMany(e => e.DomainEvents));
+        events.AddRange(Posts.Values.SelectMany(e => e.DomainEvents));
+        events.AddRange(Likes.Values.SelectMany(e => e.DomainEvents));
+
+        return events.AsReadOnly();
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(0);
-    }
-
-    public Task AddAsync(Post aggregate, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void Update(Post aggregate)
-    {
-        throw new NotImplementedException();
-    }
-
-    public void Remove(Post aggregate)
-    {
-        throw new NotImplementedException();
+        return Task.FromResult(1);
     }
 }
