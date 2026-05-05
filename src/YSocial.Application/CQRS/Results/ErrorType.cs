@@ -1,4 +1,4 @@
-﻿namespace YSocial.Application.CQRS.Results;
+namespace YSocial.Application.CQRS.Results;
 
 public enum ErrorType
 {
@@ -6,5 +6,7 @@ public enum ErrorType
     Validation,
     NotFound,
     Conflict,
-    Business
+    Business,
+    Unauthorized,
+    Forbidden,
 }

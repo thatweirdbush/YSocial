@@ -1,13 +1,21 @@
+using FluentValidation;
 using MediatR;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Application.Models;
 using YSocial.Domain.Posts;
-using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.GetPost;
 
 public sealed record GetPostQuery(Guid PostId) : ResultQuery<PostInfo>;
+
+internal sealed class GetPostQueryValidator : AbstractValidator<GetPostQuery>
+{
+    public GetPostQueryValidator()
+    {
+        RuleFor(x => x.PostId).NotEmpty();
+    }
+}
 
 internal sealed class GetPostQueryHandler(IPostRepository postRepository)
     : IRequestHandler<GetPostQuery, Result<PostInfo>>
@@ -27,7 +35,7 @@ internal sealed class GetPostQueryHandler(IPostRepository postRepository)
             post.Content,
             post.ImageUrl,
             post.CreatedAt,
-            "Unknown");
+            post.AuthorId.Value.ToString());
 
         return Result<PostInfo>.Success(response);
     }

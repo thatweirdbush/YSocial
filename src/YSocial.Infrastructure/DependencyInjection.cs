@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using YSocial.Application.Abstractions.Identity;
+using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
@@ -29,10 +30,12 @@ public static class DependencyInjection
         services.AddSingleton<IAccountRepository, MockAccountRepository>();
         services.AddSingleton<ILikeRepository, MockLikeRepository>();
         services.AddSingleton<IUserRepository, MockUserRepository>();
+        services.AddSingleton<ICommentRepository, MockCommentRepository>();
         
         services.AddScoped<IUserContext, UserContext>();
 
         services.AddTransient<LikeToggleService>();
+        services.AddTransient<CommentPostingService>();
         //services.AddSingleton<IPostRepository, MockDataStore>();
 
         //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());

@@ -44,7 +44,7 @@ public class Post : AggregateRoot<PostId>
 
     public void UpdateContent(UserId editorId, string newContent)
     {
-        CheckRule(new OnlyAuthorCanEditPostRule(AuthorId, editorId));
+        CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
         CheckRule(new PostContentMustNotBeEmptyRule(newContent));
         CheckRule(new PostContentLengthLimitRule(newContent));
 
@@ -63,8 +63,10 @@ public class Post : AggregateRoot<PostId>
         AddDomainEvent(new PostUpdatedEvent(Id));
     }
 
-    public void Delete()
+    public void Delete(UserId editorId)
     {
+        CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
+        
         IsDeleted = true;
         AddDomainEvent(new PostDeletedEvent(Id));
     }

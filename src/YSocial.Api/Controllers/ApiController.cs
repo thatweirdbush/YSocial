@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Application.CQRS.Results;
 
@@ -54,6 +54,8 @@ namespace YSocial.Api.Controllers
                 ErrorType.NotFound => NotFound(CreateProblemDetails("Not Found", error, 404)),
                 ErrorType.Conflict => Conflict(CreateProblemDetails("Conflict", error, 409)),
                 ErrorType.Business => BadRequest(CreateProblemDetails("Business Rule Violation", error, 400)),
+                ErrorType.Unauthorized => Unauthorized(CreateProblemDetails("Unauthorized", error, 401)),
+                ErrorType.Forbidden => StatusCode(403, CreateProblemDetails("Forbidden", error, 403)),
                 _ => BadRequest(CreateProblemDetails("Error", error, 400))
             };
         }

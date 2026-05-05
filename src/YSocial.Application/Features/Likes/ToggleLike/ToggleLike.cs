@@ -34,16 +34,19 @@ internal sealed class ToggleLikeCommandHandler(
         var userId = new UserId(request.UserId);
         var postId = new PostId(request.PostId);
 
-        // Check if the user exists
-        var existingUser = await userRepository.GetByIdAsync(userId, cancellationToken);
-        if (existingUser is null)
+        // Launch both tasks simultaneously
+        var userTask = userRepository.GetByIdAsync(userId, cancellationToken);
+        var postTask = postRepository.GetByIdAsync(postId, cancellationToken);
+
+        await Task.WhenAll(userTask, postTask);
+
+        // Check if user & post exists
+        if (await userTask is null)
         {
             return Result<ToggleLikeResponse>.NotFound("User not found.");
         }
 
-        // Check if the post exists
-        var existingPost = await postRepository.GetByIdAsync(postId, cancellationToken);
-        if (existingPost is null)
+        if (await postTask is null)
         {
             return Result<ToggleLikeResponse>.NotFound("Post not found.");
         }

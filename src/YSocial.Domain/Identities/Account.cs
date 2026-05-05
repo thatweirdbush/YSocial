@@ -13,7 +13,7 @@ public class Account : AggregateRoot<AccountId>
     public DateTime CreatedAt { get; private set; }
     public bool IsActive { get; private set; }
 
-    private readonly List<RefreshToken> _refreshTokens = new();
+    private readonly List<RefreshToken> _refreshTokens = [];
     public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
     #endregion
@@ -52,7 +52,6 @@ public class Account : AggregateRoot<AccountId>
 
     public void AddRefreshToken(string token, DateTime expiryTime, string deviceId)
     {
-        // Loại bỏ các tokens hết hạn hoặc bị thu hồi trước khi đếm session active
         RemoveExpiredTokens();
 
         var activeSessionCount = _refreshTokens.Count(t => t.IsActive);

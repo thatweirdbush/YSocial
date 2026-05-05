@@ -1,4 +1,4 @@
-﻿namespace YSocial.Application.CQRS.Results;
+namespace YSocial.Application.CQRS.Results;
 
 public class Result
 {
@@ -36,6 +36,12 @@ public class Result
     public static Result Validation(string error)
         => new(false, error, ErrorType.Validation);
 
+    public static Result Unauthorized(string error = "Unauthorized")
+        => new(false, error, ErrorType.Unauthorized);
+
+    public static Result Forbidden(string error = "Forbidden")
+        => new(false, error, ErrorType.Forbidden);
+
     public TResult Match<TResult>(
         Func<TResult> onSuccess,
         Func<string, ErrorType, TResult> onFailure)
@@ -72,6 +78,12 @@ public class Result<T> : Result
 
     public new static Result<T> Validation(string error)
         => new(error, ErrorType.Validation);
+
+    public new static Result<T> Unauthorized(string error = "Unauthorized")
+        => new(error, ErrorType.Unauthorized);
+
+    public new static Result<T> Forbidden(string error = "Forbidden")
+        => new(error, ErrorType.Forbidden);
 
     public Result<K> Map<K>(Func<T, K> func)
     {

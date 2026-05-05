@@ -38,8 +38,9 @@ public class Comment : AggregateRoot<CommentId>
         return comment;
     }
 
-    public void UpdateContent(string newContent)
+    public void UpdateContent(UserId editorId, string newContent)
     {
+        CheckRule(new OnlyAuthorCanEditCommentRule(AuthorId, editorId));
         CheckRule(new CommentContentMustNotBeEmptyRule(newContent));
         CheckRule(new CommentContentLengthLimitRule(newContent));
 
@@ -49,8 +50,10 @@ public class Comment : AggregateRoot<CommentId>
         AddDomainEvent(new CommentUpdatedEvent(Id));
     }
 
-    public void Delete()
+    public void Delete(UserId editorId, UserId postAuthorId)
     {
+        CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
+        
         IsDeleted = true;
         AddDomainEvent(new CommentDeletedEvent(Id));
     }

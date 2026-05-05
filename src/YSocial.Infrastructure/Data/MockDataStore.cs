@@ -1,6 +1,7 @@
 using Microservice.BuildingBlocks.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
+using YSocial.Domain.Comments;
 using YSocial.Domain.Countries;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
@@ -17,6 +18,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     public static ConcurrentDictionary<UserId, User> Users { get; set; } = [];
     public static ConcurrentDictionary<PostId, Post> Posts { get; set; } = [];
     public static ConcurrentDictionary<LikeId, Like> Likes { get; set; } = [];
+    public static ConcurrentDictionary<CommentId, Comment> Comments { get; set; } = [];
 
     static MockDataStore()
     {
@@ -64,6 +66,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         foreach (var entry in Users.Values) entry.ClearDomainEvents();
         foreach (var entry in Posts.Values) entry.ClearDomainEvents();
         foreach (var entry in Likes.Values) entry.ClearDomainEvents();
+        foreach (var entry in Comments.Values) entry.ClearDomainEvents();
     }
 
     public IReadOnlyCollection<IDomainEvent> GetAllDomainEvents()
@@ -74,6 +77,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         events.AddRange(Users.Values.SelectMany(e => e.DomainEvents));
         events.AddRange(Posts.Values.SelectMany(e => e.DomainEvents));
         events.AddRange(Likes.Values.SelectMany(e => e.DomainEvents));
+        events.AddRange(Comments.Values.SelectMany(e => e.DomainEvents));
 
         return events.AsReadOnly();
     }
