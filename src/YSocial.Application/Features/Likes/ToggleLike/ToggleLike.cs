@@ -20,7 +20,7 @@ internal sealed class ToggleLikeCommandValidator : AbstractValidator<ToggleLikeC
             .NotEmpty();
 
         RuleFor(x => x.TargetType)
-            .IsInEnum();
+            .NotNull();
     }
 }
 
@@ -42,17 +42,10 @@ internal sealed class ToggleLikeCommandHandler(
         var userId = new UserId(userContext.UserId);
 
         // Check if target exists
-        if (request.TargetType == LikeTargetType.Post)
+        var targetExists = await request.TargetType.CheckExistsAsync(request.TargetId, postRepository, commentRepository, cancellationToken);
+        if (!targetExists)
         {
-            var postId = new PostId(request.TargetId);
-            var post = await postRepository.GetByIdAsync(postId, cancellationToken);
-            if (post is null) return Result<ToggleLikeResponse>.NotFound("Post not found.");
-        }
-        else if (request.TargetType == LikeTargetType.Comment)
-        {
-            var commentId = new CommentId(request.TargetId);
-            var comment = await commentRepository.GetByIdAsync(commentId, cancellationToken);
-            if (comment is null) return Result<ToggleLikeResponse>.NotFound("Comment not found.");
+            return Result<ToggleLikeResponse>.NotFound("Target not found.");
         }
 
         // Check if like already exists
@@ -62,7 +55,7 @@ internal sealed class ToggleLikeCommandHandler(
 
         if (toggleResult.Action == LikeStatus.Unliked)
         {
-            toggleResult.Like.Remove(); // Bắn event LikeRemovedEvent
+            toggleResult.Like.Remove();
             likeRepository.Remove(toggleResult.Like);
         }
         else

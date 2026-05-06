@@ -16,6 +16,7 @@ public class Post : AggregateRoot<PostId>
     public bool AllowComments { get; private set; }
     public bool IsDeleted { get; private set; }
     public int LikeCount { get; private set; }
+    public int SavedCount { get; private set; }
 
     private Post(UserId authorId, string content, string? imageUrl, PostVisibility visibility, bool allowComments)
     {
@@ -28,6 +29,7 @@ public class Post : AggregateRoot<PostId>
         CreatedAt = DateTime.UtcNow;
         IsDeleted = false;
         LikeCount = 0;
+        SavedCount = 0;
     }
 
     public static Post Create(UserId authorId, string content, string? imageUrl = null, PostVisibility? visibility = null, bool allowComments = true)
@@ -83,6 +85,19 @@ public class Post : AggregateRoot<PostId>
         if (LikeCount > 0)
         {
             LikeCount--;
+        }
+    }
+
+    public void IncrementSavedCount()
+    {
+        SavedCount++;
+    }
+
+    public void DecrementSavedCount()
+    {
+        if (SavedCount > 0)
+        {
+            SavedCount--;
         }
     }
 }

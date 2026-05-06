@@ -16,6 +16,7 @@ public class Comment : AggregateRoot<CommentId>
     public CommentId? ParentCommentId { get; private set; }
     public bool IsDeleted { get; private set; }
     public int LikeCount { get; private set; }
+    public int SavedCount { get; private set; }
 
     private Comment(PostId postId, UserId authorId, string content, CommentId? parentCommentId)
     {
@@ -27,6 +28,7 @@ public class Comment : AggregateRoot<CommentId>
         CreatedAt = DateTime.UtcNow;
         IsDeleted = false;
         LikeCount = 0;
+        SavedCount = 0;
     }
 
     public static Comment Create(PostId postId, UserId authorId, string content, CommentId? parentCommentId = null)
@@ -70,6 +72,19 @@ public class Comment : AggregateRoot<CommentId>
         if (LikeCount > 0)
         {
             LikeCount--;
+        }
+    }
+
+    public void IncrementSavedCount()
+    {
+        SavedCount++;
+    }
+
+    public void DecrementSavedCount()
+    {
+        if (SavedCount > 0)
+        {
+            SavedCount--;
         }
     }
 }

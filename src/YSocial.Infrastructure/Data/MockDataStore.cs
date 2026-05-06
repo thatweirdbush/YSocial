@@ -6,6 +6,7 @@ using YSocial.Domain.Countries;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
+using YSocial.Domain.SavedItems;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
@@ -19,6 +20,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     public static ConcurrentDictionary<PostId, Post> Posts { get; set; } = [];
     public static ConcurrentDictionary<LikeId, Like> Likes { get; set; } = [];
     public static ConcurrentDictionary<CommentId, Comment> Comments { get; set; } = [];
+    public static ConcurrentDictionary<SavedItemId, SavedItem> SavedItems { get; set; } = [];
 
     static MockDataStore()
     {
@@ -67,6 +69,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         foreach (var entry in Posts.Values) entry.ClearDomainEvents();
         foreach (var entry in Likes.Values) entry.ClearDomainEvents();
         foreach (var entry in Comments.Values) entry.ClearDomainEvents();
+        foreach (var entry in SavedItems.Values) entry.ClearDomainEvents();
     }
 
     public IReadOnlyCollection<IDomainEvent> GetAllDomainEvents()
@@ -78,6 +81,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         events.AddRange(Posts.Values.SelectMany(e => e.DomainEvents));
         events.AddRange(Likes.Values.SelectMany(e => e.DomainEvents));
         events.AddRange(Comments.Values.SelectMany(e => e.DomainEvents));
+        events.AddRange(SavedItems.Values.SelectMany(e => e.DomainEvents));
 
         return events.AsReadOnly();
     }

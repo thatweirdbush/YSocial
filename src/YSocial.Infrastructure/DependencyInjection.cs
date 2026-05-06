@@ -8,6 +8,7 @@ using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
+using YSocial.Domain.SavedItems;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
@@ -31,11 +32,13 @@ public static class DependencyInjection
         services.AddSingleton<ILikeRepository, MockLikeRepository>();
         services.AddSingleton<IUserRepository, MockUserRepository>();
         services.AddSingleton<ICommentRepository, MockCommentRepository>();
+        services.AddSingleton<ISavedItemRepository, MockSavedItemRepository>();
         
         services.AddScoped<IUserContext, UserContext>();
 
         services.AddTransient<LikeToggleService>();
         services.AddTransient<CommentPostingService>();
+        services.AddTransient<SavedItemToggleService>();
         //services.AddSingleton<IPostRepository, MockDataStore>();
 
         //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());

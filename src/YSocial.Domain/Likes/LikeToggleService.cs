@@ -1,4 +1,3 @@
-using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Likes;
