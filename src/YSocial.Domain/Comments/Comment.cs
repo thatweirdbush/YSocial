@@ -15,6 +15,7 @@ public class Comment : AggregateRoot<CommentId>
     public DateTime? UpdatedAt { get; private set; }
     public CommentId? ParentCommentId { get; private set; }
     public bool IsDeleted { get; private set; }
+    public int LikeCount { get; private set; }
 
     private Comment(PostId postId, UserId authorId, string content, CommentId? parentCommentId)
     {
@@ -25,6 +26,7 @@ public class Comment : AggregateRoot<CommentId>
         ParentCommentId = parentCommentId;
         CreatedAt = DateTime.UtcNow;
         IsDeleted = false;
+        LikeCount = 0;
     }
 
     public static Comment Create(PostId postId, UserId authorId, string content, CommentId? parentCommentId = null)
@@ -56,5 +58,18 @@ public class Comment : AggregateRoot<CommentId>
         
         IsDeleted = true;
         AddDomainEvent(new CommentDeletedEvent(Id));
+    }
+
+    public void IncrementLikeCount()
+    {
+        LikeCount++;
+    }
+
+    public void DecrementLikeCount()
+    {
+        if (LikeCount > 0)
+        {
+            LikeCount--;
+        }
     }
 }

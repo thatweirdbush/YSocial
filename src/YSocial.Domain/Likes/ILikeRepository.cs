@@ -1,5 +1,4 @@
 using Microservice.BuildingBlocks.Domain.Repositories;
-using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Likes;
@@ -9,5 +8,5 @@ namespace YSocial.Domain.Likes;
 /// </summary>
 public interface ILikeRepository : IRepository<Like, LikeId>
 {
-    Task<Like?> GetByUserAndPostAsync(UserId userId, PostId postId, CancellationToken cancellationToken = default);
+    Task<Like?> GetByUserAndTargetAsync(UserId userId, Guid targetId, LikeTargetType targetType, CancellationToken cancellationToken = default);
 }

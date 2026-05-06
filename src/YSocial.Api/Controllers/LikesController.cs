@@ -16,7 +16,7 @@ public class LikesController : ApiController
     [HttpPost("toggle")]
     public async Task<IActionResult> ToggleLike([FromBody] ToggleLikeRequest request)
     {
-        var command = new ToggleLikeCommand(request.UserId, request.PostId);
+        var command = new ToggleLikeCommand(request.TargetId, request.TargetType);
 
         var result = await Mediator.Send(command);
 

@@ -15,6 +15,7 @@ public class Post : AggregateRoot<PostId>
     public PostVisibility Visibility { get; private set; }
     public bool AllowComments { get; private set; }
     public bool IsDeleted { get; private set; }
+    public int LikeCount { get; private set; }
 
     private Post(UserId authorId, string content, string? imageUrl, PostVisibility visibility, bool allowComments)
     {
@@ -26,6 +27,7 @@ public class Post : AggregateRoot<PostId>
         AllowComments = allowComments;
         CreatedAt = DateTime.UtcNow;
         IsDeleted = false;
+        LikeCount = 0;
     }
 
     public static Post Create(UserId authorId, string content, string? imageUrl = null, PostVisibility? visibility = null, bool allowComments = true)
@@ -69,5 +71,18 @@ public class Post : AggregateRoot<PostId>
         
         IsDeleted = true;
         AddDomainEvent(new PostDeletedEvent(Id));
+    }
+
+    public void IncrementLikeCount()
+    {
+        LikeCount++;
+    }
+
+    public void DecrementLikeCount()
+    {
+        if (LikeCount > 0)
+        {
+            LikeCount--;
+        }
     }
 }

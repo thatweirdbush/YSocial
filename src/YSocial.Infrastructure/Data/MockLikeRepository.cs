@@ -1,7 +1,6 @@
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Likes;
-using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Infrastructure.Data;
@@ -21,9 +20,9 @@ public class MockLikeRepository : ILikeRepository
         return Task.FromResult(like);
     }
 
-    public Task<Like?> GetByUserAndPostAsync(UserId userId, PostId postId, CancellationToken cancellationToken = default)
+    public Task<Like?> GetByUserAndTargetAsync(UserId userId, Guid targetId, LikeTargetType targetType, CancellationToken cancellationToken = default)
     {
-        var like = _likes.Values.FirstOrDefault(l => l.UserId == userId && l.PostId == postId);
+        var like = _likes.Values.FirstOrDefault(l => l.UserId == userId && l.TargetId == targetId && l.TargetType == targetType);
         return Task.FromResult(like);
     }
 
