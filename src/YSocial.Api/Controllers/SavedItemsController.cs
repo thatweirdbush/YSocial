@@ -18,10 +18,9 @@ public class SavedItemsController : ApiController
     [HttpPost("toggle")]
     public async Task<IActionResult> ToggleSavedItem([FromBody] ToggleSavedItemRequest request)
     {
-        var targetType = SavedItemTargetType.GetAll().FirstOrDefault(x => x.Value == request.TargetType);
-        if (targetType is null) return BadRequest("Invalid TargetType");
+        if (request.TargetType is null) return BadRequest("Invalid TargetType");
 
-        var command = new ToggleSavedItemCommand(request.TargetId, targetType);
+        var command = new ToggleSavedItemCommand(request.TargetId, request.TargetType);
 
         var result = await Mediator.Send(command);
 

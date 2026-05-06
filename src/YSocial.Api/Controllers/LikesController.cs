@@ -17,10 +17,9 @@ public class LikesController : ApiController
     [HttpPost("toggle")]
     public async Task<IActionResult> ToggleLike([FromBody] ToggleLikeRequest request)
     {
-        var targetType = LikeTargetType.GetAll().FirstOrDefault(x => x.Value == request.TargetType);
-        if (targetType is null) return BadRequest("Invalid TargetType");
+        if (request.TargetType is null) return BadRequest("Invalid TargetType");
 
-        var command = new ToggleLikeCommand(request.TargetId, targetType);
+        var command = new ToggleLikeCommand(request.TargetId, request.TargetType);
 
         var result = await Mediator.Send(command);
 
