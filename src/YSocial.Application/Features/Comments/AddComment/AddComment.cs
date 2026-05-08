@@ -25,8 +25,8 @@ internal sealed class AddCommentCommandValidator : AbstractValidator<AddCommentC
 }
 
 internal sealed class AddCommentCommandHandler(
-    IPostRepository postRepository, 
-    ICommentRepository commentRepository, 
+    IPostRepository postRepository,
+    ICommentRepository commentRepository,
     CommentPostingService commentPostingService,
     IUserContext userContext)
     : ICommandHandler<AddCommentCommand, Result<Guid>>
@@ -41,8 +41,8 @@ internal sealed class AddCommentCommandHandler(
         var postId = new PostId(command.PostId);
         var postTask = postRepository.GetByIdAsync(postId, cancellationToken);
 
-        CommentId? parentCommentId = command.ParentCommentId.HasValue 
-            ? new CommentId(command.ParentCommentId.Value) 
+        CommentId? parentCommentId = command.ParentCommentId.HasValue
+            ? new CommentId(command.ParentCommentId.Value)
             : null;
 
         var parentCommentTask = parentCommentId is not null

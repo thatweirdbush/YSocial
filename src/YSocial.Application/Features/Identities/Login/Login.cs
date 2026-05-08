@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Domain.Identities;
@@ -25,7 +26,9 @@ internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
     }
 }
 
-internal sealed class LoginCommandHandler(IAccountRepository accountRepository)
+internal sealed class LoginCommandHandler(
+    IAccountRepository accountRepository,
+    IJwtProvider jwtProvider)
     : ICommandHandler<LoginCommand, Result<LoginResponse>>
 {
     public async Task<Result<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
@@ -43,7 +46,7 @@ internal sealed class LoginCommandHandler(IAccountRepository accountRepository)
         }
 
         // Generate tokens
-        var accessToken = Guid.NewGuid().ToString(); // Simulated JWT
+        var accessToken = jwtProvider.GenerateToken(account.Id.Value, account.Email); 
         var refreshToken = Guid.NewGuid().ToString();
         var expiry = DateTime.UtcNow.AddDays(7);
 

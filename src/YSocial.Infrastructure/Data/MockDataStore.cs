@@ -30,26 +30,33 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     private static void SeedMockData()
     {
         // 1. Create fake Accounts
+        var passwordAdminHash = PasswordHash.Create("admin");
         var passwordHash = PasswordHash.Create("Password123!");
         var account1 = Account.Create("test@example.com", passwordHash);
         var account2 = Account.Create("demo@example.com", passwordHash);
+        var accountAdmin = Account.Create("admin@admin.com", passwordAdminHash);
 
         account1.ClearDomainEvents();
         account2.ClearDomainEvents();
+        accountAdmin.ClearDomainEvents();
 
         Accounts.TryAdd(account1.Id, account1);
         Accounts.TryAdd(account2.Id, account2);
+        Accounts.TryAdd(accountAdmin.Id, accountAdmin);
 
         // 2. Create fake Users
         // Currently User aggregate doesn't tightly couple AccountId, so we just create users loosely.
         var user1 = User.Create("test_user", Country.Vietnam);
         var user2 = User.Create("demo_user", Country.Vietnam);
+        var userAdmin = User.Create("admin", Country.Vietnam);
 
         user1.ClearDomainEvents();
         user2.ClearDomainEvents();
+        userAdmin.ClearDomainEvents();
 
         Users.TryAdd(user1.Id, user1);
         Users.TryAdd(user2.Id, user2);
+        Users.TryAdd(userAdmin.Id, userAdmin);
 
         // 3. Create fake Posts
         var post1 = Post.Create(user1.Id, "Welcome to YSocial!");

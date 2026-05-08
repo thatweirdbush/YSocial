@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddSingleton<ISavedItemRepository, MockSavedItemRepository>();
         
         services.AddScoped<IUserContext, UserContext>();
+        services.AddSingleton<IJwtProvider, JwtProvider>();
 
         services.AddTransient<LikeToggleService>();
         services.AddTransient<CommentPostingService>();

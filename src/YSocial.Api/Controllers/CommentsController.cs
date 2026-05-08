@@ -18,7 +18,11 @@ public class CommentsController : ApiController
     [HttpPost]
     public async Task<IActionResult> Add([FromBody] AddCommentRequest request)
     {
-        var command = new AddCommentCommand(request.PostId, request.Content, request.ParentCommentId);
+        var parentId = request.ParentCommentId != Guid.Empty ?
+            request.ParentCommentId :
+            null;
+
+        var command = new AddCommentCommand(request.PostId, request.Content, parentId);
 
         var result = await Mediator.Send(command);
 
