@@ -1,11 +1,13 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
+using Microservice.BuildingBlocks.Domain.Entities;
+using Microservice.BuildingBlocks.Domain.BusinessRules;
 using YSocial.Domain.Posts.Events;
 using YSocial.Domain.Posts.Rules;
 using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Posts;
 
-public class Post : AggregateRoot<PostId>
+public class Post : AggregateRoot<PostId>, ISoftDeletable
 {
     public UserId AuthorId { get; private set; }
     public string Content { get; private set; } = string.Empty;
@@ -15,6 +17,7 @@ public class Post : AggregateRoot<PostId>
     public PostVisibility Visibility { get; private set; }
     public bool AllowComments { get; private set; }
     public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
     public int LikeCount { get; private set; }
     public int SavedCount { get; private set; }
 
@@ -72,7 +75,18 @@ public class Post : AggregateRoot<PostId>
         CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
         
         IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
         AddDomainEvent(new PostDeletedEvent(Id));
+    }
+
+    public void Restore(UserId editorId)
+    {
+        CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
+        CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
+        
+        IsDeleted = false;
+        DeletedAt = null;
+        AddDomainEvent(new PostRestoredEvent(Id));
     }
 
     public void IncrementLikeCount()

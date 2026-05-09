@@ -91,6 +91,7 @@ if (app.Environment.IsDevelopment())
     
     // Get admin account
     var mockAccount = YSocial.Infrastructure.Data.MockDataStore.Accounts.Values.First(a => a.Email == "admin@admin.com");
+    var posts = YSocial.Infrastructure.Data.MockDataStore.Posts.Values;
     var adminToken = jwtProvider.GenerateToken(mockAccount.Id.Value, mockAccount.Email);
     
     // Log to terminal
@@ -99,6 +100,9 @@ if (app.Environment.IsDevelopment())
                           "DEVELOPMENT ADMIN TOKEN (admin@admin.com):\n" +
                           "{Token}\n" +
                           "=======================================================================\n", adminToken);
+
+    logger.LogInformation("Sample posts in the system:");
+    posts.ToList().ForEach(p => logger.LogInformation("{PostId} (AuthorId: {AuthorId})", p.Id, p.AuthorId));
 
     // Serve script to auto-inject token to Swagger UI
     app.MapGet("/swagger-custom.js", () => 

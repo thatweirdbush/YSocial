@@ -1,3 +1,4 @@
+using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Identities;
@@ -16,12 +17,19 @@ public class MockAccountRepository : IAccountRepository
     public Task<Account?> GetByIdAsync(AccountId id, CancellationToken cancellationToken = default)
     {
         _accounts.TryGetValue(id, out var account);
+
+        if (account != null && account.IsDeleted)
+            return Task.FromResult<Account?>(null);
+
         return Task.FromResult(account);
     }
 
     public Task<Account?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
-        var account = _accounts.Values.FirstOrDefault(a => a.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+        var account = _accounts.Values
+            .WhereNotDeleted()
+            .FirstOrDefault(a => a.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
+
         return Task.FromResult(account);
     }
 
@@ -38,6 +46,6 @@ public class MockAccountRepository : IAccountRepository
 
     public void Remove(Account account)
     {
-        _accounts.TryRemove(account.Id, out _);
+        _accounts[account.Id] = account;
     }
 }

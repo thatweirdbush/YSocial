@@ -1,10 +1,11 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
+using Microservice.BuildingBlocks.Domain.Entities;
 using YSocial.Domain.Identities.Events;
 using YSocial.Domain.Identities.Rules;
 
 namespace YSocial.Domain.Identities;
 
-public class Account : AggregateRoot<AccountId>
+public class Account : AggregateRoot<AccountId>, ISoftDeletable
 {
     #region Properties
     public string Email { get; private set; }
@@ -12,6 +13,8 @@ public class Account : AggregateRoot<AccountId>
     public UserRole Role { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public bool IsActive { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
 
     private readonly List<RefreshToken> _refreshTokens = [];
     public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
@@ -26,6 +29,7 @@ public class Account : AggregateRoot<AccountId>
         Role = UserRole.Member;
         CreatedAt = DateTime.UtcNow;
         IsActive = true;
+        IsDeleted = false;
     }
 
     #region Methods
@@ -89,6 +93,14 @@ public class Account : AggregateRoot<AccountId>
     public void Activate()
     {
         IsActive = true;
+    }
+
+    public void Delete()
+    {
+        IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
+        RevokeAllRefreshTokens();
+        AddDomainEvent(new AccountDeletedEvent(Id));
     }
 
     #endregion

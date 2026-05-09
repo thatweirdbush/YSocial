@@ -1,4 +1,5 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
+using Microservice.BuildingBlocks.Domain.Entities;
 using YSocial.Domain.Likes.Rules;
 using YSocial.Domain.SavedItems.Events;
 using YSocial.Domain.Users;
@@ -6,12 +7,14 @@ using YSocial.Domain.Users.Rules;
 
 namespace YSocial.Domain.SavedItems;
 
-public sealed class SavedItem : AggregateRoot<SavedItemId>
+public sealed class SavedItem : AggregateRoot<SavedItemId>, ISoftDeletable
 {
     public Guid TargetId { get; private set; }
     public SavedItemTargetType TargetType { get; private set; }
     public UserId UserId { get; private set; }
     public DateTime CreatedAt { get; private set; }
+    public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
 
     private SavedItem(Guid targetId, SavedItemTargetType targetType, UserId userId)
     {
@@ -20,6 +23,7 @@ public sealed class SavedItem : AggregateRoot<SavedItemId>
         TargetType = targetType;
         UserId = userId;
         CreatedAt = DateTime.UtcNow;
+        IsDeleted = false;
     }
 
     public static SavedItem Create(Guid targetId, SavedItemTargetType targetType, UserId userId)
@@ -33,6 +37,8 @@ public sealed class SavedItem : AggregateRoot<SavedItemId>
 
     public void Remove()
     {
+        IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
         AddDomainEvent(new SavedItemRemovedEvent(Id, TargetId, TargetType, UserId));
     }
 }

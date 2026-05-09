@@ -13,6 +13,10 @@ public class MockCommentRepository : ICommentRepository
     public Task<Comment?> GetByIdAsync(CommentId id, CancellationToken cancellationToken = default)
     {
         _comments.TryGetValue(id, out var comment);
+
+        if (comment != null && comment.IsDeleted)
+            return Task.FromResult<Comment?>(null);
+
         return Task.FromResult(comment);
     }
 
@@ -29,6 +33,6 @@ public class MockCommentRepository : ICommentRepository
 
     public void Remove(Comment comment)
     {
-        _comments.TryRemove(comment.Id, out _);
+        _comments[comment.Id] = comment;
     }
 }

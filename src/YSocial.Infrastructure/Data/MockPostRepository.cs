@@ -1,4 +1,5 @@
-﻿using Microservice.BuildingBlocks.Domain.UnitOfWorks;
+using Microservice.BuildingBlocks.Domain.Entities;
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
@@ -17,6 +18,10 @@ public class MockPostRepository : IPostRepository
     public Task<Post?> GetByIdAsync(PostId id, CancellationToken cancellationToken = default)
     {
         _posts.TryGetValue(id, out var post);
+
+        if (post != null && post.IsDeleted)
+            return Task.FromResult<Post?>(null);
+
         return Task.FromResult(post);
     }
 
@@ -33,12 +38,15 @@ public class MockPostRepository : IPostRepository
 
     public void Remove(Post post)
     {
-        _posts.TryRemove(post.Id, out _);
+        _posts[post.Id] = post;
     }
 
     public Task<IEnumerable<Post>> GetByAuthorIdAsync(UserId authorId)
     {
-        var posts = _posts.Values.Where(p => p.AuthorId == authorId);
+        var posts = _posts.Values
+            .WhereNotDeleted()
+            .Where(p => p.AuthorId == authorId);
+
         return Task.FromResult(posts);
     }
 }

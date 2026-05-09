@@ -16,6 +16,10 @@ public class MockUserRepository : IUserRepository
     public Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default)
     {
         _users.TryGetValue(id, out var user);
+
+        if (user != null && user.IsDeleted)
+            return Task.FromResult<User?>(null);
+
         return Task.FromResult(user);
     }
 
@@ -32,7 +36,7 @@ public class MockUserRepository : IUserRepository
 
     public void Remove(User user)
     {
-        _users.TryRemove(user.Id, out _);
+        _users[user.Id] = user;
     }
 
     // Mock simply returns true assuming uniqueness is preserved or we aren't maintaining identity mappings in mock layer

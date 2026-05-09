@@ -1,4 +1,6 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
+using Microservice.BuildingBlocks.Domain.Entities;
+using Microservice.BuildingBlocks.Domain.BusinessRules;
 using YSocial.Domain.Comments.Events;
 using YSocial.Domain.Comments.Rules;
 using YSocial.Domain.Posts;
@@ -6,7 +8,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Comments;
 
-public class Comment : AggregateRoot<CommentId>
+public class Comment : AggregateRoot<CommentId>, ISoftDeletable
 {
     public PostId PostId { get; private set; }
     public UserId AuthorId { get; private set; }
@@ -15,6 +17,7 @@ public class Comment : AggregateRoot<CommentId>
     public DateTime? UpdatedAt { get; private set; }
     public CommentId? ParentCommentId { get; private set; }
     public bool IsDeleted { get; private set; }
+    public DateTime? DeletedAt { get; private set; }
     public int LikeCount { get; private set; }
     public int SavedCount { get; private set; }
 
@@ -59,7 +62,18 @@ public class Comment : AggregateRoot<CommentId>
         CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
         
         IsDeleted = true;
+        DeletedAt = DateTime.UtcNow;
         AddDomainEvent(new CommentDeletedEvent(Id));
+    }
+
+    public void Restore(UserId editorId, UserId postAuthorId)
+    {
+        CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
+        CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
+        
+        IsDeleted = false;
+        DeletedAt = null;
+        AddDomainEvent(new CommentRestoredEvent(Id));
     }
 
     public void IncrementLikeCount()
