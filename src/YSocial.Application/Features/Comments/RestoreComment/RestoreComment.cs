@@ -48,7 +48,7 @@ internal sealed class RestoreCommentCommandHandler(
         }
 
         var editorId = new UserId(userContext.UserId);
-        comment.Restore(editorId, post.AuthorId);
+        comment.Restore(editorId, post.AuthorId, post.IsDeleted);
         commentRepository.Update(comment);
 
         return Result<bool>.Success(true);

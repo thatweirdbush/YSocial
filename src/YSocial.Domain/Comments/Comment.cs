@@ -18,6 +18,7 @@ public class Comment : AggregateRoot<CommentId>, ISoftDeletable
     public CommentId? ParentCommentId { get; private set; }
     public bool IsDeleted { get; private set; }
     public DateTime? DeletedAt { get; private set; }
+    public UserId? DeletedBy { get; private set; }
     public int LikeCount { get; private set; }
     public int SavedCount { get; private set; }
 
@@ -63,16 +64,20 @@ public class Comment : AggregateRoot<CommentId>, ISoftDeletable
         
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
+        DeletedBy = editorId;
         AddDomainEvent(new CommentDeletedEvent(Id));
     }
 
-    public void Restore(UserId editorId, UserId postAuthorId)
+    public void Restore(UserId editorId, UserId postAuthorId, bool isPostDeleted)
     {
         CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
+        CheckRule(new OnlyDeleterCanRestoreCommentRule(DeletedBy, editorId));
         CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
+        CheckRule(new CannotRestoreCommentIfPostIsDeletedRule(isPostDeleted));
         
         IsDeleted = false;
         DeletedAt = null;
+        DeletedBy = null;
         AddDomainEvent(new CommentRestoredEvent(Id));
     }
 
