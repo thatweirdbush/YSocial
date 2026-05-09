@@ -24,10 +24,13 @@ public class MockSavedItemRepository : ISavedItemRepository
     }
 
     public Task<SavedItem?> GetByIdAsync(SavedItemId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<SavedItem?> GetByIdAsync(SavedItemId id, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         _savedItems.TryGetValue(id, out var savedItem);
 
-        if (savedItem != null && savedItem.IsDeleted)
+        if (savedItem != null && savedItem.IsDeleted && !includeDeleted)
             return Task.FromResult<SavedItem?>(null);
 
         return Task.FromResult(savedItem);

@@ -3,6 +3,7 @@ using YSocial.Api.Models.Posts;
 using YSocial.Application.Features.Posts.CreatePost;
 using YSocial.Application.Features.Posts.DeletePost;
 using YSocial.Application.Features.Posts.GetPost;
+using YSocial.Application.Features.Posts.RestorePost;
 using YSocial.Application.Features.Posts.UpdatePost;
 
 namespace YSocial.Api.Controllers;
@@ -50,6 +51,16 @@ public class PostsController : ApiController
     public async Task<IActionResult> Delete(Guid id)
     {
         var command = new DeletePostCommand(id);
+
+        var result = await Mediator.Send(command);
+
+        return HandleResult(result);
+    }
+
+    [HttpPut("{id:guid}/restore")]
+    public async Task<IActionResult> Restore(Guid id)
+    {
+        var command = new RestorePostCommand(id);
 
         var result = await Mediator.Send(command);
 

@@ -15,10 +15,13 @@ public class MockAccountRepository : IAccountRepository
     public IUnitOfWork UnitOfWork => null!;
 
     public Task<Account?> GetByIdAsync(AccountId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<Account?> GetByIdAsync(AccountId id, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         _accounts.TryGetValue(id, out var account);
 
-        if (account != null && account.IsDeleted)
+        if (account != null && account.IsDeleted && !includeDeleted)
             return Task.FromResult<Account?>(null);
 
         return Task.FromResult(account);

@@ -16,10 +16,13 @@ public class MockPostRepository : IPostRepository
     public IUnitOfWork UnitOfWork => null!;
 
     public Task<Post?> GetByIdAsync(PostId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<Post?> GetByIdAsync(PostId id, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         _posts.TryGetValue(id, out var post);
 
-        if (post != null && post.IsDeleted)
+        if (post != null && post.IsDeleted && !includeDeleted)
             return Task.FromResult<Post?>(null);
 
         return Task.FromResult(post);

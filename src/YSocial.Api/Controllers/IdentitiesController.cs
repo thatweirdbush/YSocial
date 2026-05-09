@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Identities;
+using YSocial.Application.Features.Identities.DeleteAccount;
 using YSocial.Application.Features.Identities.Login;
 using YSocial.Application.Features.Identities.LogoutUser;
 using YSocial.Application.Features.Identities.RegisterAccount;
@@ -39,6 +40,16 @@ public class IdentitiesController : ApiController
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
     {
         var command = new LogoutUserCommand(request.RefreshToken);
+
+        var result = await Mediator.Send(command);
+
+        return HandleResult(result);
+    }
+
+    [HttpDelete("account")]
+    public async Task<IActionResult> DeleteAccount()
+    {
+        var command = new DeleteAccountCommand();
 
         var result = await Mediator.Send(command);
 

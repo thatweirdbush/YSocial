@@ -494,3 +494,4 @@ $RECYCLE.BIN/
 
 **/Properties/launchSettings.json
 **/appsettings.Development.json
+/.agents

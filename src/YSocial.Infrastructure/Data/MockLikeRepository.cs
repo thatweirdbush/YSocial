@@ -15,6 +15,9 @@ public class MockLikeRepository : ILikeRepository
     public IUnitOfWork UnitOfWork => null!;
 
     public Task<Like?> GetByIdAsync(LikeId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<Like?> GetByIdAsync(LikeId id, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         _likes.TryGetValue(id, out var like);
         return Task.FromResult(like);

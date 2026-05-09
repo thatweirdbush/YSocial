@@ -11,12 +11,12 @@ public class MockCommentRepository : ICommentRepository
     public IUnitOfWork UnitOfWork => null!;
 
     public Task<Comment?> GetByIdAsync(CommentId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<Comment?> GetByIdAsync(CommentId id, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         _comments.TryGetValue(id, out var comment);
-
-        if (comment != null && comment.IsDeleted)
-            return Task.FromResult<Comment?>(null);
-
+        if (comment != null && comment.IsDeleted && !includeDeleted) return Task.FromResult<Comment?>(null);
         return Task.FromResult(comment);
     }
 

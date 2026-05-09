@@ -14,10 +14,13 @@ public class MockUserRepository : IUserRepository
     public IUnitOfWork UnitOfWork => null!;
 
     public Task<User?> GetByIdAsync(UserId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<User?> GetByIdAsync(UserId id, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         _users.TryGetValue(id, out var user);
 
-        if (user != null && user.IsDeleted)
+        if (user != null && user.IsDeleted && !includeDeleted)
             return Task.FromResult<User?>(null);
 
         return Task.FromResult(user);

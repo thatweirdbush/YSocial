@@ -1,4 +1,4 @@
-﻿using Microservice.BuildingBlocks.Domain.AggregateRoots;
+using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Repositories;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +13,10 @@ public abstract class RepositoryBase<T, TId, TDbContext>(TDbContext context)
 {
     public IUnitOfWork UnitOfWork => context;
 
-    public virtual async Task<T?> GetByIdAsync(TId id, CancellationToken ct = default)
+    public virtual Task<T?> GetByIdAsync(TId id, CancellationToken ct = default)
+        => GetByIdAsync(id, false, ct);
+
+    public virtual async Task<T?> GetByIdAsync(TId id, bool includeDeleted, CancellationToken ct = default)
     {
         return await context.Set<T>().FindAsync([id], ct);
     }
