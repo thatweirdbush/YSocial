@@ -40,6 +40,7 @@ public static class DependencyInjection
         services.AddTransient<LikeToggleService>();
         services.AddTransient<CommentPostingService>();
         services.AddTransient<SavedItemToggleService>();
+        services.AddTransient<UserProfileService>();
         //services.AddSingleton<IPostRepository, MockDataStore>();
 
         //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());

@@ -3,9 +3,9 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Comments.Rules;
 
-public class OnlyAuthorCanEditCommentRule(UserId authorId, UserId editorId) : IBusinessRule
+internal sealed record OnlyAuthorCanEditCommentRule(UserId AuthorId, UserId EditorId) : IBusinessRule
 {
     public string Message => "Only the author of the comment can edit it.";
 
-    public bool BrokenWhen => authorId != editorId;
+    public bool BrokenWhen => AuthorId != EditorId;
 }

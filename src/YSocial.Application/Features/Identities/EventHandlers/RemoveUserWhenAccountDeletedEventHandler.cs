@@ -9,14 +9,12 @@ internal sealed class RemoveUserWhenAccountDeletedEventHandler(IUserRepository u
 {
     public async Task Handle(AccountDeletedEvent notification, CancellationToken cancellationToken)
     {
-        // Find the user with the same ID as the account
-        // Note: This relies on the assumption that User.Id == Account.Id 
-        var userId = new UserId(notification.AccountId.Value);
-        var user = await userRepository.GetByIdAsync(userId, cancellationToken);
+        // Find all users associated with the account
+        var users = await userRepository.GetByAccountIdAsync(notification.AccountId, cancellationToken);
 
-        if (user != null)
+        foreach (var user in users)
         {
-            user.Delete();
+            user.Delete(isAccountDeletion: true);
             userRepository.Update(user);
         }
     }

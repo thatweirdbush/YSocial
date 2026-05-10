@@ -44,8 +44,23 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
         AvatarUrl = avatarUrl;
     }
 
-    public void Delete()
+    public void SetAsDefault()
     {
+        IsDefault = true;
+    }
+
+    public void UnsetAsDefault()
+    {
+        IsDefault = false;
+    }
+
+    public void Delete(bool isAccountDeletion = false)
+    {
+        if (!isAccountDeletion)
+        {
+            CheckRule(new CannotDeleteDefaultUserRule(IsDefault));
+        }
+        
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
     }
