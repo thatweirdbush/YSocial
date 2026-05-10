@@ -26,7 +26,7 @@ public class RefreshToken : Entity<RefreshTokenId>
 
     internal static RefreshToken Create(AccountId accountId, string token, DateTime expiryTime, string deviceId)
     {
-        CheckRule(new RefreshTokenMustBeValidRule(token));
+        CheckRule(new RefreshTokenValueNotEmptyRule(token));
         CheckRule(new RefreshTokenMustNotBeExpiredRule(expiryTime));
         
         return new RefreshToken(accountId, token, expiryTime, deviceId);

@@ -57,16 +57,14 @@ internal sealed class LoginCommandHandler(
         }
 
         // Generate tokens
-        var accessToken = jwtProvider.GenerateToken(defaultUser.Id.Value, account.Id.Value, account.Email); 
-        var refreshToken = Guid.NewGuid().ToString();
-        var expiry = DateTime.UtcNow.AddDays(7);
+        var accessToken = jwtProvider.GenerateToken(defaultUser, account);
 
         // Record refresh token in Domain
-        account.AddRefreshToken(refreshToken, expiry, request.DeviceId);
+        var refreshToken = account.AddRefreshToken(request.DeviceId);
 
         // Update Account state (saving new token)
         accountRepository.Update(account);
 
-        return Result<LoginResponse>.Success(new LoginResponse(accessToken, refreshToken, expiry));
+        return Result<LoginResponse>.Success(new LoginResponse(accessToken, refreshToken.Token, refreshToken.ExpiryTime));
     }
 }

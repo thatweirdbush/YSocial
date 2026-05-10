@@ -7,6 +7,8 @@ namespace YSocial.Domain.Identities;
 
 public class Account : AggregateRoot<AccountId>, ISoftDeletable
 {
+    private const int DefaultRefreshTokenExpiryDays = 7;
+
     #region Properties
     public string Email { get; private set; }
     public PasswordHash PasswordHash { get; private set; }
@@ -54,21 +56,41 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
         RevokeAllRefreshTokens();
     }
 
-    public void AddRefreshToken(string token, DateTime expiryTime, string deviceId)
+    public RefreshToken AddRefreshToken(string deviceId)
     {
         RemoveExpiredTokens();
 
         var activeSessionCount = _refreshTokens.Count(t => t.IsActive);
         CheckRule(new DeviceSessionLimitRule(activeSessionCount));
 
-        var refreshTokenEntity = RefreshToken.Create(Id, token, expiryTime, deviceId);
-        _refreshTokens.Add(refreshTokenEntity);
+        return AddRefreshTokenInternal(deviceId);
     }
 
     public void RevokeRefreshToken(string token)
     {
         var refreshToken = _refreshTokens.FirstOrDefault(t => t.Token == token);
         refreshToken?.Revoke();
+    }
+
+    public RefreshToken RotateRefreshToken(string oldToken)
+    {
+        var refreshToken = _refreshTokens.FirstOrDefault(t => t.Token == oldToken);        
+        CheckRule(new RefreshTokenMustBeActiveRule(refreshToken));
+
+        refreshToken!.Revoke();
+
+        return AddRefreshTokenInternal(refreshToken.DeviceId);
+    }
+
+    private RefreshToken AddRefreshTokenInternal(string deviceId)
+    {
+        var tokenValue = Guid.NewGuid().ToString();
+        var expiryTime = DateTime.UtcNow.AddDays(DefaultRefreshTokenExpiryDays);
+
+        var refreshTokenEntity = RefreshToken.Create(Id, tokenValue, expiryTime, deviceId);
+        _refreshTokens.Add(refreshTokenEntity);
+
+        return refreshTokenEntity;
     }
 
     public void RevokeAllRefreshTokens()

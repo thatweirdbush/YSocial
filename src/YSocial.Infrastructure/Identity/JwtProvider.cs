@@ -4,12 +4,14 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using YSocial.Application.Abstractions.Identity;
+using YSocial.Domain.Identities;
+using YSocial.Domain.Users;
 
 namespace YSocial.Infrastructure.Identity;
 
 internal sealed class JwtProvider(IConfiguration configuration) : IJwtProvider
 {
-    public string GenerateToken(Guid userId, Guid accountId, string email)
+    public string GenerateToken(User user, Account account)
     {
         var secretKey = configuration["Jwt:SecretKey"] ?? "super-secret-key-that-should-be-long-enough-for-hs256!";
         var issuer = configuration["Jwt:Issuer"] ?? "YSocialApi";
@@ -17,9 +19,9 @@ internal sealed class JwtProvider(IConfiguration configuration) : IJwtProvider
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, accountId.ToString()),
-            new Claim("user_id", userId.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, email),
+            new Claim(JwtRegisteredClaimNames.Sub, account.Id.Value.ToString()),
+            new Claim("UserId", user.Id.Value.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, account.Email),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

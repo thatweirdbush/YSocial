@@ -18,8 +18,7 @@ internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepo
             return Result<bool>.Unauthorized();
         }
 
-        // Assuming UserId mapping directly to AccountId
-        var accountId = new AccountId(userContext.UserId);
+        var accountId = new AccountId(userContext.AccountId);
         var account = await accountRepository.GetByIdAsync(accountId, cancellationToken);
 
         if (account is null)

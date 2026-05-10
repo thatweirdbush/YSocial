@@ -38,7 +38,7 @@ internal sealed class DeletePostCommandHandler(IPostRepository postsRepository, 
 
         var editorId = new UserId(userContext.UserId);
         post.Delete(editorId);
-        postsRepository.Remove(post);
+        postsRepository.Update(post);
 
         return Result<bool>.Success(true);
     }

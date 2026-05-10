@@ -38,6 +38,16 @@ public class MockUserRepository : IUserRepository
         return Task.FromResult<IReadOnlyList<User>>(users);
     }
 
+    public Task<User?> GetByIdAndAccountIdAsync(UserId id, AccountId accountId, CancellationToken cancellationToken = default)
+    {
+        _users.TryGetValue(id, out var user);
+
+        if (user != null && user.AccountId == accountId && !user.IsDeleted)
+            return Task.FromResult<User?>(user);
+
+        return Task.FromResult<User?>(null);
+    }
+
     public Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         _users.TryAdd(user.Id, user);

@@ -51,7 +51,7 @@ internal sealed class AddCommentCommandHandler(
 
         await Task.WhenAll(postTask, parentCommentTask);
 
-        var post = postTask.Result;
+        var post = await postTask;
         if (post is null)
         {
             return Result<Guid>.NotFound($"Post with ID {command.PostId} not found.");
@@ -59,7 +59,7 @@ internal sealed class AddCommentCommandHandler(
 
         if (parentCommentId is not null)
         {
-            var parentComment = parentCommentTask.Result;
+            var parentComment = await parentCommentTask;
             if (parentComment is null)
             {
                 return Result<Guid>.NotFound($"Parent comment with ID {command.ParentCommentId} not found.");
