@@ -4,6 +4,7 @@ using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Domain.Identities;
+using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Identities.Login;
 
@@ -28,6 +29,7 @@ internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 
 internal sealed class LoginCommandHandler(
     IAccountRepository accountRepository,
+    IUserRepository userRepository,
     IJwtProvider jwtProvider)
     : ICommandHandler<LoginCommand, Result<LoginResponse>>
 {
@@ -45,8 +47,17 @@ internal sealed class LoginCommandHandler(
             return Result<LoginResponse>.Fail("Account is deactivated.", ErrorType.Business);
         }
 
+        // Fetch users associated with this account
+        var users = await userRepository.GetByAccountIdAsync(account.Id, cancellationToken);
+        var defaultUser = users.FirstOrDefault(u => u.IsDefault) ?? users.FirstOrDefault();
+
+        if (defaultUser is null)
+        {
+            return Result<LoginResponse>.Fail("No user profile found for this account.", ErrorType.Business);
+        }
+
         // Generate tokens
-        var accessToken = jwtProvider.GenerateToken(account.Id.Value, account.Email); 
+        var accessToken = jwtProvider.GenerateToken(defaultUser.Id.Value, account.Id.Value, account.Email); 
         var refreshToken = Guid.NewGuid().ToString();
         var expiry = DateTime.UtcNow.AddDays(7);
 

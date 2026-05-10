@@ -44,11 +44,10 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         Accounts.TryAdd(account2.Id, account2);
         Accounts.TryAdd(accountAdmin.Id, accountAdmin);
 
-        // 2. Create fake Users
-        // Currently User aggregate doesn't tightly couple AccountId, so we just create users loosely.
-        var user1 = User.Create("test_user", Country.Vietnam);
-        var user2 = User.Create("demo_user", Country.Vietnam);
-        var userAdmin = User.Create("admin", Country.Vietnam);
+        // 2. Create fake Users linked to Accounts
+        var user1 = User.Create(account1.Id, "test_user", Country.Vietnam, isDefault: true);
+        var user2 = User.Create(account2.Id, "demo_user", Country.Vietnam, isDefault: true);
+        var userAdmin = User.Create(accountAdmin.Id, "admin", Country.Vietnam, isDefault: true);
 
         user1.ClearDomainEvents();
         user2.ClearDomainEvents();

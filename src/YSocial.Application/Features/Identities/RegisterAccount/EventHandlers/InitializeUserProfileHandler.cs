@@ -16,12 +16,9 @@ internal sealed class InitializeUserProfileHandler(IUserRepository userRepositor
         // Use an implicit default country for now, or this could be enriched later.
         var defaultCountry = Country.Vietnam;
 
-        var user = User.Create(rawUsername, defaultCountry);
+        // Create the first user profile as the default one for the account
+        var user = User.Create(notification.AccountId, rawUsername, defaultCountry, isDefault: true);
 
         await userRepository.AddAsync(user, cancellationToken);
-        
-        // Note: For a robust system, the User entity might need an AccountId linkage 
-        // to tie the identities system cleanly to the profile system. 
-        // e.g. User.Create(notification.AccountId, rawUsername, ...)
     }
 }

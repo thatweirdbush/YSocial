@@ -1,5 +1,7 @@
+using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
+using YSocial.Domain.Identities;
 using YSocial.Domain.Users;
 
 namespace YSocial.Infrastructure.Data;
@@ -24,6 +26,16 @@ public class MockUserRepository : IUserRepository
             return Task.FromResult<User?>(null);
 
         return Task.FromResult(user);
+    }
+
+    public Task<IReadOnlyList<User>> GetByAccountIdAsync(AccountId accountId, CancellationToken cancellationToken = default)
+    {
+        var users = _users.Values
+            .WhereNotDeleted()
+            .Where(u => u.AccountId == accountId)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<User>>(users);
     }
 
     public Task AddAsync(User user, CancellationToken cancellationToken = default)

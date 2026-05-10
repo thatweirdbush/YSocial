@@ -89,10 +89,11 @@ if (app.Environment.IsDevelopment())
     using var scope = app.Services.CreateScope();
     var jwtProvider = scope.ServiceProvider.GetRequiredService<IJwtProvider>();
     
-    // Get admin account
+    // Get admin account and user
     var mockAccount = YSocial.Infrastructure.Data.MockDataStore.Accounts.Values.First(a => a.Email == "admin@admin.com");
+    var mockUser = YSocial.Infrastructure.Data.MockDataStore.Users.Values.First(u => u.AccountId == mockAccount.Id);
     var posts = YSocial.Infrastructure.Data.MockDataStore.Posts.Values;
-    var adminToken = jwtProvider.GenerateToken(mockAccount.Id.Value, mockAccount.Email);
+    var adminToken = jwtProvider.GenerateToken(mockUser.Id.Value, mockAccount.Id.Value, mockAccount.Email);
     
     // Log to terminal
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
