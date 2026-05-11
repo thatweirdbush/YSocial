@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.SavedItems;
 using YSocial.Application.Features.SavedItems.GetSavedPosts;
 using YSocial.Application.Features.SavedItems.ToggleSavedItem;
-using YSocial.Domain.SavedItems;
 
 namespace YSocial.Api.Controllers;
 
