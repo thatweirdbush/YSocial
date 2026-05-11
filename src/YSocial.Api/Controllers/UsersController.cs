@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Users;
 using YSocial.Application.Features.Users.DeleteProfile;
+using YSocial.Application.Features.Users.SetDefaultProfile;
 using YSocial.Application.Features.Users.SwitchProfile;
 
 namespace YSocial.Api.Controllers;
@@ -11,6 +12,16 @@ public class UsersController : ApiController
     public async Task<IActionResult> SwitchProfile([FromBody] SwitchProfileRequest request)
     {
         var command = new SwitchProfileCommand(request.ProfileId, request.RefreshToken);
+
+        var result = await Mediator.Send(command);
+
+        return HandleResult(result);
+    }
+
+    [HttpPatch("profiles/{id:guid}/default")]
+    public async Task<IActionResult> SetDefaultProfile(Guid id)
+    {
+        var command = new SetDefaultProfileCommand(id);
 
         var result = await Mediator.Send(command);
 
