@@ -39,7 +39,7 @@ internal sealed class RegisterAccountCommandHandler(IAccountRepository accountRe
         var passwordHash = PasswordHash.Create(request.Password); // Simplified for mock logic
 
         // 3. Create Account via Domain Factory
-        var account = Account.Create(request.Email, passwordHash);
+        var account = Account.Create(request.Email, null, passwordHash);
 
         // 4. Save to Repository
         await accountRepository.AddAsync(account, cancellationToken);

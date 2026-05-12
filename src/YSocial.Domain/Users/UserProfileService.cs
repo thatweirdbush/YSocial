@@ -30,4 +30,21 @@ public sealed class UserProfileService(IUserRepository userRepository)
     {
         Entity.CheckRule(new AccountMustHaveAtLeastOneProfileRule(allProfiles.Count));
     }
+
+    public User? ResolveProfile(string loginId, IReadOnlyList<User> profiles)
+    {
+        if (profiles == null || profiles.Count == 0) return null;
+
+        // If the login ID matches a specific profile's username, prioritize it.
+        var matchedByUsername = profiles.FirstOrDefault(u =>
+            u.Username.Equals(loginId, StringComparison.OrdinalIgnoreCase));
+
+        if (matchedByUsername != null)
+        {
+            return matchedByUsername;
+        }
+
+        // If it was an Email or Phone login (or no username matched), fallback to the default profile.
+        return profiles.FirstOrDefault(u => u.IsDefault) ?? profiles.FirstOrDefault();
+    }
 }

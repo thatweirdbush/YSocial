@@ -29,7 +29,7 @@ public class IdentitiesController : ApiController
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var command = new LoginCommand(request.Email, request.Password, request.DeviceId);
+        var command = new LoginCommand(request.LoginId, request.Password, request.DeviceId);
 
         var result = await Mediator.Send(command);
 

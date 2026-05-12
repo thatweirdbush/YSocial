@@ -48,6 +48,15 @@ public class MockUserRepository : IUserRepository
         return Task.FromResult<User?>(null);
     }
 
+    public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
+    {
+        var user = _users.Values
+            .WhereNotDeleted()
+            .FirstOrDefault(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult(user);
+    }
+
     public Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         _users.TryAdd(user.Id, user);

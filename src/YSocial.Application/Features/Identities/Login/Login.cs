@@ -8,16 +8,15 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Identities.Login;
 
-public sealed record LoginCommand(string Email, string Password, string DeviceId) : ResultCommand<LoginResponse>;
+public sealed record LoginCommand(string LoginId, string Password, string DeviceId) : ResultCommand<LoginResponse>;
 
 internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
     public LoginCommandValidator()
     {
-        RuleFor(x => x.Email)
+        RuleFor(x => x.LoginId)
             .NotEmpty()
-            .EmailAddress()
-            .WithMessage("Invalid email address.");
+            .WithMessage("Login identifier cannot be empty.");
 
         RuleFor(x => x.Password)
             .NotEmpty();
@@ -29,35 +28,31 @@ internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 
 internal sealed class LoginCommandHandler(
     IAccountRepository accountRepository,
-    IUserRepository userRepository,
-    IJwtProvider jwtProvider)
+    IJwtProvider jwtProvider,
+    IPasswordHasher passwordHasher,
+    UserProfileService userProfileService)
     : ICommandHandler<LoginCommand, Result<LoginResponse>>
 {
     public async Task<Result<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var account = await accountRepository.GetByEmailAsync(request.Email, cancellationToken);
-            
-        if (account is null || account.PasswordHash.Value != request.Password)
+        var (account, profiles) = await accountRepository.GetAccountWithProfilesByIdentifierAsync(request.LoginId, cancellationToken);
+
+        if (account is null)
         {
             return Result<LoginResponse>.Fail("Invalid credentials.", ErrorType.Business);
         }
 
-        if (!account.IsActive)
-        {
-            return Result<LoginResponse>.Fail("Account is deactivated.", ErrorType.Business);
-        }
+        account.Login(request.Password, passwordHasher);
 
-        // Fetch users associated with this account
-        var users = await userRepository.GetByAccountIdAsync(account.Id, cancellationToken);
-        var defaultUser = users.FirstOrDefault(u => u.IsDefault) ?? users.FirstOrDefault();
+        var targetUser = userProfileService.ResolveProfile(request.LoginId, profiles);
 
-        if (defaultUser is null)
+        if (targetUser is null)
         {
             return Result<LoginResponse>.Fail("No user profile found for this account.", ErrorType.Business);
         }
 
         // Generate tokens
-        var accessToken = jwtProvider.GenerateToken(defaultUser, account);
+        var accessToken = jwtProvider.GenerateToken(targetUser, account);
 
         // Record refresh token in Domain
         var refreshToken = account.AddRefreshToken(request.DeviceId);

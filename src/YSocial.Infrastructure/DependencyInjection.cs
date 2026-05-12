@@ -36,6 +36,7 @@ public static class DependencyInjection
         
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
+        services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
         services.AddTransient<LikeToggleService>();
         services.AddTransient<CommentPostingService>();

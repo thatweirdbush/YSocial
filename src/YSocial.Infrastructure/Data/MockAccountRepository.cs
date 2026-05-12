@@ -2,6 +2,7 @@ using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.Identities;
+using YSocial.Domain.Users;
 
 namespace YSocial.Infrastructure.Data;
 
@@ -34,6 +35,60 @@ public class MockAccountRepository : IAccountRepository
             .FirstOrDefault(a => a.Email.Equals(email, StringComparison.OrdinalIgnoreCase));
 
         return Task.FromResult(account);
+    }
+
+    public Task<Account?> GetByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default)
+    {
+        var account = _accounts.Values
+            .WhereNotDeleted()
+            .FirstOrDefault(a => a.PhoneNumber == phoneNumber);
+
+        return Task.FromResult(account);
+    }
+
+    public Task<(Account? Account, IReadOnlyList<User> Profiles)> GetAccountWithProfilesByIdentifierAsync(string loginId, CancellationToken cancellationToken = default)
+    {
+        Account? account = null;
+
+        if (loginId.Contains('@'))
+        {
+            account = _accounts.Values
+                .WhereNotDeleted()
+                .FirstOrDefault(a => a.Email.Equals(loginId, StringComparison.OrdinalIgnoreCase));
+        }
+        else if (loginId.StartsWith('+') || loginId.All(c => char.IsDigit(c) || c == '-' || c == ' '))
+        {
+            account = _accounts.Values
+                .WhereNotDeleted()
+                .FirstOrDefault(a => a.PhoneNumber == loginId);
+        }
+        else
+        {
+            var targetUser = MockDataStore.Users.Values
+                .WhereNotDeleted()
+                .FirstOrDefault(u => u.Username.Equals(loginId, StringComparison.OrdinalIgnoreCase));
+
+            if (targetUser is not null)
+            {
+                _accounts.TryGetValue(targetUser.AccountId, out account);
+                if (account is not null && account.IsDeleted) account = null;
+            }
+        }
+
+        List<User> profiles = null!;
+        if (account is not null)
+        {
+            profiles = MockDataStore.Users.Values
+                .WhereNotDeleted()
+                .Where(u => u.AccountId == account.Id)
+                .ToList();
+        }
+        else
+        {
+            profiles = [];
+        }
+
+        return Task.FromResult<(Account?, IReadOnlyList<User>)>((account, profiles));
     }
 
     public Task AddAsync(Account account, CancellationToken cancellationToken = default)

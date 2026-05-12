@@ -11,6 +11,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
     #region Properties
     public string Email { get; private set; }
+    public string? PhoneNumber { get; private set; }
     public PasswordHash PasswordHash { get; private set; }
     public UserRole Role { get; private set; }
     public DateTime CreatedAt { get; private set; }
@@ -23,10 +24,11 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
     #endregion
 
-    private Account(string email, PasswordHash passwordHash)
+    private Account(string email, string? phoneNumber, PasswordHash passwordHash)
     {
         Id = AccountId.New();
         Email = email;
+        PhoneNumber = phoneNumber;
         PasswordHash = passwordHash;
         Role = UserRole.Member;
         CreatedAt = DateTime.UtcNow;
@@ -35,11 +37,17 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     }
 
     #region Methods
-    public static Account Create(string email, PasswordHash passwordHash)
+    public static Account Create(string email, string? phoneNumber, PasswordHash passwordHash)
     {
         CheckRule(new EmailMustBeValidRule(email));
 
-        var account = new Account(email, passwordHash);
+        // Phone number is optional, only validate if it's provided
+        if (!string.IsNullOrWhiteSpace(phoneNumber))
+        {
+            CheckRule(new PhoneNumberMustBeValidRule(phoneNumber));
+        }
+
+        var account = new Account(email, phoneNumber, passwordHash);
 
         account.AddDomainEvent(new AccountCreatedEvent(account.Id, account.Email));
         return account;
@@ -54,6 +62,14 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     {
         PasswordHash = newPassword;
         RevokeAllRefreshTokens();
+    }
+
+    public void Login(string plainPassword, IPasswordHasher passwordHasher)
+    {
+        CheckRule(new AccountMustBeActiveRule(IsActive));
+        
+        var isVerified = passwordHasher.Verify(PasswordHash.Value, plainPassword);
+        CheckRule(new InvalidCredentialsRule(isVerified));
     }
 
     public RefreshToken AddRefreshToken(string deviceId)

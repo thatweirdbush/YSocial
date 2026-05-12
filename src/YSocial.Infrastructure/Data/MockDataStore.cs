@@ -32,9 +32,10 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         // 1. Create fake Accounts
         var passwordAdminHash = PasswordHash.Create("admin");
         var passwordHash = PasswordHash.Create("Password123!");
-        var account1 = Account.Create("test@example.com", passwordHash);
-        var account2 = Account.Create("demo@example.com", passwordHash);
-        var accountAdmin = Account.Create("admin@admin.com", passwordAdminHash);
+        
+        var account1 = Account.Create("test@example.com", "+1234567890", passwordHash);
+        var account2 = Account.Create("demo@example.com", "0987654321", passwordHash);
+        var accountAdmin = Account.Create("admin@admin.com", null, passwordAdminHash);
 
         account1.ClearDomainEvents();
         account2.ClearDomainEvents();
@@ -46,14 +47,17 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
 
         // 2. Create fake Users linked to Accounts
         var user1 = User.Create(account1.Id, "test_user", Country.Vietnam, isDefault: true);
+        var user1Alt = User.Create(account1.Id, "test_user_alt", Country.Vietnam, isDefault: false); // Second profile for account1
         var user2 = User.Create(account2.Id, "demo_user", Country.Vietnam, isDefault: true);
         var userAdmin = User.Create(accountAdmin.Id, "admin", Country.Vietnam, isDefault: true);
 
         user1.ClearDomainEvents();
+        user1Alt.ClearDomainEvents();
         user2.ClearDomainEvents();
         userAdmin.ClearDomainEvents();
 
         Users.TryAdd(user1.Id, user1);
+        Users.TryAdd(user1Alt.Id, user1Alt);
         Users.TryAdd(user2.Id, user2);
         Users.TryAdd(userAdmin.Id, userAdmin);
 
