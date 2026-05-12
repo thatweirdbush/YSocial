@@ -8,6 +8,7 @@ using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
 using YSocial.Domain.Users;
+using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
@@ -30,8 +31,9 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     private static void SeedMockData()
     {
         // 1. Create fake Accounts
-        var passwordAdminHash = PasswordHash.Create("admin");
-        var passwordHash = PasswordHash.Create("Password123!");
+        var hasher = new BCryptPasswordHasher();
+        var passwordAdminHash = PasswordHash.Create(hasher.Hash("admin"));
+        var passwordHash = PasswordHash.Create(hasher.Hash("Password123!"));
         
         var account1 = Account.Create("test@example.com", "+1234567890", passwordHash);
         var account2 = Account.Create("demo@example.com", "0987654321", passwordHash);

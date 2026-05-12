@@ -23,7 +23,9 @@ internal sealed class RegisterAccountCommandValidator : AbstractValidator<Regist
     }
 }
 
-internal sealed class RegisterAccountCommandHandler(IAccountRepository accountRepository)
+internal sealed class RegisterAccountCommandHandler(
+    IAccountRepository accountRepository,
+    IPasswordHasher passwordHasher)
     : ICommandHandler<RegisterAccountCommand, Result<AccountId>>
 {
     public async Task<Result<AccountId>> Handle(RegisterAccountCommand request, CancellationToken cancellationToken)
@@ -35,8 +37,9 @@ internal sealed class RegisterAccountCommandHandler(IAccountRepository accountRe
             return Result<AccountId>.Conflict("Email is already registered.");
         }
 
-        // 2. Hash password (In real world, use BCrypt or Argon2. Here we mock it by wrapping in PasswordHash)
-        var passwordHash = PasswordHash.Create(request.Password); // Simplified for mock logic
+        // 2. Hash password
+        var hashedString = passwordHasher.Hash(request.Password);
+        var passwordHash = PasswordHash.Create(hashedString);
 
         // 3. Create Account via Domain Factory
         var account = Account.Create(request.Email, null, passwordHash);
