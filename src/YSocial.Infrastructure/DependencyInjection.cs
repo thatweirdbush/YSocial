@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using YSocial.Application.Abstractions.Identity;
+using YSocial.Application.Abstractions.Messaging;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
@@ -12,6 +13,7 @@ using YSocial.Domain.SavedItems;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
+using YSocial.Infrastructure.Messaging;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
@@ -37,6 +39,9 @@ public static class DependencyInjection
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
+
+        services.AddScoped<IEmailSender, MockEmailSender>();
+        services.AddScoped<ISmsSender, MockSmsSender>();
 
         services.AddTransient<LikeToggleService>();
         services.AddTransient<CommentPostingService>();

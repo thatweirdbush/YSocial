@@ -46,7 +46,7 @@ public class MockAccountRepository : IAccountRepository
         return Task.FromResult(account);
     }
 
-    public Task<(Account? Account, IReadOnlyList<User> Profiles)> GetAccountWithProfilesByIdentifierAsync(string loginId, CancellationToken cancellationToken = default)
+    public Task<Account?> GetByIdentifierAsync(string loginId, CancellationToken cancellationToken = default)
     {
         Account? account = null;
 
@@ -75,6 +75,13 @@ public class MockAccountRepository : IAccountRepository
             }
         }
 
+        return Task.FromResult(account);
+    }
+
+    public async Task<(Account? Account, IReadOnlyList<User> Profiles)> GetAccountWithProfilesByIdentifierAsync(string loginId, CancellationToken cancellationToken = default)
+    {
+        var account = await GetByIdentifierAsync(loginId, cancellationToken);
+
         List<User> profiles = null!;
         if (account is not null)
         {
@@ -88,7 +95,7 @@ public class MockAccountRepository : IAccountRepository
             profiles = [];
         }
 
-        return Task.FromResult<(Account?, IReadOnlyList<User>)>((account, profiles));
+        return (account, profiles);
     }
 
     public Task AddAsync(Account account, CancellationToken cancellationToken = default)

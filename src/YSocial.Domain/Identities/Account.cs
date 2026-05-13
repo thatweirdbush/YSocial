@@ -1,5 +1,7 @@
+using MediatR;
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
+using System.Security.Cryptography;
 using YSocial.Domain.Identities.Events;
 using YSocial.Domain.Identities.Rules;
 
@@ -21,6 +23,9 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
     private readonly List<RefreshToken> _refreshTokens = [];
     public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
+
+    private readonly List<PasswordResetToken> _passwordResetTokens = [];
+    public IReadOnlyCollection<PasswordResetToken> PasswordResetTokens => _passwordResetTokens.AsReadOnly();
 
     #endregion
 
@@ -67,9 +72,51 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     public void Login(string plainPassword, IPasswordHasher passwordHasher)
     {
         CheckRule(new AccountMustBeActiveRule(IsActive));
-        
+
         var isVerified = passwordHasher.Verify(PasswordHash.Value, plainPassword);
         CheckRule(new InvalidCredentialsRule(isVerified));
+    }
+
+    public void GeneratePasswordResetToken(IPasswordHasher hasher, int expiryMinutes = 15)
+    {
+        var otp = RandomNumberGenerator.GetInt32(100000, 999999).ToString();
+        var hashedToken = hasher.Hash(otp);
+
+        var token = PasswordResetToken.Create(hashedToken, DateTime.UtcNow.AddMinutes(expiryMinutes));
+        _passwordResetTokens.Add(token);
+
+        AddDomainEvent(new PasswordResetTokenGeneratedEvent(Id, otp, Email, PhoneNumber));
+    }
+
+    public void ResetPassword(string plainToken, string plainNewPassword, IPasswordHasher hasher)
+    {
+        var activeToken = _passwordResetTokens
+            .OrderByDescending(t => t.ExpiryTime)
+            .FirstOrDefault(t => !t.IsUsed && !t.IsExpired());
+
+        CheckRule(new PasswordResetTokenMustBeValidRule(activeToken));
+        CheckRule(new MaximumOtpAttemptsExceededRule(activeToken!.IsMaxAttemptsReached()));
+
+        if (!hasher.Verify(activeToken.HashedToken, plainToken))
+        {
+            activeToken.IncrementAttempt();
+
+            // Re-check max attempts after incrementing
+            CheckRule(new MaximumOtpAttemptsExceededRule(activeToken.IsMaxAttemptsReached()));
+
+            // Still have attempts left,
+            // throw a generic invalid credentials error
+            CheckRule(new InvalidCredentialsRule(false));
+        }
+
+        // Success
+        activeToken.MarkAsUsed();
+
+        var hashedValue = hasher.Hash(plainNewPassword);
+        var newPasswordHash = PasswordHash.Create(hashedValue);
+
+        // Change password and revoke all existing refresh tokens
+        ChangePassword(newPasswordHash);
     }
 
     public RefreshToken AddRefreshToken(string deviceId)
@@ -90,7 +137,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
     public RefreshToken RotateRefreshToken(string oldToken)
     {
-        var refreshToken = _refreshTokens.FirstOrDefault(t => t.Token == oldToken);        
+        var refreshToken = _refreshTokens.FirstOrDefault(t => t.Token == oldToken);
         CheckRule(new RefreshTokenMustBeActiveRule(refreshToken));
 
         refreshToken!.Revoke();

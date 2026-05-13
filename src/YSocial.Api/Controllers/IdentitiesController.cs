@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Identities;
 using YSocial.Application.Features.Identities.DeleteAccount;
+using YSocial.Application.Features.Identities.ForgotPassword;
 using YSocial.Application.Features.Identities.Login;
 using YSocial.Application.Features.Identities.LogoutUser;
 using YSocial.Application.Features.Identities.RegisterAccount;
+using YSocial.Application.Features.Identities.ResetPassword;
 
 namespace YSocial.Api.Controllers;
 
@@ -40,6 +42,26 @@ public class IdentitiesController : ApiController
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
     {
         var command = new LogoutUserCommand(request.RefreshToken);
+
+        var result = await Mediator.Send(command);
+
+        return HandleResult(result);
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var command = new ForgotPasswordCommand(request.LoginId);
+
+        var result = await Mediator.Send(command);
+        
+        return HandleResult(result);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        var command = new ResetPasswordCommand(request.LoginId, request.Otp, request.NewPassword);
 
         var result = await Mediator.Send(command);
 
