@@ -7,6 +7,8 @@ using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
+using YSocial.Domain.UserBlocks;
+using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
@@ -18,6 +20,8 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
 {
     public static ConcurrentDictionary<AccountId, Account> Accounts { get; set; } = [];
     public static ConcurrentDictionary<UserId, User> Users { get; set; } = [];
+    public static ConcurrentDictionary<UserRelationId, UserRelation> UserRelations { get; set; } = [];
+    public static ConcurrentDictionary<UserBlockId, UserBlock> UserBlocks { get; set; } = [];
     public static ConcurrentDictionary<PostId, Post> Posts { get; set; } = [];
     public static ConcurrentDictionary<LikeId, Like> Likes { get; set; } = [];
     public static ConcurrentDictionary<CommentId, Comment> Comments { get; set; } = [];

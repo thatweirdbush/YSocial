@@ -10,6 +10,9 @@ using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
+using YSocial.Domain.UserBlocks;
+using YSocial.Domain.UserRelations;
+using YSocial.Domain.UserRelations.Services;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
@@ -43,12 +46,17 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, MockEmailSender>();
         services.AddScoped<ISmsSender, MockSmsSender>();
 
+        services.AddScoped<IUserRelationRepository, MockUserRelationRepository>();
+        services.AddScoped<IUserBlockRepository, MockUserBlockRepository>();
+
+        // Domain Services
         services.AddTransient<LikeToggleService>();
         services.AddTransient<CommentPostingService>();
         services.AddTransient<SavedItemToggleService>();
         services.AddTransient<UserProfileService>();
-        //services.AddSingleton<IPostRepository, MockDataStore>();
+        services.AddTransient<UserRelationManager>();
 
+        // Database
         //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());
         //services.AddScoped<IDomainEventsProvider>(sp => sp.GetRequiredService<YSocialDbContext>());
 

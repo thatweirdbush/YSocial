@@ -76,6 +76,26 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
         IsDefault = false;
     }
 
+    public void IncrementFollowers()
+    {
+        FollowersCount++;
+    }
+
+    public void DecrementFollowers()
+    {
+        if (FollowersCount > 0) FollowersCount--;
+    }
+
+    public void IncrementFollowing()
+    {
+        FollowingCount++;
+    }
+
+    public void DecrementFollowing()
+    {
+        if (FollowingCount > 0) FollowingCount--;
+    }
+
     public void Delete(bool isAccountDeletion = false)
     {
         if (!isAccountDeletion)

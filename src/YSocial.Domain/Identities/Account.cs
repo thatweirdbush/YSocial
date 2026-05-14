@@ -1,4 +1,3 @@
-using MediatR;
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
 using System.Security.Cryptography;

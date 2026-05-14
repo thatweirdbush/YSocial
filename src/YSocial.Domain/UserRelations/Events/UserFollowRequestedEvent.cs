@@ -1,0 +1,9 @@
+using Microservice.BuildingBlocks.Domain.Events;
+using YSocial.Domain.Users;
+
+namespace YSocial.Domain.UserRelations.Events;
+
+public sealed record UserFollowRequestedEvent(
+    UserRelationId RelationId,
+    UserId ObserverId,
+    UserId TargetId) : DomainEvent;

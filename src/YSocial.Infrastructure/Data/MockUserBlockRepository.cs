@@ -1,0 +1,54 @@
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
+using System.Collections.Concurrent;
+using YSocial.Domain.UserBlocks;
+using YSocial.Domain.Users;
+
+namespace YSocial.Infrastructure.Data;
+
+public class MockUserBlockRepository : IUserBlockRepository
+{
+    private readonly ConcurrentDictionary<UserBlockId, UserBlock> _blocks = MockDataStore.UserBlocks;
+
+    public IUnitOfWork UnitOfWork => null!;
+
+    public Task<UserBlock?> GetByIdAsync(UserBlockId id, CancellationToken cancellationToken = default)
+        => GetByIdAsync(id, false, cancellationToken);
+
+    public Task<UserBlock?> GetByIdAsync(UserBlockId id, bool includeDeleted, CancellationToken cancellationToken = default)
+    {
+        _blocks.TryGetValue(id, out var block);
+
+        // UserBlock doesn't have IsDeleted flag currently, so just return it
+        return Task.FromResult(block);
+    }
+
+    public async Task<bool> IsBlockedAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
+    {
+        var block = await GetBlockAsync(observerId, targetId, cancellationToken);
+        return block is not null;
+    }
+
+    public  Task<UserBlock?> GetBlockAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
+    {
+        var block = _blocks.Values
+            .FirstOrDefault(b => b.ObserverId == observerId && b.TargetId == targetId);
+
+        return Task.FromResult(block);
+    }
+
+    public Task AddAsync(UserBlock entity, CancellationToken cancellationToken = default)
+    {
+        _blocks.TryAdd(entity.Id, entity);
+        return Task.CompletedTask;
+    }
+
+    public void Update(UserBlock entity)
+    {
+        _blocks.AddOrUpdate(entity.Id, entity, (_, _) => entity);
+    }
+
+    public void Remove(UserBlock entity)
+    {
+        _blocks.TryRemove(entity.Id, out _);
+    }
+}
