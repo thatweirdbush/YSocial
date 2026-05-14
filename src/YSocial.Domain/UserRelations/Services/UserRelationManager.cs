@@ -1,3 +1,4 @@
+using Microservice.BuildingBlocks.Domain.BusinessRules;
 using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.Exceptions;
 using YSocial.Domain.UserBlocks;
@@ -58,16 +59,16 @@ public sealed class UserRelationManager(
     public async Task<UserRelation?> UnfollowUserAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
     {
         var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, cancellationToken);
-        
+
         relation?.Delete();
-        
+
         return relation;
     }
 
     public async Task<UserBlock> BlockUserAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
     {
         Entity.CheckRule(new CannotBlockYourselfRule(observerId, targetId));
-        
+
         var block = await userBlockRepository.GetBlockAsync(observerId, targetId, cancellationToken);
         if (block is null)
         {
@@ -76,5 +77,29 @@ public sealed class UserRelationManager(
         }
 
         return block;
+    }
+
+    public async Task UnblockUserAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken)
+    {
+        Entity.CheckRule(new CannotBlockYourselfRule(observerId, targetId));
+
+        var block = await userBlockRepository.GetBlockAsync(observerId, targetId, cancellationToken);
+        if (block is not null)
+        {
+            block.Unblock();
+            userBlockRepository.Remove(block);
+        }
+    }
+
+    public async Task ToggleCloseFriendAsync(UserId observerId, UserId targetId, bool isCloseFriend, CancellationToken cancellationToken)
+    {
+        var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, cancellationToken);
+
+        if (relation is null || relation.FollowStatus != FollowStatus.Accepted)
+        {
+            throw new BusinessRuleValidationException("You must be following the user to add them as a close friend.");
+        }
+
+        relation.ToggleCloseFriend(isCloseFriend);
     }
 }

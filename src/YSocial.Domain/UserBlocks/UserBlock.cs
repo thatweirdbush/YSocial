@@ -28,4 +28,9 @@ public class UserBlock : AggregateRoot<UserBlockId>
 
         return userBlock;
     }
+
+    public void Unblock()
+    {
+        AddDomainEvent(new UserUnblockedEvent(ObserverId, TargetId));
+    }
 }
