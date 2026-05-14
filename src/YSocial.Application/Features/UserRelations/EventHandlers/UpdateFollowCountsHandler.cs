@@ -20,13 +20,10 @@ internal sealed class UpdateFollowCountsHandler(IUserRepository userRepository)
 
     private async Task UpdateCounters(UserId observerId, UserId targetId, bool isIncrement, CancellationToken cancellationToken)
     {
-        var observerTask = userRepository.GetByIdAsync(observerId, cancellationToken);
-        var targetTask = userRepository.GetByIdAsync(targetId, cancellationToken);
+        var users = await userRepository.GetUsersByIdsAsync([observerId, targetId], cancellationToken);
 
-        await Task.WhenAll(observerTask, targetTask);
-
-        var observer = await observerTask;
-        var target = await targetTask;
+        var observer = users.FirstOrDefault(u => u.Id == observerId);
+        var target = users.FirstOrDefault(u => u.Id == targetId);
 
         if (observer != null)
         {

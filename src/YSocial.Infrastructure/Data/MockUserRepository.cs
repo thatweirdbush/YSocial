@@ -57,6 +57,17 @@ public class MockUserRepository : IUserRepository
         return Task.FromResult(user);
     }
 
+    public Task<IReadOnlyList<User>> GetUsersByIdsAsync(IEnumerable<UserId> ids, CancellationToken cancellationToken = default)
+    {
+        var idSet = ids.ToHashSet();
+        var users = _users.Values
+            .WhereNotDeleted()
+            .Where(u => idSet.Contains(u.Id))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<User>>(users);
+    }
+
     public Task AddAsync(User user, CancellationToken cancellationToken = default)
     {
         _users.TryAdd(user.Id, user);
