@@ -37,9 +37,16 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
 
     public void RequestFollow(bool isTargetPrivate)
     {
-        if (FollowStatus == FollowStatus.Accepted || FollowStatus == FollowStatus.Pending)
+        if (!IsDeleted && (FollowStatus == FollowStatus.Accepted || FollowStatus == FollowStatus.Pending))
         {
-            return; // Idempotent: fail silently
+            return; // Idempotent: fail silently if already active
+        }
+
+        if (IsDeleted)
+        {
+            // Restore logic
+            IsDeleted = false;
+            DeletedAt = null;
         }
 
         if (isTargetPrivate)
@@ -64,22 +71,6 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
         AddDomainEvent(new UserFollowAcceptedEvent(Id, ObserverId, TargetId));
     }
 
-    public void RemoveFollow()
-    {
-        if (FollowStatus == FollowStatus.None) return;
-
-        var wasAccepted = FollowStatus == FollowStatus.Accepted;
-        
-        FollowStatus = FollowStatus.None;
-        IsCloseFriend = false; // Reset flag when unfollowing
-        UpdatedAt = DateTime.UtcNow;
-
-        if (wasAccepted)
-        {
-            AddDomainEvent(new UserUnfollowedEvent(ObserverId, TargetId));
-        }
-    }
-
     public void ToggleCloseFriend(bool isCloseFriend)
     {
         if (FollowStatus != FollowStatus.Accepted) return; // Can only be close friend if following
@@ -95,8 +86,15 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
 
     public void Delete()
     {
+        if (IsDeleted) return;
+
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
-        RemoveFollow(); // Ensure unfollow event is fired if deleting the relation
+
+        var wasAccepted = FollowStatus == FollowStatus.Accepted;
+        if (wasAccepted)
+        {
+            AddDomainEvent(new UserUnfollowedEvent(ObserverId, TargetId));
+        }
     }
 }

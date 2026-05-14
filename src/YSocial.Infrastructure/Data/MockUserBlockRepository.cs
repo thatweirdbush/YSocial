@@ -36,6 +36,20 @@ public class MockUserBlockRepository : IUserBlockRepository
         return Task.FromResult(block);
     }
 
+    public Task<(UserBlock? User1BlockedUser2, UserBlock? User2BlockedUser1)> GetBlocksBetweenAsync(UserId user1Id, UserId user2Id, CancellationToken cancellationToken = default)
+    {
+        var blocks = _blocks.Values
+            //.AsNoTracking() // EF Core specific, can be ignored in this in-memory implementation
+            .Where(b => (b.ObserverId == user1Id && b.TargetId == user2Id) || 
+                        (b.ObserverId == user2Id && b.TargetId == user1Id))
+            .ToList();
+
+        var user1BlockedUser2 = blocks.FirstOrDefault(b => b.ObserverId == user1Id && b.TargetId == user2Id);
+        var user2BlockedUser1 = blocks.FirstOrDefault(b => b.ObserverId == user2Id && b.TargetId == user1Id);
+
+        return Task.FromResult((user1BlockedUser2, user2BlockedUser1));
+    }
+
     public Task AddAsync(UserBlock entity, CancellationToken cancellationToken = default)
     {
         _blocks.TryAdd(entity.Id, entity);

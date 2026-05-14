@@ -9,10 +9,11 @@ internal sealed class RemoveFollowsWhenUserBlockedEventHandler(
 {
     public async Task Handle(UserBlockedEvent notification, CancellationToken cancellationToken)
     {
-        // When A blocks B, force A to unfollow B
-        await relationManager.UnfollowUserAsync(notification.ObserverId, notification.TargetId, cancellationToken);
-        
-        // And force B to unfollow A
-        await relationManager.UnfollowUserAsync(notification.TargetId, notification.ObserverId, cancellationToken);
+        // When A blocks B, force A to unfollow B,
+        // and force B to unfollow A
+        var unfollowAToB = relationManager.UnfollowUserAsync(notification.ObserverId, notification.TargetId, cancellationToken);
+        var unfollowBToA = relationManager.UnfollowUserAsync(notification.TargetId, notification.ObserverId, cancellationToken);
+
+        await Task.WhenAll(unfollowAToB, unfollowBToA);
     }
 }

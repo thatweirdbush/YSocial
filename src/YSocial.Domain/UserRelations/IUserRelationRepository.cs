@@ -6,4 +6,5 @@ namespace YSocial.Domain.UserRelations;
 public interface IUserRelationRepository : IRepository<UserRelation, UserRelationId>
 {
     Task<UserRelation?> GetRelationAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default);
+    Task<UserRelation?> GetRelationAsync(UserId observerId, UserId targetId, bool includeDeleted, CancellationToken cancellationToken = default);
 }

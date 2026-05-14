@@ -17,7 +17,13 @@ public sealed class UserRelationManager(
     {
         Entity.CheckRule(new CannotFollowYourselfRule(observerId, targetId));
 
-        var targetUser = await userRepository.GetByIdAsync(targetId, cancellationToken);
+        var targetUserTask = userRepository.GetByIdAsync(targetId, cancellationToken);
+        var blocksTask = userBlockRepository.GetBlocksBetweenAsync(observerId, targetId, cancellationToken);
+        var relationTask = userRelationRepository.GetRelationAsync(observerId, targetId, includeDeleted: true, cancellationToken);
+
+        await Task.WhenAll(targetUserTask, blocksTask, relationTask);
+
+        var targetUser = await targetUserTask;
         if (targetUser is null)
         {
             throw new EntityNotFoundException($"User with ID {targetId} was not found.");
@@ -25,16 +31,18 @@ public sealed class UserRelationManager(
 
         Entity.CheckRule(new CannotInteractWithDeletedUserRule(targetUser.IsDeleted));
 
+        var (observerBlockedTarget, targetBlockedObserver) = await blocksTask;
+
         // Rule 1: Observer cannot follow someone they have blocked
-        var hasBlockedTarget = await userBlockRepository.IsBlockedAsync(observerId, targetId, cancellationToken);
+        var hasBlockedTarget = observerBlockedTarget is not null;
         Entity.CheckRule(new CannotFollowBlockedUserRule(hasBlockedTarget));
 
         // Rule 2: Target must not have blocked Observer
-        var isBlockedByTarget = await userBlockRepository.IsBlockedAsync(targetId, observerId, cancellationToken);
+        var isBlockedByTarget = targetBlockedObserver is not null;
         Entity.CheckRule(new TargetMustNotHaveBlockedObserverRule(isBlockedByTarget));
 
         // Get or Create relation
-        var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, cancellationToken);
+        var relation = await relationTask;
         if (relation is null)
         {
             relation = UserRelation.Create(observerId, targetId);
@@ -51,7 +59,7 @@ public sealed class UserRelationManager(
     {
         var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, cancellationToken);
         
-        relation?.RemoveFollow();
+        relation?.Delete();
         
         return relation;
     }

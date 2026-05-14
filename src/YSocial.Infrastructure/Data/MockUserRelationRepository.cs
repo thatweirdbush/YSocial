@@ -26,10 +26,15 @@ public class MockUserRelationRepository : IUserRelationRepository
     }
 
     public Task<UserRelation?> GetRelationAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
+        => GetRelationAsync(observerId, targetId, false, cancellationToken);
+
+    public Task<UserRelation?> GetRelationAsync(UserId observerId, UserId targetId, bool includeDeleted, CancellationToken cancellationToken = default)
     {
         var relation = _relations.Values
-            .WhereNotDeleted()
             .FirstOrDefault(r => r.ObserverId == observerId && r.TargetId == targetId);
+
+        if (relation != null && relation.IsDeleted && !includeDeleted)
+            return Task.FromResult<UserRelation?>(null);
 
         return Task.FromResult(relation);
     }
