@@ -2,7 +2,7 @@ using MediatR;
 using YSocial.Domain.UserBlocks.Events;
 using YSocial.Domain.UserRelations.Services;
 
-namespace YSocial.Application.Features.UserRelations.EventHandlers;
+namespace YSocial.Application.Features.UserBlocks.EventHandlers;
 
 internal sealed class RemoveFollowsWhenUserBlockedEventHandler(
     UserRelationManager relationManager) : INotificationHandler<UserBlockedEvent>
