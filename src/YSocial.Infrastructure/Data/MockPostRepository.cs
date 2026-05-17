@@ -44,7 +44,7 @@ public class MockPostRepository : IPostRepository
         _posts[post.Id] = post;
     }
 
-    public Task<IEnumerable<Post>> GetByAuthorIdAsync(UserId authorId)
+    public Task<IEnumerable<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default)
     {
         var posts = _posts.Values
             .WhereNotDeleted()

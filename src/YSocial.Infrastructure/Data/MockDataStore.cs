@@ -5,6 +5,7 @@ using YSocial.Domain.Comments;
 using YSocial.Domain.Countries;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
+using YSocial.Domain.Notifications;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
 using YSocial.Domain.UserBlocks;
@@ -26,6 +27,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     public static ConcurrentDictionary<LikeId, Like> Likes { get; set; } = [];
     public static ConcurrentDictionary<CommentId, Comment> Comments { get; set; } = [];
     public static ConcurrentDictionary<SavedItemId, SavedItem> SavedItems { get; set; } = [];
+    public static ConcurrentDictionary<NotificationId, Notification> Notifications { get; set; } = [];
 
     static MockDataStore()
     {

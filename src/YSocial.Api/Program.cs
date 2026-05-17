@@ -8,6 +8,8 @@ using YSocial.Api.Infrastructure.Swagger;
 using YSocial.Application;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Infrastructure;
+using YSocial.Infrastructure.Data;
+using YSocial.Infrastructure.Notifications;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
@@ -40,6 +42,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = issuer,
             ValidAudience = audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                // Read the token from the Query String sent by the SignalR Client
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.Request.Path;
+
+                // If the request is going to the Hub path, assign the Token to the Context
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -81,6 +101,17 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("YSocialCorsPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 var app = builder.Build();
 
 // Auto-generate admin token for development & attach to Swagger
@@ -90,9 +121,9 @@ if (app.Environment.IsDevelopment())
     var jwtProvider = scope.ServiceProvider.GetRequiredService<IJwtProvider>();
     
     // Get admin account and user
-    var mockAccount = YSocial.Infrastructure.Data.MockDataStore.Accounts.Values.First(a => a.Email == "admin@admin.com");
-    var mockUser = YSocial.Infrastructure.Data.MockDataStore.Users.Values.First(u => u.AccountId == mockAccount.Id);
-    var posts = YSocial.Infrastructure.Data.MockDataStore.Posts.Values;
+    var mockAccount = MockDataStore.Accounts.Values.First(a => a.Email == "admin@admin.com");
+    var mockUser = MockDataStore.Users.Values.First(u => u.AccountId == mockAccount.Id);
+    var posts = MockDataStore.Posts.Values;
     var adminToken = jwtProvider.GenerateToken(mockUser, mockAccount);
     
     // Log to terminal
@@ -147,9 +178,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors("YSocialCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

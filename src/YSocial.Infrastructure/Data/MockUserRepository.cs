@@ -85,7 +85,7 @@ public class MockUserRepository : IUserRepository
     }
 
     // Mock simply returns true assuming uniqueness is preserved or we aren't maintaining identity mappings in mock layer
-    public Task<bool> IsEmailUniqueAsync(string email)
+    public Task<bool> IsEmailUniqueAsync(string email, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(true);
     }

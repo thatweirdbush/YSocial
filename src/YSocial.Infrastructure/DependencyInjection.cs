@@ -5,9 +5,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.Abstractions.Messaging;
+using YSocial.Application.Abstractions.Notifications;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
+using YSocial.Domain.Notifications;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
 using YSocial.Domain.UserBlocks;
@@ -18,6 +20,7 @@ using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
+using YSocial.Infrastructure.Notifications;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure;
@@ -32,22 +35,25 @@ public static class DependencyInjection
         services.AddDbContext<MockDataStore>(opt =>
             opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
+        // Repositories
         services.AddSingleton<IPostRepository, MockPostRepository>();
         services.AddSingleton<IAccountRepository, MockAccountRepository>();
         services.AddSingleton<ILikeRepository, MockLikeRepository>();
         services.AddSingleton<IUserRepository, MockUserRepository>();
         services.AddSingleton<ICommentRepository, MockCommentRepository>();
         services.AddSingleton<ISavedItemRepository, MockSavedItemRepository>();
-        
+        services.AddSingleton<IUserRelationRepository, MockUserRelationRepository>();
+        services.AddSingleton<IUserBlockRepository, MockUserBlockRepository>();
+        services.AddSingleton<INotificationRepository, MockNotificationRepository>();
+
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
+        // Message & Notifications
         services.AddScoped<IEmailSender, MockEmailSender>();
         services.AddScoped<ISmsSender, MockSmsSender>();
-
-        services.AddScoped<IUserRelationRepository, MockUserRelationRepository>();
-        services.AddScoped<IUserBlockRepository, MockUserBlockRepository>();
+        services.AddScoped<INotificationService, SignalRNotificationService>();
 
         // Domain Services
         services.AddTransient<LikeToggleService>();
@@ -68,6 +74,9 @@ public static class DependencyInjection
 
         // Unit of work
         services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+        // Other services
+        services.AddSignalR();
 
         return services;
     }
