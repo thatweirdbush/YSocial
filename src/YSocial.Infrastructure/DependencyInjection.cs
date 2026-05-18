@@ -20,7 +20,7 @@ using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
-using YSocial.Infrastructure.Notifications;
+using YSocial.Infrastructure.Notifications.Outbox;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure;
@@ -53,7 +53,7 @@ public static class DependencyInjection
         // Message & Notifications
         services.AddScoped<IEmailSender, MockEmailSender>();
         services.AddScoped<ISmsSender, MockSmsSender>();
-        services.AddScoped<INotificationService, SignalRNotificationService>();
+        services.AddScoped<INotificationOutboxService, EfNotificationOutboxService>();
 
         // Domain Services
         services.AddTransient<LikeToggleService>();
@@ -77,6 +77,7 @@ public static class DependencyInjection
 
         // Other services
         services.AddSignalR();
+        services.AddHostedService<ProcessNotificationOutboxJob>();
 
         return services;
     }

@@ -1,6 +1,7 @@
 ﻿using MediatR;
 using System.Text.Json;
 using YSocial.Application.Abstractions.Notifications;
+using YSocial.Application.Models;
 using YSocial.Domain.Notifications;
 using YSocial.Domain.UserRelations.Events;
 using YSocial.Domain.Users;
@@ -10,7 +11,7 @@ namespace YSocial.Application.Features.UserRelations.EventHandlers;
 internal sealed class CreateNotificationWhenFollowAcceptedEventHandler(
     IUserRepository userRepository,
     INotificationRepository notificationRepository,
-    INotificationService notificationService) : INotificationHandler<UserFollowAcceptedEvent>
+    INotificationOutboxService outboxService) : INotificationHandler<UserFollowAcceptedEvent>
 {
     public async Task Handle(UserFollowAcceptedEvent notification, CancellationToken cancellationToken)
     {
@@ -34,7 +35,17 @@ internal sealed class CreateNotificationWhenFollowAcceptedEventHandler(
             metaData: jsonMetaData
         );
 
+        // 1. Save the notification to main table
         await notificationRepository.AddAsync(followNotification, cancellationToken);
-        await notificationService.SendNotificationAsync(followNotification, cancellationToken);
+
+        // 2. Create DTO to sent via SignalR into a JSON string
+        var notificationDto = NotificationPayload.FromDomain(followNotification);
+
+        // 3. Push to Outbox via Intermediate Service
+        await outboxService.EnqueueAsync(
+            messageType: nameof(NotificationType.FollowAccepted),
+            payload: notificationDto,
+            cancellationToken: cancellationToken
+        );
     }
 }

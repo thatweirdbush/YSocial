@@ -1,5 +1,6 @@
 using Microservice.BuildingBlocks.Domain.Events;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Collections.Concurrent;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Countries;
@@ -107,5 +108,26 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(1);
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(MockDataStore).Assembly);
+
+        // Force all DateTime values retrieved from the database to be UTC
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            var dateTimeProperties = entityType.GetProperties()
+                .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?));
+
+            foreach (var property in dateTimeProperties)
+            {
+                property.SetValueConverter(new ValueConverter<DateTime, DateTime>(
+                    v => v.ToUniversalTime(),
+                    v => DateTime.SpecifyKind(v, DateTimeKind.Utc)));
+            }
+        }
     }
 }
