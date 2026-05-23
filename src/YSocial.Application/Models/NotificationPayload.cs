@@ -7,7 +7,7 @@ public sealed record NotificationPayload(
     string Type,
     string Title,
     string Content,
-    string? MetaData,
+    object? MetaData,
     Guid RecipientId)
 {
     public static NotificationPayload FromDomain(Notification notification)

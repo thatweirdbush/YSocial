@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using System.Text.Json;
 using YSocial.Application.Abstractions.Notifications;
 using YSocial.Application.Models;
 using YSocial.Domain.Comments.Events;
@@ -27,8 +26,7 @@ internal sealed class CreateNotificationWhenCommentCreatedHandler(
 
         if (commenter is null || post is null) return;
 
-        var metaDataPayload = new { PostId = notification.PostId };
-        var jsonMetaData = JsonSerializer.Serialize(metaDataPayload);
+        var metaDataPayload = new { postId = notification.PostId };
 
         var followNotification = Notification.Create(
             recipientId: post.AuthorId,
@@ -36,7 +34,7 @@ internal sealed class CreateNotificationWhenCommentCreatedHandler(
             type: NotificationType.NewComment,
             title: "New Comment",
             content: $"{commenter.Username} commented on your post.",
-            metaData: jsonMetaData
+            metaData: metaDataPayload
         );
 
         // 1. Save the notification to main table

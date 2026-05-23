@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using System.Text.Json;
 using YSocial.Application.Abstractions.Notifications;
 using YSocial.Application.Models;
 using YSocial.Domain.Notifications;
@@ -23,8 +22,7 @@ internal sealed class CreateNotificationWhenFollowAcceptedEventHandler(
 
         if (observer is null || target is null) return;
 
-        var metaDataPayload = new { ObserverId = observer.Id.Value };
-        var jsonMetaData = JsonSerializer.Serialize(metaDataPayload);
+        var metaDataPayload = new { observerId = observer.Id.Value };
 
         var followNotification = Notification.Create(
             recipientId: target.Id,
@@ -32,7 +30,7 @@ internal sealed class CreateNotificationWhenFollowAcceptedEventHandler(
             type: NotificationType.FollowAccepted,
             title: "Follow Request Accepted",
             content: $"{observer.Username} started following you.",
-            metaData: jsonMetaData
+            metaData: metaDataPayload
         );
 
         // 1. Save the notification to main table

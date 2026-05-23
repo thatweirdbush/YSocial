@@ -69,7 +69,7 @@ public sealed class ProcessNotificationOutboxJob(
                             // Send the raw JSON string to save CPU resources instead of serializing it again
                             await hubContext.Clients
                                 .User(recipientId)
-                                .SendAsync("ReceiveNotification", message.Content, cancellationToken);
+                                .SendAsync("ReceiveNotification", payload, cancellationToken);
 
                             // 4. Mark as processed
                             message.MarkAsProcessed();

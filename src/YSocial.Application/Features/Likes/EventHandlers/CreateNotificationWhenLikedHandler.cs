@@ -1,5 +1,4 @@
 ﻿using MediatR;
-using System.Text.Json;
 using YSocial.Application.Abstractions.Notifications;
 using YSocial.Application.Models;
 using YSocial.Domain.Likes;
@@ -26,11 +25,9 @@ internal sealed class CreateNotificationWhenLikedHandler(
 
         var metaDataPayload = new
         {
-            TargetId = notification.TargetId,
-            TargetType = notification.TargetType.Name
+            targetId = notification.TargetId,
+            targetType = notification.TargetType.Name
         };
-
-        var jsonMetaData = JsonSerializer.Serialize(metaDataPayload);
 
         var likeNotification = Notification.Create(
             recipientId: notification.TargetAuthorId,
@@ -38,7 +35,7 @@ internal sealed class CreateNotificationWhenLikedHandler(
             type: NotificationType.NewLike,
             title: "New Like",
             content: contentMessage,
-            metaData: jsonMetaData
+            metaData: metaDataPayload
         );
 
         // 1. Save the notification to main table

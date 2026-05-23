@@ -15,7 +15,7 @@ public sealed class Notification : AggregateRoot<NotificationId>
     /// <summary>
     ///  Dynamic metadata as JSON (e.g., PostId, CommentId for FE to click on for navigation)
     /// </summary>
-    public string? MetaData { get; private set; }
+    public object? MetaData { get; private set; }
     public bool IsRead { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? ReadAt { get; private set; }
@@ -26,7 +26,7 @@ public sealed class Notification : AggregateRoot<NotificationId>
         NotificationType type,
         string title,
         string content,
-        string? metaData)
+        object? metaData)
     {
         Id = NotificationId.New();
         RecipientId = recipientId;
@@ -45,9 +45,9 @@ public sealed class Notification : AggregateRoot<NotificationId>
         NotificationType type,
         string title,
         string content,
-        string? metaData = null)
+        object? metaData = null)
     {
-        CheckRule(new CannotSendNotificationToYourselfRule(senderId, recipientId));
+        //CheckRule(new CannotSendNotificationToYourselfRule(senderId, recipientId));
         CheckRule(new NotificationContentMustNotBeEmptyRule(title, content));
 
         return new Notification(
