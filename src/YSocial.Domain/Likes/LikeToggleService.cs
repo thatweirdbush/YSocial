@@ -12,14 +12,14 @@ public sealed class LikeToggleService
     /// Evaluates whether to Like or Unlike based on the presence of an existing like.
     /// Does not interact with repositories directly.
     /// </summary>
-    public LikeToggleResult ToggleLike(Like? existingLike, Guid targetId, LikeTargetType targetType, UserId userId)
+    public LikeToggleResult ToggleLike(Like? existingLike, Guid targetId, LikeTargetType targetType, UserId likerId, UserId targetAuthorId)
     {
         if (existingLike is not null)
         {
             return new LikeToggleResult(LikeStatus.Unliked, existingLike);
         }
 
-        var newLike = Like.Create(targetId, targetType, userId);
+        var newLike = Like.Create(targetId, targetType, likerId, targetAuthorId);
         return new LikeToggleResult(LikeStatus.Liked, newLike);
     }
 }

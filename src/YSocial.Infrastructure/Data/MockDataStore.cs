@@ -14,6 +14,7 @@ using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
+using YSocial.Infrastructure.Notifications.Outbox;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure.Data;
@@ -29,6 +30,7 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
     public static ConcurrentDictionary<CommentId, Comment> Comments { get; set; } = [];
     public static ConcurrentDictionary<SavedItemId, SavedItem> SavedItems { get; set; } = [];
     public static ConcurrentDictionary<NotificationId, Notification> Notifications { get; set; } = [];
+    public static List<NotificationOutboxMessage> Messages { get; set; } = [];
 
     static MockDataStore()
     {

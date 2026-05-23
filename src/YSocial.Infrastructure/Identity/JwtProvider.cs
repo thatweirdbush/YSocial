@@ -20,7 +20,7 @@ internal sealed class JwtProvider(IConfiguration configuration) : IJwtProvider
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, account.Id.Value.ToString()),
-            new Claim("UserId", user.Id.Value.ToString()),
+            new Claim("user_id", user.Id.Value.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, account.Email),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };

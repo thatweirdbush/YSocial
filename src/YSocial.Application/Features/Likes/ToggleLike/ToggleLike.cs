@@ -39,19 +39,19 @@ internal sealed class ToggleLikeCommandHandler(
             return Result<ToggleLikeResponse>.Unauthorized();
         }
 
-        var userId = new UserId(userContext.UserId);
+        var likerId = new UserId(userContext.UserId);
 
         // Check if target exists
-        var targetExists = await request.TargetType.CheckExistsAsync(request.TargetId, postRepository, commentRepository, cancellationToken);
-        if (!targetExists)
+        var targetAuthorId = await request.TargetType.GetTargetAuthorIdAsync(request.TargetId, postRepository, commentRepository, cancellationToken);
+        if (targetAuthorId is not UserId validatedAuthorId)
         {
             return Result<ToggleLikeResponse>.NotFound("Target not found.");
         }
 
         // Check if like already exists
-        var existingLike = await likeRepository.GetByUserAndTargetAsync(userId, request.TargetId, request.TargetType, cancellationToken);
+        var existingLike = await likeRepository.GetByUserAndTargetAsync(likerId, request.TargetId, request.TargetType, cancellationToken);
 
-        var toggleResult = likeToggleService.ToggleLike(existingLike, request.TargetId, request.TargetType, userId);
+        var toggleResult = likeToggleService.ToggleLike(existingLike, request.TargetId, request.TargetType, likerId, validatedAuthorId);
 
         if (toggleResult.Action == LikeStatus.Unliked)
         {

@@ -1,5 +1,6 @@
 using Microservice.BuildingBlocks.Domain.Events;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,6 +21,7 @@ using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
+using YSocial.Infrastructure.Notifications;
 using YSocial.Infrastructure.Notifications.Outbox;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
@@ -54,6 +56,8 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, MockEmailSender>();
         services.AddScoped<ISmsSender, MockSmsSender>();
         services.AddScoped<INotificationOutboxService, EfNotificationOutboxService>();
+        services.AddSingleton<IUserIdProvider, SignalRUserIdProvider>();
+        services.AddSingleton<MockNotificationOutboxStore>();
 
         // Domain Services
         services.AddTransient<LikeToggleService>();

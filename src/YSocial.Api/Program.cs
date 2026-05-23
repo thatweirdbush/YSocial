@@ -106,6 +106,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("YSocialCorsPolicy", policy =>
     {
         policy.WithOrigins("http://localhost:3000")
+              .SetIsOriginAllowed(origin => true)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

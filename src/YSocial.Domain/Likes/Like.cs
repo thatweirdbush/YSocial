@@ -22,12 +22,12 @@ public sealed class Like : AggregateRoot<LikeId>
         CreatedAt = DateTime.UtcNow;
     }
 
-    public static Like Create(Guid targetId, LikeTargetType targetType, UserId userId)
+    public static Like Create(Guid targetId, LikeTargetType targetType, UserId likerId, UserId targetAuthorId)
     {
-        CheckRule(new UserIdMustNotBeEmptyRule(userId));
+        CheckRule(new UserIdMustNotBeEmptyRule(likerId));
 
-        var like = new Like(targetId, targetType, userId);
-        like.AddDomainEvent(new LikeCreatedEvent(like.Id, targetId, targetType, userId));
+        var like = new Like(targetId, targetType, likerId);
+        like.AddDomainEvent(new LikeCreatedEvent(like.Id, targetId, targetType, likerId, targetAuthorId));
         return like;
     }
 
