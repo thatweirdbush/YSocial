@@ -35,6 +35,7 @@ internal sealed class GetPostQueryHandler(IPostRepository postRepository)
             post.Content,
             post.ImageUrl,
             post.CreatedAt,
+            post.AuthorId.Value,
             post.AuthorId.Value.ToString());
 
         return Result<PostInfo>.Success(response);

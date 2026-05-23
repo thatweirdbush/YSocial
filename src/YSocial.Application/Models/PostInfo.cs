@@ -5,4 +5,5 @@ public record PostInfo(
     string Content,
     string? ImageUrl,
     DateTime CreatedAt,
+    Guid AuthorId,
     string AuthorName);

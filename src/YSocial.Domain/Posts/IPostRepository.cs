@@ -5,5 +5,6 @@ namespace YSocial.Domain.Posts;
 
 public interface IPostRepository : IRepository<Post, PostId>
 {
-    Task<IEnumerable<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default);
+    Task<(IReadOnlyList<Post> Posts, int TotalCount)> GetByUserIdPagedAsync(UserId userId, int page, int pageSize, CancellationToken cancellationToken);
 }

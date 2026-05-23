@@ -1,6 +1,7 @@
 using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
@@ -44,12 +45,28 @@ public class MockPostRepository : IPostRepository
         _posts[post.Id] = post;
     }
 
-    public Task<IEnumerable<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default)
     {
         var posts = _posts.Values
             .WhereNotDeleted()
-            .Where(p => p.AuthorId == authorId);
+            .Where(p => p.AuthorId == authorId)
+            .ToList();
 
-        return Task.FromResult(posts);
+        return Task.FromResult<IReadOnlyList<Post>>(posts);
+    }
+
+    public Task<(IReadOnlyList<Post> Posts, int TotalCount)> GetByUserIdPagedAsync(UserId userId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = _posts.Values
+            .WhereNotDeleted()
+            .Where(p => p.AuthorId == userId);
+
+        IReadOnlyList<Post> posts = query
+            .OrderByDescending(p => p.CreatedAt) // Newest first
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Task.FromResult((posts, query.Count()));
     }
 }
