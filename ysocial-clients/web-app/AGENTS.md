@@ -67,10 +67,29 @@ Load these specific profiles ONLY when the prompt matches the domain context:
 - Ensure all forms use React Hook Form paired with Zod validation. Single-rule validations should be compact/inline; multi-rule configurations must be multi-line.
 
 ### 3. State Management & API Integration
-- **Server State:** Handled exclusively via **TanStack Query (`@tanstack/react-query`)**.
-- **Global Client State:** Handled via **Zustand** (e.g., `store/authStore.ts`).
-- **Real-time Notifications:** Handled via **SignalR Client (`@microsoft/signalr`)**.
+- **Server State & Data Fetching:** 
+  - Use native Fetch API for Server-Side Rendering (SSR) pages to leverage Next.js caching.
+  - Use TanStack Query for Client-Side Rendering (CSR). **Mandatory Requirement:** Implement Optimistic Updates (`onMutate`, `onError`, `onSettled`) for high-frequency user actions, specifically the Like/Unlike toggle.
+- **Real-time Notifications (SignalR):**
+  - Endpoint target: `${Backend_API_Origin}/hubs/notifications`.
+  - Authentication: Must pass the JWT Bearer token via query string: `?access_token={token}`.
+  - Resilience: Enable `withAutomaticReconnect()` explicitly upon connection builder initialization.
+  - Event Handling: Listen to the `ReceiveNotification` event. The payload contains a `Type` property as an explicit string enum (e.g., `"NewLike"`, `"NewComment"`).
+- **Global Client State (Zustand):**
+  - **Global/Cross-feature States:** Configure global states (e.g., `authStore.ts` managing Session/Token, `themeStore.ts`) in the `src/lib/store/` or `src/features/auth/store/` directory.
+  - **Feature-specific States:** States specific to a feature (e.g., advanced Post filters, local open/close states of a complex process) MUST be placed directly in that feature's store directory (e.g., `src/features/posts/store/post-filter-store.ts`).
+  - **Best Practices:** All Zustand stores must clearly separate State (data) and Actions (functions that change data) to optimize re-rendering and ease of maintenance. Use `useShallow` when selecting multiple attributes to avoid unnecessary re-rendering.
 - **API Mapping:** Strictly map response objects from the Backend's `.sln` PascalCase into Frontend camelCase. Refer to `swagger.json` for precise DTO definitions.
+
+### 4. Micro-UX & Interaction Standards (Threads/X-Inspired)
+- **Rendering Optimization:** Hybrid Architecture. Enforce strict SSR/SSG with proper OpenGraph metadata for public routes (e.g., `app/[@username]/page.tsx`, `app/posts/[id]/page.tsx`). dashboards and private feeds must use CSR.
+- **Cumulative Layout Shift (CLS) Prevention:** Skeletons used during `useInfiniteQuery` loading states must have strict bounding boxes with explicit dimensions matching the exact height/width of rendered Post cards. Shimmer effects only; raw circular loading spinners are strictly forbidden on content feeds.
+- **Micro-animations:** 
+  - *Like Button (Heart icon):* Must trigger a high-end "pop & sparkle" micro-animation on activation.
+  - *Share/Copy Link:* Active state must smoothly rotate the icon into a checkmark (✓), paired with a non-intrusive Toast component.
+- **Empty States:** Any empty boundary (Feed, Profile, Notifications) cannot be a blank screen. It must render a minimalist vector illustration, a friendly Gen Z-oriented status message, and a clear Contextual CTA button.
+- **Scroll Performance:** Perfect Scroll Restoration must be active on Feed navigation. Navigating back from a post detail view must retain the exact previous scroll container position.
+- **Offline Resiliency:** Implement a clean global offline banner alert. TanStack Query must be configured to automatically retry failed requests once internet connectivity is restored.
 
 ---
 
