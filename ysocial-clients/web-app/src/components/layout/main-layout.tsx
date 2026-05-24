@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/hooks/use-translation";
-import { useLocale, useUIActions } from "@/lib/store/ui-store";
+import { useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
 import { useAuthUser, useAuthActions } from "@/features/auth/store/auth-store";
 
 interface MainLayoutProps {
@@ -40,8 +40,11 @@ export function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
+  
   const locale = useLocale();
-  const { setLocale } = useUIActions();
+  const isCollapsed = useIsCollapsed();
+  const { setLocale, toggleSidebar } = useUIActions();
+  
   const user = useAuthUser();
   const { clearAuth } = useAuthActions();
 
@@ -80,188 +83,235 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="min-h-screen flex bg-zinc-50 dark:bg-black text-black dark:text-zinc-50 transition-colors duration-300 font-sans">
+      <div className="min-h-screen bg-zinc-50 dark:bg-black text-black dark:text-zinc-50 transition-colors duration-300 font-sans">
         
-        {/* ==================== LEFT SIDEBAR ==================== */}
-        <aside className="hidden lg:flex flex-col items-center justify-between py-6 px-4 w-24 xl:w-64 border-r border-zinc-200/60 dark:border-zinc-900/60 sticky top-0 h-screen bg-white/80 dark:bg-black/60 backdrop-blur-md z-30">
-          <div className="flex flex-col items-center xl:items-start w-full gap-8">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 px-3 transition-transform active:scale-95 duration-200">
-              <div className="h-10 w-10 rounded-full bg-zinc-950 dark:bg-zinc-50 flex items-center justify-center font-bold text-white dark:text-black text-xl shadow-lg">
-                Y
-              </div>
-              <span className="hidden xl:inline font-bold tracking-tight text-xl bg-gradient-to-r from-black to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
-                YSocial
-              </span>
-            </Link>
-
-            {/* Navigation links */}
-            <nav className="flex flex-col gap-2 w-full">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>
-                      <Link
-                        href={item.href}
-                        className={`flex items-center gap-4 py-3 px-4 rounded-2xl transition-all duration-300 active:scale-95 ${
-                          isActive 
-                            ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-semibold" 
-                            : "text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white hover:bg-zinc-100/50 dark:hover:bg-zinc-900/40"
-                        }`}
-                      >
-                        <Icon className={`h-6 w-6 transition-transform duration-300 ${isActive ? "scale-105" : "hover:scale-105"}`} />
-                        <span className="hidden xl:inline text-md">{item.label}</span>
-                      </Link>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="xl:hidden">
-                      {item.label}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Quick controls and User profile trigger */}
-          <div className="flex flex-col items-center xl:items-start w-full gap-4">
-            
-            {/* Theme & Locale triggers */}
-            <div className="flex xl:flex-row flex-col items-center gap-2 px-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleLanguageToggle}
-                className="h-10 w-10 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-transform active:scale-95"
-              >
-                <Languages className="h-5 w-5" />
-              </Button>
+        {/* Strict centered max-width 3-column bounding box docking columns to edges */}
+        <div className="max-w-7xl mx-auto flex justify-center w-full min-h-screen relative px-4">
+          
+          {/* ==================== LEFT SIDEBAR ==================== */}
+          <aside className={`hidden lg:flex flex-col justify-between pt-6 pb-4 px-3 border-r border-zinc-200/60 dark:border-zinc-900/60 sticky top-0 h-screen bg-white/80 dark:bg-black/60 backdrop-blur-md z-30 shrink-0 transition-all duration-300 ${
+            isCollapsed ? "w-[72px]" : "w-[72px] xl:w-[240px]"
+          }`}>
+            <div className="flex flex-col items-center xl:items-start w-full gap-8">
               
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                className="h-10 w-10 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-transform active:scale-95"
-              >
-                {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-              </Button>
+              {/* Header Container enclosing Logo and Collapse Button */}
+              <div className={`flex ${isCollapsed ? "flex-col items-center gap-4" : "flex-col xl:flex-row items-center gap-4 xl:justify-between"} w-full px-1`}>
+                {/* Logo */}
+                <Link href="/" className="flex items-center gap-3 transition-transform active:scale-95 duration-200 shrink-0">
+                  <div className="h-10 w-10 rounded-full bg-zinc-950 dark:bg-zinc-50 flex items-center justify-center font-bold text-white dark:text-black text-xl shadow-lg shrink-0">
+                    Y
+                  </div>
+                  {!isCollapsed && (
+                    <span className="hidden xl:inline font-bold tracking-tight text-xl bg-gradient-to-r from-black to-zinc-600 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
+                      YSocial
+                    </span>
+                  )}
+                </Link>
+
+                {/* Sidebar Collapse Toggle Button */}
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={toggleSidebar} 
+                  className={`h-8 w-8 rounded-full border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-150 dark:hover:bg-zinc-900 active:scale-90 transition-all shrink-0 ${
+                    isCollapsed ? "mt-2" : "mt-2 xl:mt-0"
+                  }`}
+                >
+                  <ChevronRight className={`h-4 w-4 transition-transform duration-300 ${isCollapsed ? "" : "rotate-180"}`} />
+                </Button>
+              </div>
+
+              {/* Navigation links */}
+              <nav className="flex flex-col gap-1.5 w-full">
+                {navItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  const Icon = item.icon;
+                  return (
+                    <Tooltip key={item.href}>
+                      <TooltipTrigger asChild>
+                        <Link
+                          href={item.href}
+                          className={`flex items-center gap-4 py-2.5 px-3.5 rounded-xl transition-all duration-300 active:scale-95 ${
+                            isActive 
+                              ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-semibold" 
+                              : "text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-zinc-100 hover:bg-zinc-100/30 dark:hover:bg-zinc-900/20"
+                          } ${isCollapsed ? "justify-center" : "justify-center xl:justify-start"}`}
+                        >
+                          <Icon 
+                            className={`h-5.5 w-5.5 transition-transform duration-300 ${isActive ? "scale-105" : "hover:scale-105"} shrink-0`} 
+                            fill={isActive ? "currentColor" : "none"}
+                            strokeWidth={isActive ? 2.5 : 2}
+                          />
+                          {!isCollapsed && (
+                            <span className="hidden xl:inline text-[14.5px]">{item.label}</span>
+                          )}
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="lg:block xl:hidden">
+                        {item.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </nav>
             </div>
 
             {/* Profile Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start py-6 px-3 rounded-2xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-left transition-all active:scale-98">
-                  <div className="flex items-center gap-3 w-full">
-                    <Avatar className="h-9 w-9 border border-zinc-200 dark:border-zinc-800">
-                      <AvatarImage src={user?.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80"} alt={user?.displayName || "User"} />
-                      <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                        {user?.displayName?.charAt(0).toUpperCase() || "Y"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="hidden xl:flex flex-col flex-1 min-w-0">
-                      <span className="font-semibold text-sm truncate">{user?.displayName || "YSocial User"}</span>
-                      <span className="text-zinc-400 text-xs truncate">@{user?.username || "ysocial_member"}</span>
+            <div className="flex flex-col items-center w-full gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className={`w-full ${
+                      isCollapsed 
+                        ? "justify-center p-0 h-12 rounded-full" 
+                        : "justify-center xl:justify-start py-6 px-3 rounded-2xl"
+                    } hover:bg-zinc-100 dark:hover:bg-zinc-900 text-left transition-all active:scale-98`}
+                  >
+                    <div className="flex items-center gap-3 w-full justify-center xl:justify-start">
+                      <Avatar className="h-9 w-9 border border-zinc-200 dark:border-zinc-800 shrink-0">
+                        <AvatarImage src={user?.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80"} alt={user?.displayName || "User"} />
+                        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
+                          {user?.displayName?.charAt(0).toUpperCase() || "Y"}
+                        </AvatarFallback>
+                      </Avatar>
+                      {!isCollapsed && (
+                        <>
+                          <div className="hidden xl:flex flex-col flex-1 min-w-0">
+                            <span className="font-semibold text-sm truncate">{user?.displayName || "YSocial User"}</span>
+                            <span className="text-zinc-400 text-xs truncate">@{user?.username || "ysocial_member"}</span>
+                          </div>
+                          <MoreHorizontal className="hidden xl:block h-4 w-4 text-zinc-400 shrink-0" />
+                        </>
+                      )}
                     </div>
-                    <MoreHorizontal className="hidden xl:inline h-4 w-4 text-zinc-400 shrink-0" />
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-2xl border-zinc-100 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-50">
-                <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
-                  <Link href="/profile" className="flex items-center w-full gap-2 text-sm">
-                    <User className="h-4 w-4" />
-                    {t("nav.profile")}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
-                  <span className="flex items-center w-full gap-2 text-sm">
-                    <Languages className="h-4 w-4" />
-                    {t("common.language")}: {locale.toUpperCase()}
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-                <DropdownMenuItem onClick={handleLogout} className="rounded-xl px-3 py-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20">
-                  <div className="flex items-center w-full gap-2 text-sm font-medium">
-                    <LogOut className="h-4 w-4" />
-                    {t("nav.logout")}
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-          </div>
-        </aside>
-
-        {/* ==================== CENTER COLUMN ==================== */}
-        <main className="flex-1 max-w-full lg:max-w-3xl border-r border-zinc-200/60 dark:border-zinc-900/60 min-h-screen flex flex-col pb-16 lg:pb-0">
-          {children}
-        </main>
-
-        {/* ==================== RIGHT SIDEBAR ==================== */}
-        <aside className="hidden lg:flex flex-col gap-6 py-6 px-6 w-[350px] shrink-0 sticky top-0 h-screen overflow-y-auto bg-zinc-50 dark:bg-black">
-          {/* Glassmorphic Widget: Search */}
-          <div className="flex items-center gap-2 bg-white/70 dark:bg-zinc-950/40 border border-zinc-200/40 dark:border-zinc-800/40 rounded-2xl py-3 px-4 focus-within:ring-1 focus-within:ring-zinc-400/30 transition-all duration-300">
-            <Search className="h-5 w-5 text-zinc-400" />
-            <input 
-              type="text" 
-              placeholder={t("nav.search")} 
-              className="bg-transparent border-none outline-none text-sm placeholder-zinc-400 w-full text-black dark:text-white"
-            />
-          </div>
-
-          {/* Glassmorphic Widget: Who to Follow */}
-          <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4">
-            <h3 className="font-bold text-md tracking-tight">{t("feed.whoToFollow")}</h3>
-            <div className="flex flex-col gap-4">
-              {mockUsers.map((mUser) => (
-                <div key={mUser.id} className="flex items-center justify-between gap-3 group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Avatar className="h-10 w-10 border border-zinc-100 dark:border-zinc-900 shrink-0">
-                      <AvatarImage src={mUser.avatar} />
-                      <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">{mUser.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col min-w-0">
-                      <span className="font-semibold text-sm truncate group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{mUser.name}</span>
-                      <span className="text-zinc-400 text-xs truncate">@{mUser.username}</span>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="rounded-full px-4 py-1 text-xs border-zinc-300 dark:border-zinc-800 hover:bg-zinc-950 dark:hover:bg-zinc-50 hover:text-white dark:hover:text-black font-semibold transition-all">
-                    {t("card.follow")}
                   </Button>
-                </div>
-              ))}
-            </div>
-          </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl border-zinc-200/55 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-50">
+                  <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
+                    <Link href="/profile" className="flex items-center w-full gap-2 text-sm">
+                      <User className="h-4 w-4 text-zinc-400" />
+                      {t("nav.profile")}
+                    </Link>
+                  </DropdownMenuItem>
 
-          {/* Glassmorphic Widget: Trends */}
-          <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4">
-            <div className="flex items-center gap-2 font-bold text-md">
-              <TrendingUp className="h-5 w-5 text-zinc-400" />
-              <h3 className="tracking-tight">{t("feed.trending")}</h3>
+                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
+
+                  {/* Locale Toggle Item in drop menu */}
+                  <DropdownMenuItem onClick={handleLanguageToggle} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
+                    <div className="flex items-center justify-between w-full text-sm">
+                      <span className="flex items-center gap-2">
+                        <Languages className="h-4 w-4 text-zinc-400" />
+                        {t("common.language")}
+                      </span>
+                      <span className="text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded text-zinc-600 dark:text-zinc-400">
+                        {locale}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+
+                  {/* Dark Mode Switcher inside Dropdown */}
+                  <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
+                    <div className="flex items-center justify-between w-full text-sm">
+                      <span className="flex items-center gap-2">
+                        {theme === "dark" ? (
+                          <>
+                            <Sun className="h-4 w-4 text-amber-500" />
+                            Light Mode
+                          </>
+                        ) : (
+                          <>
+                            <Moon className="h-4 w-4 text-indigo-500" />
+                            Dark Mode
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
+                  <DropdownMenuItem onClick={handleLogout} className="rounded-xl px-3 py-2 cursor-pointer text-red-650 focus:text-red-650 focus:bg-red-50 dark:focus:bg-red-950/20">
+                    <div className="flex items-center w-full gap-2 text-sm font-medium">
+                      <LogOut className="h-4 w-4" />
+                      {t("nav.logout")}
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            <div className="flex flex-col gap-4">
-              {mockTrends.map((trend, index) => (
-                <div key={index} className="flex items-center justify-between gap-3 cursor-pointer group">
-                  <div className="flex flex-col">
-                    <span className="text-zinc-400 text-xs">{t("nav.home")} • Trending</span>
-                    <span className="font-bold text-sm text-black dark:text-zinc-200 group-hover:text-zinc-600 dark:group-hover:text-white transition-colors">{trend.tag}</span>
-                    <span className="text-zinc-400 text-xs">{trend.posts}</span>
+          </aside>
+
+          {/* ==================== CENTER COLUMN (STRICTLY 600PX) ==================== */}
+          <main className="w-[600px] shrink-0 border-r border-zinc-200/60 dark:border-zinc-900/60 min-h-screen flex flex-col pb-16 lg:pb-0 bg-white dark:bg-black">
+            {children}
+          </main>
+
+          {/* ==================== RIGHT SIDEBAR (340PX) ==================== */}
+          <aside className="hidden lg:flex flex-col gap-6 py-6 px-4 w-[340px] shrink-0 sticky top-0 h-screen overflow-y-auto bg-zinc-50 dark:bg-black">
+            {/* Glassmorphic Widget: Search */}
+            <div className="flex items-center gap-2 bg-white/70 dark:bg-zinc-950/40 border border-zinc-200/40 dark:border-zinc-800/40 rounded-2xl py-3 px-4 focus-within:ring-1 focus-within:ring-zinc-400/30 transition-all duration-300 shrink-0">
+              <Search className="h-5 w-5 text-zinc-400 shrink-0" />
+              <input 
+                type="text" 
+                placeholder={t("nav.search")} 
+                className="bg-transparent border-none outline-none text-sm placeholder-zinc-400 w-full text-black dark:text-white"
+              />
+            </div>
+
+            {/* Glassmorphic Widget: Who to Follow */}
+            <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4 shrink-0">
+              <h3 className="font-bold text-md tracking-tight">{t("feed.whoToFollow")}</h3>
+              <div className="flex flex-col gap-4">
+                {mockUsers.map((mUser) => (
+                  <div key={mUser.id} className="flex items-center justify-between gap-3 group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-10 w-10 border border-zinc-100 dark:border-zinc-900 shrink-0">
+                        <AvatarImage src={mUser.avatar} />
+                        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">{mUser.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-semibold text-sm truncate group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{mUser.name}</span>
+                        <span className="text-zinc-400 text-xs truncate">@{mUser.username}</span>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" className="rounded-full px-4 py-1 text-xs border-zinc-300 dark:border-zinc-800 hover:bg-zinc-950 dark:hover:bg-zinc-50 hover:text-white dark:hover:text-black font-semibold transition-all shrink-0">
+                      {t("card.follow")}
+                    </Button>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-700 group-hover:translate-x-0.5 transition-transform" />
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* Minimalist footer */}
-          <footer className="px-5 text-zinc-400 text-xs flex flex-wrap gap-x-3 gap-y-1.5 leading-5">
-            <span className="hover:underline cursor-pointer">About</span>
-            <span className="hover:underline cursor-pointer">Privacy Policy</span>
-            <span className="hover:underline cursor-pointer">Terms</span>
-            <span>© 2026 YSocial Inc.</span>
-          </footer>
-        </aside>
+            {/* Glassmorphic Widget: Trends */}
+            <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4 shrink-0">
+              <div className="flex items-center gap-2 font-bold text-md">
+                <TrendingUp className="h-5 w-5 text-zinc-400 shrink-0" />
+                <h3 className="tracking-tight">{t("feed.trending")}</h3>
+              </div>
+              <div className="flex flex-col gap-4">
+                {mockTrends.map((trend, index) => (
+                  <div key={index} className="flex items-center justify-between gap-3 cursor-pointer group">
+                    <div className="flex flex-col">
+                      <span className="text-xs text-zinc-500 font-normal">Home • Trending</span>
+                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-650 dark:group-hover:text-zinc-350 transition-colors mt-0.5">{trend.tag}</span>
+                      <span className="text-xs text-zinc-500 font-normal mt-0.5">{trend.posts}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Minimalist footer */}
+            <footer className="px-5 text-zinc-400 text-xs flex flex-wrap gap-x-3 gap-y-1.5 leading-5 shrink-0">
+              <span className="hover:underline cursor-pointer">About</span>
+              <span className="hover:underline cursor-pointer">Privacy Policy</span>
+              <span className="hover:underline cursor-pointer">Terms</span>
+              <span>© 2026 YSocial Inc.</span>
+            </footer>
+          </aside>
+
+        </div>
 
         {/* ==================== MOBILE NAVIGATION BAR ==================== */}
         <nav className="fixed bottom-0 left-0 right-0 h-16 border-t border-zinc-200/60 dark:border-zinc-900/60 bg-white/80 dark:bg-black/80 backdrop-blur-lg flex items-center justify-around z-30 lg:hidden px-4">

@@ -4,8 +4,11 @@ export type LocaleType = "vi" | "en";
 
 interface UIState {
   locale: LocaleType;
+  isCollapsed: boolean;
   actions: {
     setLocale: (locale: LocaleType) => void;
+    setIsCollapsed: (collapsed: boolean) => void;
+    toggleSidebar: () => void;
   };
 }
 
@@ -24,6 +27,7 @@ export const useUIStore = create<UIState>((set) => {
 
   return {
     locale: initialLocale,
+    isCollapsed: false,
     actions: {
       setLocale: (locale) => {
         if (typeof window !== "undefined") {
@@ -31,11 +35,18 @@ export const useUIStore = create<UIState>((set) => {
         }
         set({ locale });
       },
+      setIsCollapsed: (isCollapsed) => set({ isCollapsed }),
+      toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
     },
   };
 });
 
 // Selectors for clean and efficient re-rendering
 export const useLocale = () => useUIStore((state) => state.locale);
+export const useIsCollapsed = () => useUIStore((state) => state.isCollapsed);
 export const useUIActions = () => useUIStore((state) => state.actions);
-export const useUIState = () => useUIStore((state) => ({ locale: state.locale, actions: state.actions }));
+export const useUIState = () => useUIStore((state) => ({ 
+  locale: state.locale, 
+  isCollapsed: state.isCollapsed,
+  actions: state.actions 
+}));

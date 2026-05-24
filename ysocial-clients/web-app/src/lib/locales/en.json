@@ -37,7 +37,8 @@
     "unlikeSuccess": "Post unliked",
     "closeFriend": "Close Friend",
     "follow": "Follow",
-    "unfollow": "Unfollow"
+    "unfollow": "Unfollow",
+    "following": "Following"
   },
   "common": {
     "language": "Language",
