@@ -1,0 +1,46 @@
+{
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "write": "Write",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "switchProfile": "Switch accounts",
+    "logout": "Log out"
+  },
+  "feed": {
+    "forYou": "For you",
+    "following": "Following",
+    "emptyFeed": "No posts here yet.",
+    "createCTA": "Create your first post",
+    "whoToFollow": "Who to follow",
+    "trending": "Trending for you",
+    "viewThread": "View thread",
+    "comments": "comments",
+    "likes": "likes"
+  },
+  "creator": {
+    "placeholder": "What's new?",
+    "post": "Post",
+    "posting": "Posting...",
+    "attachment": "Attach an image"
+  },
+  "card": {
+    "justNow": "Just now",
+    "minutesAgo": "{n}m ago",
+    "hoursAgo": "{n}h ago",
+    "daysAgo": "{n}d ago",
+    "copySuccess": "Post link copied to clipboard!",
+    "bookmarkSuccess": "Post saved successfully!",
+    "unbookmarkSuccess": "Post unsaved!",
+    "likeSuccess": "Post liked",
+    "unlikeSuccess": "Post unliked",
+    "closeFriend": "Close Friend",
+    "follow": "Follow",
+    "unfollow": "Unfollow"
+  },
+  "common": {
+    "language": "Language",
+    "error": "Something went wrong. Please try again!"
+  }
+}

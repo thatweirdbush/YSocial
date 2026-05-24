@@ -1,0 +1,41 @@
+import { create } from "zustand";
+
+export type LocaleType = "vi" | "en";
+
+interface UIState {
+  locale: LocaleType;
+  actions: {
+    setLocale: (locale: LocaleType) => void;
+  };
+}
+
+export const useUIStore = create<UIState>((set) => {
+  // Client-safe initial locale reading
+  let initialLocale: LocaleType = "vi";
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("ysocial_locale") as LocaleType;
+    if (saved === "vi" || saved === "en") {
+      initialLocale = saved;
+    } else {
+      const browserLang = navigator.language.split("-")[0];
+      initialLocale = browserLang === "en" ? "en" : "vi";
+    }
+  }
+
+  return {
+    locale: initialLocale,
+    actions: {
+      setLocale: (locale) => {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("ysocial_locale", locale);
+        }
+        set({ locale });
+      },
+    },
+  };
+});
+
+// Selectors for clean and efficient re-rendering
+export const useLocale = () => useUIStore((state) => state.locale);
+export const useUIActions = () => useUIStore((state) => state.actions);
+export const useUIState = () => useUIStore((state) => ({ locale: state.locale, actions: state.actions }));

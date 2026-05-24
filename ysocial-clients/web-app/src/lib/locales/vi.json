@@ -1,0 +1,46 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "search": "Tìm kiếm",
+    "write": "Tạo bài viết",
+    "notifications": "Thông báo",
+    "profile": "Trang cá nhân",
+    "switchProfile": "Chuyển tài khoản",
+    "logout": "Đăng xuất"
+  },
+  "feed": {
+    "forYou": "Cho bạn",
+    "following": "Đang theo dõi",
+    "emptyFeed": "Chưa có bài viết nào ở đây.",
+    "createCTA": "Tạo bài viết đầu tiên",
+    "whoToFollow": "Gợi ý theo dõi",
+    "trending": "Xu hướng dành cho bạn",
+    "viewThread": "Xem chuỗi thảo luận",
+    "comments": "bình luận",
+    "likes": "lượt thích"
+  },
+  "creator": {
+    "placeholder": "Có gì mới thế?",
+    "post": "Đăng",
+    "posting": "Đang đăng...",
+    "attachment": "Đính kèm hình ảnh"
+  },
+  "card": {
+    "justNow": "Vừa xong",
+    "minutesAgo": "{n} phút trước",
+    "hoursAgo": "{n} giờ trước",
+    "daysAgo": "{n} ngày trước",
+    "copySuccess": "Đã sao chép liên kết bài viết vào clipboard!",
+    "bookmarkSuccess": "Đã lưu bài viết thành công!",
+    "unbookmarkSuccess": "Đã bỏ lưu bài viết!",
+    "likeSuccess": "Đã thích bài viết",
+    "unlikeSuccess": "Đã bỏ thích bài viết",
+    "closeFriend": "Bạn thân",
+    "follow": "Theo dõi",
+    "unfollow": "Bỏ theo dõi"
+  },
+  "common": {
+    "language": "Ngôn ngữ",
+    "error": "Đã có lỗi xảy ra. Vui lòng thử lại!"
+  }
+}
