@@ -103,7 +103,57 @@ export function ProfileContainer({ username, initialProfile }: ProfileContainerP
   
   // Extract list arrays safely
   const rawPostsList = activeTab === "posts" ? postsData : activeTab === "saved" ? savedData : [];
-  const postsList = Array.isArray(rawPostsList) ? rawPostsList : (rawPostsList?.items || []);
+  let postsList = Array.isArray(rawPostsList) ? rawPostsList : (rawPostsList?.items || []);
+
+  // 3. Dynamic Development mock posts generator
+  if (process.env.NODE_ENV === "development" && postsList.length === 0) {
+    const isMe = profile.username === "ysocial_member" || profile.username === "ysocial_user";
+    postsList = [
+      {
+        id: `post-${profile.id}-1`,
+        content: isMe 
+          ? "🎯 Vừa hoàn thành cấu trúc Dynamic User Profile cho YSocial! Mọi người thấy giao diện mới này thế nào? Đã tách biệt SSR/CSR, bảo mật chống XSS cho Bio parser và đặc biệt là chống Cumulative Layout Shift (CLS) tuyệt đối bằng bounding boxes skeletons. Hàng hiệu luôn nhé! 🔥"
+          : profile.username === "anquoc.dev"
+          ? "💻 Sáng nay cà phê và tối ưu lại toàn bộ Right Sidebar cho YSocial Front-end Client. Việc cô lập state tìm kiếm giúp giảm hơn 80% số lần re-render không cần thiết. Coding is art!"
+          : "🌸 Hôm nay trời đẹp quá, dạo một vòng hồ Tây chụp vài tấm ảnh lung linh. YSocial giao diện Zinc Minimalist nhìn nghiện thật sự!",
+        imageUrls: profile.username === "hamy_cute" 
+          ? ["https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80"]
+          : undefined,
+        createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 minutes ago
+        likesCount: profile.username === "anquoc.dev" ? 42 : 12,
+        commentsCount: profile.username === "anquoc.dev" ? 8 : 2,
+        isLikedByCurrentUser: true,
+        isBookmarkedByCurrentUser: false,
+        user: {
+          id: profile.id,
+          displayName: profile.displayName,
+          username: profile.username,
+          avatarUrl: profile.avatarUrl,
+          isVerified: profile.isVerified,
+        }
+      },
+      {
+        id: `post-${profile.id}-2`,
+        content: isMe
+          ? "Bảo mật luôn là ưu tiên hàng đầu! Vừa viết xong regex băm URL trong Bio, chỉ cho phép giao thức http và https hoạt động để chặn đứng các cuộc tấn công XSS thông qua script injection javascript: hoặc data: 🛡️"
+          : profile.username === "anquoc.dev"
+          ? "☕️ Coffee time & Code review. Một ngày làm việc hiệu suất cùng đội ngũ YSocial."
+          : "Hôm nay đọc được một cuốn sách rất hay về thiết kế tối giản (Minimalist Design). Càng lược bỏ những chi tiết thừa, sản phẩm càng trở nên sang trọng và tinh tế.",
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
+        likesCount: profile.username === "anquoc.dev" ? 88 : 24,
+        commentsCount: profile.username === "anquoc.dev" ? 15 : 4,
+        isLikedByCurrentUser: false,
+        isBookmarkedByCurrentUser: true,
+        user: {
+          id: profile.id,
+          displayName: profile.displayName,
+          username: profile.username,
+          avatarUrl: profile.avatarUrl,
+          isVerified: profile.isVerified,
+        }
+      }
+    ];
+  }
 
   return (
     <div className="flex flex-col w-full min-h-screen">

@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 
+import Link from "next/link";
+
 interface MockUser {
   id: string;
   name: string;
@@ -34,20 +36,20 @@ function FollowSuggestionItem({ user }: FollowSuggestionItemProps) {
 
   return (
     <div className="flex items-center justify-between gap-3 group">
-      <div className="flex items-center gap-3 min-w-0">
+      <Link href={`/@${user.username}`} className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity">
         <Avatar className="h-10 w-10 border border-zinc-100 dark:border-zinc-900 shrink-0">
           <AvatarImage src={user.avatar} />
           <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-            {user.name.charAt(0)}
+            {user.name?.charAt(0) || "U"}
           </AvatarFallback>
         </Avatar>
         <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-sm truncate group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
+          <span className="font-semibold text-sm truncate group-hover:text-zinc-650 dark:group-hover:text-zinc-200 transition-colors">
             {user.name}
           </span>
           <span className="text-zinc-400 text-xs truncate">@{user.username}</span>
         </div>
-      </div>
+      </Link>
       <Button
         onClick={handleFollowToggle}
         size="sm"

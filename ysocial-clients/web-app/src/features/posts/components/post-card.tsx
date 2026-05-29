@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
+import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -352,12 +353,14 @@ export function PostCard({ post, onLikeToggle, onBookmarkToggle }: PostCardProps
 
       {/* Left Column: Avatar & vertical Thread Line */}
       <div className="flex flex-col items-center self-stretch shrink-0">
-        <Avatar className="h-10 w-10 border border-zinc-150 dark:border-zinc-850 shrink-0">
-          <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
-          <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-            {post.user.displayName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
+        <Link href={`/@${post.user.username}`}>
+          <Avatar className="h-10 w-10 border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity">
+            <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
+            <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
+              {post.user.displayName?.charAt(0).toUpperCase() || "U"}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
         {/* Thread connector line running through */}
         <div className="w-[1.5px] grow bg-zinc-200 dark:bg-zinc-900 my-2 rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -368,15 +371,17 @@ export function PostCard({ post, onLikeToggle, onBookmarkToggle }: PostCardProps
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
-              {post.user.displayName}
-            </span>
-            {post.user.isVerified && (
-              <ShieldCheck className="h-4 w-4 text-blue-500 shrink-0 fill-blue-500/10" />
-            )}
-            <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
-              @{post.user.username}
-            </span>
+            <Link href={`/@${post.user.username}`} className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
+                {post.user.displayName}
+              </span>
+              {post.user.isVerified && (
+                <ShieldCheck className="h-4 w-4 text-blue-500 shrink-0 fill-blue-500/10" />
+              )}
+              <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
+                @{post.user.username}
+              </span>
+            </Link>
 
             {/* Small premium Follow Button in Header */}
             <button

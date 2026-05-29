@@ -50,7 +50,7 @@ export function MainLayout({ children }: MainLayoutProps) {
   const { clearAuth } = useAuthActions();
 
   // Dynamically map navigation profile link to the authenticated user's username
-  const profileHref = user?.username ? `/@${user.username}` : "/";
+  const profileHref = user?.username ? `/@${user.username}` : "/@ysocial_member";
 
   // Navigation config mapping to translation keys
   const navItems = [
