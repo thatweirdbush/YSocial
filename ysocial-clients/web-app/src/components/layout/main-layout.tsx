@@ -49,13 +49,16 @@ export function MainLayout({ children }: MainLayoutProps) {
   const user = useAuthUser();
   const { clearAuth } = useAuthActions();
 
+  // Dynamically map navigation profile link to the authenticated user's username
+  const profileHref = user?.username ? `/@${user.username}` : "/";
+
   // Navigation config mapping to translation keys
   const navItems = [
     { href: "/", icon: Home, label: t("nav.home") },
     { href: "/search", icon: Search, label: t("nav.search") },
     { href: "/create", icon: PlusSquare, label: t("nav.write") },
     { href: "/notifications", icon: Bell, label: t("nav.notifications") },
-    { href: "/profile", icon: User, label: t("nav.profile") },
+    { href: profileHref, icon: User, label: t("nav.profile") },
   ];
 
   const handleLanguageToggle = () => {
@@ -114,7 +117,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
                   return (
-                    <Tooltip key={item.href}>
+                    <Tooltip key={item.label}>
                       <TooltipTrigger asChild>
                         <Link
                           href={item.href}
@@ -174,7 +177,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56 rounded-2xl border-zinc-200/55 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-50">
                   <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
-                    <Link href="/profile" className="flex items-center w-full gap-2 text-sm">
+                    <Link href={profileHref} className="flex items-center w-full gap-2 text-sm">
                       <User className="h-4 w-4 text-zinc-400" />
                       {t("nav.profile")}
                     </Link>
