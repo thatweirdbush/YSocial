@@ -163,16 +163,16 @@ export function PostFeed() {
   const handleComposerSuccess = async (content: string, imageUrl?: string) => {
     try {
       const payload = { content, imageUrl };
-      
+
       // Perform backend POST API
       await apiClient.post("/api/posts", payload);
       toast.success(t("card.likeSuccess").replace("liked", "created")); // generic toast helper
-      
+
       // Re-invalidate post feed query to pull new posts instantly
       queryClient.invalidateQueries({ queryKey: ["posts", activeTab] });
     } catch (err) {
       console.warn("[Composer] API submission error, prepending optimistically to local display:", err);
-      
+
       // Dynamic client prepend mock on error to maintain rich interactive fidelity
       const newMockPost: PostItem = {
         id: `post-temp-${Date.now()}`,
@@ -202,7 +202,7 @@ export function PostFeed() {
           ],
         };
       });
-      
+
       toast.success("Post added locally!");
     }
   };
@@ -235,7 +235,7 @@ export function PostFeed() {
 
   return (
     <div className="flex flex-col w-full min-h-screen pb-20 lg:pb-12 bg-white dark:bg-black">
-      
+
       {/* Sticky Premium Header Tabs Swapper */}
       <header className="sticky top-0 bg-white/70 dark:bg-black/70 backdrop-blur-md border-b border-zinc-200/60 dark:border-zinc-900/60 flex items-center justify-between z-20 px-4 h-14 shrink-0">
         <div className="flex w-full h-full justify-center">
@@ -250,7 +250,7 @@ export function PostFeed() {
               <div className="absolute bottom-0 h-[3px] w-14 bg-black dark:bg-white rounded-full" />
             )}
           </button>
-          
+
           <button
             onClick={() => setActiveTab("following")}
             className="flex-1 flex flex-col items-center justify-center relative font-bold text-sm transition-colors text-center"
@@ -265,8 +265,8 @@ export function PostFeed() {
         </div>
 
         {/* Quick status bar sparkle spinner */}
-        <button 
-          onClick={() => refetch()} 
+        <button
+          onClick={() => refetch()}
           className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-black dark:hover:text-white transition-transform active:rotate-185 shrink-0"
         >
           <RefreshCw className="h-4 w-4" />
@@ -294,9 +294,9 @@ export function PostFeed() {
           </div>
         ) : (
           allPosts.map((post: any) => (
-            <PostCard 
-              key={post.id} 
-              post={post as PostItem} 
+            <PostCard
+              key={post.id}
+              post={post as PostItem}
               onLikeToggle={handleLikeToggle}
             />
           ))
