@@ -15,8 +15,7 @@ import {
   Languages,
   LogOut,
   MoreHorizontal,
-  ChevronRight,
-  TrendingUp
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +31,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { LAYOUT } from "@/lib/constants/layout";
 import { useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
 import { useAuthUser, useAuthActions } from "@/features/auth/store/auth-store";
+import { RightSidebar } from "./right-sidebar";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -68,19 +68,6 @@ export function MainLayout({ children }: MainLayoutProps) {
       window.location.reload();
     }
   };
-
-  // Mock data for premium recommendations and trends to wow the user
-  const mockUsers = [
-    { id: "1", name: "Trần Anh Quốc", username: "anquoc.dev", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80" },
-    { id: "2", name: "Nguyễn Hà My", username: "hamy_cute", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80" },
-    { id: "3", name: "Phan Văn Minh", username: "minh_pvc", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" },
-  ];
-
-  const mockTrends = [
-    { tag: "#YSocialNET", posts: "24.5K posts" },
-    { tag: "#CleanArchitecture", posts: "12.2K posts" },
-    { tag: "#LuxuryMinimalism", posts: "8.9K posts" },
-  ];
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -244,70 +231,8 @@ export function MainLayout({ children }: MainLayoutProps) {
             {children}
           </main>
 
-          {/* ==================== RIGHT SIDEBAR (340PX) ==================== */}
-          <aside className={`hidden lg:flex flex-col gap-6 py-6 px-4 shrink-0 sticky top-0 h-screen overflow-y-auto bg-zinc-50 dark:bg-black ${LAYOUT.right}`}>
-            {/* Glassmorphic Widget: Search */}
-            <div className="flex items-center gap-2 bg-white/70 dark:bg-zinc-950/40 border border-zinc-200/40 dark:border-zinc-800/40 rounded-2xl py-3 px-4 focus-within:ring-1 focus-within:ring-zinc-400/30 transition-all duration-300 shrink-0">
-              <Search className="h-5 w-5 text-zinc-400 shrink-0" />
-              <input
-                type="text"
-                placeholder={t("nav.search")}
-                className="bg-transparent border-none outline-none text-sm placeholder-zinc-400 w-full text-black dark:text-white"
-              />
-            </div>
-
-            {/* Glassmorphic Widget: Who to Follow */}
-            <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4 shrink-0">
-              <h3 className="font-bold text-md tracking-tight">{t("feed.whoToFollow")}</h3>
-              <div className="flex flex-col gap-4">
-                {mockUsers.map((mUser) => (
-                  <div key={mUser.id} className="flex items-center justify-between gap-3 group">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="h-10 w-10 border border-zinc-100 dark:border-zinc-900 shrink-0">
-                        <AvatarImage src={mUser.avatar} />
-                        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">{mUser.name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-sm truncate group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">{mUser.name}</span>
-                        <span className="text-zinc-400 text-xs truncate">@{mUser.username}</span>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" className="rounded-full px-4 py-1 text-xs border-zinc-300 dark:border-zinc-800 hover:bg-zinc-950 dark:hover:bg-zinc-50 hover:text-white dark:hover:text-black font-semibold transition-all shrink-0">
-                      {t("card.follow")}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Glassmorphic Widget: Trends */}
-            <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4 shrink-0">
-              <div className="flex items-center gap-2 font-bold text-md">
-                <TrendingUp className="h-5 w-5 text-zinc-400 shrink-0" />
-                <h3 className="tracking-tight">{t("feed.trending")}</h3>
-              </div>
-              <div className="flex flex-col gap-4">
-                {mockTrends.map((trend, index) => (
-                  <div key={index} className="flex items-center justify-between gap-3 cursor-pointer group">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-zinc-500 font-normal">Home • Trending</span>
-                      <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-650 dark:group-hover:text-zinc-350 transition-colors mt-0.5">{trend.tag}</span>
-                      <span className="text-xs text-zinc-500 font-normal mt-0.5">{trend.posts}</span>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-300 dark:text-zinc-700 group-hover:translate-x-0.5 transition-transform shrink-0" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Minimalist footer */}
-            <footer className="px-5 text-zinc-400 text-xs flex flex-wrap gap-x-3 gap-y-1.5 leading-5 shrink-0">
-              <span className="hover:underline cursor-pointer">About</span>
-              <span className="hover:underline cursor-pointer">Privacy Policy</span>
-              <span className="hover:underline cursor-pointer">Terms</span>
-              <span>© 2026 YSocial Inc.</span>
-            </footer>
-          </aside>
+          {/* ==================== RIGHT SIDEBAR ==================== */}
+          <RightSidebar />
 
         </div>
 
