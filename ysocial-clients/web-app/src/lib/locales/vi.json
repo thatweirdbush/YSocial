@@ -52,5 +52,19 @@
     "unfollowConfirmTitle": "Bỏ theo dõi @{username}?",
     "unfollowConfirmCancel": "Hủy",
     "unfollowConfirmAction": "Bỏ theo dõi"
+  },
+  "notifications": {
+    "title": "Thông báo",
+    "filterAll": "Tất cả",
+    "filterFollows": "Theo dõi",
+    "filterReplies": "Trả lời",
+    "filterLikes": "Thả tim",
+    "emptyAll": "Bạn đã đọc hết! Chưa có thông báo mới.",
+    "emptyFollows": "Chưa có người theo dõi mới.",
+    "emptyReplies": "Chưa có phản hồi nào.",
+    "emptyLikes": "Chưa có lượt thả tim nào.",
+    "actionLike": "đã thích bài viết của bạn",
+    "actionFollow": "đã bắt đầu theo dõi bạn",
+    "actionReply": "đã trả lời bài viết của bạn"
   }
 }

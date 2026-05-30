@@ -52,5 +52,19 @@
     "unfollowConfirmTitle": "Unfollow @{username}?",
     "unfollowConfirmCancel": "Cancel",
     "unfollowConfirmAction": "Unfollow"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "filterAll": "All",
+    "filterFollows": "Follows",
+    "filterReplies": "Replies",
+    "filterLikes": "Likes",
+    "emptyAll": "You're all caught up! No notifications yet.",
+    "emptyFollows": "No new followers yet.",
+    "emptyReplies": "No replies yet.",
+    "emptyLikes": "No likes yet.",
+    "actionLike": "liked your post",
+    "actionFollow": "started following you",
+    "actionReply": "replied to your post"
   }
 }
