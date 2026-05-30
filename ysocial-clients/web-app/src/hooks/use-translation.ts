@@ -12,7 +12,8 @@ type TranslationKey =
   | `card.${keyof typeof vi.card}`
   | `common.${keyof typeof vi.common}`
   | `profile.${keyof typeof vi.profile}`
-  | `notifications.${keyof typeof vi.notifications}`;
+  | `notifications.${keyof typeof vi.notifications}`
+  | `auth.${keyof typeof vi.auth}`;
 
 export const useTranslation = () => {
   const locale = useLocale();
