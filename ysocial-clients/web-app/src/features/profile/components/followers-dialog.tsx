@@ -107,11 +107,10 @@ export function FollowersDialog({
                     onClick={() => handleFollowToggle(fUser, "followers")}
                     size="sm"
                     variant="outline"
-                    className={`text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${
-                      fUser.isFollowing
+                    className={`text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${fUser.isFollowing
                         ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450"
                         : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-                    }`}
+                      }`}
                   >
                     {fUser.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
                   </Button>
@@ -146,11 +145,10 @@ export function FollowersDialog({
                     onClick={() => handleFollowToggle(fUser, "following")}
                     size="sm"
                     variant="outline"
-                    className={`text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${
-                      fUser.isFollowing
+                    className={`text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${fUser.isFollowing
                         ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450"
                         : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-                    }`}
+                      }`}
                   >
                     {fUser.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
                   </Button>

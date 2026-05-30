@@ -62,9 +62,17 @@ interface PostCardProps {
   post: PostItem;
   onLikeToggle?: (id: string, currentlyLiked: boolean) => Promise<void>;
   onBookmarkToggle?: (id: string, currentlyBookmarked: boolean) => Promise<void>;
+  isAuthorFollowing?: boolean;
+  onAuthorFollowToggle?: () => void;
 }
 
-export function PostCard({ post, onLikeToggle, onBookmarkToggle }: PostCardProps) {
+export function PostCard({
+  post,
+  onLikeToggle,
+  onBookmarkToggle,
+  isAuthorFollowing,
+  onAuthorFollowToggle,
+}: PostCardProps) {
   const { t } = useTranslation();
 
   // Interactive Local states for optimistic rapid feedback
@@ -73,7 +81,14 @@ export function PostCard({ post, onLikeToggle, onBookmarkToggle }: PostCardProps
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarkedByCurrentUser);
   const [bookmarksCount, setBookmarksCount] = useState(post.isBookmarkedByCurrentUser ? 12 : 11);
   const [sharesCount, setSharesCount] = useState(14);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(isAuthorFollowing ?? false);
+
+  // Synchronize local follow state with parent prop using primitive equality check to prevent render loops
+  useEffect(() => {
+    if (isAuthorFollowing !== undefined && isAuthorFollowing !== isFollowing) {
+      setIsFollowing(isAuthorFollowing);
+    }
+  }, [isAuthorFollowing, isFollowing]);
 
   // Micro-UX Animation triggers
   const [likeAnimating, setLikeAnimating] = useState(false);
@@ -197,10 +212,14 @@ export function PostCard({ post, onLikeToggle, onBookmarkToggle }: PostCardProps
     e.stopPropagation();
     const nextState = !isFollowing;
     setIsFollowing(nextState);
-    if (nextState) {
-      toast.success(`Following @${post.user.username}`);
+    if (onAuthorFollowToggle) {
+      onAuthorFollowToggle();
     } else {
-      toast.info(`Unfollowed @${post.user.username}`);
+      if (nextState) {
+        toast.success(`Following @${post.user.username}`);
+      } else {
+        toast.info(`Unfollowed @${post.user.username}`);
+      }
     }
   };
 

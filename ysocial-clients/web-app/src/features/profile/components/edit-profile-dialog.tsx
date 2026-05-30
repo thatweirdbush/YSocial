@@ -20,7 +20,6 @@ import { useAuthUser, useAuthActions } from "@/features/auth/store/auth-store";
 import { apiClient } from "@/lib/api-client";
 import { UserProfile } from "../types";
 
-// Strict validation rules matching AGENTS.md
 const editProfileSchema = z.object({
   displayName: z
     .string()
@@ -66,7 +65,6 @@ export function EditProfileDialog({ profile, onUpdate, children }: EditProfileDi
   const onSubmit = async (values: EditProfileFormValues) => {
     setIsLoading(true);
     try {
-      // call the /api/users/profiles/me PUT endpoint as per swagger.json
       await apiClient.put("/api/users/profiles/me", {
         displayName: values.displayName,
         bio: values.bio || null,
@@ -125,7 +123,7 @@ export function EditProfileDialog({ profile, onUpdate, children }: EditProfileDi
             <Input
               {...register("displayName")}
               placeholder="Tên đầy đủ của bạn"
-              className="rounded-xl border-zinc-200/70 dark:border-zinc-900 focus-visible:ring-zinc-450 dark:bg-black"
+              className="rounded-xl border-zinc-200/70 dark:border-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:border-zinc-450 focus-visible:ring-zinc-450 dark:bg-black"
             />
             {errors.displayName && (
               <span className="text-xs font-semibold text-red-500 pl-1">
@@ -142,7 +140,7 @@ export function EditProfileDialog({ profile, onUpdate, children }: EditProfileDi
               {...register("bio")}
               placeholder="Viết đôi điều về bản thân bạn..."
               rows={3}
-              className="rounded-xl border-zinc-200/70 dark:border-zinc-900 focus-visible:ring-zinc-450 dark:bg-black resize-none"
+              className="rounded-xl border-zinc-200/70 dark:border-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:border-zinc-450 focus-visible:ring-zinc-450 dark:bg-black resize-none"
             />
             {errors.bio && (
               <span className="text-xs font-semibold text-red-500 pl-1">
@@ -158,7 +156,7 @@ export function EditProfileDialog({ profile, onUpdate, children }: EditProfileDi
             <Input
               {...register("avatarUrl")}
               placeholder="https://example.com/avatar.jpg"
-              className="rounded-xl border-zinc-200/70 dark:border-zinc-900 focus-visible:ring-zinc-450 dark:bg-black"
+              className="rounded-xl border-zinc-200/70 dark:border-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:border-zinc-450 focus-visible:ring-zinc-450 dark:bg-black"
             />
             {errors.avatarUrl && (
               <span className="text-xs font-semibold text-red-500 pl-1">

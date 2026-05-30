@@ -98,12 +98,11 @@ export function ProfileHeader({
           <>
             <Button
               onClick={onFollowToggle}
-              size="sm"
-              variant="outline"
+              variant={profile.isFollowing ? "outline" : "default"}
               className={`flex-1 sm:flex-initial text-xs font-bold tracking-tight transition-all duration-300 px-6 py-2.5 rounded-2xl border ${
                 profile.isFollowing
-                  ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450 hover:bg-zinc-200 dark:hover:bg-zinc-850"
-                  : "bg-black dark:bg-white border-zinc-950 dark:border-zinc-100 text-white dark:text-black hover:bg-zinc-900 dark:hover:bg-zinc-100"
+                  ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450 hover:bg-zinc-200 dark:hover:bg-zinc-850 hover:text-zinc-700 dark:hover:text-zinc-350"
+                  : "bg-zinc-950 dark:bg-zinc-50 text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-md hover:shadow-lg"
               }`}
             >
               {profile.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}

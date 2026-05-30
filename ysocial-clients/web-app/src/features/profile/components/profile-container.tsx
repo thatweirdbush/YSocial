@@ -33,7 +33,9 @@ export function ProfileContainer({ username, initialProfile }: ProfileContainerP
     setProfile(initialProfile);
   }, [initialProfile]);
 
-  const isOwnProfile = authUser ? authUser.id === profile.id : false;
+  const isOwnProfile = authUser
+    ? authUser.id === profile.id
+    : (profile.username === "ysocial_member" || profile.username === "ysocial_user");
 
   // 1. Fetch user posts dynamically
   const { data: postsData, isLoading: postsLoading } = useQuery({
@@ -191,7 +193,12 @@ export function ProfileContainer({ username, initialProfile }: ProfileContainerP
           ) : (
             <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-900/60">
               {postsList.map((post: any) => (
-                <PostCard key={post.id} post={post} />
+                <PostCard 
+                  key={post.id} 
+                  post={post}
+                  isAuthorFollowing={post.user.id === profile.id ? profile.isFollowing : undefined}
+                  onAuthorFollowToggle={post.user.id === profile.id ? handleFollowToggle : undefined}
+                />
               ))}
             </div>
           )}
