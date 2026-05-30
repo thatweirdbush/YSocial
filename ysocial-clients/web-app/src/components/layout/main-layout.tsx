@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   Home,
@@ -39,6 +39,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
 
@@ -67,9 +68,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   const handleLogout = () => {
     clearAuth();
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
+    router.push("/login");
   };
 
   return (

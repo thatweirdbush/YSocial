@@ -51,7 +51,7 @@ export const RegisterForm: React.FC = () => {
       </div>
 
       {/* Email Input */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-1 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
           {t("auth.emailLabel") || "Email"}
         </label>
@@ -71,7 +71,7 @@ export const RegisterForm: React.FC = () => {
       )}
 
       {/* Username Input */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-1 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
           {t("auth.usernameLabel") || "Username"}
         </label>
@@ -89,7 +89,7 @@ export const RegisterForm: React.FC = () => {
       )}
 
       {/* Password Input */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-1 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
           {t("auth.passwordLabel") || "Password"}
         </label>
@@ -108,7 +108,7 @@ export const RegisterForm: React.FC = () => {
       )}
 
       {/* Confirm Password Input */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-1 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
+      <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
           {t("auth.confirmPasswordLabel") || "Confirm Password"}
         </label>
