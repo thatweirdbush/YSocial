@@ -43,5 +43,14 @@
   "common": {
     "language": "Ngôn ngữ",
     "error": "Đã có lỗi xảy ra. Vui lòng thử lại!"
+  },
+  "profile": {
+    "followersTitle": "Người theo dõi",
+    "followingTitle": "Đang theo dõi",
+    "emptyFollowers": "Chưa có người theo dõi nào",
+    "emptyFollowing": "Chưa đang theo dõi ai",
+    "unfollowConfirmTitle": "Bỏ theo dõi @{username}?",
+    "unfollowConfirmCancel": "Hủy",
+    "unfollowConfirmAction": "Bỏ theo dõi"
   }
 }

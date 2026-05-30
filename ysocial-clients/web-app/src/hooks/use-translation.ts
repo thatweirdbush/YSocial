@@ -10,7 +10,8 @@ type TranslationKey =
   | `feed.${keyof typeof vi.feed}`
   | `creator.${keyof typeof vi.creator}`
   | `card.${keyof typeof vi.card}`
-  | `common.${keyof typeof vi.common}`;
+  | `common.${keyof typeof vi.common}`
+  | `profile.${keyof typeof vi.profile}`;
 
 export const useTranslation = () => {
   const locale = useLocale();

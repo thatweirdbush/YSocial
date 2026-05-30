@@ -43,5 +43,14 @@
   "common": {
     "language": "Language",
     "error": "Something went wrong. Please try again!"
+  },
+  "profile": {
+    "followersTitle": "Followers",
+    "followingTitle": "Following",
+    "emptyFollowers": "No followers yet.",
+    "emptyFollowing": "Not following anyone yet.",
+    "unfollowConfirmTitle": "Unfollow @{username}?",
+    "unfollowConfirmCancel": "Cancel",
+    "unfollowConfirmAction": "Unfollow"
   }
 }
