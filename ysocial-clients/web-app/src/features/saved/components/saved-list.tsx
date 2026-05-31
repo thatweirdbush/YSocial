@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Search, FolderPlus, Plus, Bookmark, Sliders, CheckSquare, Layers, X } from "lucide-react";
+import { Search, FolderPlus, Plus, Bookmark, Sliders, CheckSquare, Layers, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import { SavedItem, Collection } from "../types";
 import { PostCard } from "@/features/posts";
 import { SavedCommandBar } from "./saved-command-bar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export const SavedList: React.FC = () => {
   const { t } = useTranslation();
@@ -94,9 +96,44 @@ export const SavedList: React.FC = () => {
   const [isManageMode, setIsManageMode] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>("");
   const [showAddCollection, setShowAddCollection] = useState<boolean>(false);
+  const [collectionToDelete, setCollectionToDelete] = useState<{ id: string; name: string } | null>(null);
+
+  // Scroll Indicators
+  const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
+  const [canScrollRight, setCanScrollRight] = useState<boolean>(false);
+
+  // Search input focus Ref
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   // Scroll Ref for horizontal tags scroll
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Scroll visibility check function
+  const checkScroll = React.useCallback(() => {
+    if (scrollContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 1);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+    }
+  }, []);
+
+  // Listen scroll event
+  React.useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener("scroll", checkScroll);
+      // Initial check
+      checkScroll();
+
+      const observer = new ResizeObserver(checkScroll);
+      observer.observe(container);
+
+      return () => {
+        container.removeEventListener("scroll", checkScroll);
+        observer.disconnect();
+      };
+    }
+  }, [collections, showAddCollection, checkScroll]);
 
   // Effect to auto-scroll horizontal tags bar on showing add input
   React.useEffect(() => {
@@ -106,15 +143,17 @@ export const SavedList: React.FC = () => {
           left: scrollContainerRef.current.scrollWidth,
           behavior: "smooth",
         });
+        checkScroll();
       }, 100);
     }
-  }, [showAddCollection]);
+  }, [showAddCollection, checkScroll]);
 
   // Animation Track States (Unsave slide-out tracker)
   const [animatingUnsaveIds, setAnimatingUnsaveIds] = useState<string[]>([]);
 
   // Drag and Drop drag tracker
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [draggedCollectionId, setDraggedCollectionId] = useState<string | null>(null);
 
   // 3. Client Filtered List (For display only)
   const filteredItems = savedItems.filter((item) => {
@@ -156,11 +195,10 @@ export const SavedList: React.FC = () => {
   };
 
   const handleDeleteCollection = (id: string, name: string) => {
-    const confirmed = window.confirm(
-      t("saved.confirmDeleteCollection" as any) || `Are you sure you want to delete collection "${name}"?`
-    );
-    if (!confirmed) return;
+    setCollectionToDelete({ id, name });
+  };
 
+  const confirmDeleteCollection = (id: string) => {
     setCollections((prev) => prev.filter((col) => col.id !== id));
     // Remove the collection relation from any items that belong to it
     setSavedItems((prev) =>
@@ -176,6 +214,7 @@ export const SavedList: React.FC = () => {
       setActiveCollectionId("all");
     }
 
+    setCollectionToDelete(null);
     toast.success(t("saved.collectionDeletedSuccess" as any) || "Collection deleted successfully!");
   };
 
@@ -294,42 +333,63 @@ export const SavedList: React.FC = () => {
     setDraggedItemId(null);
   };
 
+  // 10. Collection Tags Reorder Drag and Drop Handlers
+  const handleColDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedCollectionId(id);
+    e.dataTransfer.setData("text/plain/col", id);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleColDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleColDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData("text/plain/col") || draggedCollectionId;
+    if (!draggedId || draggedId === targetId) {
+      setDraggedCollectionId(null);
+      return;
+    }
+
+    setCollections((prevCols) => {
+      const dragIndex = prevCols.findIndex((col) => col.id === draggedId);
+      const dropIndex = prevCols.findIndex((col) => col.id === targetId);
+
+      if (dragIndex === -1 || dropIndex === -1) return prevCols;
+
+      const updated = [...prevCols];
+      const [removed] = updated.splice(dragIndex, 1);
+      updated.splice(dropIndex, 0, removed);
+      return updated;
+    });
+
+    setDraggedCollectionId(null);
+  };
+
   return (
     <div className="flex flex-col w-full min-h-screen pb-24 relative select-none">
       {/* Sticky Header */}
-      <header className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 border-b border-zinc-150 dark:border-zinc-900 py-3.5 px-4 flex items-center justify-between gap-3">
+      <header className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 pt-3.5 px-4 flex items-center justify-between gap-3">
         {/* Left Side: Title */}
-        <h1 className={`text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 transition-all duration-300 ${
-          isSearchExpanded ? "scale-90 opacity-0 w-0 pointer-events-none" : "scale-100 opacity-100"
-        }`}>
+        <h1 className={`text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 transition-all duration-300
+          }`}>
           {t("saved.title" as any) || "Saved"}
         </h1>
 
         {/* Right Side Controls */}
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-1.5 ml-auto">
           {/* Expandable Search Area */}
           <div className="flex items-center relative transition-all duration-300">
-            <button
-              onClick={() => {
-                const expanded = !isSearchExpanded;
-                setIsSearchExpanded(expanded);
-                if (!expanded) {
-                  setSearchQuery(""); // Clear search query when collapsing
-                }
-              }}
-              className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
-            >
-              {isSearchExpanded ? <X className="size-4 shrink-0" /> : <Search className="size-4 shrink-0" />}
-            </button>
             <input
+              ref={searchInputRef}
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("saved.searchPlaceholder" as any) || "Search..."}
-              className={`bg-zinc-100 dark:bg-zinc-900 border-none rounded-full px-3 py-1.5 text-xs outline-none focus:ring-0 text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 transition-all duration-300 origin-right ${
-                isSearchExpanded ? "w-40 sm:w-56 ml-1.5 opacity-100" : "w-0 opacity-0 pointer-events-none p-0"
-              }`}
-              autoFocus={isSearchExpanded}
+              placeholder={t("saved.search" as any) || "Search..."}
+              className={`bg-zinc-100 dark:bg-zinc-900 border-none rounded-full px-3 py-1.5 text-xs outline-none focus:ring-0 text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 transition-all duration-300 origin-right
+                ${isSearchExpanded ? "w-44 sm:w-64 mr-1 opacity-100" : "w-0 opacity-0 pointer-events-none p-0"
+                }`}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   setIsSearchExpanded(false);
@@ -337,6 +397,22 @@ export const SavedList: React.FC = () => {
                 }
               }}
             />
+            <button
+              onClick={() => {
+                const expanded = !isSearchExpanded;
+                setIsSearchExpanded(expanded);
+                if (expanded) {
+                  setTimeout(() => {
+                    searchInputRef.current?.focus();
+                  }, 50);
+                } else {
+                  setSearchQuery(""); // Clear search query when collapsing
+                }
+              }}
+              className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer shrink-0"
+            >
+              {isSearchExpanded ? <X className="size-4 shrink-0" /> : <Search className="size-4 shrink-0" />}
+            </button>
           </div>
 
           {/* Manage Mode trigger */}
@@ -348,66 +424,97 @@ export const SavedList: React.FC = () => {
                 setSelectedIds([]); // Clean state on closing checkboxes
               }
             }}
-            disabled={savedItems.length === 0}
-            className={`px-3 py-1.5 rounded-full border text-xs font-bold tracking-tight cursor-pointer transition-all duration-300 ${
-              savedItems.length === 0
-                ? "opacity-30 cursor-not-allowed border-zinc-200 text-zinc-400 dark:border-zinc-800 dark:text-zinc-650"
-                : isManageMode
-                  ? "bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-black dark:border-white"
-                  : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950"
-            }`}
+            disabled={filteredItems.length === 0}
+            className={`px-3 py-1.5 rounded-full border text-xs font-bold tracking-tight cursor-pointer transition-all duration-300 ${filteredItems.length === 0
+              ? "opacity-30 cursor-not-allowed border-zinc-200 text-zinc-400 dark:border-zinc-800 dark:text-zinc-650"
+              : isManageMode
+                ? "bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-black dark:border-white"
+                : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950"
+              }`}
           >
             {isManageMode ? t("saved.exitManage" as any) || "Exit" : t("saved.manageMode" as any) || "Manage"}
           </button>
         </div>
       </header>
 
-      <div className="px-4 mt-4">
+      <div className="px-4 py-4 relative flex items-center w-full group/scroll">
+        {/* Left Gradient Overlay */}
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-r from-white to-transparent dark:from-black transition-opacity duration-300 ${
+            canScrollLeft ? "opacity-100" : "opacity-0"
+          }`}
+        />
+
+        {/* Left Scroll Indicator Chevron */}
+        <button
+          onClick={() => {
+            scrollContainerRef.current?.scrollBy({ left: -180, behavior: "smooth" });
+          }}
+          className={`absolute left-2 z-20 size-7 rounded-full bg-white/90 dark:bg-black/90 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-center text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all duration-300 hover:scale-105 cursor-pointer backdrop-blur-sm shrink-0 ${
+            canScrollLeft ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
+          }`}
+          title="Scroll Left"
+        >
+          <ChevronLeft className="size-4 shrink-0" />
+        </button>
+
         {/* Collections filter tags bar */}
-        <div ref={scrollContainerRef} className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar mb-2">
+        <div
+          ref={scrollContainerRef}
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full"
+        >
           {/* Default "All" pill */}
           <button
             onClick={() => setActiveCollectionId("all")}
-            className={`h-8 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border flex items-center justify-center shrink-0 ${
-              activeCollectionId === "all"
-                ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
-                : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
-            }`}
+            className={`h-8 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border flex items-center justify-center shrink-0 ${activeCollectionId === "all"
+              ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
+              : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
+              }`}
           >
             {t("saved.all" as any) || "All"}
           </button>
 
           {/* Collection lists */}
-          {collections.map((col) => (
-            <div key={col.id} className="relative group/pill shrink-0 flex items-center h-8">
-              <button
-                onClick={() => setActiveCollectionId(col.id)}
-                className={`h-8 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border flex items-center justify-center shrink-0 pr-7 ${
-                  activeCollectionId === col.id
+          {collections.map((col) => {
+            const isDragging = draggedCollectionId === col.id;
+            return (
+              <div
+                key={col.id}
+                draggable
+                onDragStart={(e) => handleColDragStart(e, col.id)}
+                onDragOver={handleColDragOver}
+                onDrop={(e) => handleColDrop(e, col.id)}
+                className={`relative group/pill shrink-0 flex items-center h-8 cursor-grab active:cursor-grabbing transition-all duration-200 ${isDragging ? "opacity-35 scale-95" : "opacity-100"
+                  }`}
+                title="Drag to reorder collection tag"
+              >
+                <button
+                  onClick={() => setActiveCollectionId(col.id)}
+                  className={`h-8 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 border flex items-center justify-center shrink-0 pr-7 ${activeCollectionId === col.id
                     ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
                     : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
-                }`}
-              >
-                {col.name}
-              </button>
+                    }`}
+                >
+                  {col.name}
+                </button>
 
-              {/* Delete button positioned absolute inside the pill */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteCollection(col.id, col.name);
-                }}
-                className={`absolute right-2 size-3.5 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none ${
-                  activeCollectionId === col.id
+                {/* Delete button positioned absolute inside the pill */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteCollection(col.id, col.name);
+                  }}
+                  className={`absolute right-2 size-3.5 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none ${activeCollectionId === col.id
                     ? "text-zinc-400 hover:text-white hover:bg-zinc-800"
                     : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900"
-                }`}
-                title="Delete Collection"
-              >
-                <X className="size-2.5 shrink-0" />
-              </button>
-            </div>
-          ))}
+                    }`}
+                  title="Delete Collection"
+                >
+                  <X className="size-2.5 shrink-0" />
+                </button>
+              </div>
+            );
+          })}
 
           {/* Inline Add Collection Toggle pill */}
           {showAddCollection ? (
@@ -451,10 +558,30 @@ export const SavedList: React.FC = () => {
             </button>
           )}
         </div>
+
+        {/* Right Gradient Overlay */}
+        <div
+          className={`absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-l from-white to-transparent dark:from-black transition-opacity duration-300 ${
+            canScrollRight ? "opacity-100" : "opacity-0"
+          }`}
+        />
+
+        {/* Right Scroll Indicator Chevron */}
+        <button
+          onClick={() => {
+            scrollContainerRef.current?.scrollBy({ left: 180, behavior: "smooth" });
+          }}
+          className={`absolute right-2 z-20 size-7 rounded-full bg-white/90 dark:bg-black/90 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-center text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all duration-300 hover:scale-105 cursor-pointer backdrop-blur-sm shrink-0 ${
+            canScrollRight ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
+          }`}
+          title="Scroll Right"
+        >
+          <ChevronRight className="size-4 shrink-0" />
+        </button>
       </div>
 
       {/* Main Items feed rendering */}
-      <div className="flex-1 w-full flex flex-col border-t border-zinc-100 dark:border-zinc-900/60 mt-1 select-none">
+      <div className="flex-1 w-full flex flex-col border-t border-zinc-100 dark:border-zinc-900/60 select-none">
         {filteredItems.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center select-none">
             <Layers className="size-12 text-zinc-300 dark:text-zinc-800 mb-4 stroke-1 animate-pulse" />
@@ -534,6 +661,46 @@ export const SavedList: React.FC = () => {
           setIsManageMode(false); // Make sure checkboxes are smoothly closed as well
         }}
       />
+
+      {/* Delete Collection Confirmation Dialog */}
+      <Dialog open={collectionToDelete !== null} onOpenChange={(isOpen) => !isOpen && setCollectionToDelete(null)}>
+        <DialogContent
+          className="w-[340px] p-6 rounded-3xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-900 text-center flex flex-col items-center gap-4 z-[100] [&>button]:hidden animate-in fade-in zoom-in duration-200"
+        >
+          <DialogHeader className="flex flex-col items-center gap-3 w-full">
+            <div className="size-12 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-500 mx-auto shrink-0">
+              <FolderPlus className="size-6 stroke-1.5" />
+            </div>
+            <DialogTitle className="text-md font-semibold text-zinc-900 dark:text-zinc-50 leading-tight mx-auto">
+              {collectionToDelete
+                ? (t("saved.deleteCollectionConfirmTitle" as any) || `Delete "${collectionToDelete.name}" collection?`)
+                : "Delete collection?"}
+            </DialogTitle>
+            <p className="text-xs text-zinc-400 dark:text-zinc-600 max-w-xs mt-1 leading-relaxed mx-auto">
+              {t("saved.deleteCollectionConfirmDesc" as any) || "This will delete the collection permanently. Saved items inside this collection will not be deleted."}
+            </p>
+          </DialogHeader>
+          <div className="w-full flex flex-row gap-2 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setCollectionToDelete(null)}
+              className="w-full flex-1 rounded-2xl font-bold bg-transparent border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none h-10 flex items-center justify-center"
+            >
+              {t("saved.cancel" as any) || "Cancel"}
+            </Button>
+            <Button
+              onClick={() => {
+                if (collectionToDelete) {
+                  confirmDeleteCollection(collectionToDelete.id);
+                }
+              }}
+              className="w-full flex-1 rounded-2xl font-bold bg-red-500 hover:bg-red-650 text-white border-none shadow-none h-10 flex items-center justify-center cursor-pointer"
+            >
+              {t("saved.delete" as any) || "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

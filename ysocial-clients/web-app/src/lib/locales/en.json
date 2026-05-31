@@ -132,7 +132,7 @@
     "unsave": "Unsave",
     "unsaveSuccess": "Item unsaved successfully!",
     "bulkUnsaveSuccess": "Selected items unsaved successfully!",
-    "manageMode": "Manage Mode",
+    "manageMode": "Manage",
     "exitManage": "Exit",
     "selectedCount": "{{count}} selected",
     "deleteSelected": "Delete Selected",
@@ -148,6 +148,10 @@
     "deselectAll": "Deselect All",
     "sortingMode": "Sort",
     "confirmDeleteCollection": "Are you sure you want to delete this collection?",
-    "collectionDeletedSuccess": "Collection deleted successfully!"
+    "collectionDeletedSuccess": "Collection deleted successfully!",
+    "deleteCollectionConfirmTitle": "Delete collection?",
+    "deleteCollectionConfirmDesc": "This will delete the collection permanently. Saved items inside this collection will not be deleted.",
+    "delete": "Delete",
+    "search": "Search"
   }
 }
