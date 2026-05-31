@@ -1,5 +1,6 @@
 import React from "react";
 import { Metadata } from "next";
+import { MainLayout } from "@/components/layout/main-layout";
 import { SavedList } from "@/features/saved";
 
 export const metadata: Metadata = {
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
 
 export default function SavedPage() {
   return (
-    <main className="w-full max-w-2xl mx-auto border-x border-zinc-100 dark:border-zinc-900 min-h-screen bg-white dark:bg-black/20">
+    <MainLayout>
       <SavedList />
-    </main>
+    </MainLayout>
   );
 }
