@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Search, FolderPlus, Plus, Bookmark, Sliders, CheckSquare, Layers } from "lucide-react";
+import { Search, FolderPlus, Plus, Bookmark, Sliders, CheckSquare, Layers, X } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import { SavedItem, Collection } from "../types";
@@ -89,10 +89,26 @@ export const SavedList: React.FC = () => {
   // UI Interactive States
   const [activeCollectionId, setActiveCollectionId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isSearchExpanded, setIsSearchExpanded] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isManageMode, setIsManageMode] = useState<boolean>(false);
   const [newCollectionName, setNewCollectionName] = useState<string>("");
   const [showAddCollection, setShowAddCollection] = useState<boolean>(false);
+
+  // Scroll Ref for horizontal tags scroll
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  // Effect to auto-scroll horizontal tags bar on showing add input
+  React.useEffect(() => {
+    if (showAddCollection && scrollContainerRef.current) {
+      setTimeout(() => {
+        scrollContainerRef.current?.scrollTo({
+          left: scrollContainerRef.current.scrollWidth,
+          behavior: "smooth",
+        });
+      }, 100);
+    }
+  }, [showAddCollection]);
 
   // Animation Track States (Unsave slide-out tracker)
   const [animatingUnsaveIds, setAnimatingUnsaveIds] = useState<string[]>([]);
@@ -137,6 +153,30 @@ export const SavedList: React.FC = () => {
     setNewCollectionName("");
     setShowAddCollection(false);
     toast.success(t("saved.collectionAddedSuccess" as any) || "Collection created successfully!");
+  };
+
+  const handleDeleteCollection = (id: string, name: string) => {
+    const confirmed = window.confirm(
+      t("saved.confirmDeleteCollection" as any) || `Are you sure you want to delete collection "${name}"?`
+    );
+    if (!confirmed) return;
+
+    setCollections((prev) => prev.filter((col) => col.id !== id));
+    // Remove the collection relation from any items that belong to it
+    setSavedItems((prev) =>
+      prev.map((item) => {
+        if (item.collectionIds.includes(id)) {
+          return { ...item, collectionIds: item.collectionIds.filter((cid) => cid !== id) };
+        }
+        return item;
+      })
+    );
+
+    if (activeCollectionId === id) {
+      setActiveCollectionId("all");
+    }
+
+    toast.success(t("saved.collectionDeletedSuccess" as any) || "Collection deleted successfully!");
   };
 
   // 5. Unsave / Slide-Out Optimistic trigger
@@ -257,87 +297,146 @@ export const SavedList: React.FC = () => {
   return (
     <div className="flex flex-col w-full min-h-screen pb-24 relative select-none">
       {/* Sticky Header */}
-      <header className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 border-b border-zinc-150 dark:border-zinc-900 py-3.5 px-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+      <header className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 border-b border-zinc-150 dark:border-zinc-900 py-3.5 px-4 flex items-center justify-between gap-3">
+        {/* Left Side: Title */}
+        <h1 className={`text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 transition-all duration-300 ${
+          isSearchExpanded ? "scale-90 opacity-0 w-0 pointer-events-none" : "scale-100 opacity-100"
+        }`}>
           {t("saved.title" as any) || "Saved"}
         </h1>
 
-        {/* Manage Mode trigger */}
-        <button
-          onClick={() => {
-            const nextMode = !isManageMode;
-            setIsManageMode(nextMode);
-            if (!nextMode) {
-              setSelectedIds([]); // Clean state on closing checkboxes
-            }
-          }}
-          className={`px-3 py-1.5 rounded-full border text-xs font-bold tracking-tight cursor-pointer transition-all duration-300 ${isManageMode
-            ? "bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-black dark:border-white"
-            : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950"
+        {/* Right Side Controls */}
+        <div className="flex items-center gap-2 ml-auto">
+          {/* Expandable Search Area */}
+          <div className="flex items-center relative transition-all duration-300">
+            <button
+              onClick={() => {
+                const expanded = !isSearchExpanded;
+                setIsSearchExpanded(expanded);
+                if (!expanded) {
+                  setSearchQuery(""); // Clear search query when collapsing
+                }
+              }}
+              className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+            >
+              {isSearchExpanded ? <X className="size-4 shrink-0" /> : <Search className="size-4 shrink-0" />}
+            </button>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("saved.searchPlaceholder" as any) || "Search..."}
+              className={`bg-zinc-100 dark:bg-zinc-900 border-none rounded-full px-3 py-1.5 text-xs outline-none focus:ring-0 text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 transition-all duration-300 origin-right ${
+                isSearchExpanded ? "w-40 sm:w-56 ml-1.5 opacity-100" : "w-0 opacity-0 pointer-events-none p-0"
+              }`}
+              autoFocus={isSearchExpanded}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setIsSearchExpanded(false);
+                  setSearchQuery("");
+                }
+              }}
+            />
+          </div>
+
+          {/* Manage Mode trigger */}
+          <button
+            onClick={() => {
+              const nextMode = !isManageMode;
+              setIsManageMode(nextMode);
+              if (!nextMode) {
+                setSelectedIds([]); // Clean state on closing checkboxes
+              }
+            }}
+            disabled={savedItems.length === 0}
+            className={`px-3 py-1.5 rounded-full border text-xs font-bold tracking-tight cursor-pointer transition-all duration-300 ${
+              savedItems.length === 0
+                ? "opacity-30 cursor-not-allowed border-zinc-200 text-zinc-400 dark:border-zinc-800 dark:text-zinc-650"
+                : isManageMode
+                  ? "bg-zinc-900 text-white border-zinc-900 dark:bg-white dark:text-black dark:border-white"
+                  : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950"
             }`}
-        >
-          {isManageMode ? t("saved.exitManage" as any) || "Exit" : t("saved.manageMode" as any) || "Manage"}
-        </button>
+          >
+            {isManageMode ? t("saved.exitManage" as any) || "Exit" : t("saved.manageMode" as any) || "Manage"}
+          </button>
+        </div>
       </header>
 
       <div className="px-4 mt-4">
-        {/* Local Search Input */}
-        <div className="relative w-full flex items-center mb-4 border-b border-zinc-150 dark:border-zinc-900 focus-within:border-zinc-950 dark:focus-within:border-zinc-200 transition-colors">
-          <Search className="size-4 text-zinc-400 dark:text-zinc-600 absolute left-1" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t("saved.searchPlaceholder" as any) || "Search saved items..."}
-            className="bg-transparent border-none w-full pl-7 py-2.5 text-sm outline-none focus:outline-none focus:ring-0 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
-          />
-        </div>
-
         {/* Collections filter tags bar */}
-        <div className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar mb-2">
+        <div ref={scrollContainerRef} className="flex items-center gap-2 overflow-x-auto py-2 no-scrollbar mb-2">
           {/* Default "All" pill */}
           <button
             onClick={() => setActiveCollectionId("all")}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border ${activeCollectionId === "all"
-              ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
-              : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
-              }`}
+            className={`h-8 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border flex items-center justify-center shrink-0 ${
+              activeCollectionId === "all"
+                ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
+                : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
+            }`}
           >
             {t("saved.all" as any) || "All"}
           </button>
 
           {/* Collection lists */}
           {collections.map((col) => (
-            <button
-              key={col.id}
-              onClick={() => setActiveCollectionId(col.id)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border ${activeCollectionId === col.id
-                ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
-                : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
+            <div key={col.id} className="relative group/pill shrink-0 flex items-center h-8">
+              <button
+                onClick={() => setActiveCollectionId(col.id)}
+                className={`h-8 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap tracking-tight transition-all duration-300 cursor-pointer border flex items-center justify-center shrink-0 pr-7 ${
+                  activeCollectionId === col.id
+                    ? "bg-zinc-950 text-white border-zinc-950 dark:bg-white dark:text-black dark:border-white"
+                    : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
                 }`}
-            >
-              {col.name}
-            </button>
+              >
+                {col.name}
+              </button>
+
+              {/* Delete button positioned absolute inside the pill */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteCollection(col.id, col.name);
+                }}
+                className={`absolute right-2 size-3.5 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none ${
+                  activeCollectionId === col.id
+                    ? "text-zinc-400 hover:text-white hover:bg-zinc-800"
+                    : "text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                }`}
+                title="Delete Collection"
+              >
+                <X className="size-2.5 shrink-0" />
+              </button>
+            </div>
           ))}
 
           {/* Inline Add Collection Toggle pill */}
           {showAddCollection ? (
-            <form onSubmit={handleCreateCollection} className="flex items-center gap-1.5 shrink-0">
+            <form onSubmit={handleCreateCollection} className="flex items-center gap-1.5 shrink-0 h-8">
               <input
                 type="text"
                 autoFocus
                 value={newCollectionName}
                 onChange={(e) => setNewCollectionName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setShowAddCollection(false);
+                    setNewCollectionName("");
+                  }
+                }}
                 placeholder={t("saved.collectionNamePlaceholder" as any) || "New..."}
-                className="bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full px-3 py-1 text-xs outline-none focus:border-zinc-950 dark:focus:border-zinc-100 text-zinc-900 dark:text-zinc-100"
+                className="h-8 bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full px-3 py-1 text-xs outline-none focus:border-zinc-950 dark:focus:border-zinc-100 text-zinc-900 dark:text-zinc-100"
               />
-              <button type="submit" className="size-6 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center cursor-pointer shrink-0">
-                <Plus className="size-3.5" />
+              <button
+                type="submit"
+                className="h-8 px-3 py-1.5 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold text-xs tracking-tight transition-all cursor-pointer shrink-0"
+              >
+                <Plus className="size-3.5 mr-1" />
+                <span>{t("saved.create" as any) || "Create"}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddCollection(false)}
-                className="text-[10px] font-bold text-zinc-400 dark:text-zinc-650 hover:text-red-500 px-1 transition-colors cursor-pointer shrink-0"
+                className="h-8 px-3 border border-zinc-150 dark:border-zinc-900 rounded-full flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-red-500 hover:border-red-500/30 transition-colors cursor-pointer shrink-0"
               >
                 {t("saved.cancel" as any) || "Cancel"}
               </button>
@@ -345,7 +444,7 @@ export const SavedList: React.FC = () => {
           ) : (
             <button
               onClick={() => setShowAddCollection(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600 hover:text-zinc-800 dark:hover:text-zinc-350 hover:border-zinc-600 dark:hover:border-zinc-600 transition-colors text-xs font-semibold whitespace-nowrap tracking-tight cursor-pointer"
+              className="h-8 flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-800 text-zinc-400 dark:text-zinc-650 hover:text-zinc-800 dark:hover:text-zinc-350 hover:border-zinc-600 dark:hover:border-zinc-600 transition-colors text-xs font-semibold whitespace-nowrap tracking-tight cursor-pointer shrink-0"
             >
               <FolderPlus className="size-3.5 shrink-0" />
               <span>{t("saved.createCollection" as any) || "New"}</span>

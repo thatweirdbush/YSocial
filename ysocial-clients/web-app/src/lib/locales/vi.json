@@ -146,6 +146,8 @@
     "collectionAddedSuccess": "Tạo bộ sưu tập thành công!",
     "selectAll": "Chọn tất cả",
     "deselectAll": "Bỏ chọn tất cả",
-    "sortingMode": "Sắp xếp"
+    "sortingMode": "Sắp xếp",
+    "confirmDeleteCollection": "Bạn có chắc chắn muốn xóa bộ sưu tập này không?",
+    "collectionDeletedSuccess": "Đã xóa bộ sưu tập thành công!"
   }
 }

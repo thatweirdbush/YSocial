@@ -146,6 +146,8 @@
     "collectionAddedSuccess": "Collection created successfully!",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
-    "sortingMode": "Sort"
+    "sortingMode": "Sort",
+    "confirmDeleteCollection": "Are you sure you want to delete this collection?",
+    "collectionDeletedSuccess": "Collection deleted successfully!"
   }
 }
