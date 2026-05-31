@@ -149,7 +149,7 @@
     "sortingMode": "Sort",
     "confirmDeleteCollection": "Are you sure you want to delete this collection?",
     "collectionDeletedSuccess": "Collection deleted successfully!",
-    "deleteCollectionConfirmTitle": "Delete collection?",
+    "deleteCollectionConfirmTitle": "Delete collection {name}?",
     "deleteCollectionConfirmDesc": "This will delete the collection permanently. Saved items inside this collection will not be deleted.",
     "delete": "Delete",
     "search": "Search"

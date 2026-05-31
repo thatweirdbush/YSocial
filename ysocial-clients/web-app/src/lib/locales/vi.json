@@ -149,7 +149,7 @@
     "sortingMode": "Sắp xếp",
     "confirmDeleteCollection": "Bạn có chắc chắn muốn xóa bộ sưu tập này không?",
     "collectionDeletedSuccess": "Đã xóa bộ sưu tập thành công!",
-    "deleteCollectionConfirmTitle": "Xóa bộ sưu tập?",
+    "deleteCollectionConfirmTitle": "Xóa bộ sưu tập {name}?",
     "deleteCollectionConfirmDesc": "Hành động này sẽ xóa vĩnh viễn bộ sưu tập. Các mục đã lưu bên trong bộ sưu tập này sẽ không bị xóa.",
     "delete": "Xóa",
     "search": "Tìm kiếm"

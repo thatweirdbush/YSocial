@@ -440,9 +440,8 @@ export const SavedList: React.FC = () => {
       <div className="px-0 py-4 h-16 overflow-hidden relative flex items-center w-full group/scroll">
         {/* Left Gradient Overlay */}
         <div
-          className={`absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-r from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${
-            canScrollLeft ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-r from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${canScrollLeft ? "opacity-100" : "opacity-0"
+            }`}
         />
 
         {/* Left Scroll Indicator Chevron */}
@@ -450,9 +449,8 @@ export const SavedList: React.FC = () => {
           onClick={() => {
             scrollContainerRef.current?.scrollBy({ left: -180, behavior: "smooth" });
           }}
-          className={`absolute left-2 z-20 size-7 rounded-full bg-white/90 dark:bg-black/90 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-center text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all duration-300 hover:scale-105 cursor-pointer backdrop-blur-sm shrink-0 ${
-            canScrollLeft ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
-          }`}
+          className={`absolute left-2 z-20 size-7 rounded-full bg-white/90 dark:bg-black/90 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-center text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all duration-300 hover:scale-105 cursor-pointer backdrop-blur-sm shrink-0 ${canScrollLeft ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
+            }`}
           title="Scroll Left"
         >
           <ChevronLeft className="size-4 shrink-0" />
@@ -561,9 +559,8 @@ export const SavedList: React.FC = () => {
 
         {/* Right Gradient Overlay */}
         <div
-          className={`absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-l from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${
-            canScrollRight ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-l from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${canScrollRight ? "opacity-100" : "opacity-0"
+            }`}
         />
 
         {/* Right Scroll Indicator Chevron */}
@@ -571,9 +568,8 @@ export const SavedList: React.FC = () => {
           onClick={() => {
             scrollContainerRef.current?.scrollBy({ left: 180, behavior: "smooth" });
           }}
-          className={`absolute right-2 z-20 size-7 rounded-full bg-white/90 dark:bg-black/90 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-center text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all duration-300 hover:scale-105 cursor-pointer backdrop-blur-sm shrink-0 ${
-            canScrollRight ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
-          }`}
+          className={`absolute right-2 z-20 size-7 rounded-full bg-white/90 dark:bg-black/90 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-center text-zinc-650 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-100 transition-all duration-300 hover:scale-105 cursor-pointer backdrop-blur-sm shrink-0 ${canScrollRight ? "opacity-100 scale-100" : "opacity-0 scale-90 pointer-events-none"
+            }`}
           title="Scroll Right"
         >
           <ChevronRight className="size-4 shrink-0" />
@@ -673,7 +669,7 @@ export const SavedList: React.FC = () => {
             </div>
             <DialogTitle className="text-md font-semibold text-zinc-900 dark:text-zinc-50 leading-tight mx-auto">
               {collectionToDelete
-                ? (t("saved.deleteCollectionConfirmTitle" as any) || `Delete "${collectionToDelete.name}" collection?`)
+                ? (t("saved.deleteCollectionConfirmTitle" as any)?.replace("{name}", collectionToDelete.name) || `Delete "${collectionToDelete.name}" collection?`)
                 : "Delete collection?"}
             </DialogTitle>
             <p className="text-xs text-zinc-400 dark:text-zinc-600 max-w-xs mt-1 leading-relaxed mx-auto">
