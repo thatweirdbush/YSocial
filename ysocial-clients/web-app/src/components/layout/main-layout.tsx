@@ -10,6 +10,7 @@ import {
   PlusSquare,
   Bell,
   User,
+  Bookmark,
   Sun,
   Moon,
   Languages,
@@ -60,6 +61,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     { href: "/create", icon: PlusSquare, label: t("nav.write") },
     { href: "/notifications", icon: Bell, label: t("nav.notifications") },
     { href: profileHref, icon: User, label: t("nav.profile") },
+    { href: "/saved", icon: Bookmark, label: t("nav.saved") },
   ];
 
   const handleLanguageToggle = () => {

@@ -10,7 +10,7 @@ import {
   Check,
   Sparkles,
   ShieldCheck,
-  Eye,
+  EyeOff,
   Flag,
   VolumeX,
   Ban,
@@ -427,6 +427,15 @@ export function PostCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-2xl border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-30">
+              <DropdownMenuItem onClick={() => toast.info(`Saved`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
+                <Bookmark className="h-4 w-4 text-zinc-400 mr-2" />
+                Save
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toast.info(`Not interested`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
+                <EyeOff className="h-4 w-4 text-zinc-400 mr-2" />
+                Not interested
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
               <DropdownMenuItem onClick={() => toast.info(`Muted @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
                 <VolumeX className="h-4 w-4 text-zinc-400 mr-2" />
                 Mute @{post.user.username}
