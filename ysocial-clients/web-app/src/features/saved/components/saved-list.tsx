@@ -437,10 +437,10 @@ export const SavedList: React.FC = () => {
         </div>
       </header>
 
-      <div className="px-4 py-4 relative flex items-center w-full group/scroll">
+      <div className="px-0 py-4 h-16 overflow-hidden relative flex items-center w-full group/scroll">
         {/* Left Gradient Overlay */}
         <div
-          className={`absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-r from-white to-transparent dark:from-black transition-opacity duration-300 ${
+          className={`absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-r from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${
             canScrollLeft ? "opacity-100" : "opacity-0"
           }`}
         />
@@ -461,7 +461,7 @@ export const SavedList: React.FC = () => {
         {/* Collections filter tags bar */}
         <div
           ref={scrollContainerRef}
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full"
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full px-5 scroll-smooth"
         >
           {/* Default "All" pill */}
           <button
@@ -561,7 +561,7 @@ export const SavedList: React.FC = () => {
 
         {/* Right Gradient Overlay */}
         <div
-          className={`absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-l from-white to-transparent dark:from-black transition-opacity duration-300 ${
+          className={`absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-l from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${
             canScrollRight ? "opacity-100" : "opacity-0"
           }`}
         />
