@@ -120,5 +120,32 @@
     "toastRegisterSuccess": "Account created successfully! Welcome to YSocial.",
     "toastOtpSent": "OTP code has been sent successfully!",
     "toastResetSuccess": "Password reset successfully! Please log in."
+  },
+  "saved": {
+    "title": "Saved",
+    "all": "All",
+    "posts": "Posts",
+    "comments": "Comments",
+    "searchPlaceholder": "Search saved items by content or username...",
+    "emptyTitle": "No saved items",
+    "emptyDesc": "Items you save will appear here. Start exploring your feed!",
+    "unsave": "Unsave",
+    "unsaveSuccess": "Item unsaved successfully!",
+    "bulkUnsaveSuccess": "Selected items unsaved successfully!",
+    "manageMode": "Manage Mode",
+    "exitManage": "Exit",
+    "selectedCount": "{{count}} selected",
+    "deleteSelected": "Delete Selected",
+    "moveToCollection": "Move to Collection",
+    "collectionsTitle": "Collections",
+    "createCollection": "Create Collection",
+    "collectionNamePlaceholder": "Collection name...",
+    "cancel": "Cancel",
+    "create": "Create",
+    "movedSuccess": "Successfully moved to collection!",
+    "collectionAddedSuccess": "Collection created successfully!",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "sortingMode": "Sort"
   }
 }

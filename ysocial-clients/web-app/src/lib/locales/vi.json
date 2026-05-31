@@ -120,5 +120,32 @@
     "toastRegisterSuccess": "Đăng ký tài khoản thành công! Chào mừng tới YSocial.",
     "toastOtpSent": "Mã OTP đã được gửi đi thành công!",
     "toastResetSuccess": "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại."
+  },
+  "saved": {
+    "title": "Mục đã lưu",
+    "all": "Tất cả",
+    "posts": "Bài viết",
+    "comments": "Bình luận",
+    "searchPlaceholder": "Tìm kiếm mục đã lưu bằng nội dung hoặc tên người dùng...",
+    "emptyTitle": "Không có mục đã lưu nào",
+    "emptyDesc": "Các mục bạn lưu sẽ hiển thị ở đây. Hãy bắt đầu khám phá bảng tin!",
+    "unsave": "Hủy lưu",
+    "unsaveSuccess": "Đã hủy lưu mục thành công!",
+    "bulkUnsaveSuccess": "Đã hủy lưu các mục đã chọn thành công!",
+    "manageMode": "Chế độ quản lý",
+    "exitManage": "Thoát",
+    "selectedCount": "Đã chọn {{count}}",
+    "deleteSelected": "Xóa mục đã chọn",
+    "moveToCollection": "Di chuyển vào BST",
+    "collectionsTitle": "Bộ sưu tập",
+    "createCollection": "Tạo bộ sưu tập",
+    "collectionNamePlaceholder": "Tên bộ sưu tập...",
+    "cancel": "Hủy",
+    "create": "Tạo",
+    "movedSuccess": "Di chuyển vào bộ sưu tập thành công!",
+    "collectionAddedSuccess": "Tạo bộ sưu tập thành công!",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
+    "sortingMode": "Sắp xếp"
   }
 }

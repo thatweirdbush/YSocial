@@ -64,6 +64,8 @@ interface PostCardProps {
   onBookmarkToggle?: (id: string, currentlyBookmarked: boolean) => Promise<void>;
   isAuthorFollowing?: boolean;
   onAuthorFollowToggle?: () => void;
+  isSavedPage?: boolean;
+  onUnsave?: (id: string) => void;
 }
 
 export function PostCard({
@@ -72,6 +74,8 @@ export function PostCard({
   onBookmarkToggle,
   isAuthorFollowing,
   onAuthorFollowToggle,
+  isSavedPage = false,
+  onUnsave,
 }: PostCardProps) {
   const { t } = useTranslation();
 
@@ -427,10 +431,26 @@ export function PostCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 rounded-2xl border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-30">
-              <DropdownMenuItem onClick={() => toast.info(`Saved`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Bookmark className="h-4 w-4 text-zinc-400 mr-2" />
-                Save
-              </DropdownMenuItem>
+              {isSavedPage ? (
+                <DropdownMenuItem
+                  onClick={() => {
+                    if (onUnsave) {
+                      onUnsave(post.id);
+                    } else {
+                      toast.success(t("card.unbookmarkSuccess") || "Removed from saved posts!");
+                    }
+                  }}
+                  className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm text-red-600 focus:text-red-650"
+                >
+                  <Bookmark className="h-4 w-4 text-red-500 mr-2 fill-red-500/10" />
+                  {t("saved.unsave" as any) || "Unsave"}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => toast.info(`Saved`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
+                  <Bookmark className="h-4 w-4 text-zinc-400 mr-2" />
+                  Save
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => toast.info(`Not interested`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
                 <EyeOff className="h-4 w-4 text-zinc-400 mr-2" />
                 Not interested
