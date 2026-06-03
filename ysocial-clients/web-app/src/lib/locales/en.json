@@ -47,7 +47,10 @@
     "mentionSearchPlaceholder": "Search profile to mention...",
     "cancel": "Cancel",
     "create": "Create",
-    "location": "Location"
+    "location": "Location",
+    "searchGifPlaceholder": "Search GIFs...",
+    "searchEmojiPlaceholder": "Search emojis...",
+    "searchLocationPlaceholder": "Search locations..."
   },
   "card": {
     "justNow": "Just now",

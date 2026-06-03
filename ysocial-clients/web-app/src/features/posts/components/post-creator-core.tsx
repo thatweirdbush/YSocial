@@ -13,11 +13,9 @@ import {
   AtSign,
   MapPin,
   X,
-  Plus,
   FileText,
   Trash2,
   MapPinned,
-  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +23,9 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { useDrafts, useDraftActions } from "../store/post-draft-store";
 import { PostAudience } from "../types/creator";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { DiscardWarningDialog } from "./discard-warning-dialog";
+import { toast } from "sonner";
 
 const postSchema = z.object({
   content: z.string().max(500, "Content exceeds 500 characters limit"),
@@ -34,6 +35,7 @@ type PostFormValues = z.infer<typeof postSchema>;
 
 export interface PostCreatorCoreRef {
   triggerClose: () => void;
+  handleInlineEscape: () => boolean;
 }
 
 interface PostCreatorCoreProps {
@@ -72,21 +74,117 @@ const MOCK_LOCATIONS = [
   "Hanoi, Vietnam",
   "Ho Chi Minh City, Vietnam",
   "Da Nang, Vietnam",
+  "Nha Trang, Vietnam",
+  "Hue, Vietnam",
+  "Phu Quoc, Vietnam",
+  "Sapa, Vietnam",
+  "Ha Long Bay, Vietnam",
   "Silicon Valley, CA",
+  "New York City, NY",
+  "Los Angeles, CA",
   "Tokyo, Japan",
+  "Kyoto, Japan",
+  "Osaka, Japan",
   "Seoul, South Korea",
+  "Busan, South Korea",
+  "Singapore",
+  "Bangkok, Thailand",
   "Paris, France",
   "London, UK",
+  "Berlin, Germany",
+  "Sydney, Australia",
+  "Toronto, Canada"
 ];
 
 const MOCK_GIFS = [
-  "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3B5dmZobGFxM3pjOTBsd2UycHR6OXJtazg1czM0dHdqZHh0OGE0eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/tJqyalvo9ahykfykAj/giphy.gif",
-  "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3p4ZzBnbnd6b3A3djIyaHR5aGRkZzRyeG11MWhxZnU2cWR4Mm8wcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XIqCQx02EwFfG/giphy.gif",
-  "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzgxMmFycTdzanExOWJia2FmdThrcDkwcWR5M3l2bjBzdXF4bjQ4NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2zVr6cu95nF6O4/giphy.gif",
-  "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXVjN3h0ZWRxMHpoZjBrdm1tN2szcXBwdXhkNDB0ZmRkc2p5eWk4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjei1Hi/giphy.gif",
+  // Trending
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3B5dmZobGFxM3pjOTBsd2UycHR6OXJtazg1czM0dHdqZHh0OGE0eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/tJqyalvo9ahykfykAj/giphy.gif", category: "Trending", name: "dog wave" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3p4ZzBnbnd6b3A3djIyaHR5aGRkZzRyeG11MWhxZnU2cWR4Mm8wcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XIqCQx02EwFfG/giphy.gif", category: "Trending", name: "cat wave" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExYzgxMmFycTdzanExOWJia2FmdThrcDkwcWR5M3l2bjBzdXF4bjQ4NyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2zVr6cu95nF6O4/giphy.gif", category: "Trending", name: "applause thumbs up" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXVjN3h0ZWRxMHpoZjBrdm1tN2szcXBwdXhkNDB0ZmRkc2p5eWk4ZSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKSjRrfIPjei1Hi/giphy.gif", category: "Trending", name: "high five" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWd5cnNxdHRpMW54cmNqYWgzaWswMGwzY3J3eTBkOW96c21ocW1xdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26AHONQ79uqx89qtO/giphy.gif", category: "Trending", name: "happy dance" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMWs0NXBxZzhubXZ5dDR2ZHR5NnZibzN1dGV1bGNmOTk5bnlkOTFmYSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/111ebonMs90YLu/giphy.gif", category: "Trending", name: "surprised cat" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3F3cXR6ZjM5NDV5b3I4NDhrcHpvMmp2OG1iY2dweXZ0bGN3bjNvdSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/L2z7dnOduqEow/giphy.gif", category: "Trending", name: "minion celebrate" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHIxbmltMHc0bjI4bzB6ZjBhZmxxZzdwbXp5ZHQwb2tjcjM3Mnd0diZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/w8f283BIGaeHoIFxI5/giphy.gif", category: "Trending", name: "homer bush hide" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNWswZHJ3MXVnZWkyY2RraWtzcDZ2Mm9yOGlhazVyMnZ0enphdHplciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/B1natt9SSy8es/giphy.gif", category: "Trending", name: "facepalm cat" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Q3eDRiNWYwMHV1azRwN2h2MWlpcHN6NXp5MDFpdW0xNXZqdGthMSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/j9q3K89Jv0hW0/giphy.gif", category: "Trending", name: "shiba wtf" },
+  // Reactions
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExczVxYjdsdnp6YTB5Zmt6ZnJvYnl1cmE4azN4a3dvdGFqZWZ5djNqdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0ExdHfRppM4QHn1u/giphy.gif", category: "Reactions", name: "yes nod" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExY3MyeDN1ZDRrc3RxamVwbTJ4dG84bzBpeG55djRyMTF1eTlpOHVzNiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/spfi6nab5LMw8/giphy.gif", category: "Reactions", name: "no shake head" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3QzYzgxMTM3OHV1NmZnbXN1dzc2N2IybHR1dnV4MW40bHZyZGszNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/AAsj7jWA9UMTu/giphy.gif", category: "Reactions", name: "confused child" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXVnd2Zmd2xhaXZsZ3I4azRvdTZwZHk3bnd5bzNzb29tN2NtcGcxNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/9Y5BbDSkSTiY8/giphy.gif", category: "Reactions", name: "mindblown" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMGx5OWZrbnZidmhpdnkxa2tsZmtpYWZ3cHN2dmh4dzRwODN4MGV1ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3ELney5fUXpq3MeV5C/giphy.gif", category: "Reactions", name: "nervous sweat" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMTB2dzRndWRxb2cxbTBydW5zdm5oOTAwZ2k0aXRsd245NHl4Z2ZmdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/13GKP7ACGjVK9y/giphy.gif", category: "Reactions", name: "popcorn eating" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXl2NXZpdXhyeDN0aXZnbXZ6MmJraGFpdDlvZHhxYTd5MG1odDZubCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l3q2K5M6yPP2RQGZU/giphy.gif", category: "Reactions", name: "clapping congrats" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHV6cG1ocTR2OHFpaTJrbnh5Zmd0ZXF2NmxxN244OHl6Mmg0Nmh1ZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/t3dLybaL7RefY2JJJ9/giphy.gif", category: "Reactions", name: "shocked expression" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdm4wdHAyc3ptbXB6NHh1cmh1aTFmdmtwZmhwdW8yYzJkMDhxOW5jcyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/T2N5xfQecqyYw/giphy.gif", category: "Reactions", name: "cry puppy eyes" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z6cGNkMDR6ZHlhZzJvMnVpczJ1NTRqZGdxeDY4azl5bWoxbzhubyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/26FPon5fbbqH2q88w/giphy.gif", category: "Reactions", name: "wink blink" },
+  // Memes & Fun
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdzdxN2xpeHAycTN3amoxM2tqaHhrNWVud3lhNmQ3ejh6NnQ2eDR4eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Ju7l5ywymgYaI/giphy.gif", category: "Memes", name: "rickroll rick astley" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNmtpODJ4bWF1MGdta2NqMGRqYXF0dWU5dDhyOW1yZDF0MzAwaGkwaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KanqJsZukqg3FhVWYW/giphy.gif", category: "Memes", name: "doge raise paw" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOXpqOW54ZHdzZzhwdjAyc3pxcWpyNjV4ZzA4bThmaDFxZnhiZXgyNyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/a3IWyYGLbkVW8/giphy.gif", category: "Memes", name: "pingu noot noot" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHY2bWNscjRucndjbnlhMnV2c3p1YmNzbzIxcWFpdnhtNWxmeWNuMCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/9sDNyvlqFxO6Y/giphy.gif", category: "Memes", name: "pepe frog happy" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExZHhjcThhdzQwaGNxMmZ4dHdyN29maTZodmt6Nm5ubHR4dzZmdDdtbSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eOXMGF4lgMPle/giphy.gif", category: "Memes", name: "surprised pikachu" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMTI1dzJ0N2M5MHU3NnhyMXNydHlncHpiamtzazZ0cWphY2Q4aHk5NSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/bef5Fn7091y9O/giphy.gif", category: "Memes", name: "success kid" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMXl2bXVjYnd6YW04MWdmdzhzdHloZmp0ajEyaG1zM2x4OWpsdnptMSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0HlTy9x8FxvZyK2k/giphy.gif", category: "Memes", name: "sloth slow wave" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExN3F2bmd5ZnN1dmQybDF5MXN4dmNmaHN4OWI2aDN4Y205ZHl6OWs2ayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/134DVXcD94s3YI/giphy.gif", category: "Memes", name: "sad cat crying" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMm9pMXl4NGwwczN0N2h3Ynd2NDB2OWFjcDRobmtjMmN3ZHlrbndmdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/vFKqnCdLPNOKc/giphy.gif", category: "Memes", name: "crying cat loading" },
+  { url: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3Z0bjJybG9xNDdsdm0wdzdzMmZtdjZscHR5azA3ejZ0ZXNnZHZnaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/XreQmk7ETCPhS/giphy.gif", category: "Memes", name: "dancing baby" }
 ];
 
-const MOCK_EMOJIS = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😋", "😎", "🤩", "🥳", "😏", "👍", "🙌", "❤️", "🔥", "✨", "🎉"];
+const MOCK_EMOJIS = [
+  // Smileys
+  { char: "😀", category: "Smileys" },
+  { char: "😃", category: "Smileys" },
+  { char: "😄", category: "Smileys" },
+  { char: "😁", category: "Smileys" },
+  { char: "😆", category: "Smileys" },
+  { char: "😅", category: "Smileys" },
+  { char: "😂", category: "Smileys" },
+  { char: "🤣", category: "Smileys" },
+  { char: "😊", category: "Smileys" },
+  { char: "😇", category: "Smileys" },
+  { char: "🙂", category: "Smileys" },
+  { char: "🙃", category: "Smileys" },
+  { char: "😉", category: "Smileys" },
+  { char: "😌", category: "Smileys" },
+  // Hearts & Gestures
+  { char: "😍", category: "Hearts & Gestures" },
+  { char: "🥰", category: "Hearts & Gestures" },
+  { char: "😘", category: "Hearts & Gestures" },
+  { char: "😋", category: "Hearts & Gestures" },
+  { char: "😎", category: "Hearts & Gestures" },
+  { char: "🤩", category: "Hearts & Gestures" },
+  { char: "🥳", category: "Hearts & Gestures" },
+  { char: "😏", category: "Hearts & Gestures" },
+  { char: "👍", category: "Hearts & Gestures" },
+  { char: "👎", category: "Hearts & Gestures" },
+  { char: "🙌", category: "Hearts & Gestures" },
+  { char: "👏", category: "Hearts & Gestures" },
+  { char: "🤝", category: "Hearts & Gestures" },
+  { char: "🙏", category: "Hearts & Gestures" },
+  { char: "❤️", category: "Hearts & Gestures" },
+  { char: "🧡", category: "Hearts & Gestures" },
+  { char: "💛", category: "Hearts & Gestures" },
+  { char: "💚", category: "Hearts & Gestures" },
+  { char: "💙", category: "Hearts & Gestures" },
+  { char: "💜", category: "Hearts & Gestures" },
+  { char: "🖤", category: "Hearts & Gestures" },
+  { char: "🤍", category: "Hearts & Gestures" },
+  // Nature & Objects
+  { char: "🔥", category: "Nature & Objects" },
+  { char: "✨", category: "Nature & Objects" },
+  { char: "🎉", category: "Nature & Objects" },
+  { char: "🌟", category: "Nature & Objects" },
+  { char: "🐶", category: "Nature & Objects" },
+  { char: "🐱", category: "Nature & Objects" },
+  { char: "🐭", category: "Nature & Objects" },
+  { char: "🐹", category: "Nature & Objects" },
+  { char: "🐰", category: "Nature & Objects" },
+  { char: "🦊", category: "Nature & Objects" },
+  { char: "🐻", category: "Nature & Objects" },
+  { char: "🐼", category: "Nature & Objects" },
+];
 
 export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCoreProps>((
   {
@@ -107,6 +205,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   // Core Form State
   const [activeDraftId, setActiveDraftId] = useState<string | undefined>(initialDraftId);
   const [images, setImages] = useState<string[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [audience, setAudience] = useState<PostAudience>("anyone");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [location, setLocation] = useState<string | null>(null);
@@ -119,6 +218,11 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const [isDraftsOpen, setIsDraftsOpen] = useState(false);
   const [isWarningOpen, setIsWarningOpen] = useState(false);
 
+  // Local query states for searching inside popups
+  const [emojiQuery, setEmojiQuery] = useState("");
+  const [gifQuery, setGifQuery] = useState("");
+  const [locationQuery, setLocationQuery] = useState("");
+
   // Mentions State
   const [isMentionsOpen, setIsMentionsOpen] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
@@ -126,6 +230,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Image Drag Scrolling States
   const [isDragScrolling, setIsDragScrolling] = useState(false);
@@ -138,7 +243,6 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setValue,
     watch,
     reset,
-    formState: { errors },
   } = useForm<PostFormValues>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -152,6 +256,23 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
 
   const { ref: contentRef, ...contentRegister } = register("content");
 
+  // Track any open sub-popovers to notify escape shield
+  const isAnySubPopoverOpen =
+    isAudienceOpen ||
+    isEmojiOpen ||
+    isGifOpen ||
+    isLocationOpen ||
+    isDraftsOpen ||
+    isMentionsOpen;
+
+  useEffect(() => {
+    onPopoverStateChange?.(isAnySubPopoverOpen);
+  }, [isAnySubPopoverOpen, onPopoverStateChange]);
+
+  useEffect(() => {
+    onStateChange?.(isValid);
+  }, [isValid, onStateChange]);
+
   // Imperative handle to trigger close and dialog safety checks
   useImperativeHandle(ref, () => ({
     triggerClose: () => {
@@ -161,25 +282,42 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         onCancel?.();
       }
     },
+    handleInlineEscape: () => {
+      if (isAnySubPopoverOpen) {
+        return false;
+      }
+      if (document.activeElement === textareaRef.current && isValid) {
+        const content = watch("content");
+        saveDraft(content, images, audience, activeDraftId);
+        
+        // Clean up Object URLs immediately to release RAM
+        previewUrls.forEach(url => URL.revokeObjectURL(url));
+        setPreviewUrls([]);
+
+        reset();
+        setImages([]);
+        setLocation(null);
+        setActiveDraftId(undefined);
+        
+        textareaRef.current?.blur();
+        return true;
+      }
+      return false;
+    },
   }));
 
-  // Track any open sub-popovers to notify escape shield
-  const isAnySubPopoverOpen =
-    isAudienceOpen ||
-    isEmojiOpen ||
-    isGifOpen ||
-    isLocationOpen ||
-    isDraftsOpen ||
-    isMentionsOpen ||
-    isWarningOpen;
+  // Reset popup search queries when popovers toggle
+  useEffect(() => {
+    if (!isEmojiOpen) setEmojiQuery("");
+  }, [isEmojiOpen]);
 
   useEffect(() => {
-    onPopoverStateChange?.(isAnySubPopoverOpen);
-  }, [isAnySubPopoverOpen, onPopoverStateChange]);
+    if (!isGifOpen) setGifQuery("");
+  }, [isGifOpen]);
 
   useEffect(() => {
-    onStateChange?.(isValid);
-  }, [isValid, onStateChange]);
+    if (!isLocationOpen) setLocationQuery("");
+  }, [isLocationOpen]);
 
   // Height auto grow
   const adjustHeight = () => {
@@ -225,11 +363,6 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       }
       if (isDraftsOpen) {
         setIsDraftsOpen(false);
-        e.stopPropagation();
-        return;
-      }
-      if (isWarningOpen) {
-        setIsWarningOpen(false);
         e.stopPropagation();
         return;
       }
@@ -303,11 +436,15 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     }
   };
 
-  // Attachment controls
-  const handleAddMockImage = () => {
-    const mockImage = `https://images.unsplash.com/photo-${1500000000000 + Math.floor(Math.random() * 1000000)
-      }?auto=format&fit=crop&w=600&q=80`;
-    setImages((prev) => [...prev, mockImage]);
+  // Premium file selection and RAM optimization
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const filesArray = Array.from(e.target.files);
+    
+    // Create local object URLs for immediate preview
+    const newUrls = filesArray.map(file => URL.createObjectURL(file));
+    setPreviewUrls(prev => [...prev, ...newUrls]);
+    setImages(prev => [...prev, ...newUrls]);
 
     // Auto scroll horizontally to the end
     setTimeout(() => {
@@ -318,8 +455,21 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   };
 
   const handleRemoveImage = (index: number) => {
+    // Revoke target URL to free memory
+    const targetUrl = images[index];
+    if (targetUrl && targetUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(targetUrl);
+      setPreviewUrls(prev => prev.filter(url => url !== targetUrl));
+    }
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
+
+  // Revoke preview URLs on unmount
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [previewUrls]);
 
   const handleAddGif = (gifUrl: string) => {
     setImages((prev) => [...prev, gifUrl]);
@@ -351,13 +501,18 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     if (!content.trim() && images.length === 0) return;
     const savedId = saveDraft(content, images, audience, activeDraftId);
     setActiveDraftId(savedId);
-    alert(t("creator.draftSaved") || "Draft saved!");
+    toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     setIsDraftsOpen(false);
   };
 
   const handleSaveToDraftsAndClose = () => {
     const content = watch("content");
     saveDraft(content, images, audience, activeDraftId);
+    
+    // Revoke preview URLs
+    previewUrls.forEach(url => URL.revokeObjectURL(url));
+    setPreviewUrls([]);
+
     reset();
     setImages([]);
     setLocation(null);
@@ -369,6 +524,11 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     if (activeDraftId) {
       deleteDraft(activeDraftId);
     }
+    
+    // Revoke preview URLs
+    previewUrls.forEach(url => URL.revokeObjectURL(url));
+    setPreviewUrls([]);
+
     reset();
     setImages([]);
     setLocation(null);
@@ -395,6 +555,11 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       if (activeDraftId) {
         deleteDraft(activeDraftId);
       }
+      
+      // Revoke preview URLs
+      previewUrls.forEach(url => URL.revokeObjectURL(url));
+      setPreviewUrls([]);
+
       reset();
       setImages([]);
       setLocation(null);
@@ -410,6 +575,21 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const filteredProfiles = SUGGESTED_PROFILES.filter((profile) =>
     profile.username.toLowerCase().includes(mentionSearch.toLowerCase()) ||
     profile.displayName.toLowerCase().includes(mentionSearch.toLowerCase())
+  );
+
+  // Local filtering lists
+  const filteredEmojis = MOCK_EMOJIS.filter(e =>
+    e.char.includes(emojiQuery) ||
+    e.category.toLowerCase().includes(emojiQuery.toLowerCase())
+  );
+
+  const filteredGifs = MOCK_GIFS.filter(g =>
+    g.name.toLowerCase().includes(gifQuery.toLowerCase()) ||
+    g.category.toLowerCase().includes(gifQuery.toLowerCase())
+  );
+
+  const filteredLocations = MOCK_LOCATIONS.filter(loc =>
+    loc.toLowerCase().includes(locationQuery.toLowerCase())
   );
 
   return (
@@ -463,8 +643,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-left transition-colors cursor-pointer"
                 >
                   <Avatar className="size-6 shrink-0 border border-zinc-100 dark:border-zinc-800">
-                    <AvatarImage src={profile.avatarUrl} />
-                    <AvatarFallback className="text-[10px] font-bold">U</AvatarFallback>
+                     <AvatarImage src={profile.avatarUrl} />
+                     <AvatarFallback className="text-[10px] font-bold">U</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">{profile.displayName}</span>
@@ -510,119 +690,191 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
 
           {/* Tools Menu Bar */}
           <div className="flex items-center gap-1 border-t border-zinc-100 dark:border-zinc-900/60 pt-2.5">
-            {/* Image attachment */}
+            {/* Native image uploader input and trigger */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleFileChange}
+              className="hidden"
+            />
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={handleAddMockImage}
+              onClick={() => fileInputRef.current?.click()}
               className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
               title={t("creator.attachment") || "Attach an image"}
             >
               <ImageIcon className="h-4 w-4 shrink-0" />
             </Button>
 
-            {/* GIF */}
+            {/* GIF Popover */}
             <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setIsGifOpen(!isGifOpen);
-                  setIsEmojiOpen(false);
-                  setIsLocationOpen(false);
-                  setIsAudienceOpen(false);
-                }}
-                className={`h-8 w-8 rounded-xl text-xs font-extrabold border-0 transition-all cursor-pointer ${isGifOpen
-                  ? "bg-zinc-150 border-zinc-300 text-zinc-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-100"
-                  : "border-zinc-200 dark:border-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100"
-                  }`}
-                title={t("creator.addMockGif") || "Add GIF"}
-              >
-                GIF
-              </Button>
-              {isGifOpen && (
-                <div className="absolute bottom-10 left-0 z-30 w-64 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1.5 border-b border-zinc-100 dark:border-zinc-900/60">
+              <Popover open={isGifOpen} onOpenChange={setIsGifOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className={`h-8 w-8 rounded-xl text-xs font-extrabold border-0 transition-all cursor-pointer ${isGifOpen
+                      ? "bg-zinc-150 border-zinc-300 text-zinc-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-100"
+                      : "border-zinc-205 dark:border-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100"
+                      }`}
+                    title={t("creator.addMockGif") || "Add GIF"}
+                  >
+                    GIF
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={true}
+                  collisionPadding={12}
+                  className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
+                >
+                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
                     {t("creator.addMockGif") || "Select GIF"}
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-                    {MOCK_GIFS.map((gif, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleAddGif(gif)}
-                        className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all"
-                      >
-                        <img src={gif} className="w-full h-full object-cover" alt={`Mock GIF ${idx}`} />
-                      </button>
-                    ))}
+                  
+                  <input
+                    type="text"
+                    value={gifQuery}
+                    onChange={(e) => setGifQuery(e.target.value)}
+                    placeholder={t("creator.searchGifPlaceholder") || "Search GIFs..."}
+                    className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
+                  />
+
+                  <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
+                    {["Trending", "Reactions", "Memes"].map((cat) => {
+                      const catGifs = filteredGifs.filter(g => g.category === cat);
+                      if (catGifs.length === 0) return null;
+                      return (
+                        <div key={cat} className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {catGifs.map((gif, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleAddGif(gif.url)}
+                                className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all shrink-0"
+                              >
+                                <img src={gif.url} className="w-full h-full object-cover" alt={gif.name} />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredGifs.length === 0 && (
+                      <div className="text-center text-xs text-zinc-400 py-8">No matching GIFs found</div>
+                    )}
                   </div>
-                </div>
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
 
-            {/* Emoji */}
+            {/* Emoji Popover */}
             <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setIsEmojiOpen(!isEmojiOpen);
-                  setIsGifOpen(false);
-                  setIsLocationOpen(false);
-                  setIsAudienceOpen(false);
-                }}
-                className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
-                title={t("creator.addMockEmoji") || "Add Emoji"}
-              >
-                <Smile className="h-4 w-4 shrink-0" />
-              </Button>
-              {isEmojiOpen && (
-                <div className="absolute bottom-10 left-0 z-30 w-56 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <div className="grid grid-cols-6 gap-1 max-h-40 overflow-y-auto pr-1">
-                    {MOCK_EMOJIS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => handleAddEmoji(emoji)}
-                        className="h-8 w-8 text-md rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
+              <Popover open={isEmojiOpen} onOpenChange={setIsEmojiOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
+                    title={t("creator.addMockEmoji") || "Add Emoji"}
+                  >
+                    <Smile className="h-4 w-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={true}
+                  collisionPadding={12}
+                  className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
+                >
+                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
+                    {t("creator.addMockEmoji") || "Select Emoji"}
                   </div>
-                </div>
-              )}
+
+                  <input
+                    type="text"
+                    value={emojiQuery}
+                    onChange={(e) => setEmojiQuery(e.target.value)}
+                    placeholder={t("creator.searchEmojiPlaceholder") || "Search emojis..."}
+                    className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
+                  />
+
+                  <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
+                    {["Smileys", "Hearts & Gestures", "Nature & Objects"].map((cat) => {
+                      const catEmojis = filteredEmojis.filter(e => e.category === cat);
+                      if (catEmojis.length === 0) return null;
+                      return (
+                        <div key={cat} className="flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
+                          <div className="grid grid-cols-6 gap-1.5">
+                            {catEmojis.map((emoji) => (
+                              <button
+                                key={emoji.char}
+                                type="button"
+                                onClick={() => handleAddEmoji(emoji.char)}
+                                className="h-8 w-8 text-md rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center cursor-pointer transition-colors"
+                              >
+                                {emoji.char}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {filteredEmojis.length === 0 && (
+                      <div className="text-center text-xs text-zinc-400 py-8">No matching emojis found</div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
 
-            {/* Location */}
+            {/* Location Popover */}
             <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setIsLocationOpen(!isLocationOpen);
-                  setIsGifOpen(false);
-                  setIsEmojiOpen(false);
-                  setIsAudienceOpen(false);
-                }}
-                className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
-                title={t("creator.addMockLocation") || "Add Location"}
-              >
-                <MapPin className="h-4 w-4 shrink-0" />
-              </Button>
-              {isLocationOpen && (
-                <div className="absolute bottom-10 left-0 z-30 w-64 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1.5 border-b border-zinc-100 dark:border-zinc-900/60 flex items-center gap-1">
+              <Popover open={isLocationOpen} onOpenChange={setIsLocationOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
+                    title={t("creator.addMockLocation") || "Add Location"}
+                  >
+                    <MapPin className="h-4 w-4 shrink-0" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={true}
+                  collisionPadding={12}
+                  className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
+                >
+                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0 flex items-center gap-1">
                     <MapPinned className="size-3" />
                     <span>{t("creator.location") || "Select location"}</span>
                   </div>
-                  <div className="flex flex-col max-h-40 overflow-y-auto pr-1">
-                    {MOCK_LOCATIONS.map((loc) => (
+
+                  <input
+                    type="text"
+                    value={locationQuery}
+                    onChange={(e) => setLocationQuery(e.target.value)}
+                    placeholder={t("creator.searchLocationPlaceholder") || "Search locations..."}
+                    className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
+                  />
+
+                  <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-1 min-h-0">
+                    {filteredLocations.map((loc) => (
                       <button
                         key={loc}
                         type="button"
@@ -630,53 +882,60 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                           setLocation(loc);
                           setIsLocationOpen(false);
                         }}
-                        className="w-full text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 truncate cursor-pointer transition-colors"
+                        className="w-full h-12 shrink-0 text-left text-xs px-2.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 flex items-center transition-colors cursor-pointer truncate font-medium text-zinc-700 dark:text-zinc-300"
                       >
-                        {loc}
+                        <MapPin className="size-3.5 mr-2 text-zinc-400 shrink-0" />
+                        <span className="truncate">{loc}</span>
                       </button>
                     ))}
-                    {location && (
+                    {filteredLocations.length === 0 && (
+                      <div className="text-center text-xs text-zinc-400 py-8">No matching locations found</div>
+                    )}
+                  </div>
+
+                  {location && (
+                    <div className="border-t border-zinc-100 dark:border-zinc-900/60 pt-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => {
                           setLocation(null);
                           setIsLocationOpen(false);
                         }}
-                        className="w-full text-center text-xs font-bold text-red-500 px-2.5 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/20 border-t border-zinc-100 dark:border-zinc-900/60 mt-1 cursor-pointer transition-colors"
+                        className="w-full h-9 rounded-xl font-bold text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
                       >
                         Clear Location
                       </button>
-                    )}
-                  </div>
-                </div>
-              )}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Drafts Trigger */}
             <div className="relative">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => {
-                  setIsDraftsOpen(!isDraftsOpen);
-                  setIsGifOpen(false);
-                  setIsEmojiOpen(false);
-                  setIsLocationOpen(false);
-                  setIsAudienceOpen(false);
-                }}
-                className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer relative"
-                title={t("creator.drafts") || "Drafts"}
-              >
-                <FileText className="h-4 w-4 shrink-0" />
-                {drafts.length > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 size-2 bg-zinc-950 dark:bg-white rounded-full border border-white dark:border-black shrink-0" />
-                )}
-              </Button>
+              <Popover open={isDraftsOpen} onOpenChange={setIsDraftsOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer relative"
+                    title={t("creator.drafts") || "Drafts"}
+                  >
+                    <FileText className="h-4 w-4 shrink-0" />
+                    {drafts.length > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 size-2 bg-zinc-950 dark:bg-white rounded-full border border-white dark:border-black shrink-0" />
+                    )}
+                  </Button>
+                </PopoverTrigger>
 
-              {/* Drafts popover overlay inside the card */}
-              {isDraftsOpen && (
-                <div className="absolute bottom-10 left-0 z-30 w-72 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2">
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={true}
+                  collisionPadding={12}
+                  className="w-72 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2 z-50"
+                >
                   <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-2 mb-1">
                     <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-50">{t("creator.drafts") || "Drafts"}</span>
                     {isValid && (
@@ -736,8 +995,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                       ))
                     )}
                   </div>
-                </div>
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
@@ -748,31 +1007,31 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
           <div className="flex items-center justify-between">
             {/* Post Option Audience Toggle */}
             <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsAudienceOpen(!isAudienceOpen);
-                  setIsGifOpen(false);
-                  setIsEmojiOpen(false);
-                  setIsLocationOpen(false);
-                  setIsDraftsOpen(false);
-                }}
-                className="h-8 flex items-center gap-1.5 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors text-xs font-bold whitespace-nowrap tracking-tight cursor-pointer"
-              >
-                {audience === "anyone" && <Globe className="size-3.5 shrink-0" />}
-                {audience === "followers" && <Users className="size-3.5 shrink-0" />}
-                {audience === "following" && <UserCheck className="size-3.5 shrink-0" />}
-                {audience === "mention" && <AtSign className="size-3.5 shrink-0" />}
-                <span>
-                  {audience === "anyone" && (t("creator.anyone") || "Anyone can reply")}
-                  {audience === "followers" && (t("creator.followers") || "Your followers")}
-                  {audience === "following" && (t("creator.following") || "Profiles you follow")}
-                  {audience === "mention" && (t("creator.mention") || "Profiles you mention")}
-                </span>
-              </button>
-
-              {isAudienceOpen && (
-                <div className="absolute bottom-10 left-0 z-30 w-60 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+              <Popover open={isAudienceOpen} onOpenChange={setIsAudienceOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="h-8 flex items-center gap-1.5 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors text-xs font-bold whitespace-nowrap tracking-tight cursor-pointer"
+                  >
+                    {audience === "anyone" && <Globe className="size-3.5 shrink-0" />}
+                    {audience === "followers" && <Users className="size-3.5 shrink-0" />}
+                    {audience === "following" && <UserCheck className="size-3.5 shrink-0" />}
+                    {audience === "mention" && <AtSign className="size-3.5 shrink-0" />}
+                    <span>
+                      {audience === "anyone" && (t("creator.anyone") || "Anyone can reply")}
+                      {audience === "followers" && (t("creator.followers") || "Your followers")}
+                      {audience === "following" && (t("creator.following") || "Profiles you follow")}
+                      {audience === "mention" && (t("creator.mention") || "Profiles you mention")}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="bottom"
+                  align="start"
+                  avoidCollisions={true}
+                  collisionPadding={12}
+                  className="w-60 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 z-50"
+                >
                   <div className="text-[10px] font-bold uppercase text-zinc-400 px-3 py-1 mb-1 tracking-wider">
                     {t("creator.audience") || "Post Options"}
                   </div>
@@ -801,8 +1060,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                       </button>
                     );
                   })}
-                </div>
-              )}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Character counter & Post submit action */}
@@ -826,47 +1085,14 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
           </div>
         </form>
 
-        {/* Warning Discard Draft Overlay Alert Modal */}
-        {isWarningOpen && (
-          <div className="absolute -inset-x-4 -inset-y-4 z-50 bg-black/45 dark:bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 rounded-3xl">
-            <div className="bg-white dark:bg-zinc-950 border border-zinc-150 dark:border-zinc-900 rounded-3xl p-6 max-w-[280px] w-full shadow-2xl flex flex-col gap-4 text-center animate-in zoom-in-95 duration-200">
-              <div className="mx-auto size-12 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-900 dark:text-zinc-50">
-                <ShieldAlert className="size-6 text-zinc-950 dark:text-zinc-100" />
-              </div>
-              <div className="flex flex-col gap-1">
-                <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">
-                  {t("creator.unsavedTitle") || "Discard post?"}
-                </h3>
-                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                  {t("creator.unsavedDesc") || "You have unsaved changes. Do you want to save this post as a draft or discard it?"}
-                </p>
-              </div>
-              <div className="flex flex-col gap-1.5 mt-1">
-                <button
-                  type="button"
-                  onClick={handleSaveToDraftsAndClose}
-                  className="w-full h-8 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-black font-bold text-xs hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer"
-                >
-                  {t("creator.saveDraft") || "Save Draft"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDiscardAndClose}
-                  className="w-full h-8 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 font-bold text-xs transition-all cursor-pointer"
-                >
-                  {t("creator.discard") || "Discard"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsWarningOpen(false)}
-                  className="w-full h-8 rounded-xl text-zinc-500 dark:text-zinc-400 font-bold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
-                >
-                  {t("creator.keepEditing") || "Keep editing"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Warning Discard Draft Overlay Alert Modal rendered as Portaled Dialog */}
+        <DiscardWarningDialog
+          open={isWarningOpen}
+          onOpenChange={setIsWarningOpen}
+          onSaveDraft={handleSaveToDraftsAndClose}
+          onDiscard={handleDiscardAndClose}
+          onKeepEditing={() => setIsWarningOpen(false)}
+        />
       </div>
     </div>
   );

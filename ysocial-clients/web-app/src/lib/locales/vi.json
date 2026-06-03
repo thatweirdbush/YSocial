@@ -47,7 +47,10 @@
     "mentionSearchPlaceholder": "Tìm tên tài khoản cần nhắc...",
     "cancel": "Hủy",
     "create": "Tạo",
-    "location": "Vị trí"
+    "location": "Vị trí",
+    "searchGifPlaceholder": "Tìm kiếm GIF...",
+    "searchEmojiPlaceholder": "Tìm kiếm emoji...",
+    "searchLocationPlaceholder": "Tìm kiếm vị trí..."
   },
   "card": {
     "justNow": "Vừa xong",
