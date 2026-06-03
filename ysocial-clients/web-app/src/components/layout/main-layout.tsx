@@ -33,6 +33,7 @@ import { LAYOUT } from "@/lib/constants/layout";
 import { useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
 import { useAuthUser, useAuthActions } from "@/features/auth/store/auth-store";
 import { RightSidebar } from "./right-sidebar";
+import { PostCreatorDialog } from "@/features/posts";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -41,6 +42,7 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
 
@@ -117,6 +119,32 @@ export function MainLayout({ children }: MainLayoutProps) {
                 {navItems.map((item) => {
                   const isActive = pathname === item.href;
                   const Icon = item.icon;
+                  if (item.href === "/create") {
+                    return (
+                      <Tooltip key={item.label}>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={() => setIsCreateOpen(true)}
+                            className={`flex items-center gap-4 py-2.5 px-3.5 rounded-xl transition-all duration-300 active:scale-95 text-zinc-650 dark:text-zinc-400 hover:text-black dark:hover:text-zinc-100 hover:bg-zinc-100/30 dark:hover:bg-zinc-900/20 cursor-pointer ${
+                              isCollapsed ? "justify-center" : "justify-center xl:justify-start"
+                            } w-full`}
+                          >
+                            <Icon
+                              className="h-5.5 w-5.5 hover:scale-105 shrink-0"
+                              strokeWidth={2}
+                            />
+                            {!isCollapsed && (
+                              <span className="hidden xl:inline text-[14.5px]">{item.label}</span>
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="lg:block xl:hidden">
+                          {item.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  }
                   return (
                     <Tooltip key={item.label}>
                       <TooltipTrigger asChild>
@@ -124,7 +152,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                           href={item.href}
                           className={`flex items-center gap-4 py-2.5 px-3.5 rounded-xl transition-all duration-300 active:scale-95 ${isActive
                             ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-semibold"
-                            : "text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-zinc-100 hover:bg-zinc-100/30 dark:hover:bg-zinc-900/20"
+                            : "text-zinc-650 dark:text-zinc-400 hover:text-black dark:hover:text-zinc-100 hover:bg-zinc-100/30 dark:hover:bg-zinc-900/20"
                             } ${isCollapsed ? "justify-center" : "justify-center xl:justify-start"}`}
                         >
                           <Icon
@@ -245,6 +273,18 @@ export function MainLayout({ children }: MainLayoutProps) {
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
+            if (item.href === "/create") {
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => setIsCreateOpen(true)}
+                  className="p-3 rounded-full active:scale-90 transition-all text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
+                >
+                  <Icon className="h-6 w-6" />
+                </button>
+              );
+            }
             return (
               <Link
                 key={item.href}
@@ -264,6 +304,9 @@ export function MainLayout({ children }: MainLayoutProps) {
             {locale}
           </button>
         </nav>
+
+        {/* Global Post Creator Dialog trigger */}
+        <PostCreatorDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
 
       </div>
     </TooltipProvider>
