@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, { useRef, useState, useEffect, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -188,6 +188,62 @@ const MOCK_EMOJIS = [
   { char: "🐼", category: "Nature & Objects" },
 ];
 
+// Optimized sub-component to display image previews under React.memo
+interface ImagePreviewListProps {
+  images: string[];
+  onRemoveImage: (index: number) => void;
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>;
+  onMouseDown: (e: React.MouseEvent) => void;
+  onMouseMove: (e: React.MouseEvent) => void;
+  onMouseUpOrLeave: () => void;
+  onWheel: (e: React.WheelEvent) => void;
+}
+
+const ImagePreviewList = React.memo(({
+  images,
+  onRemoveImage,
+  scrollContainerRef,
+  onMouseDown,
+  onMouseMove,
+  onMouseUpOrLeave,
+  onWheel,
+}: ImagePreviewListProps) => {
+  if (images.length === 0) return null;
+  return (
+    <div
+      ref={scrollContainerRef}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUpOrLeave}
+      onMouseLeave={onMouseUpOrLeave}
+      onWheel={onWheel}
+      className="flex flex-row gap-2 overflow-x-auto no-scrollbar w-full py-2 cursor-grab active:cursor-grabbing select-none"
+    >
+      {images.map((img, idx) => (
+        <div
+          key={img + idx}
+          className="relative shrink-0 w-44 h-44 rounded-2xl overflow-hidden border border-zinc-150 dark:border-zinc-900 shadow-sm transition-all"
+        >
+          <img
+            src={img}
+            alt={`Preview ${idx + 1}`}
+            className="w-full h-full object-cover pointer-events-none"
+          />
+          <button
+            type="button"
+            onClick={() => onRemoveImage(idx)}
+            className="absolute top-2 right-2 size-6 rounded-full bg-black/75 hover:bg-black text-white flex items-center justify-center border border-white/20 transition-all cursor-pointer"
+          >
+            <X className="size-3 shrink-0" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+ImagePreviewList.displayName = "ImagePreviewList";
+
 export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCoreProps>((
   {
     draftId: initialDraftId,
@@ -212,6 +268,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [location, setLocation] = useState<string | null>(null);
 
+  // Separate Original Files Ref to prevent Textarea typing re-render payload lags
+  const selectedFilesRef = useRef<File[]>([]);
+
   // Sub-Popover States
   const [isAudienceOpen, setIsAudienceOpen] = useState(false);
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
@@ -231,13 +290,15 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const [mentionIndex, setMentionIndex] = useState(-1);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Image Drag Scrolling States
-  const [isDragScrolling, setIsDragScrolling] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
+  // Image Drag Scrolling Refs (to completely avoid state-based mouse move re-renders)
+  const dragRef = useRef({
+    isScrolling: false,
+    startX: 0,
+    scrollLeft: 0,
+  });
 
   const {
     register,
@@ -398,11 +459,11 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setIsMentionsOpen(false);
   };
 
-  const handleSelectMention = (username: string) => {
+  const handleSelectMention = useCallback((username: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const value = watch("content");
+    const value = textarea.value;
     const beforeMention = value.substring(0, mentionIndex);
     const afterMention = value.substring(textarea.selectionStart);
     const newValue = `${beforeMention}@${username} ${afterMention}`;
@@ -415,41 +476,73 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       const newCursorPos = beforeMention.length + username.length + 2;
       textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 50);
-  };
+  }, [setValue, mentionIndex]);
 
-  // Image Drag scrolling
-  const handleMouseDown = (e: React.MouseEvent) => {
+  // Image Drag scrolling callbacks
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (!scrollContainerRef.current) return;
-    setIsDragScrolling(true);
-    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
-    setScrollLeft(scrollContainerRef.current.scrollLeft);
-  };
+    dragRef.current.isScrolling = true;
+    dragRef.current.startX = e.pageX - scrollContainerRef.current.offsetLeft;
+    dragRef.current.scrollLeft = scrollContainerRef.current.scrollLeft;
+  }, []);
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragScrolling || !scrollContainerRef.current) return;
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!dragRef.current.isScrolling || !scrollContainerRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
-    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
-  };
+    const walk = (x - dragRef.current.startX) * 1.5;
+    scrollContainerRef.current.scrollLeft = dragRef.current.scrollLeft - walk;
+  }, []);
 
-  const handleMouseUpOrLeave = () => {
-    setIsDragScrolling(false);
-  };
+  const handleMouseUpOrLeave = useCallback(() => {
+    dragRef.current.isScrolling = false;
+  }, []);
 
-  // Smooth wheel horizontal scroll
-  const handleWheel = (e: React.WheelEvent) => {
-    if (scrollContainerRef.current) {
+  // Smooth horizontal scroll wheel with requestAnimationFrame lerp logic
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    // Handle when hold Shift key + scroll mouse wheel
+    if (e.shiftKey) {
       e.preventDefault();
-      scrollContainerRef.current.scrollLeft += e.deltaY;
+      e.stopPropagation();
+
+      // Calculate target scroll position (deltaY * sensitivity factor)
+      const targetScroll = container.scrollLeft + e.deltaY * 1.6;
+
+      // Create smooth scroll effect (Smooth Lerp)
+      let start: number | null = null;
+      const duration = 200; // Animation scroll duration (ms)
+      const initialScroll = container.scrollLeft;
+
+      const animateScroll = (timestamp: number) => {
+        if (!start) start = timestamp;
+        const elapsed = timestamp - start;
+        const progress = Math.min(elapsed / duration, 1);
+
+        // Ease-Out formula for smooth stop, no jank
+        const easeOutQuad = (t: number) => t * (2 - t);
+
+        container.scrollLeft = initialScroll + (targetScroll - initialScroll) * easeOutQuad(progress);
+
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll);
+        }
+      };
+
+      requestAnimationFrame(animateScroll);
     }
-  };
+  }, []);
 
   // Premium file selection and RAM optimization
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const filesArray = Array.from(e.target.files);
-    
+
+    // Add files to binary ref
+    selectedFilesRef.current = [...selectedFilesRef.current, ...filesArray];
+
     // Create local object URLs for immediate preview
     const newUrls = filesArray.map(file => URL.createObjectURL(file));
     setPreviewUrls(prev => [...prev, ...newUrls]);
@@ -461,26 +554,28 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
       }
     }, 100);
-  };
+  }, []);
 
-  const handleRemoveImage = (index: number) => {
-    const targetUrl = images[index];
-    if (targetUrl && targetUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(targetUrl);
-    }
-    setPreviewUrls(prev => prev.filter(url => url !== targetUrl));
-    setImages((prev) => prev.filter((_, i) => i !== index));
-  };
+  const handleRemoveImage = useCallback((index: number) => {
+    setImages((prev) => {
+      const targetUrl = prev[index];
+      if (targetUrl && targetUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(targetUrl);
+        setPreviewUrls(p => p.filter(url => url !== targetUrl));
+      }
+      return prev.filter((_, i) => i !== index);
+    });
+  }, []);
 
-  const handleAddGif = (gifUrl: string) => {
+  const handleAddGif = useCallback((gifUrl: string) => {
     setImages((prev) => [...prev, gifUrl]);
     setIsGifOpen(false);
-  };
+  }, []);
 
-  const handleAddEmoji = (emoji: string) => {
+  const handleAddEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    const value = watch("content");
+    const value = textarea.value;
     const caretPosition = textarea.selectionStart;
     const beforeText = value.substring(0, caretPosition);
     const afterText = value.substring(caretPosition);
@@ -493,61 +588,63 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       const newPos = caretPosition + emoji.length;
       textarea.setSelectionRange(newPos, newPos);
     }, 50);
-  };
+  }, [setValue]);
 
   // Drafts Operations
-  const handleSaveToDrafts = () => {
-    const content = watch("content");
+  const handleSaveToDrafts = useCallback(() => {
+    const content = textareaRef.current?.value || "";
     if (!content.trim() && images.length === 0) return;
     const savedId = saveDraft(content, images, audience, activeDraftId);
     setActiveDraftId(savedId);
     toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     setIsDraftsOpen(false);
-  };
+  }, [images, audience, activeDraftId, saveDraft, t]);
 
-  const handleSaveToDraftsAndClose = () => {
-    const content = watch("content");
+  const handleSaveToDraftsAndClose = useCallback(() => {
+    const content = textareaRef.current?.value || "";
     saveDraft(content, images, audience, activeDraftId);
-    
+
     // Revoke preview URLs
-    previewUrls.forEach(url => URL.revokeObjectURL(url));
+    previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     setPreviewUrls([]);
+    selectedFilesRef.current = [];
 
     reset();
     setImages([]);
     setLocation(null);
     setIsWarningOpen(false);
-    
+
     toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     textareaRef.current?.blur();
     onCancel?.();
-  };
+  }, [images, audience, activeDraftId, saveDraft, reset, onCancel, t]);
 
-  const handleDiscardAndClose = () => {
+  const handleDiscardAndClose = useCallback(() => {
     if (activeDraftId) {
       deleteDraft(activeDraftId);
     }
-    
+
     // Revoke preview URLs
-    previewUrls.forEach(url => URL.revokeObjectURL(url));
+    previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
     setPreviewUrls([]);
+    selectedFilesRef.current = [];
 
     reset();
     setImages([]);
     setLocation(null);
     setIsWarningOpen(false);
-    
+
     textareaRef.current?.blur();
     onCancel?.();
-  };
+  }, [activeDraftId, deleteDraft, reset, onCancel]);
 
-  const handleRestoreDraft = (draft: any) => {
+  const handleRestoreDraft = useCallback((draft: any) => {
     setValue("content", draft.content);
     setImages(draft.images);
     setAudience(draft.audience);
     setActiveDraftId(draft.id);
     setIsDraftsOpen(false);
-  };
+  }, [setValue]);
 
   // Submit creator content
   const handleFormSubmit = async (data: PostFormValues) => {
@@ -560,10 +657,11 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       if (activeDraftId) {
         deleteDraft(activeDraftId);
       }
-      
+
       // Revoke preview URLs
       previewUrls.forEach(url => URL.revokeObjectURL(url));
       setPreviewUrls([]);
+      selectedFilesRef.current = [];
 
       reset();
       setImages([]);
@@ -583,19 +681,335 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   );
 
   // Local filtering lists
-  const filteredEmojis = MOCK_EMOJIS.filter(e =>
-    e.char.includes(emojiQuery) ||
-    e.category.toLowerCase().includes(emojiQuery.toLowerCase())
-  );
+  const filteredEmojis = useMemo(() => {
+    return MOCK_EMOJIS.filter(e =>
+      e.char.includes(emojiQuery) ||
+      e.category.toLowerCase().includes(emojiQuery.toLowerCase())
+    );
+  }, [emojiQuery]);
 
-  const filteredGifs = MOCK_GIFS.filter(g =>
-    g.name.toLowerCase().includes(gifQuery.toLowerCase()) ||
-    g.category.toLowerCase().includes(gifQuery.toLowerCase())
-  );
+  const filteredGifs = useMemo(() => {
+    return MOCK_GIFS.filter(g =>
+      g.name.toLowerCase().includes(gifQuery.toLowerCase()) ||
+      g.category.toLowerCase().includes(gifQuery.toLowerCase())
+    );
+  }, [gifQuery]);
 
-  const filteredLocations = MOCK_LOCATIONS.filter(loc =>
-    loc.toLowerCase().includes(locationQuery.toLowerCase())
-  );
+  // Dynamic Location Reordering: selected location is sorted to index 0
+  const filteredLocations = useMemo(() => {
+    let result = MOCK_LOCATIONS.filter(loc =>
+      loc.toLowerCase().includes(locationQuery.toLowerCase())
+    );
+    if (location) {
+      result = [...result].sort((a, b) => {
+        if (a === location) return -1;
+        if (b === location) return 1;
+        return 0;
+      });
+    }
+    return result;
+  }, [locationQuery, location]);
+
+  // Memoized Popover Content Blocks to completely bypass cascade re-renders
+  const emojiPickerContent = useMemo(() => {
+    return (
+      <PopoverContent
+        side="bottom"
+        align="start"
+        avoidCollisions={true}
+        collisionPadding={12}
+        onWheel={(e) => e.stopPropagation()}
+        className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
+      >
+        <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
+          {t("creator.addMockEmoji") || "Select Emoji"}
+        </div>
+
+        <input
+          type="text"
+          value={emojiQuery}
+          onChange={(e) => setEmojiQuery(e.target.value)}
+          placeholder={t("creator.searchEmojiPlaceholder") || "Search emojis..."}
+          className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
+        />
+
+        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+          <div className="flex flex-col gap-3">
+            {["Smileys", "Hearts & Gestures", "Nature & Objects"].map((cat) => {
+              const catEmojis = filteredEmojis.filter(e => e.category === cat);
+              if (catEmojis.length === 0) return null;
+              return (
+                <div key={cat} className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {catEmojis.map((emoji) => (
+                      <button
+                        key={emoji.char}
+                        type="button"
+                        onClick={() => handleAddEmoji(emoji.char)}
+                        className="h-8 w-8 text-md rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center cursor-pointer transition-colors"
+                      >
+                        {emoji.char}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {filteredEmojis.length === 0 && (
+              <div className="text-center text-xs text-zinc-400 py-8">No matching emojis found</div>
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    );
+  }, [emojiQuery, filteredEmojis, handleAddEmoji, t]);
+
+  const gifPickerContent = useMemo(() => {
+    return (
+      <PopoverContent
+        side="bottom"
+        align="start"
+        avoidCollisions={true}
+        collisionPadding={12}
+        onWheel={(e) => e.stopPropagation()}
+        className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
+      >
+        <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
+          {t("creator.addMockGif") || "Select GIF"}
+        </div>
+
+        <input
+          type="text"
+          value={gifQuery}
+          onChange={(e) => setGifQuery(e.target.value)}
+          placeholder={t("creator.searchGifPlaceholder") || "Search GIFs..."}
+          className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
+        />
+
+        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+          <div className="flex flex-col gap-3">
+            {["Trending", "Reactions", "Memes"].map((cat) => {
+              const catGifs = filteredGifs.filter(g => g.category === cat);
+              if (catGifs.length === 0) return null;
+              return (
+                <div key={cat} className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {catGifs.map((gif, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleAddGif(gif.url)}
+                        className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all shrink-0"
+                      >
+                        <img src={gif.url} className="w-full h-full object-cover" alt={gif.name} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            {filteredGifs.length === 0 && (
+              <div className="text-center text-xs text-zinc-400 py-8">No matching GIFs found</div>
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    );
+  }, [gifQuery, filteredGifs, handleAddGif, t]);
+
+  const locationPickerContent = useMemo(() => {
+    return (
+      <PopoverContent
+        side="bottom"
+        align="start"
+        avoidCollisions={true}
+        collisionPadding={12}
+        onWheel={(e) => e.stopPropagation()}
+        className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
+      >
+        <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0 flex items-center gap-1">
+          <MapPinned className="size-3" />
+          <span>{t("creator.location") || "Select location"}</span>
+        </div>
+
+        <input
+          type="text"
+          value={locationQuery}
+          onChange={(e) => setLocationQuery(e.target.value)}
+          placeholder={t("creator.searchLocationPlaceholder") || "Search locations..."}
+          className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
+        />
+
+        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+          <div className="flex flex-col gap-1">
+            {filteredLocations.map((loc) => {
+              const isActive = location === loc;
+              return (
+                <button
+                  key={loc}
+                  type="button"
+                  onClick={() => {
+                    setLocation(loc);
+                    setIsLocationOpen(false);
+                  }}
+                  className={`w-full h-12 shrink-0 px-2.5 rounded-xl flex justify-between items-center transition-colors cursor-pointer text-xs font-medium ${isActive
+                    ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
+                    : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                    }`}
+                >
+                  <div className="flex items-center min-w-0 mr-2">
+                    <MapPin className="size-3.5 mr-2 text-zinc-400 shrink-0" />
+                    <span className="truncate">{loc}</span>
+                  </div>
+                  {isActive && <Check className="size-3.5 text-zinc-950 dark:text-zinc-50 shrink-0 ml-2" />}
+                </button>
+              );
+            })}
+            {filteredLocations.length === 0 && (
+              <div className="text-center text-xs text-zinc-400 py-8">No matching locations found</div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {location && (
+          <div className="border-t border-zinc-100 dark:border-zinc-900/60 pt-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setLocation(null);
+                setIsLocationOpen(false);
+              }}
+              className="w-full h-9 rounded-xl font-bold text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+            >
+              Clear Location
+            </button>
+          </div>
+        )}
+      </PopoverContent>
+    );
+  }, [locationQuery, filteredLocations, location, t]);
+
+  const audiencePickerContent = useMemo(() => {
+    return (
+      <PopoverContent
+        side="bottom"
+        align="start"
+        avoidCollisions={true}
+        collisionPadding={12}
+        className="w-60 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 z-50"
+      >
+        <div className="text-[10px] font-bold uppercase text-zinc-400 px-3 py-1 mb-1 tracking-wider">
+          {t("creator.audience") || "Post Options"}
+        </div>
+        {[
+          { id: "anyone", label: t("creator.anyone") || "Anyone can reply", icon: Globe },
+          { id: "followers", label: t("creator.followers") || "Your followers", icon: Users },
+          { id: "following", label: t("creator.following") || "Profiles you follow", icon: UserCheck },
+          { id: "mention", label: t("creator.mention") || "Profiles you mention", icon: AtSign },
+        ].map((opt) => {
+          const OptIcon = opt.icon;
+          const isActive = audience === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => {
+                setAudience(opt.id as PostAudience);
+                setIsAudienceOpen(false);
+              }}
+              className={`w-full flex justify-between items-center px-3 py-2 rounded-xl text-left text-xs cursor-pointer transition-colors ${isActive
+                ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
+                : "text-zinc-650 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                }`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <OptIcon className="size-3.5 shrink-0 text-zinc-400" />
+                <span className="truncate">{opt.label}</span>
+              </div>
+              {isActive && <Check className="size-3.5 text-zinc-950 dark:text-zinc-50 shrink-0 ml-2" />}
+            </button>
+          );
+        })}
+      </PopoverContent>
+    );
+  }, [audience, t]);
+
+  const draftsPickerContent = useMemo(() => {
+    return (
+      <PopoverContent
+        side="bottom"
+        align="start"
+        avoidCollisions={true}
+        collisionPadding={12}
+        onWheel={(e) => e.stopPropagation()}
+        className="w-72 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2 z-50"
+      >
+        <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-2 mb-1 shrink-0">
+          <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-50">{t("creator.drafts") || "Drafts"}</span>
+          {isValid && (
+            <button
+              type="button"
+              onClick={handleSaveToDrafts}
+              className="text-[10px] font-bold text-zinc-650 dark:text-zinc-300 hover:text-black dark:hover:text-white border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+            >
+              {t("creator.saveDraft") || "Save Current"}
+            </button>
+          )}
+        </div>
+
+        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0 max-h-52">
+          <div className="flex flex-col gap-2">
+            {drafts.length === 0 ? (
+              <div className="text-[11px] text-zinc-400 py-6 text-center select-none">
+                {t("creator.noDrafts") || "No drafts saved yet"}
+              </div>
+            ) : (
+              drafts.map((draft) => (
+                <div
+                  key={draft.id}
+                  className="flex flex-col p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/20 gap-1.5 transition-all text-left"
+                >
+                  <p className="text-[11px] text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-relaxed">
+                    {draft.content || <span className="italic text-zinc-400">[Only image attachments]</span>}
+                  </p>
+                  {draft.images.length > 0 && (
+                    <span className="text-[10px] text-zinc-400 flex items-center gap-1">
+                      <ImageIcon className="size-3" />
+                      {draft.images.length} image(s)
+                    </span>
+                  )}
+                  <div className="flex items-center justify-between border-t border-zinc-100/60 dark:border-zinc-800/40 pt-1.5 mt-0.5">
+                    <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                      {new Date(draft.createdAt).toLocaleDateString()}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleRestoreDraft(draft)}
+                        className="text-[10px] font-bold text-zinc-950 dark:text-zinc-50 hover:underline cursor-pointer"
+                      >
+                        {t("creator.restore") || "Restore"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteDraft(draft.id)}
+                        className="text-zinc-400 hover:text-red-500 p-0.5 cursor-pointer transition-colors"
+                        title="Delete Draft"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </PopoverContent>
+    );
+  }, [drafts, isValid, handleSaveToDrafts, handleRestoreDraft, deleteDraft, t]);
 
   return (
     <div
@@ -614,8 +1028,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
             <span>{user?.displayName || "YSocial Member"}</span>
             <span className="text-zinc-400">@{user?.username || "ysocial_member"}</span>
             {location && (
-              <span className="flex items-center text-zinc-400 dark:text-zinc-500 font-medium">
-                <MapPin className="size-3 mr-0.5" />
+              <span className="flex items-center text-zinc-400 dark:text-zinc-500 font-medium font-bold">
+                <MapPin className="size-3 mr-0.5 text-zinc-500" />
                 {location}
               </span>
             )}
@@ -660,38 +1074,16 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
             </div>
           )}
 
-          {/* Horizontal Images previews list */}
-          {images.length > 0 && (
-            <div
-              ref={scrollContainerRef}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUpOrLeave}
-              onMouseLeave={handleMouseUpOrLeave}
-              onWheel={handleWheel}
-              className="flex flex-row gap-2 overflow-x-auto no-scrollbar w-full py-2 cursor-grab active:cursor-grabbing select-none"
-            >
-              {images.map((img, idx) => (
-                <div
-                  key={idx}
-                  className="relative shrink-0 w-44 h-44 rounded-2xl overflow-hidden border border-zinc-150 dark:border-zinc-900 shadow-sm transition-all"
-                >
-                  <img
-                    src={img}
-                    alt={`Preview ${idx + 1}`}
-                    className="w-full h-full object-cover pointer-events-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImage(idx)}
-                    className="absolute top-2 right-2 size-6 rounded-full bg-black/75 hover:bg-black text-white flex items-center justify-center border border-white/20 transition-all cursor-pointer"
-                  >
-                    <X className="size-3 shrink-0" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Horizontal Images previews list extracted as React.memo sub-component */}
+          <ImagePreviewList
+            images={images}
+            onRemoveImage={handleRemoveImage}
+            scrollContainerRef={scrollContainerRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUpOrLeave={handleMouseUpOrLeave}
+            onWheel={handleWheel}
+          />
 
           {/* Tools Menu Bar */}
           <div className="flex items-center gap-1 border-t border-zinc-100 dark:border-zinc-900/60 pt-2.5">
@@ -732,55 +1124,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     GIF
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={true}
-                  collisionPadding={12}
-                  onWheel={(e) => e.stopPropagation()}
-                  className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
-                >
-                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
-                    {t("creator.addMockGif") || "Select GIF"}
-                  </div>
-                  
-                  <input
-                    type="text"
-                    value={gifQuery}
-                    onChange={(e) => setGifQuery(e.target.value)}
-                    placeholder={t("creator.searchGifPlaceholder") || "Search GIFs..."}
-                    className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
-                  />
-
-                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
-                    <div className="flex flex-col gap-3">
-                      {["Trending", "Reactions", "Memes"].map((cat) => {
-                        const catGifs = filteredGifs.filter(g => g.category === cat);
-                        if (catGifs.length === 0) return null;
-                        return (
-                          <div key={cat} className="flex flex-col gap-1.5">
-                            <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              {catGifs.map((gif, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => handleAddGif(gif.url)}
-                                  className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all shrink-0"
-                                >
-                                  <img src={gif.url} className="w-full h-full object-cover" alt={gif.name} />
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {filteredGifs.length === 0 && (
-                        <div className="text-center text-xs text-zinc-400 py-8">No matching GIFs found</div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
+                {gifPickerContent}
               </Popover>
             </div>
 
@@ -798,55 +1142,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     <Smile className="h-4 w-4 shrink-0" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={true}
-                  collisionPadding={12}
-                  onWheel={(e) => e.stopPropagation()}
-                  className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
-                >
-                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
-                    {t("creator.addMockEmoji") || "Select Emoji"}
-                  </div>
-
-                  <input
-                    type="text"
-                    value={emojiQuery}
-                    onChange={(e) => setEmojiQuery(e.target.value)}
-                    placeholder={t("creator.searchEmojiPlaceholder") || "Search emojis..."}
-                    className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
-                  />
-
-                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
-                    <div className="flex flex-col gap-3">
-                      {["Smileys", "Hearts & Gestures", "Nature & Objects"].map((cat) => {
-                        const catEmojis = filteredEmojis.filter(e => e.category === cat);
-                        if (catEmojis.length === 0) return null;
-                        return (
-                          <div key={cat} className="flex flex-col gap-1.5">
-                            <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
-                            <div className="grid grid-cols-6 gap-1.5">
-                              {catEmojis.map((emoji) => (
-                                <button
-                                  key={emoji.char}
-                                  type="button"
-                                  onClick={() => handleAddEmoji(emoji.char)}
-                                  className="h-8 w-8 text-md rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center cursor-pointer transition-colors"
-                                >
-                                  {emoji.char}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {filteredEmojis.length === 0 && (
-                        <div className="text-center text-xs text-zinc-400 py-8">No matching emojis found</div>
-                      )}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
+                {emojiPickerContent}
               </Popover>
             </div>
 
@@ -864,74 +1160,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     <MapPin className="h-4 w-4 shrink-0" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={true}
-                  collisionPadding={12}
-                  onWheel={(e) => e.stopPropagation()}
-                  className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
-                >
-                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0 flex items-center gap-1">
-                    <MapPinned className="size-3" />
-                    <span>{t("creator.location") || "Select location"}</span>
-                  </div>
-
-                  <input
-                    type="text"
-                    value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    placeholder={t("creator.searchLocationPlaceholder") || "Search locations..."}
-                    className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
-                  />
-
-                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
-                    <div className="flex flex-col gap-1">
-                      {filteredLocations.map((loc) => {
-                        const isActive = location === loc;
-                        return (
-                          <button
-                            key={loc}
-                            type="button"
-                            onClick={() => {
-                              setLocation(loc);
-                              setIsLocationOpen(false);
-                            }}
-                            className={`w-full h-12 shrink-0 px-2.5 rounded-xl flex justify-between items-center transition-colors cursor-pointer text-xs font-medium ${
-                              isActive
-                                ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
-                                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                            }`}
-                          >
-                            <div className="flex items-center min-w-0 mr-2">
-                              <MapPin className="size-3.5 mr-2 text-zinc-400 shrink-0" />
-                              <span className="truncate">{loc}</span>
-                            </div>
-                            {isActive && <Check className="size-3.5 text-zinc-950 dark:text-zinc-50 shrink-0 ml-2" />}
-                          </button>
-                        );
-                      })}
-                      {filteredLocations.length === 0 && (
-                        <div className="text-center text-xs text-zinc-400 py-8">No matching locations found</div>
-                      )}
-                    </div>
-                  </ScrollArea>
-
-                  {location && (
-                    <div className="border-t border-zinc-100 dark:border-zinc-900/60 pt-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocation(null);
-                          setIsLocationOpen(false);
-                        }}
-                        className="w-full h-9 rounded-xl font-bold text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
-                      >
-                        Clear Location
-                      </button>
-                    </div>
-                  )}
-                </PopoverContent>
+                {locationPickerContent}
               </Popover>
             </div>
 
@@ -952,77 +1181,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     )}
                   </Button>
                 </PopoverTrigger>
-
-                <PopoverContent
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={true}
-                  collisionPadding={12}
-                  onWheel={(e) => e.stopPropagation()}
-                  className="w-72 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2 z-50"
-                >
-                  <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-2 mb-1 shrink-0">
-                    <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-50">{t("creator.drafts") || "Drafts"}</span>
-                    {isValid && (
-                      <button
-                        type="button"
-                        onClick={handleSaveToDrafts}
-                        className="text-[10px] font-bold text-zinc-650 dark:text-zinc-300 hover:text-black dark:hover:text-white border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
-                      >
-                        {t("creator.saveDraft") || "Save Current"}
-                      </button>
-                    )}
-                  </div>
-
-                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0 max-h-52">
-                    <div className="flex flex-col gap-2">
-                      {drafts.length === 0 ? (
-                        <div className="text-[11px] text-zinc-400 py-6 text-center select-none">
-                          {t("creator.noDrafts") || "No drafts saved yet"}
-                        </div>
-                      ) : (
-                        drafts.map((draft) => (
-                          <div
-                            key={draft.id}
-                            className="flex flex-col p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/20 gap-1.5 transition-all text-left"
-                          >
-                            <p className="text-[11px] text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-relaxed">
-                              {draft.content || <span className="italic text-zinc-400">[Only image attachments]</span>}
-                            </p>
-                            {draft.images.length > 0 && (
-                              <span className="text-[10px] text-zinc-400 flex items-center gap-1">
-                                <ImageIcon className="size-3" />
-                                {draft.images.length} image(s)
-                              </span>
-                            )}
-                            <div className="flex items-center justify-between border-t border-zinc-100/60 dark:border-zinc-800/40 pt-1.5 mt-0.5">
-                              <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
-                                {new Date(draft.createdAt).toLocaleDateString()}
-                              </span>
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => handleRestoreDraft(draft)}
-                                  className="text-[10px] font-bold text-zinc-950 dark:text-zinc-50 hover:underline cursor-pointer"
-                                >
-                                  {t("creator.restore") || "Restore"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => deleteDraft(draft.id)}
-                                  className="text-zinc-400 hover:text-red-500 p-0.5 cursor-pointer transition-colors"
-                                  title="Delete Draft"
-                                >
-                                  <Trash2 className="size-3" />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
+                {draftsPickerContent}
               </Popover>
             </div>
           </div>
@@ -1052,47 +1211,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     </span>
                   </button>
                 </PopoverTrigger>
-                <PopoverContent
-                  side="bottom"
-                  align="start"
-                  avoidCollisions={true}
-                  collisionPadding={12}
-                  className="w-60 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 z-50"
-                >
-                  <div className="text-[10px] font-bold uppercase text-zinc-400 px-3 py-1 mb-1 tracking-wider">
-                    {t("creator.audience") || "Post Options"}
-                  </div>
-                  {[
-                    { id: "anyone", label: t("creator.anyone") || "Anyone can reply", icon: Globe },
-                    { id: "followers", label: t("creator.followers") || "Your followers", icon: Users },
-                    { id: "following", label: t("creator.following") || "Profiles you follow", icon: UserCheck },
-                    { id: "mention", label: t("creator.mention") || "Profiles you mention", icon: AtSign },
-                  ].map((opt) => {
-                    const OptIcon = opt.icon;
-                    const isActive = audience === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => {
-                          setAudience(opt.id as PostAudience);
-                          setIsAudienceOpen(false);
-                        }}
-                        className={`w-full flex justify-between items-center px-3 py-2 rounded-xl text-left text-xs cursor-pointer transition-colors ${
-                          isActive
-                            ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
-                            : "text-zinc-650 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <OptIcon className="size-3.5 shrink-0 text-zinc-400" />
-                          <span className="truncate">{opt.label}</span>
-                        </div>
-                        {isActive && <Check className="size-3.5 text-zinc-950 dark:text-zinc-50 shrink-0 ml-2" />}
-                      </button>
-                    );
-                  })}
-                </PopoverContent>
+                {audiencePickerContent}
               </Popover>
             </div>
 
