@@ -16,6 +16,7 @@ import {
   FileText,
   Trash2,
   MapPinned,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ import { useDrafts, useDraftActions } from "../store/post-draft-store";
 import { PostAudience } from "../types/creator";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { DiscardWarningDialog } from "./discard-warning-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 const postSchema = z.object({
@@ -273,6 +275,19 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     onStateChange?.(isValid);
   }, [isValid, onStateChange]);
 
+  // Unified ref to keep track of preview URLs to avoid lifecycle cleanup issues
+  const previewUrlsRef = useRef<string[]>([]);
+  useEffect(() => {
+    previewUrlsRef.current = previewUrls;
+  }, [previewUrls]);
+
+  // Clean up Object URLs only on unmount
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, []);
+
   // Imperative handle to trigger close and dialog safety checks
   useImperativeHandle(ref, () => ({
     triggerClose: () => {
@@ -286,21 +301,14 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       if (isAnySubPopoverOpen) {
         return false;
       }
-      if (document.activeElement === textareaRef.current && isValid) {
-        const content = watch("content");
-        saveDraft(content, images, audience, activeDraftId);
-        
-        // Clean up Object URLs immediately to release RAM
-        previewUrls.forEach(url => URL.revokeObjectURL(url));
-        setPreviewUrls([]);
-
-        reset();
-        setImages([]);
-        setLocation(null);
-        setActiveDraftId(undefined);
-        
-        textareaRef.current?.blur();
-        return true;
+      if (document.activeElement === textareaRef.current) {
+        if (isValid) {
+          setIsWarningOpen(true);
+          return true;
+        } else {
+          textareaRef.current?.blur();
+          return true;
+        }
       }
       return false;
     },
@@ -429,8 +437,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setIsDragScrolling(false);
   };
 
+  // Smooth wheel horizontal scroll
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.shiftKey && scrollContainerRef.current) {
+    if (scrollContainerRef.current) {
       e.preventDefault();
       scrollContainerRef.current.scrollLeft += e.deltaY;
     }
@@ -455,21 +464,13 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   };
 
   const handleRemoveImage = (index: number) => {
-    // Revoke target URL to free memory
     const targetUrl = images[index];
     if (targetUrl && targetUrl.startsWith("blob:")) {
       URL.revokeObjectURL(targetUrl);
-      setPreviewUrls(prev => prev.filter(url => url !== targetUrl));
     }
+    setPreviewUrls(prev => prev.filter(url => url !== targetUrl));
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
-
-  // Revoke preview URLs on unmount
-  useEffect(() => {
-    return () => {
-      previewUrls.forEach(url => URL.revokeObjectURL(url));
-    };
-  }, [previewUrls]);
 
   const handleAddGif = (gifUrl: string) => {
     setImages((prev) => [...prev, gifUrl]);
@@ -486,7 +487,6 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     const newValue = beforeText + emoji + afterText;
 
     setValue("content", newValue);
-    setIsEmojiOpen(false);
 
     setTimeout(() => {
       textarea.focus();
@@ -517,6 +517,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setImages([]);
     setLocation(null);
     setIsWarningOpen(false);
+    
+    toast.success(t("creator.draftSaved") || "Draft saved successfully!");
+    textareaRef.current?.blur();
     onCancel?.();
   };
 
@@ -533,6 +536,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setImages([]);
     setLocation(null);
     setIsWarningOpen(false);
+    
+    textareaRef.current?.blur();
     onCancel?.();
   };
 
@@ -643,8 +648,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-left transition-colors cursor-pointer"
                 >
                   <Avatar className="size-6 shrink-0 border border-zinc-100 dark:border-zinc-800">
-                     <AvatarImage src={profile.avatarUrl} />
-                     <AvatarFallback className="text-[10px] font-bold">U</AvatarFallback>
+                    <AvatarImage src={profile.avatarUrl} />
+                    <AvatarFallback className="text-[10px] font-bold">U</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">{profile.displayName}</span>
@@ -732,6 +737,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   align="start"
                   avoidCollisions={true}
                   collisionPadding={12}
+                  onWheel={(e) => e.stopPropagation()}
                   className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
                 >
                   <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
@@ -746,32 +752,34 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
                   />
 
-                  <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
-                    {["Trending", "Reactions", "Memes"].map((cat) => {
-                      const catGifs = filteredGifs.filter(g => g.category === cat);
-                      if (catGifs.length === 0) return null;
-                      return (
-                        <div key={cat} className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {catGifs.map((gif, idx) => (
-                              <button
-                                key={idx}
-                                type="button"
-                                onClick={() => handleAddGif(gif.url)}
-                                className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all shrink-0"
-                              >
-                                <img src={gif.url} className="w-full h-full object-cover" alt={gif.name} />
-                              </button>
-                            ))}
+                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+                    <div className="flex flex-col gap-3">
+                      {["Trending", "Reactions", "Memes"].map((cat) => {
+                        const catGifs = filteredGifs.filter(g => g.category === cat);
+                        if (catGifs.length === 0) return null;
+                        return (
+                          <div key={cat} className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {catGifs.map((gif, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => handleAddGif(gif.url)}
+                                  className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all shrink-0"
+                                >
+                                  <img src={gif.url} className="w-full h-full object-cover" alt={gif.name} />
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                    {filteredGifs.length === 0 && (
-                      <div className="text-center text-xs text-zinc-400 py-8">No matching GIFs found</div>
-                    )}
-                  </div>
+                        );
+                      })}
+                      {filteredGifs.length === 0 && (
+                        <div className="text-center text-xs text-zinc-400 py-8">No matching GIFs found</div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
@@ -795,6 +803,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   align="start"
                   avoidCollisions={true}
                   collisionPadding={12}
+                  onWheel={(e) => e.stopPropagation()}
                   className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
                 >
                   <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
@@ -809,32 +818,34 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
                   />
 
-                  <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-3 min-h-0">
-                    {["Smileys", "Hearts & Gestures", "Nature & Objects"].map((cat) => {
-                      const catEmojis = filteredEmojis.filter(e => e.category === cat);
-                      if (catEmojis.length === 0) return null;
-                      return (
-                        <div key={cat} className="flex flex-col gap-1.5">
-                          <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
-                          <div className="grid grid-cols-6 gap-1.5">
-                            {catEmojis.map((emoji) => (
-                              <button
-                                key={emoji.char}
-                                type="button"
-                                onClick={() => handleAddEmoji(emoji.char)}
-                                className="h-8 w-8 text-md rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center cursor-pointer transition-colors"
-                              >
-                                {emoji.char}
-                              </button>
-                            ))}
+                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+                    <div className="flex flex-col gap-3">
+                      {["Smileys", "Hearts & Gestures", "Nature & Objects"].map((cat) => {
+                        const catEmojis = filteredEmojis.filter(e => e.category === cat);
+                        if (catEmojis.length === 0) return null;
+                        return (
+                          <div key={cat} className="flex flex-col gap-1.5">
+                            <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">{cat}</span>
+                            <div className="grid grid-cols-6 gap-1.5">
+                              {catEmojis.map((emoji) => (
+                                <button
+                                  key={emoji.char}
+                                  type="button"
+                                  onClick={() => handleAddEmoji(emoji.char)}
+                                  className="h-8 w-8 text-md rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center cursor-pointer transition-colors"
+                                >
+                                  {emoji.char}
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                    {filteredEmojis.length === 0 && (
-                      <div className="text-center text-xs text-zinc-400 py-8">No matching emojis found</div>
-                    )}
-                  </div>
+                        );
+                      })}
+                      {filteredEmojis.length === 0 && (
+                        <div className="text-center text-xs text-zinc-400 py-8">No matching emojis found</div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
@@ -858,6 +869,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   align="start"
                   avoidCollisions={true}
                   collisionPadding={12}
+                  onWheel={(e) => e.stopPropagation()}
                   className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
                 >
                   <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0 flex items-center gap-1">
@@ -873,25 +885,37 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
                   />
 
-                  <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-1 min-h-0">
-                    {filteredLocations.map((loc) => (
-                      <button
-                        key={loc}
-                        type="button"
-                        onClick={() => {
-                          setLocation(loc);
-                          setIsLocationOpen(false);
-                        }}
-                        className="w-full h-12 shrink-0 text-left text-xs px-2.5 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-900/50 flex items-center transition-colors cursor-pointer truncate font-medium text-zinc-700 dark:text-zinc-300"
-                      >
-                        <MapPin className="size-3.5 mr-2 text-zinc-400 shrink-0" />
-                        <span className="truncate">{loc}</span>
-                      </button>
-                    ))}
-                    {filteredLocations.length === 0 && (
-                      <div className="text-center text-xs text-zinc-400 py-8">No matching locations found</div>
-                    )}
-                  </div>
+                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+                    <div className="flex flex-col gap-1">
+                      {filteredLocations.map((loc) => {
+                        const isActive = location === loc;
+                        return (
+                          <button
+                            key={loc}
+                            type="button"
+                            onClick={() => {
+                              setLocation(loc);
+                              setIsLocationOpen(false);
+                            }}
+                            className={`w-full h-12 shrink-0 px-2.5 rounded-xl flex justify-between items-center transition-colors cursor-pointer text-xs font-medium ${
+                              isActive
+                                ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
+                                : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                            }`}
+                          >
+                            <div className="flex items-center min-w-0 mr-2">
+                              <MapPin className="size-3.5 mr-2 text-zinc-400 shrink-0" />
+                              <span className="truncate">{loc}</span>
+                            </div>
+                            {isActive && <Check className="size-3.5 text-zinc-950 dark:text-zinc-50 shrink-0 ml-2" />}
+                          </button>
+                        );
+                      })}
+                      {filteredLocations.length === 0 && (
+                        <div className="text-center text-xs text-zinc-400 py-8">No matching locations found</div>
+                      )}
+                    </div>
+                  </ScrollArea>
 
                   {location && (
                     <div className="border-t border-zinc-100 dark:border-zinc-900/60 pt-2 shrink-0">
@@ -934,9 +958,10 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   align="start"
                   avoidCollisions={true}
                   collisionPadding={12}
+                  onWheel={(e) => e.stopPropagation()}
                   className="w-72 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2 z-50"
                 >
-                  <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-2 mb-1">
+                  <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-2 mb-1 shrink-0">
                     <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-50">{t("creator.drafts") || "Drafts"}</span>
                     {isValid && (
                       <button
@@ -949,52 +974,54 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 max-h-52 overflow-y-auto pr-1">
-                    {drafts.length === 0 ? (
-                      <div className="text-[11px] text-zinc-400 py-6 text-center select-none">
-                        {t("creator.noDrafts") || "No drafts saved yet"}
-                      </div>
-                    ) : (
-                      drafts.map((draft) => (
-                        <div
-                          key={draft.id}
-                          className="flex flex-col p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/20 gap-1.5 transition-all text-left"
-                        >
-                          <p className="text-[11px] text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-relaxed">
-                            {draft.content || <span className="italic text-zinc-400">[Only image attachments]</span>}
-                          </p>
-                          {draft.images.length > 0 && (
-                            <span className="text-[10px] text-zinc-400 flex items-center gap-1">
-                              <ImageIcon className="size-3" />
-                              {draft.images.length} image(s)
-                            </span>
-                          )}
-                          <div className="flex items-center justify-between border-t border-zinc-100/60 dark:border-zinc-800/40 pt-1.5 mt-0.5">
-                            <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
-                              {new Date(draft.createdAt).toLocaleDateString()}
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleRestoreDraft(draft)}
-                                className="text-[10px] font-bold text-zinc-950 dark:text-zinc-50 hover:underline cursor-pointer"
-                              >
-                                {t("creator.restore") || "Restore"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => deleteDraft(draft.id)}
-                                className="text-zinc-400 hover:text-red-500 p-0.5 cursor-pointer transition-colors"
-                                title="Delete Draft"
-                              >
-                                <Trash2 className="size-3" />
-                              </button>
+                  <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0 max-h-52">
+                    <div className="flex flex-col gap-2">
+                      {drafts.length === 0 ? (
+                        <div className="text-[11px] text-zinc-400 py-6 text-center select-none">
+                          {t("creator.noDrafts") || "No drafts saved yet"}
+                        </div>
+                      ) : (
+                        drafts.map((draft) => (
+                          <div
+                            key={draft.id}
+                            className="flex flex-col p-2.5 rounded-xl border border-zinc-100 dark:border-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/20 gap-1.5 transition-all text-left"
+                          >
+                            <p className="text-[11px] text-zinc-800 dark:text-zinc-200 line-clamp-2 leading-relaxed">
+                              {draft.content || <span className="italic text-zinc-400">[Only image attachments]</span>}
+                            </p>
+                            {draft.images.length > 0 && (
+                              <span className="text-[10px] text-zinc-400 flex items-center gap-1">
+                                <ImageIcon className="size-3" />
+                                {draft.images.length} image(s)
+                              </span>
+                            )}
+                            <div className="flex items-center justify-between border-t border-zinc-100/60 dark:border-zinc-800/40 pt-1.5 mt-0.5">
+                              <span className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                                {new Date(draft.createdAt).toLocaleDateString()}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRestoreDraft(draft)}
+                                  className="text-[10px] font-bold text-zinc-950 dark:text-zinc-50 hover:underline cursor-pointer"
+                                >
+                                  {t("creator.restore") || "Restore"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteDraft(draft.id)}
+                                  className="text-zinc-400 hover:text-red-500 p-0.5 cursor-pointer transition-colors"
+                                  title="Delete Draft"
+                                >
+                                  <Trash2 className="size-3" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>
@@ -1042,6 +1069,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     { id: "mention", label: t("creator.mention") || "Profiles you mention", icon: AtSign },
                   ].map((opt) => {
                     const OptIcon = opt.icon;
+                    const isActive = audience === opt.id;
                     return (
                       <button
                         key={opt.id}
@@ -1050,13 +1078,17 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                           setAudience(opt.id as PostAudience);
                           setIsAudienceOpen(false);
                         }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs cursor-pointer transition-colors ${audience === opt.id
-                          ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
-                          : "text-zinc-650 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                          }`}
+                        className={`w-full flex justify-between items-center px-3 py-2 rounded-xl text-left text-xs cursor-pointer transition-colors ${
+                          isActive
+                            ? "bg-zinc-100 dark:bg-zinc-900 text-black dark:text-white font-bold"
+                            : "text-zinc-650 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                        }`}
                       >
-                        <OptIcon className="size-3.5 shrink-0 text-zinc-400" />
-                        <span className="truncate">{opt.label}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <OptIcon className="size-3.5 shrink-0 text-zinc-400" />
+                          <span className="truncate">{opt.label}</span>
+                        </div>
+                        {isActive && <Check className="size-3.5 text-zinc-950 dark:text-zinc-50 shrink-0 ml-2" />}
                       </button>
                     );
                   })}

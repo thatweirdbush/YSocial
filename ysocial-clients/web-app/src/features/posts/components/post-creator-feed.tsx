@@ -28,10 +28,7 @@ export function PostCreatorFeed({ onSuccess }: PostCreatorFeedProps) {
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        const wasSaved = coreRef.current?.handleInlineEscape();
-        if (wasSaved) {
-          toast.success(t("creator.draftSaved") || "Draft saved successfully!");
-        }
+        coreRef.current?.handleInlineEscape();
       }
     };
 
@@ -39,7 +36,7 @@ export function PostCreatorFeed({ onSuccess }: PostCreatorFeedProps) {
     return () => {
       window.removeEventListener("keydown", handleGlobalKeyDown);
     };
-  }, [t]);
+  }, []);
 
   return (
     <div className="w-full border-b border-zinc-200/60 dark:border-zinc-900/60 p-4 bg-white dark:bg-black/40 transition-all">
