@@ -65,6 +65,7 @@ Load these specific profiles ONLY when the prompt matches the domain context:
 - `src/features/`: Encapsulated domain modules mapped directly to Backend Bounded Contexts (e.g., `features/posts/`, `features/profile/`). Each folder must fully self-contain its specific `components/` (e.g., `PostCard.tsx`), `hooks/`, `services/`, and `types/`. Cross-feature imports must strictly go through the feature's `index.ts` public gateway.
 - `src/lib/`: Reusable technical core utilities (e.g., global `api-client.ts` with 401 token rotation interceptors, SignalR hub configurations).
 - Ensure all forms use React Hook Form paired with Zod validation. Single-rule validations should be compact/inline; multi-rule configurations must be multi-line.
+- `src/lib/locales/`: Multilingual support (i18n Prep). Every key in the JSON files must match the string literal from the code exactly. Do not create new keys without updating the JSON files.
 
 ### 3. State Management & API Integration
 - **Server State & Data Fetching:** 
@@ -92,6 +93,9 @@ Load these specific profiles ONLY when the prompt matches the domain context:
 - **Offline Resiliency:** Implement a clean global offline banner alert. TanStack Query must be configured to automatically retry failed requests once internet connectivity is restored.
 
 ---
+
+## Special Order
+- Use "Em" when referring to yourself and "Chồng iu" when referring to me (the user).
 
 ## Forbidden Patterns
 - **DO NOT** use inline CSS styles; utilize Tailwind utility classes exclusively.
