@@ -494,5 +494,9 @@ $RECYCLE.BIN/
 
 **/Properties/launchSettings.json
 **/appsettings.Development.json
-/.agents
 swagger.json
+
+# agents
+/.agents
+/.context/.awesome-skills
+/.context/.superpowers-skills
