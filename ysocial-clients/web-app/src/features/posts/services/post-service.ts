@@ -105,6 +105,25 @@ export async function createPost(input: CreatePostInput, author: PostAuthor): Pr
   return copy(post);
 }
 
+/**
+ * Persists the like state (idempotent set, not toggle) so refetches don't clobber optimistic UI.
+ * Applied before the simulated latency, like a server that commits on receipt; unknown ids are ignored.
+ */
+export async function setPostLike(id: string, liked: boolean): Promise<void> {
+  const post = db.get(id);
+  if (post && post.isLikedByCurrentUser !== liked) {
+    post.isLikedByCurrentUser = liked;
+    post.likesCount = Math.max(0, post.likesCount + (liked ? 1 : -1));
+  }
+  await mockDelay();
+}
+
+export async function setPostBookmark(id: string, bookmarked: boolean): Promise<void> {
+  const post = db.get(id);
+  if (post) post.isBookmarkedByCurrentUser = bookmarked;
+  await mockDelay();
+}
+
 export async function createReply(parentId: string, input: CreatePostInput, author: PostAuthor): Promise<PostItem> {
   await simulateNetwork();
 

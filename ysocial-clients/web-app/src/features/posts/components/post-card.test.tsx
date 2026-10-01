@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
 import type { PostItem } from "../types";
 import { PostCard } from "./post-card";
@@ -24,6 +25,7 @@ const post: PostItem = {
 beforeEach(() => {
   resetPostStore();
   push.mockClear();
+  vi.restoreAllMocks();
 });
 
 describe("PostCard store sync", () => {
@@ -47,6 +49,26 @@ describe("PostCard store sync", () => {
     await userEvent.click(screen.getAllByRole("button", { name: "Thích" })[0]);
 
     expect(screen.getAllByText("6")).toHaveLength(2);
+  });
+
+  it("persists the like to the service so a later refetch keeps it", async () => {
+    const spy = vi.spyOn(service, "setPostLike").mockResolvedValue();
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thích" }));
+    await userEvent.click(screen.getByRole("button", { name: "Thích" }));
+
+    expect(spy).toHaveBeenNthCalledWith(1, "post-001", true);
+    expect(spy).toHaveBeenNthCalledWith(2, "post-001", false);
+  });
+
+  it("persists the bookmark to the service", async () => {
+    const spy = vi.spyOn(service, "setPostBookmark").mockResolvedValue();
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
+
+    expect(spy).toHaveBeenCalledWith("post-001", true);
   });
 
   it("toggles bookmark through the store", async () => {

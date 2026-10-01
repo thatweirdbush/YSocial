@@ -79,11 +79,14 @@ export function fetchFeed(tab: FeedTab, page: number): Promise<FeedPage>;
 export function fetchPostThread(id: string): Promise<PostThread | null>;
 export function createPost(input: CreatePostInput, author: PostAuthor): Promise<PostItem>;
 export function createReply(parentId: string, input: CreatePostInput, author: PostAuthor): Promise<PostItem>;
+export function setPostLike(id: string, liked: boolean): Promise<void>;          // idempotent set
+export function setPostBookmark(id: string, bookmarked: boolean): Promise<void>;
 ```
 - Latency: random 300–600ms via internal `mockDelay()`; tests use fake timers.
 - `fetchFeed`: root posts only (`parentId` undefined), newest first; `following` tab returns posts whose author is in a fixed followed set; `nextPage` is `undefined` on the last page.
 - `fetchPostThread`: `null` for unknown id; `replies` = direct children, newest first; `childReplies[replyId]` = that reply's direct children, newest first (empty array when none); `parent` set when the post is a reply.
 - `createReply`: rejects with `Error` if `parentId` is unknown.
+- `setPostLike` / `setPostBookmark`: persist interaction state in the in-memory db **before** the simulated latency (unknown ids ignored). `PostCard` calls them after the store toggle so refetches (`fetchFeed` / `fetchPostThread` → `upsertPosts`) never clobber a like. Added after runtime verification found likes lost on Back.
 - Dev flag `mockFailureRate` (module constant, default `0`) — when > 0, calls reject randomly with `Error("Mock network failure")`.
 - Service keeps its own in-memory copy of mocks so created posts/replies persist for the session.
 

@@ -1,7 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
 import type { CreatePostInput } from "../types";
-import { __resetMockDb, createPost, createReply, fetchFeed, fetchPostThread, FEED_PAGE_SIZE } from "./post-service";
+import {
+  __resetMockDb,
+  createPost,
+  createReply,
+  fetchFeed,
+  fetchPostThread,
+  FEED_PAGE_SIZE,
+  setPostBookmark,
+  setPostLike,
+} from "./post-service";
 
 /** Runs a service call to completion under fake timers. */
 async function settle<T>(promise: Promise<T>): Promise<T> {
@@ -94,6 +103,38 @@ describe("mutations", () => {
     const page = await settle(fetchFeed("forYou", 1));
 
     expect(page.posts[0].id).toBe(created.id);
+  });
+
+  it("persists likes so a refetch keeps them (idempotent set)", async () => {
+    const before = await settle(fetchPostThread("post-001"));
+
+    await settle(setPostLike("post-001", true));
+    await settle(setPostLike("post-001", true));
+    const liked = await settle(fetchFeed("forYou", 1));
+    const post = liked.posts.find((p) => p.id === "post-001")!;
+
+    expect(post.isLikedByCurrentUser).toBe(true);
+    expect(post.likesCount).toBe(before!.post.likesCount + 1);
+
+    await settle(setPostLike("post-001", false));
+    const unliked = await settle(fetchPostThread("post-001"));
+    expect(unliked?.post.likesCount).toBe(before!.post.likesCount);
+  });
+
+  it("persists bookmarks and ignores unknown ids", async () => {
+    await settle(setPostBookmark("post-002", false));
+    await settle(setPostLike("khong-ton-tai", true));
+    const thread = await settle(fetchPostThread("post-002"));
+
+    expect(thread?.post.isBookmarkedByCurrentUser).toBe(false);
+  });
+
+  it("applies a like before a fetch that was already in flight resolves", async () => {
+    const pending = fetchPostThread("post-001");
+    void setPostLike("post-001", true);
+    const thread = await settle(pending);
+
+    expect(thread?.post.isLikedByCurrentUser).toBe(true);
   });
 
   it("returns copies, not internal objects", async () => {

@@ -38,6 +38,7 @@ import {
   DialogContent,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
+import { setPostBookmark, setPostLike } from "../services/post-service";
 import { usePost, usePostActions } from "../store/post-store";
 import type { PostItem } from "../types";
 
@@ -147,6 +148,7 @@ export function PostCard({
   const handleLike = () => {
     const nextState = !isLiked;
     toggleLike(post.id, post);
+    void setPostLike(post.id, nextState);
 
     if (nextState) {
       setLikeAnimating(true);
@@ -162,6 +164,7 @@ export function PostCard({
   const handleBookmark = () => {
     const nextState = !isBookmarked;
     toggleBookmark(post.id, post);
+    void setPostBookmark(post.id, nextState);
     setBookmarkAnimating(true);
 
     if (nextState) {
