@@ -43,6 +43,19 @@ describe("PostFeed", () => {
     }, LOAD_TIMEOUT);
   });
 
+  it("reuses the cached feed on remount without a skeleton or refetch", async () => {
+    const spy = vi.spyOn(service, "fetchFeed");
+    const first = render(<PostFeed />);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(service.FEED_PAGE_SIZE), LOAD_TIMEOUT);
+    first.unmount();
+
+    const { container } = render(<PostFeed />);
+
+    expect(container.querySelector(".animate-pulse")).toBeNull();
+    expect(screen.getAllByRole("article")).toHaveLength(service.FEED_PAGE_SIZE);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the empty state when there are no posts", async () => {
     vi.spyOn(service, "fetchFeed").mockResolvedValue({ posts: [] });
 

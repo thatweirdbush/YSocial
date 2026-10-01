@@ -4,15 +4,23 @@ import type { FeedTab, PostItem } from "../types";
 // Normalized client cache of posts. Every screen reads the same entity via usePost(id),
 // so like/bookmark/reply changes are reflected everywhere in O(1).
 
+/** Paging state lives in the store (not the feed component) so a remounted feed reuses loaded pages. */
+export interface FeedMeta {
+  loaded: boolean;
+  nextPage?: number;
+}
+
 interface PostStoreData {
   posts: Record<string, PostItem>;
   replyIds: Record<string, string[]>;
   feedIds: Record<FeedTab, string[]>;
+  feedMeta: Record<FeedTab, FeedMeta>;
 }
 
 interface PostStoreActions {
   upsertPosts: (posts: PostItem[]) => void;
-  setFeedPage: (tab: FeedTab, ids: string[], append: boolean) => void;
+  /** Appending skips ids already cached (offset pages shift after prependPost). */
+  setFeedPage: (tab: FeedTab, ids: string[], append: boolean, nextPage?: number) => void;
   setReplies: (parentId: string, ids: string[]) => void;
   /** `seed` inserts the post first when it is not cached yet (e.g. Saved page items). */
   toggleLike: (id: string, seed?: PostItem) => void;
@@ -32,6 +40,7 @@ const initialData = (): PostStoreData => ({
   posts: {},
   replyIds: {},
   feedIds: { forYou: [], following: [] },
+  feedMeta: { forYou: { loaded: false, nextPage: undefined }, following: { loaded: false, nextPage: undefined } },
 });
 
 /** Returns updated posts map, or null when the post is unknown and no seed is given. */
@@ -56,10 +65,18 @@ export const usePostStore = create<PostStoreState>((set) => ({
         return { posts: next };
       }),
 
-    setFeedPage: (tab, ids, append) =>
-      set((state) => ({
-        feedIds: { ...state.feedIds, [tab]: append ? [...state.feedIds[tab], ...ids] : ids },
-      })),
+    setFeedPage: (tab, ids, append, nextPage) =>
+      set((state) => {
+        let nextIds = ids;
+        if (append) {
+          const cached = new Set(state.feedIds[tab]);
+          nextIds = [...state.feedIds[tab], ...ids.filter((id) => !cached.has(id))];
+        }
+        return {
+          feedIds: { ...state.feedIds, [tab]: nextIds },
+          feedMeta: { ...state.feedMeta, [tab]: { loaded: true, nextPage } },
+        };
+      }),
 
     setReplies: (parentId, ids) =>
       set((state) => ({ replyIds: { ...state.replyIds, [parentId]: ids } })),
@@ -134,5 +151,6 @@ export const usePost = (id: string) => usePostStore((state) => state.posts[id]);
 export const useReplyIds = (parentId: string) =>
   usePostStore((state) => state.replyIds[parentId] ?? EMPTY_IDS);
 export const useFeedIds = (tab: FeedTab) => usePostStore((state) => state.feedIds[tab]);
+export const useFeedMeta = (tab: FeedTab) => usePostStore((state) => state.feedMeta[tab]);
 export const usePostActions = () => usePostStore((state) => state.actions);
 // #endregion

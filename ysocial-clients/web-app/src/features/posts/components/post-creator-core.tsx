@@ -407,6 +407,11 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     adjustHeight();
   }, [contentValue]);
 
+  // Reply composer mounts on demand from a collapsed bar: move focus straight into the textarea.
+  useEffect(() => {
+    if (isReplyMode) textareaRef.current?.focus();
+  }, [isReplyMode]);
+
   // Local KeyDown listener for Popover Escape Shield
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {

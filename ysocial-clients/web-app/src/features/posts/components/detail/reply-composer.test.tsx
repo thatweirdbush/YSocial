@@ -79,6 +79,35 @@ describe("ReplyComposer", () => {
     expect(push).toHaveBeenCalledWith("/login");
   });
 
+  it("moves focus into the textarea when expanded", async () => {
+    renderThread();
+
+    await userEvent.click(screen.getByRole("button", { name: "Trả lời @minh…" }));
+
+    expect(await screen.findByPlaceholderText("Trả lời @minh…")).toHaveFocus();
+  });
+
+  it("collapses on Escape when empty and returns focus to the bar", async () => {
+    renderThread();
+    await userEvent.click(screen.getByRole("button", { name: "Trả lời @minh…" }));
+    await screen.findByPlaceholderText("Trả lời @minh…");
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(screen.queryByPlaceholderText("Trả lời @minh…")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Trả lời @minh…" })).toHaveFocus();
+  });
+
+  it("keeps the composer and text on Escape when there is content", async () => {
+    renderThread();
+    const textbox = await openAndType("đang gõ");
+
+    await userEvent.keyboard("{Escape}");
+
+    expect(textbox).toBeInTheDocument();
+    expect(textbox).toHaveValue("đang gõ");
+  });
+
   it("posts a reply to the top of the thread and collapses", async () => {
     renderThread();
 

@@ -7,22 +7,19 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../hooks/use-current-author";
 import { createPost, fetchFeed } from "../services/post-service";
-import { useFeedIds, usePost, usePostActions } from "../store/post-store";
+import { useFeedIds, useFeedMeta, usePost, usePostActions, usePostStore } from "../store/post-store";
 import type { CreatePostInput, FeedTab } from "../types";
 import { PostCard } from "./post-card";
 import { PostCreator } from "./post-creator";
 import { PostSkeletonList, PostSkeletonText } from "./post-skeleton";
 
-interface TabStatus {
-  loaded: boolean;
-  failed: boolean;
-  nextPage?: number;
-}
+const NO_FAILURES: Record<FeedTab, boolean> = { forYou: false, following: false };
 
-const INITIAL_STATUS: Record<FeedTab, TabStatus> = {
-  forYou: { loaded: false, failed: false },
-  following: { loaded: false, failed: false },
-};
+/** Tabs whose pages are already in the store (snapshot at mount). */
+function cachedFeedTabs(): Set<FeedTab> {
+  const { feedMeta } = usePostStore.getState();
+  return new Set((Object.keys(feedMeta) as FeedTab[]).filter((tab) => feedMeta[tab].loaded));
+}
 
 /** Subscribes to a single post so a like re-renders only this card. */
 function FeedPostCard({ id }: { id: string }) {
@@ -35,24 +32,27 @@ export function PostFeed() {
   const author = useCurrentAuthor();
   const { upsertPosts, setFeedPage, prependPost } = usePostActions();
   const [activeTab, setActiveTab] = useState<FeedTab>("forYou");
-  const [status, setStatus] = useState(INITIAL_STATUS);
+  // Transient per-mount failure flags; loaded pages + nextPage live in the store and survive remounts.
+  const [failedTabs, setFailedTabs] = useState(NO_FAILURES);
   const [isFetchingNext, setIsFetchingNext] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  // Tabs whose first page was already requested; guards against duplicate fetches across re-renders.
-  const requestedTabsRef = useRef(new Set<FeedTab>());
+  // Tabs whose first page was already requested (seeded with tabs cached in the store, e.g. Back from a
+  // thread, so they render instantly); guards against duplicate fetches across re-renders.
+  const requestedTabsRef = useRef<Set<FeedTab>>(cachedFeedTabs());
   const feedIds = useFeedIds(activeTab);
-  const tabStatus = status[activeTab];
+  const { loaded, nextPage } = useFeedMeta(activeTab);
+  const failed = failedTabs[activeTab];
 
   /** Loads one page into the store; resolves false on failure. Stable identity (no `t` dependency). */
   const loadPage = useCallback(async (tab: FeedTab, page: number) => {
     try {
       const result = await fetchFeed(tab, page);
       upsertPosts(result.posts);
-      setFeedPage(tab, result.posts.map((p) => p.id), page > 1);
-      setStatus((prev) => ({ ...prev, [tab]: { loaded: true, failed: false, nextPage: result.nextPage } }));
+      setFeedPage(tab, result.posts.map((p) => p.id), page > 1, result.nextPage);
+      setFailedTabs((prev) => (prev[tab] ? { ...prev, [tab]: false } : prev));
       return true;
     } catch {
-      setStatus((prev) => ({ ...prev, [tab]: { ...prev[tab], loaded: true, failed: true } }));
+      setFailedTabs((prev) => ({ ...prev, [tab]: true }));
       return false;
     }
   }, [upsertPosts, setFeedPage]);
@@ -81,7 +81,6 @@ export function PostFeed() {
   // Infinite scroll observer
   useEffect(() => {
     const target = loadMoreRef.current;
-    const nextPage = tabStatus.nextPage;
     if (!target || nextPage === undefined) return;
 
     const observer = new IntersectionObserver(
@@ -94,7 +93,7 @@ export function PostFeed() {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [activeTab, tabStatus.nextPage, isFetchingNext, loadWithFeedback]);
+  }, [activeTab, nextPage, isFetchingNext, loadWithFeedback]);
 
   return (
     <div className="flex flex-col w-full min-h-screen pb-20 lg:pb-12 bg-white dark:bg-black">
@@ -142,11 +141,11 @@ export function PostFeed() {
 
       {/* Infinite Feed Container */}
       <div className="flex flex-col w-full divide-y divide-zinc-200/60 dark:divide-zinc-900/60">
-        {!tabStatus.loaded ? (
+        {!loaded && !failed ? (
           /* Enforce Zero CLS Skeletal shimmer list */
           <PostSkeletonList count={4} />
         ) : feedIds.length === 0 ? (
-          tabStatus.failed ? (
+          failed ? (
             <EmptyState
               icon={AlertCircle}
               title={t("postDetail.errorTitle")}
@@ -169,7 +168,7 @@ export function PostFeed() {
       </div>
 
       {/* Intersection Threshold for Infinite Loading */}
-      {tabStatus.nextPage !== undefined && (
+      {nextPage !== undefined && (
         <div ref={loadMoreRef} className="w-full flex justify-center py-6">
           {isFetchingNext ? <PostSkeletonText /> : <div className="h-2 w-full" />}
         </div>

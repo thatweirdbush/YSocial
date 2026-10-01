@@ -16,6 +16,14 @@ class IntersectionObserverStub {
 }
 globalThis.IntersectionObserver ??= IntersectionObserverStub as unknown as typeof IntersectionObserver;
 
+// jsdom also lacks ResizeObserver (used by the Saved collection scroller).
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
+
 afterEach(() => {
   cleanup();
 });

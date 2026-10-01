@@ -121,6 +121,26 @@ describe("feed", () => {
     expect(state().posts.n).toEqual(post);
     expect(state().feedIds.following).toEqual([]);
   });
+
+  it("dedupes ids when appending a page that overlaps the cached feed", () => {
+    actions().setFeedPage("forYou", ["a", "b"], false);
+    actions().prependPost("forYou", makePost("n"));
+
+    actions().setFeedPage("forYou", ["b", "c"], true);
+
+    expect(state().feedIds.forYou).toEqual(["n", "a", "b", "c"]);
+  });
+
+  it("tracks per-tab paging meta", () => {
+    expect(state().feedMeta.forYou).toEqual({ loaded: false, nextPage: undefined });
+
+    actions().setFeedPage("forYou", ["a"], false, 2);
+    expect(state().feedMeta.forYou).toEqual({ loaded: true, nextPage: 2 });
+
+    actions().setFeedPage("forYou", ["b"], true);
+    expect(state().feedMeta.forYou).toEqual({ loaded: true, nextPage: undefined });
+    expect(state().feedMeta.following.loaded).toBe(false);
+  });
 });
 
 describe("selectors", () => {

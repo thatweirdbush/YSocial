@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,8 +26,31 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
   const author = useCurrentAuthor();
   const { addReply, removeReply } = usePostActions();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [hasContent, setHasContent] = useState(false);
+  const barRef = useRef<HTMLButtonElement | null>(null);
+  const restoreFocusRef = useRef(false);
 
   const placeholder = t("postDetail.replyPlaceholder", { username: replyToUsername });
+
+  const collapse = useCallback(() => {
+    restoreFocusRef.current = true;
+    setHasContent(false);
+    setIsExpanded(false);
+  }, []);
+
+  // Return keyboard focus to the collapsed bar after the composer unmounts.
+  useEffect(() => {
+    if (!isExpanded && restoreFocusRef.current) {
+      restoreFocusRef.current = false;
+      barRef.current?.focus();
+    }
+  }, [isExpanded]);
+
+  // Escape collapses an empty composer; with text it stays open so nothing typed is lost.
+  // Popovers inside PostCreatorCore stop propagation of their own Escape first.
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape" && !hasContent) collapse();
+  };
 
   // Optimistic: show a temp reply immediately, swap in the created one, roll back on failure.
   // Rethrowing keeps PostCreatorCore from resetting, so the typed text survives for a retry.
@@ -50,7 +74,7 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
       removeReply(parentId, tempReply.id);
       addReply(parentId, created);
       toast.success(t("postDetail.replySuccess"));
-      setIsExpanded(false);
+      collapse();
     } catch (error) {
       removeReply(parentId, tempReply.id);
       toast.error(t("postDetail.replyError"));
@@ -76,6 +100,7 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
     return (
       <div className="px-4 py-3 border-b border-zinc-200/60 dark:border-zinc-900/60">
         <button
+          ref={barRef}
           type="button"
           onClick={() => setIsExpanded(true)}
           className="w-full min-h-11 flex items-center gap-3 text-left text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-text"
@@ -95,12 +120,15 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
   }
 
   return (
-    <div className="p-4 border-b border-zinc-200/60 dark:border-zinc-900/60 animate-in fade-in duration-200 motion-reduce:animate-none">
+    <div
+      onKeyDown={handleKeyDown}
+      className="p-4 border-b border-zinc-200/60 dark:border-zinc-900/60 animate-in fade-in duration-200 motion-reduce:animate-none"
+    >
       <PostCreatorCore
         mode="reply"
         placeholder={placeholder}
         onPostSubmitted={handleSubmit}
-        onCancel={() => setIsExpanded(false)}
+        onStateChange={setHasContent}
       />
     </div>
   );
