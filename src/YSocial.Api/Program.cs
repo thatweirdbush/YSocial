@@ -115,18 +115,18 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Auto-generate admin token for development & attach to Swagger
 if (app.Environment.IsDevelopment())
 {
+    // Auto-generate admin token for development & attach to Swagger
     using var scope = app.Services.CreateScope();
     var jwtProvider = scope.ServiceProvider.GetRequiredService<IJwtProvider>();
-    
+
     // Get admin account and user
     var mockAccount = MockDataStore.Accounts.Values.First(a => a.Email == "admin@admin.com");
     var mockUser = MockDataStore.Users.Values.First(u => u.AccountId == mockAccount.Id);
     var posts = MockDataStore.Posts.Values;
     var adminToken = jwtProvider.GenerateToken(mockUser, mockAccount);
-    
+
     // Log to terminal
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     logger.LogInformation("\n=======================================================================\n" +
@@ -135,10 +135,11 @@ if (app.Environment.IsDevelopment())
                           "=======================================================================\n", adminToken);
 
     logger.LogInformation("Sample posts in the system:");
-    posts.ToList().ForEach(p => logger.LogInformation("{PostId} (AuthorId: {AuthorId})", p.Id, p.AuthorId));
+    posts.ToList().ForEach(p =>
+        logger.LogInformation("{PostId} (AuthorId: {AuthorId})", p.Id, p.AuthorId));
 
     // Serve script to auto-inject token to Swagger UI
-    app.MapGet("/swagger-custom.js", () => 
+    app.MapGet("/swagger-custom.js", () =>
     {
         var js = $$"""
         window.addEventListener("load", function() {
@@ -165,16 +166,16 @@ if (app.Environment.IsDevelopment())
         """;
         return Results.Text(js, "application/javascript");
     });
-}
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+    // Configure Swagger
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.InjectJavascript("/swagger-custom.js");
     });
+
+    // Redirect root URL to Swagger UI
+    app.MapGet("/", () => Results.Redirect("/swagger"));
 }
 
 app.UseHttpsRedirection();

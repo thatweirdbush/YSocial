@@ -494,7 +494,6 @@ $RECYCLE.BIN/
 
 **/Properties/launchSettings.json
 **/appsettings.Development.json
-swagger.json
 
 # agents
 /.agents
