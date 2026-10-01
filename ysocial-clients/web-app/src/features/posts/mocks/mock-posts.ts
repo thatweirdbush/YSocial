@@ -91,3 +91,6 @@ export const MOCK_POSTS: PostItem[] = RAW_POSTS.map(({ author, minutesAgo, liked
   isLikedByCurrentUser: liked ?? false,
   isBookmarkedByCurrentUser: bookmarked ?? false,
 }));
+
+/** Synchronous seed lookup for server-side metadata (session-created posts are client-only). */
+export const getMockPostById = (id: string): PostItem | undefined => MOCK_POSTS.find((post) => post.id === id);
