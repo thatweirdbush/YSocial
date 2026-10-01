@@ -32,9 +32,34 @@ export interface PostItem {
   isLikedByCurrentUser: boolean;
   isBookmarkedByCurrentUser: boolean;
   user: PostAuthor;
+  /** Set for replies: id of the post being replied to. */
+  parentId?: string;
+  isEdited?: boolean;
 }
 
 export type PostAudience = "anyone" | "followers" | "following" | "mention";
+
+export type FeedTab = "forYou" | "following";
+
+export interface FeedPage {
+  posts: PostItem[];
+  nextPage?: number;
+}
+
+export interface PostThread {
+  post: PostItem;
+  parent?: PostItem;
+  /** Direct children, newest first. */
+  replies: PostItem[];
+  /** replyId → its direct children, newest first (1-level nesting). */
+  childReplies: Record<string, PostItem[]>;
+}
+
+export interface CreatePostInput {
+  content: string;
+  images: string[];
+  audience: PostAudience;
+}
 
 export interface PostDraft {
   id: string;
