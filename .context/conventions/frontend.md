@@ -57,6 +57,16 @@ export type PostDto = components['schemas']['PostDto'];
 export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 ```
 
+#### `types/index.ts` Layout & Import Rules (refactor 2026-10-01)
+- **File order:** `Backend DTOs` region (re-exports via `type Schemas = components["schemas"]`) → `Domain models` → `Form schemas & values` (Zod + `*FormValues`, kept as-is).
+- **Single file per feature:** `src/features/[feature]/types/index.ts` (no `types/creator.ts`-style splits).
+- **Domain models live in `types/`, NOT in `components/` or `store/`.** E.g. `PostItem`/`PostAuthor`/`PostDraft`/`PostAudience` → `posts/types`; `AuthUser` (was `UserProfile` in `auth-store.ts`, renamed to avoid clashing with `profile`'s `UserProfile`) → `auth/types`; `ProfileTab` → `profile/types`.
+- **UI Props stay next to their component** (non-exported `XxxProps`). Imperative ref handles (`PostCreatorCoreRef`) stay in the component file since they're the component's UI contract. Don't put Props into `types/` (e.g. `NotificationItemProps` was moved back into `notification-item.tsx`).
+- **Cross-feature type imports MUST target `@/features/[feature]/types`** (e.g. `saved/types` → `import type { PostItem } from "@/features/posts/types"`). Never reach into another feature's `components/`. Feature barrels may also `export type * from "./types"`.
+- Use `import type` for type-only imports.
+- **Current DTO mapping:** `posts` ← Create/UpdatePost, SharePostLinkResponse, ToggleLike, LikeTargetType, Add/UpdateComment · `auth` ← Login/Logout/RegisterAccount/ForgotPassword/ResetPassword · `profile` ← UpdateProfile, Gender, SwitchProfile, ToggleCloseFriend · `saved` ← ToggleSavedItem, SavedItemTargetType · `notifications` ← none yet. `ProblemDetails` is cross-cutting → belongs in `src/lib/`, not a feature.
+- Backend swagger currently exposes **request DTOs only** (responses untyped), so domain models (`PostItem`, `UserProfile`...) are still hand-written; replace them with DTO aliases once response schemas appear in `generated.ts`.
+
 ### 4. State Management & API Integration
 - **SSR Fetch:** Native Fetch API with Next.js caching.
 - **CSR Fetch:** TanStack Query. **Mandatory:** Optimistic Updates (`onMutate`, `onError`, `onSettled`) for high-frequency actions (e.g., Like toggle).
