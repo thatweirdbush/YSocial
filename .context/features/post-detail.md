@@ -36,9 +36,13 @@ PostCard / PostFeed / ReplyList ◀── usePost(id) / useFeedIds(tab) / useRep
 6. **Stable empty selector** (`EMPTY_IDS` frozen constant) — returning `[]` inline from a Zustand selector causes infinite re-renders.
 7. **PostFeed first-page fetch guarded by `requestedTabsRef`** and `loadPage` independent of `t` (recreated every render) — avoids duplicate service calls.
 8. 1-level nesting only; deeper replies open as their own thread (Threads-style).
+9. **Feed paging meta (`feedMeta: {loaded, nextPage}`) lives in the store**, not PostFeed state — Back from a thread renders cached pages instantly (no skeleton, no refetch), matching the old TanStack 5-min cache. `setFeedPage(append)` dedupes ids because offset pages shift after `prependPost`.
+10. **Saved mock items reference shared post mocks** (`getMockPostById`) so every card opens a real thread; bookmarked mocks: post-002/006/010.
+11. **Reply composer Escape**: collapses only when empty (focus returns to the bar); with text it stays open — the shared DiscardWarningDialog would save replies into post drafts.
+12. Feed first-load guard must stay a **ref** (`cachedFeedTabs()` snapshot): `react-hooks/set-state-in-effect` flags async setState behind a useState/getState guard.
 
 ## Testing
-Vitest 4.1 + RTL + jsdom (`npm run test`, `npm run typecheck`). `vitest.setup.ts` pins locale `vi` and stubs `IntersectionObserver`. Vite 8 Oxc handles TSX (`oxc.jsx.runtime: "automatic"`) — `@vitejs/plugin-react` dropped (Babel 8 peer conflict with shadcn); vitest 5 skipped (needs `@types/node` ≥ 22).
+Vitest 4.1 + RTL + jsdom (`npm run test`, `npm run typecheck`). `vitest.setup.ts` pins locale `vi` and stubs `IntersectionObserver` + `ResizeObserver`. Vite 8 Oxc handles TSX (`oxc.jsx.runtime: "automatic"`) — `@vitejs/plugin-react` dropped (Babel 8 peer conflict with shadcn); vitest 5 skipped (needs `@types/node` ≥ 22).
 
 ## Pitfall log
 - **Symptom:** like on thread → Back → feed count reverted. **Root cause:** `PostFeed` remount refetched from service (which never saw the like) and `upsertPosts` overwrote the store entity. **Fix:** service persists like/bookmark; PostCard calls `setPostLike`/`setPostBookmark` after the store toggle. **Verification:** `post-service.test.ts` "persists likes so a refetch keeps them", "applies a like before a fetch that was already in flight resolves"; `post-card.test.tsx` "persists the like to the service…".
