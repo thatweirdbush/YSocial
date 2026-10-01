@@ -47,6 +47,9 @@ interface PostCreatorCoreProps {
   onPopoverStateChange?: (isOpen: boolean) => void;
   onStateChange?: (hasUnsavedChanges: boolean) => void;
   isDialogMode?: boolean;
+  /** reply: hides audience & drafts pickers (replies inherit the thread's audience, no drafts). */
+  mode?: "post" | "reply";
+  placeholder?: string;
 }
 
 const SUGGESTED_PROFILES = [
@@ -252,9 +255,12 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     onPopoverStateChange,
     onStateChange,
     isDialogMode = false,
+    mode = "post",
+    placeholder,
   },
   ref
 ) => {
+  const isReplyMode = mode === "reply";
   const { t } = useTranslation();
   const user = useAuthUser();
   const drafts = useDrafts();
@@ -1043,7 +1049,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
               textareaRef.current = e;
             }}
             onChange={handleTextareaChange}
-            placeholder={t("creator.placeholder") || "What's new?"}
+            placeholder={placeholder ?? (t("creator.placeholder") || "What's new?")}
             className="w-full bg-transparent border-none outline-none resize-none text-zinc-950 dark:text-zinc-100 placeholder-zinc-400 text-md min-h-[50px] py-1 max-h-[250px] leading-relaxed"
             maxLength={500}
           />
@@ -1165,6 +1171,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
             </div>
 
             {/* Drafts Trigger */}
+            {!isReplyMode && (
             <div className="relative">
               <Popover open={isDraftsOpen} onOpenChange={setIsDraftsOpen}>
                 <PopoverTrigger asChild>
@@ -1184,6 +1191,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                 {draftsPickerContent}
               </Popover>
             </div>
+            )}
           </div>
 
           {/* Bottom Divider */}
@@ -1191,7 +1199,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
 
           {/* Options & Action Footer */}
           <div className="flex items-center justify-between">
-            {/* Post Option Audience Toggle */}
+            {/* Post Option Audience Toggle (empty spacer in reply mode keeps the submit action right-aligned) */}
+            {isReplyMode ? <span /> : (
             <div className="relative">
               <Popover open={isAudienceOpen} onOpenChange={setIsAudienceOpen}>
                 <PopoverTrigger asChild>
@@ -1214,6 +1223,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                 {audiencePickerContent}
               </Popover>
             </div>
+            )}
 
             {/* Character counter & Post submit action */}
             <div className="flex items-center gap-3">
