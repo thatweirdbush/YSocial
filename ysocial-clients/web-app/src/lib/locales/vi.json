@@ -65,7 +65,11 @@
     "closeFriend": "Bạn thân",
     "follow": "Theo dõi",
     "unfollow": "Bỏ theo dõi",
-    "following": "Đang theo dõi"
+    "following": "Đang theo dõi",
+    "like": "Thích",
+    "comment": "Trả lời",
+    "bookmark": "Lưu",
+    "share": "Chia sẻ"
   },
   "common": {
     "language": "Ngôn ngữ",
@@ -179,5 +183,22 @@
     "deleteCollectionConfirmDesc": "Hành động này sẽ xóa vĩnh viễn bộ sưu tập. Các mục đã lưu bên trong bộ sưu tập này sẽ không bị xóa.",
     "delete": "Xóa",
     "search": "Tìm kiếm"
+  },
+  "postDetail": {
+    "title": "Thread",
+    "back": "Quay lại",
+    "replyPlaceholder": "Trả lời @{username}…",
+    "replyingTo": "Trả lời @{username}",
+    "viewMoreReplies": "Xem thêm {n} câu trả lời",
+    "emptyReplies": "Chưa ai lên tiếng, mở bát đi!",
+    "notFoundTitle": "Bài viết này đã bay màu rồi",
+    "backHome": "Về trang chủ",
+    "loginToReply": "Đăng nhập để trả lời",
+    "errorTitle": "Có gì đó sai sai…",
+    "retry": "Thử lại",
+    "replySuccess": "Đã gửi câu trả lời",
+    "replyError": "Không gửi được câu trả lời",
+    "likes": "lượt thích",
+    "replies": "câu trả lời"
   }
 }
