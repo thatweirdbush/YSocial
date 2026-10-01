@@ -37,12 +37,18 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import { useRouter } from "next/navigation";
+import { usePost, usePostActions } from "../store/post-store";
 import type { PostItem } from "../types";
+
+export type PostCardVariant = "feed" | "detail" | "compact";
 
 interface PostCardProps {
   post: PostItem;
-  onLikeToggle?: (id: string, currentlyLiked: boolean) => Promise<void>;
-  onBookmarkToggle?: (id: string, currentlyBookmarked: boolean) => Promise<void>;
+  /** feed: default list card; detail: thread root (larger text, stats, no navigation); compact: reply row. */
+  variant?: PostCardVariant;
+  /** Shown above content in the detail variant when the post is a reply. */
+  replyToUsername?: string;
   isAuthorFollowing?: boolean;
   onAuthorFollowToggle?: () => void;
   isSavedPage?: boolean;
@@ -51,20 +57,25 @@ interface PostCardProps {
 
 export function PostCard({
   post,
-  onLikeToggle,
-  onBookmarkToggle,
+  variant = "feed",
+  replyToUsername,
   isAuthorFollowing,
   onAuthorFollowToggle,
   isSavedPage = false,
   onUnsave,
 }: PostCardProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const router = useRouter();
+  const { toggleLike, toggleBookmark } = usePostActions();
 
-  // Interactive Local states for optimistic rapid feedback
-  const [isLiked, setIsLiked] = useState(post.isLikedByCurrentUser);
-  const [likesCount, setLikesCount] = useState(post.likesCount);
-  const [isBookmarked, setIsBookmarked] = useState(post.isBookmarkedByCurrentUser);
-  const [bookmarksCount, setBookmarksCount] = useState(post.isBookmarkedByCurrentUser ? 12 : 11);
+  // Shared store copy wins so every card of this post stays in sync; fall back to the prop until cached.
+  const live = usePost(post.id) ?? post;
+  const isLiked = live.isLikedByCurrentUser;
+  const likesCount = live.likesCount;
+  const isBookmarked = live.isBookmarkedByCurrentUser;
+  const bookmarksCount = isBookmarked ? 12 : 11;
+  const isDetail = variant === "detail";
+
   const [sharesCount, setSharesCount] = useState(14);
   const [isFollowing, setIsFollowing] = useState(isAuthorFollowing ?? false);
 
@@ -120,10 +131,22 @@ export function PostCard({
     return t("card.daysAgo", { n: diffDays });
   };
 
-  const handleLike = async () => {
+  // Absolute timestamp for the detail variant, e.g. "14:32 · 1 thg 10, 2026"
+  const formatFullTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const intlLocale = locale === "vi" ? "vi-VN" : "en-US";
+    const time = new Intl.DateTimeFormat(intlLocale, { hour: "2-digit", minute: "2-digit" }).format(date);
+    const day = new Intl.DateTimeFormat(intlLocale, { day: "numeric", month: "short", year: "numeric" }).format(date);
+    return `${time} · ${day}`;
+  };
+
+  const openThread = () => {
+    if (!isDetail) router.push(`/posts/${post.id}`);
+  };
+
+  const handleLike = () => {
     const nextState = !isLiked;
-    setIsLiked(nextState);
-    setLikesCount((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+    toggleLike(post.id, post);
 
     if (nextState) {
       setLikeAnimating(true);
@@ -134,39 +157,17 @@ export function PostCard({
     } else {
       toast.info(t("card.unlikeSuccess"), { duration: 1500 });
     }
-
-    try {
-      if (onLikeToggle) {
-        await onLikeToggle(post.id, !nextState);
-      }
-    } catch {
-      // Revert if error
-      setIsLiked(!nextState);
-      setLikesCount((prev) => (!nextState ? prev + 1 : Math.max(0, prev - 1)));
-      toast.error(t("common.error"));
-    }
   };
 
-  const handleBookmark = async () => {
+  const handleBookmark = () => {
     const nextState = !isBookmarked;
-    setIsBookmarked(nextState);
-    setBookmarksCount((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+    toggleBookmark(post.id, post);
     setBookmarkAnimating(true);
 
     if (nextState) {
       toast.success(t("card.bookmarkSuccess"), { duration: 1500 });
     } else {
       toast.info(t("card.unbookmarkSuccess"), { duration: 1500 });
-    }
-
-    try {
-      if (onBookmarkToggle) {
-        await onBookmarkToggle(post.id, !nextState);
-      }
-    } catch {
-      setIsBookmarked(!nextState);
-      setBookmarksCount((prev) => (!nextState ? prev + 1 : Math.max(0, prev - 1)));
-      toast.error(t("common.error"));
     }
   };
 
@@ -358,7 +359,7 @@ export function PostCard({
       {/* Left Column: Avatar & vertical Thread Line */}
       <div className="flex flex-col items-center self-stretch shrink-0">
         <Link href={`/@${post.user.username}`}>
-          <Avatar className="h-10 w-10 border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity">
+          <Avatar className={`${variant === "compact" ? "h-8 w-8" : "h-10 w-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
             <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
             <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
               {post.user.displayName?.charAt(0).toUpperCase() || "U"}
@@ -400,7 +401,7 @@ export function PostCard({
 
             <span className="text-zinc-300 dark:text-zinc-850 text-xs select-none">•</span>
             <span className="text-zinc-400 dark:text-zinc-500 text-xs">
-              {formatTime(post.createdAt)}
+              {isDetail ? formatFullTime(post.createdAt) : formatTime(post.createdAt)}
             </span>
           </div>
 
@@ -458,13 +459,29 @@ export function PostCard({
           </DropdownMenu>
         </div>
 
-        {/* Content body */}
-        <div className="text-sm text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2">
-          {post.content}
+        {isDetail && replyToUsername && live.parentId && (
+          <Link href={`/posts/${live.parentId}`} className="text-xs text-zinc-500 dark:text-zinc-400 hover:underline w-fit">
+            {t("postDetail.replyingTo", { username: replyToUsername })}
+          </Link>
+        )}
+
+        {/* Content body — opens the thread (only text, so lightbox portal clicks never bubble into navigation) */}
+        <div
+          onClick={openThread}
+          className={`${isDetail ? "text-[17px]" : "text-sm cursor-pointer"} text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2`}
+        >
+          {live.content}
         </div>
 
         {/* Dynamic Multi-image Grid rendering */}
         {renderMediaGrid()}
+
+        {isDetail && (
+          <div className="flex items-center gap-4 pt-3 mt-1 border-t border-zinc-200/60 dark:border-zinc-900/60 text-sm text-zinc-500 dark:text-zinc-400">
+            <span><strong className="text-black dark:text-white">{likesCount}</strong> {t("postDetail.likes")}</span>
+            <span><strong className="text-black dark:text-white">{live.commentsCount}</strong> {t("postDetail.replies")}</span>
+          </div>
+        )}
 
         {/* Actions Toolbar */}
         <div className="flex items-center gap-6 mt-3 text-zinc-400 dark:text-zinc-500 pl-1 select-none">
@@ -475,6 +492,9 @@ export function PostCard({
               <Sparkles className="absolute -top-6 -left-2 h-8 w-8 text-amber-400 fill-amber-300 animate-sparkle-burst pointer-events-none" />
             )}
             <button
+              type="button"
+              aria-label={t("card.like")}
+              aria-pressed={isLiked}
               onClick={handleLike}
               onAnimationEnd={() => setLikeAnimating(false)}
               className={`p-1.5 rounded-full transition-all duration-300 hover:bg-red-50 dark:hover:bg-red-950/20 active:scale-75 ${isLiked
@@ -493,17 +513,25 @@ export function PostCard({
 
           {/* Comment trigger */}
           <div className="flex items-center gap-1.5">
-            <button className="p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-500 dark:hover:text-blue-450 active:scale-75 transition-all">
+            <button
+              type="button"
+              aria-label={t("card.comment")}
+              onClick={openThread}
+              className="p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-500 dark:hover:text-blue-450 active:scale-75 transition-all"
+            >
               <MessageCircle className="h-4.5 w-4.5" />
             </button>
-            {post.commentsCount > 0 && (
-              <span className="text-xs font-semibold">{post.commentsCount}</span>
+            {live.commentsCount > 0 && (
+              <span className="text-xs font-semibold">{live.commentsCount}</span>
             )}
           </div>
 
           {/* Bookmark trigger with counters */}
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
+              aria-label={t("card.bookmark")}
+              aria-pressed={isBookmarked}
               onClick={handleBookmark}
               onAnimationEnd={() => setBookmarkAnimating(false)}
               className={`p-1.5 rounded-full hover:bg-amber-50 dark:hover:bg-amber-950/20 hover:text-amber-500 dark:hover:text-amber-450 active:scale-75 transition-all ${isBookmarked ? "text-amber-500 dark:text-amber-400" : ""
@@ -521,6 +549,8 @@ export function PostCard({
           {/* Share with rotating checkmark transition and counters */}
           <div className="flex items-center gap-1.5">
             <button
+              type="button"
+              aria-label={t("card.share")}
               onClick={handleShare}
               className={`p-1.5 rounded-full hover:bg-green-50 dark:hover:bg-green-950/20 hover:text-green-500 dark:hover:text-green-450 active:scale-75 transition-all duration-300 ${shareCopied ? "rotate-360 text-green-500 dark:text-green-400" : ""
                 }`}

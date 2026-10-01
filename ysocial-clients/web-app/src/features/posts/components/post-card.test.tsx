@@ -1,0 +1,104 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { resetPostStore, usePostStore } from "../store/post-store";
+import type { PostItem } from "../types";
+import { PostCard } from "./post-card";
+
+const push = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, back: vi.fn() }),
+}));
+
+const post: PostItem = {
+  id: "post-001",
+  content: "Nội dung bài viết",
+  createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+  likesCount: 5,
+  commentsCount: 2,
+  isLikedByCurrentUser: false,
+  isBookmarkedByCurrentUser: false,
+  user: { id: "u1", displayName: "Minh Thư", username: "minhthu" },
+};
+
+beforeEach(() => {
+  resetPostStore();
+  push.mockClear();
+});
+
+describe("PostCard store sync", () => {
+  it("seeds the store and updates the count when liking a post not yet cached", async () => {
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thích" }));
+
+    expect(usePostStore.getState().posts["post-001"].likesCount).toBe(6);
+    expect(screen.getByText("6")).toBeInTheDocument();
+  });
+
+  it("keeps two cards of the same post in sync", async () => {
+    render(
+      <>
+        <PostCard post={post} />
+        <PostCard post={post} />
+      </>,
+    );
+
+    await userEvent.click(screen.getAllByRole("button", { name: "Thích" })[0]);
+
+    expect(screen.getAllByText("6")).toHaveLength(2);
+  });
+
+  it("toggles bookmark through the store", async () => {
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
+
+    expect(usePostStore.getState().posts["post-001"].isBookmarkedByCurrentUser).toBe(true);
+  });
+});
+
+describe("PostCard navigation", () => {
+  it("opens the thread from the comment button", async () => {
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Trả lời" }));
+
+    expect(push).toHaveBeenCalledWith("/posts/post-001");
+  });
+
+  it("opens the thread when clicking the content", async () => {
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByText("Nội dung bài viết"));
+
+    expect(push).toHaveBeenCalledWith("/posts/post-001");
+  });
+
+  it("does not navigate when clicking author link", async () => {
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByText("Minh Thư"));
+
+    expect(push).not.toHaveBeenCalledWith("/posts/post-001");
+  });
+});
+
+describe("PostCard detail variant", () => {
+  it("does not navigate and shows the stats row", async () => {
+    render(<PostCard post={post} variant="detail" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Trả lời" }));
+    await userEvent.click(screen.getByText("Nội dung bài viết"));
+
+    expect(push).not.toHaveBeenCalled();
+    expect(screen.getByText(/lượt thích/)).toBeInTheDocument();
+    expect(screen.getByText(/câu trả lời/)).toBeInTheDocument();
+  });
+
+  it("links to the parent post when replying", () => {
+    render(<PostCard post={{ ...post, parentId: "post-000" }} variant="detail" replyToUsername="minh" />);
+
+    expect(screen.getByRole("link", { name: "Trả lời @minh" })).toHaveAttribute("href", "/posts/post-000");
+  });
+});

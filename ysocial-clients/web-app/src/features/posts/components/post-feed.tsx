@@ -298,7 +298,6 @@ export function PostFeed() {
             <PostCard
               key={post.id}
               post={post as PostItem}
-              onLikeToggle={handleLikeToggle}
             />
           ))
         )}
