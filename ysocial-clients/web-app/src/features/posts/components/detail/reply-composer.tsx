@@ -78,7 +78,7 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="w-full min-h-11 flex items-center gap-3 text-left text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-text"
+          className="w-full min-h-11 flex items-center gap-3 text-left text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-text"
         >
           <span aria-hidden="true">
             <Avatar className="h-8 w-8">
