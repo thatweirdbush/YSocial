@@ -4,3 +4,4 @@ export { PostCreatorFeed } from "./components/post-creator-feed";
 export { PostCreatorDialog } from "./components/post-creator-dialog";
 export { PostCard } from "./components/post-card";
 export { PostSkeletonList } from "./components/post-skeleton";
+export type * from "./types";

@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PostCreatorCore, PostCreatorCoreRef } from "./post-creator-core";
-import { PostAudience } from "../types/creator";
+import type { PostAudience } from "../types";
 import { useTranslation } from "@/hooks/use-translation";
 
 interface PostCreatorDialogProps {

@@ -17,8 +17,3 @@ export interface NotificationItemData {
   postContentPreview?: string; // Used in Replies
   postId?: string;             // Used to link to post
 }
-
-export interface NotificationItemProps {
-  item: NotificationItemData;
-  onFollowToggle: (user: NotificationUser) => void;
-}

@@ -1,5 +1,29 @@
+import type { components } from "@/lib/api/generated";
 import { z } from "zod";
 
+// #region Backend DTOs
+type Schemas = components["schemas"];
+
+export type LoginRequest = Schemas["LoginRequest"];
+export type LogoutRequest = Schemas["LogoutRequest"];
+export type RegisterAccountRequest = Schemas["RegisterAccountRequest"];
+export type ForgotPasswordRequest = Schemas["ForgotPasswordRequest"];
+export type ResetPasswordRequest = Schemas["ResetPasswordRequest"];
+// #endregion
+
+// #region Domain models
+/** Signed-in account snapshot persisted by the auth store. */
+export interface AuthUser {
+  id: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+  bio?: string;
+  username?: string;
+}
+// #endregion
+
+// #region Form schemas & values
 export const getIdentitySchema = (t: (key: any) => string) =>
   z.object({
     identity: z
@@ -88,3 +112,4 @@ export type RegisterFormValues = {
   password: string;
   confirmPassword: string;
 };
+// #endregion

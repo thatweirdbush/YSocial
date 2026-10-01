@@ -36,27 +36,8 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogPortal,
 } from "@/components/ui/dialog";
-
-export interface PostItem {
-  id: string;
-  content: string;
-  imageUrl?: string;
-  imageUrls?: string[]; // Added supporting multiple media uploads
-  createdAt: string;
-  likesCount: number;
-  commentsCount: number;
-  isLikedByCurrentUser: boolean;
-  isBookmarkedByCurrentUser: boolean;
-  user: {
-    id: string;
-    displayName: string;
-    username: string;
-    avatarUrl?: string;
-    isVerified?: boolean;
-  };
-}
+import type { PostItem } from "../types";
 
 interface PostCardProps {
   post: PostItem;

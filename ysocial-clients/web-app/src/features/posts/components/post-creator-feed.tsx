@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from "react";
 import { PostCreatorCore, PostCreatorCoreRef } from "./post-creator-core";
-import { PostAudience } from "../types/creator";
+import type { PostAudience } from "../types";
 import { toast } from "sonner";
 import { useTranslation } from "@/hooks/use-translation";
 

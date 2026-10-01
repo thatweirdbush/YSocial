@@ -23,7 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { useDrafts, useDraftActions } from "../store/post-draft-store";
-import { PostAudience } from "../types/creator";
+import type { PostAudience } from "../types";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { DiscardWarningDialog } from "./discard-warning-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";

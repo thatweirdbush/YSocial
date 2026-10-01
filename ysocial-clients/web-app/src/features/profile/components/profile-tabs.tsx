@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
 import { useTranslation } from "@/hooks/use-translation";
-
-export type ProfileTab = "posts" | "replies" | "saved";
+import type { ProfileTab } from "../types";
 
 interface ProfileTabsProps {
   activeTab: ProfileTab;

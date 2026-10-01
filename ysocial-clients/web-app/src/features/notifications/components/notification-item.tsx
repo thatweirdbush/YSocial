@@ -6,7 +6,12 @@ import { Heart, User, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
-import { NotificationItemProps } from "../types";
+import type { NotificationItemData, NotificationUser } from "../types";
+
+interface NotificationItemProps {
+  item: NotificationItemData;
+  onFollowToggle: (user: NotificationUser) => void;
+}
 
 export const NotificationItem: React.FC<NotificationItemProps> = ({
   item,

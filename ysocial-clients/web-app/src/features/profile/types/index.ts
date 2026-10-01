@@ -1,3 +1,17 @@
+import type { components } from "@/lib/api/generated";
+
+// #region Backend DTOs
+type Schemas = components["schemas"];
+
+export type UpdateProfileRequest = Schemas["UpdateProfileRequest"];
+export type Gender = Schemas["Gender"];
+export type SwitchProfileRequest = Schemas["SwitchProfileRequest"];
+export type ToggleCloseFriendRequest = Schemas["ToggleCloseFriendRequest"];
+// #endregion
+
+// #region Domain models
+export type ProfileTab = "posts" | "replies" | "saved";
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -19,3 +33,4 @@ export interface FollowerUser {
   avatarUrl?: string;
   isFollowing: boolean;
 }
+// #endregion

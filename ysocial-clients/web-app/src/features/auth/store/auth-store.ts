@@ -1,22 +1,14 @@
 import { create } from "zustand";
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  displayName?: string;
-  avatarUrl?: string;
-  bio?: string;
-  username?: string;
-}
+import type { AuthUser } from "../types";
 
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
-  user: UserProfile | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   actions: {
     setTokens: (accessToken: string, refreshToken: string) => void;
-    updateUser: (user: UserProfile) => void;
+    updateUser: (user: AuthUser) => void;
     clearAuth: () => void;
   };
 }
@@ -25,7 +17,7 @@ export const useAuthStore = create<AuthState>((set) => {
   // Client-safe initial state loading
   let initialAccess: string | null = null;
   let initialRefresh: string | null = null;
-  let initialUser: UserProfile | null = null;
+  let initialUser: AuthUser | null = null;
 
   if (typeof window !== "undefined") {
     initialAccess = localStorage.getItem("ysocial_access_token");

@@ -5,7 +5,8 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { Sparkles, RefreshCw } from "lucide-react";
 import { apiClient } from "@/lib/api-client";
 import { useTranslation } from "@/hooks/use-translation";
-import { PostCard, PostItem } from "./post-card";
+import { PostCard } from "./post-card";
+import type { PostItem } from "../types";
 import { PostCreator } from "./post-creator";
 import { PostSkeletonList, PostSkeletonText } from "./post-skeleton";
 import { toast } from "sonner";

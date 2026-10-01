@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { PostDraft, PostAudience } from "../types/creator";
+import type { PostAudience, PostDraft } from "../types";
 
 interface DraftState {
   drafts: PostDraft[];

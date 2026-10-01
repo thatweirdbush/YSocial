@@ -9,9 +9,9 @@ import { PostCard, PostSkeletonList } from "@/features/posts";
 import { SafeHydration } from "@/components/shared/safe-hydration";
 import { apiClient } from "@/lib/api-client";
 import { ProfileHeader } from "./profile-header";
-import { ProfileTabs, ProfileTab } from "./profile-tabs";
+import { ProfileTabs } from "./profile-tabs";
 import { FollowersDialog } from "./followers-dialog";
-import { UserProfile } from "../types";
+import type { ProfileTab, UserProfile } from "../types";
 
 interface ProfileContainerProps {
   username: string;
