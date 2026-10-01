@@ -78,6 +78,8 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 - **Zustand:**
   - Global states in `src/lib/store/`, feature states in `src/features/[feature]/store/`
   - Separate State & Actions. Use `useShallow` when selecting multiple attributes.
+  - **SSR-safe initial state:** Never read `localStorage`/`navigator`/`window` in a store's initializer — server & first client render must match. Use a fixed default (locale: `DEFAULT_LOCALE = "vi"`) and apply client values after mount (`ui-store` `hydrateLocale()` is called from `Providers` in a `useLayoutEffect`).
+- **Responsive shell:** `MainLayout` center column is fluid below `lg` (`LAYOUT.main` = `w-full max-w-[600px]`, `min-w-0`) and fixed `lg:w-[600px] lg:shrink-0` from `lg` up. Never put a fixed px width on a column that renders on mobile.
 - **API Mapping:** DTOs in `src/lib/api/generated.ts` are automatically generated from `swagger.json`. Follow the schema casing directly or use clean transform functions in `services/`.
 
 ### 4. Micro-UX

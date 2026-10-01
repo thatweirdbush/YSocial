@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -259,7 +259,8 @@ export function MainLayout({ children }: MainLayoutProps) {
           </aside>
 
           {/* ==================== CENTER COLUMN (600PX) ==================== */}
-          <main className="w-[600px] shrink-0 border-r border-zinc-200/60 dark:border-zinc-900/60 min-h-screen flex flex-col pb-16 lg:pb-0 bg-white dark:bg-black">
+          {/* Fluid below lg (capped at 600px); fixed 600px column from lg up */}
+          <main className={`${LAYOUT.main} min-w-0 lg:w-[600px] lg:shrink-0 border-r border-zinc-200/60 dark:border-zinc-900/60 min-h-screen flex flex-col pb-16 lg:pb-0 bg-white dark:bg-black`}>
             {children}
           </main>
 

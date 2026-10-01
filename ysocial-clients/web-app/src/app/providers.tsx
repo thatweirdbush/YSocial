@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { ThemeProvider } from "next-themes";
+import { useUIStore } from "@/lib/store/ui-store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
+import React, { useLayoutEffect, useState } from "react";
 import { Toaster } from "sonner";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       })
   );
+
+  // Apply persisted/browser locale right after hydration; layout effect re-renders before the next paint
+  useLayoutEffect(() => {
+    useUIStore.getState().actions.hydrateLocale();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
