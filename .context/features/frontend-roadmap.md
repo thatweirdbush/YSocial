@@ -39,18 +39,18 @@ Chồng iu cần rà soát hiện trạng FE YSocial và một lộ trình **đ�
 ## Bước 2 & 3 — Checklist tính năng (ưu tiên cao → thấp)
 
 ### Phase 0 — Foundation (bắt buộc trước, chặn mọi phase sau)
-- [ ] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, script `test` & `typecheck` (cần chồng iu duyệt cài devDependencies).
-- [ ] **F0.2 Mock data layer:** seed users/posts/replies/notifications/conversations tập trung; helper `mockDelay()` để hiển thị skeleton thật; ID ổn định.
-- [ ] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` → like/bookmark/reply đồng bộ mọi nơi, toggle O(1), không re-render list.
-- [ ] **F0.4 Route shells:** `loading.tsx` (skeleton khớp kích thước, chống CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post).
-- [ ] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): icon Lucide + message Gen Z + CTA — chuẩn hoá cho mọi list.
+- [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, script `test` & `typecheck` (cần chồng iu duyệt cài devDependencies).
+- [x] **F0.2 Mock data layer:** *(posts only — users/notifications/conversations pending)* seed users/posts/replies/notifications/conversations tập trung; helper `mockDelay()` để hiển thị skeleton thật; ID ổn định.
+- [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` → like/bookmark/reply đồng bộ mọi nơi, toggle O(1), không re-render list.
+- [ ] **F0.4 Route shells:** *(done for `/posts/[id]` only)* `loading.tsx` (skeleton khớp kích thước, chống CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post).
+- [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): icon Lucide + message Gen Z + CTA — chuẩn hoá cho mọi list.
 - [ ] **F0.6 Profile chạy bằng mock** (bỏ SSR fetch BE thật, giữ `generateMetadata`).
 
 ### Phase 1 — Core content loop (P0)
-- [ ] **1.1 Post Detail & Reply Thread** `/posts/[id]` — *ưu tiên #1, xem Bước 4*.
+- [x] **1.1 Post Detail & Reply Thread** (see `features/post-detail.md`) `/posts/[id]` — *ưu tiên #1, xem Bước 4*.
 - [ ] **1.2 Search / Explore** `/search?q=` — tabs Top / Người dùng / Bài viết / Hashtag, recent searches (localStorage), gợi ý debounce, highlight từ khoá; `SearchWidget` điều hướng sang đây.
 - [ ] **1.3 Hashtag page** `/tags/[tag]` — bio parser, trending, nội dung post linkify → đích.
-- [ ] **1.4 Feed tabs** "Dành cho bạn / Đang theo dõi" + nút "Có bài mới" (giả lập push mỗi N giây).
+- [ ] **1.4 "Có bài mới" pill** (giả lập push mỗi N giây) — tabs "Dành cho bạn / Đang theo dõi" đã có sẵn trong `PostFeed`.
 - [ ] **1.5 Owner actions trên post:** Sửa (inline editor + nhãn "đã chỉnh sửa"), Xoá (confirm + undo toast), Ghim lên profile, Ẩn số like.
 - [ ] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, nút Follow — trên tên/avatar trong `PostCard`.
 
@@ -89,6 +89,7 @@ Chồng iu cần rà soát hiện trạng FE YSocial và một lộ trình **đ�
 - [ ] **6.6 Onboarding sau đăng ký:** avatar → sở thích → gợi ý follow → vào feed.
 
 ### Phase 7 — Polish & System UX (P3)
+- [ ] **7.0 MainLayout mobile overflow** — `<main className="w-[600px] shrink-0">` tràn ngang ở 375px; **locale hydration mismatch** (`ui-store` đọc `navigator.language` khi render). *(phát hiện 2026-10-01, có từ trước)*
 - [ ] **7.1 Command palette** (Ctrl/⌘+K) + keyboard shortcuts (`j/k` di chuyển post, `l` like, `n` viết bài, `?` bảng phím tắt).
 - [ ] **7.2 Offline banner** + retry (convention Offline Resiliency).
 - [ ] **7.3 Scroll restoration** feed ↔ detail (convention), `content-visibility` cho list dài.
