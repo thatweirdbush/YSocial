@@ -5,6 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PostCreatorCore, PostCreatorCoreRef } from "./post-creator-core";
 import type { PostAudience } from "../types";
 import { useTranslation } from "@/hooks/use-translation";
+import { useCurrentAuthor } from "../hooks/use-current-author";
+import { createPost } from "../services/post-service";
+import { usePostActions } from "../store/post-store";
 
 interface PostCreatorDialogProps {
   open: boolean;
@@ -19,6 +22,14 @@ export function PostCreatorDialog({
 }: PostCreatorDialogProps) {
   const { t } = useTranslation();
   const coreRef = useRef<PostCreatorCoreRef>(null);
+  const author = useCurrentAuthor();
+  const { prependPost } = usePostActions();
+
+  // Default when the caller supplies no handler (sidebar "Create post"): publish to the mock feed.
+  const submitPost = onPostSubmitted ?? (async (content: string, images: string[], audience: PostAudience) => {
+    const post = await createPost({ content, images, audience }, author);
+    prependPost("forYou", post);
+  });
 
   // Track states to prevent Keyboard/interaction trap
   const [isSubPopoverOpen, setIsSubPopoverOpen] = useState(false);
@@ -87,9 +98,7 @@ export function PostCreatorDialog({
             onPopoverStateChange={setIsSubPopoverOpen}
             onStateChange={setHasUnsavedChanges}
             onPostSubmitted={async (content, images, audience) => {
-              if (onPostSubmitted) {
-                await onPostSubmitted(content, images, audience);
-              }
+              await submitPost(content, images, audience);
               onOpenChange(false);
             }}
           />
