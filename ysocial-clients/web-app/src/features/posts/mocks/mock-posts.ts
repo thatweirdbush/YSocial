@@ -1,8 +1,11 @@
 import type { PostItem } from "../types";
 import { MOCK_AUTHORS } from "./mock-authors";
 
-/** Fixed reference time so relative timestamps and ordering stay deterministic. */
-export const MOCK_BASE_DATE = "2026-10-01T09:00:00.000Z";
+/**
+ * Reference time for seed timestamps: module load time, so seeds always read as "x minutes ago"
+ * and stay older than posts created during the session. Ordering is deterministic; absolute values are not.
+ */
+export const MOCK_BASE_DATE = new Date().toISOString();
 
 const image = (photo: string) => `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=800&q=80`;
 

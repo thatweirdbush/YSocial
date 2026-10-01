@@ -68,7 +68,7 @@ export interface CreatePostInput { content: string; images: string[]; audience: 
 - `mock-posts.ts`: `export const MOCK_POSTS: PostItem[]` — 12 root posts (ids `post-001`…`post-012`) + ~25 replies (ids `reply-<root>-<nn>`, child replies `reply-<root>-<nn>-<mm>`).
   - `post-001` has ≥ 4 direct replies; one of them has 3 child replies (exercises "Xem thêm 1 câu trả lời").
   - `commentsCount` of each post equals its direct reply count in the mock.
-  - `createdAt` values are relative to a fixed base date so tests are deterministic.
+  - `createdAt` values are offsets from `MOCK_BASE_DATE` = module load time (seeds always older than session-created posts; ordering deterministic).
 - Existing inline `MOCK_FALLBACK_POSTS` in `post-feed.tsx` moves here.
 
 ### 4.3 Service (`features/posts/services/post-service.ts`)
