@@ -1,39 +1,35 @@
 # Post Detail & Reply Thread Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use `- [x]` for tracking.
+> **Agentic workers:** REQUIRED SUB-SKILL: `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans`; execute task-by-task. Track steps via `- [x]`.
 
-**Goal:** Ship `/posts/[id]` (root post + 1-level reply thread + inline reply composer) on top of a mock service + normalized Zustand post store shared by feed & detail.
-
-**Architecture:** `post-service.ts` (async, in-memory mocks, simulated latency) is the only data source; containers call it & write results into `post-store.ts` (`Record<id, PostItem>` + id lists). `PostCard`, `PostFeed` & the detail components read the store via narrow selectors, so like/bookmark/reply stay in sync everywhere.
-
-**Tech Stack:** Next.js 16 App Router, React 19, TypeScript strict, Zustand 5, Tailwind v4, shadcn/Radix, Lucide, Vitest + React Testing Library + jsdom.
-
-**Spec:** `docs/specs/2026-10-01-post-detail-design.md`
-
-All paths below are relative to `ysocial-clients/web-app/`.
+- **Goal:** ship `/posts/[id]` (root post + 1-level reply thread + inline reply composer) on mock service + normalized Zustand post store shared by feed & detail.
+- **Architecture:** `post-service.ts` (async, in-memory mocks, simulated latency) = ONLY data source; containers call it -> write results into `post-store.ts` (`Record<id, PostItem>` + id lists). `PostCard`, `PostFeed` & detail components read store via narrow selectors -> like/bookmark/reply stay in sync everywhere.
+- **Tech stack:** Next.js 16 App Router, React 19, TypeScript strict, Zustand 5, Tailwind v4, shadcn/Radix, Lucide, Vitest + React Testing Library + jsdom.
+- **Spec:** `docs/specs/2026-10-01-post-detail-design.md`
+- All paths relative to `ysocial-clients/web-app/`.
 
 ## Global Constraints
 
-- No backend/API calls in any new or touched flow (`apiClient` must not be imported by new files; removed from `post-feed.tsx`).
-- No new runtime dependencies. devDependencies allowed: `vitest`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`.
+- NO BE/API calls in any new/touched flow (`apiClient` MUST NOT be imported by new files; removed from `post-feed.tsx`).
+- NO new runtime deps. devDependencies allowed: `vitest`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`.
 - Files `kebab-case`, components `PascalCase`, CRLF line endings, `import type` for type-only imports.
-- Types only in `src/features/posts/types/index.ts`; cross-feature imports via `@/features/posts` or `@/features/posts/types`.
-- All strings through `useTranslation()`; every new key exists in both `vi.json` & `en.json`; no `as any` on `t()`.
-- Touch targets ≥ 44px; icon-only buttons have `aria-label`; transitions 150–300ms with `motion-reduce:transition-none`.
+- Types ONLY in `src/features/posts/types/index.ts`; cross-feature imports via `@/features/posts` or `@/features/posts/types`.
+- All strings via `useTranslation()`; every new key in both `vi.json` & `en.json`; NO `as any` on `t()`.
+- Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms with `motion-reduce:transition-none`.
 - Reply max length 500 chars (existing `postSchema`).
-- Lint/typecheck baseline: `npx tsc --noEmit` currently exits 0; ESLint has pre-existing errors — **no new errors** in touched files.
+- Lint/typecheck baseline: `npx tsc --noEmit` exits 0; ESLint has pre-existing errors -> **NO new errors** in touched files.
 
 ## Review Focus
 
-1. **Double submit of a reply** → exactly 1 reply, counter +1 once. Pinned in Task 10 (`submits once when clicked twice`).
-2. **Reply failure keeps typed content** → `PostCreatorCore` only resets on success, so `ReplyComposer` must rethrow after rollback. Pinned in Task 10 (`rolls back & keeps text on failure`).
-3. **Clicking image / author / menu inside a card must not navigate to detail** → Pinned in Task 6 (`does not navigate when clicking author link`).
-4. **Stable empty selectors** → `useReplyIds("unknown")` must return the same array reference across renders (else infinite re-render). Pinned in Task 4.
-5. **Like on a post not in the store (Saved page)** → seeded then toggled. Pinned in Task 4 (`seeds missing post`).
+1. **Double submit of reply** -> exactly 1 reply, counter +1 once. Pinned: Task 10 (`submits once when clicked twice`).
+2. **Reply failure keeps typed content** -> `PostCreatorCore` resets ONLY on success, so `ReplyComposer` MUST rethrow after rollback. Pinned: Task 10 (`rolls back & keeps text on failure`).
+3. **Click image / author / menu inside card MUST NOT navigate to detail** -> Pinned: Task 6 (`does not navigate when clicking author link`).
+4. **Stable empty selectors** -> `useReplyIds("unknown")` MUST return same array ref across renders (else infinite re-render). Pinned: Task 4.
+5. **Like on post not in store (Saved page)** -> seeded then toggled. Pinned: Task 4 (`seeds missing post`).
 
 ---
 
-### Task 1: Test & validation infrastructure
+### Task 1: Test & validation infra
 
 **Files:**
 - Modify: `package.json` (devDependencies + scripts)
@@ -42,12 +38,12 @@ All paths below are relative to `ysocial-clients/web-app/`.
 **Interfaces:**
 - Produces: `npm run test` (= `vitest run`), `npm run test:watch` (= `vitest`), `npm run typecheck` (= `tsc --noEmit`).
 
-- [x] **Step 1:** `npm i -D vitest @vitejs/plugin-react @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom` *(Deviation: dropped `@vitejs/plugin-react` — Babel 8 peer conflict; pinned `vitest@^4.1.11` — v5 needs `@types/node` ≥ 22.)*
+- [x] **Step 1:** `npm i -D vitest @vitejs/plugin-react @testing-library/react @testing-library/jest-dom @testing-library/user-event jsdom` *(Deviation: dropped `@vitejs/plugin-react` - Babel 8 peer conflict; pinned `vitest@^4.1.11` - v5 needs `@types/node` >= 22.)*
 - [x] **Step 2:** Create `vitest.config.mts`: `plugins: [react()]`, `test.environment: "jsdom"`, `test.setupFiles: ["./vitest.setup.ts"]`, `test.include: ["src/**/*.test.{ts,tsx}"]`, `resolve.alias: { "@": path.resolve(__dirname, "src") }`. *(Deviation: `oxc.jsx.runtime: "automatic"` instead of plugin; `import.meta.dirname`.)*
-- [x] **Step 3:** `vitest.setup.ts`: `import "@testing-library/jest-dom/vitest";` plus `afterEach(cleanup)`.
+- [x] **Step 3:** `vitest.setup.ts`: `import "@testing-library/jest-dom/vitest";` + `afterEach(cleanup)`.
 - [x] **Step 4:** Add scripts `test`, `test:watch`, `typecheck` to `package.json`.
-- [x] **Step 5:** Write `src/lib/sanity.test.ts`: `expect(1 + 1).toBe(2)` & a jsdom check `expect(document.createElement("div")).toBeInstanceOf(HTMLElement)`.
-- [x] **Step 6:** Run `npm run test` → 2 passed. Run `npm run typecheck` → exit 0. Then delete `sanity.test.ts`.
+- [x] **Step 5:** Write `src/lib/sanity.test.ts`: `expect(1 + 1).toBe(2)` & jsdom check `expect(document.createElement("div")).toBeInstanceOf(HTMLElement)`.
+- [x] **Step 6:** `npm run test` -> 2 passed. `npm run typecheck` -> exit 0. Then delete `sanity.test.ts`.
 - [x] **Step 7:** Commit `chore(web-app): add vitest + RTL test infrastructure`.
 
 ---
@@ -63,14 +59,14 @@ All paths below are relative to `ysocial-clients/web-app/`.
 - Produces (data): `MOCK_AUTHORS: PostAuthor[]` (8), `MOCK_FOLLOWED_AUTHOR_IDS: string[]` (3 author ids), `MOCK_BASE_DATE = "2026-10-01T09:00:00.000Z"`, `MOCK_POSTS: PostItem[]`.
 
 - [x] **Step 1: Write failing test** `mock-posts.test.ts`:
-  - 12 root posts with ids `post-001`…`post-012`.
+  - 12 root posts, ids `post-001`...`post-012`.
   - every reply's `parentId` exists in `MOCK_POSTS`.
-  - for every post, `commentsCount === MOCK_POSTS.filter(p => p.parentId === post.id).length`.
-  - `post-001` has ≥ 4 direct replies & 1 of them has exactly 3 children.
+  - every post: `commentsCount === MOCK_POSTS.filter(p => p.parentId === post.id).length`.
+  - `post-001` has >= 4 direct replies & 1 of them has exactly 3 children.
   - all ids unique.
-- [x] **Step 2:** `npm run test -- mock-posts` → FAIL (module not found).
+- [x] **Step 2:** `npm run test -- mock-posts` -> FAIL (module not found).
 - [x] **Step 3:** Add types; author `MOCK_AUTHORS` (include existing `anquoc.dev` from `post-feed.tsx`); author `MOCK_POSTS` (~25 replies, ids `reply-<root>-<nn>` / `reply-<root>-<nn>-<mm>`, `createdAt` offsets from `MOCK_BASE_DATE`, Vietnamese content, some with `imageUrls` reused from current `post-feed.tsx` mocks).
-- [x] **Step 4:** `npm run test -- mock-posts` → PASS.
+- [x] **Step 4:** `npm run test -- mock-posts` -> PASS.
 - [x] **Step 5:** Commit `feat(posts): add thread types & mock dataset`.
 
 ---
@@ -92,19 +88,19 @@ All paths below are relative to `ysocial-clients/web-app/`.
   export function __resetMockDb(): void; // test-only: restore in-memory copy from MOCK_POSTS
   ```
 
-- [x] **Step 1: Write failing tests** (use `vi.useFakeTimers()` + `vi.runAllTimersAsync()`; `beforeEach(__resetMockDb)`):
-  - `fetchFeed("forYou", 1)` → 10 posts, all `parentId === undefined`, sorted by `createdAt` desc, `nextPage === 2`.
-  - `fetchFeed("forYou", 2)` → 2 posts, `nextPage === undefined`.
-  - `fetchFeed("following", 1)` → every author id ∈ `MOCK_FOLLOWED_AUTHOR_IDS`.
-  - `fetchPostThread("post-001")` → `post.id === "post-001"`, `replies` direct children newest first, `childReplies[<reply with 3 children>].length === 3`, `parent === undefined`.
-  - `fetchPostThread(<a reply id>)` → `parent.id === <its parentId>`.
-  - `fetchPostThread("khong-ton-tai")` → `null`.
-  - `createReply("nope", …)` rejects with `Error`.
-  - after `createReply("post-001", { content: "hi", images: [], audience: "anyone" }, author)` → next `fetchPostThread("post-001")` has `replies[0].content === "hi"` & `post.commentsCount` +1.
+- [x] **Step 1: Write failing tests** (`vi.useFakeTimers()` + `vi.runAllTimersAsync()`; `beforeEach(__resetMockDb)`):
+  - `fetchFeed("forYou", 1)` -> 10 posts, all `parentId === undefined`, sorted `createdAt` desc, `nextPage === 2`.
+  - `fetchFeed("forYou", 2)` -> 2 posts, `nextPage === undefined`.
+  - `fetchFeed("following", 1)` -> every author id in `MOCK_FOLLOWED_AUTHOR_IDS`.
+  - `fetchPostThread("post-001")` -> `post.id === "post-001"`, `replies` direct children newest first, `childReplies[<reply with 3 children>].length === 3`, `parent === undefined`.
+  - `fetchPostThread(<a reply id>)` -> `parent.id === <its parentId>`.
+  - `fetchPostThread("khong-ton-tai")` -> `null`.
+  - `createReply("nope", ...)` rejects with `Error`.
+  - after `createReply("post-001", { content: "hi", images: [], audience: "anyone" }, author)` -> next `fetchPostThread("post-001")` has `replies[0].content === "hi"` & `post.commentsCount` +1.
   - `createPost` result appears first in `fetchFeed("forYou", 1)`.
-- [x] **Step 2:** `npm run test -- post-service` → FAIL.
-- [x] **Step 3:** Implement. Private `mockDelay()` = `setTimeout` 300–600ms; private `maybeFail()` driven by `const MOCK_FAILURE_RATE = 0`; in-memory `Map<string, PostItem>` cloned from `MOCK_POSTS`; new ids `post-local-${Date.now()}-${counter}`; return copies (never the internal objects).
-- [x] **Step 4:** `npm run test -- post-service` → PASS.
+- [x] **Step 2:** `npm run test -- post-service` -> FAIL.
+- [x] **Step 3:** Implement. Private `mockDelay()` = `setTimeout` 300-600ms; private `maybeFail()` driven by `const MOCK_FAILURE_RATE = 0`; in-memory `Map<string, PostItem>` cloned from `MOCK_POSTS`; new ids `post-local-${Date.now()}-${counter}`; return copies (NEVER internal objects).
+- [x] **Step 4:** `npm run test -- post-service` -> PASS.
 - [x] **Step 5:** Commit `feat(posts): add mock post service`.
 
 ---
@@ -116,21 +112,21 @@ All paths below are relative to `ysocial-clients/web-app/`.
 
 **Interfaces:**
 - Consumes: Task 2 types.
-- Produces (exact names from spec §4.4): `usePostStore`, `usePost(id)`, `useReplyIds(parentId)`, `useFeedIds(tab)`, `usePostActions()`; actions `upsertPosts`, `setFeedPage(tab, ids, append)`, `setReplies(parentId, ids)`, `toggleLike(id, seed?)`, `toggleBookmark(id, seed?)`, `addReply(parentId, reply)`, `removeReply(parentId, replyId)`, `prependPost(tab, post)`. Also `resetPostStore()` for tests.
+- Produces (exact names from spec 4.4): `usePostStore`, `usePost(id)`, `useReplyIds(parentId)`, `useFeedIds(tab)`, `usePostActions()`; actions `upsertPosts`, `setFeedPage(tab, ids, append)`, `setReplies(parentId, ids)`, `toggleLike(id, seed?)`, `toggleBookmark(id, seed?)`, `addReply(parentId, reply)`, `removeReply(parentId, replyId)`, `prependPost(tab, post)`. Also `resetPostStore()` for tests.
 
-- [x] **Step 1: Write failing tests** (operate via `usePostStore.getState().actions`; `beforeEach(resetPostStore)`):
-  - `toggleLike` on post with `likesCount: 5, isLikedByCurrentUser: false` → `6, true`; again → `5, false`.
-  - post `likesCount: 0, isLikedByCurrentUser: true` → toggle → `0, false` (never negative).
-  - `seeds missing post`: `toggleLike("x", seed)` with seed `likesCount: 2, liked false` → stored `3, true`.
-  - `toggleLike("missing")` without seed → `getState().posts` deep-equals previous.
-  - `toggleBookmark` mirrors the above on `isBookmarkedByCurrentUser`.
-  - `addReply("p", r)` → `replyIds.p[0] === r.id`, `posts.p.commentsCount` +1; calling again with same reply → no duplicate id, count unchanged.
-  - `removeReply("p", r.id)` → id gone, count −1; on count 0 stays 0.
-  - `setFeedPage("forYou", ["a","b"], false)` then `(["c"], true)` → `["a","b","c"]`; `prependPost("forYou", post)` → id first & post upserted.
-  - `renderHook(() => useReplyIds("unknown"))` rerendered twice → `result.current` same reference (`toBe`).
-- [x] **Step 2:** `npm run test -- post-store` → FAIL.
+- [x] **Step 1: Write failing tests** (via `usePostStore.getState().actions`; `beforeEach(resetPostStore)`):
+  - `toggleLike` on post `likesCount: 5, isLikedByCurrentUser: false` -> `6, true`; again -> `5, false`.
+  - post `likesCount: 0, isLikedByCurrentUser: true` -> toggle -> `0, false` (NEVER negative).
+  - `seeds missing post`: `toggleLike("x", seed)` with seed `likesCount: 2, liked false` -> stored `3, true`.
+  - `toggleLike("missing")` without seed -> `getState().posts` deep-equals previous.
+  - `toggleBookmark` mirrors above on `isBookmarkedByCurrentUser`.
+  - `addReply("p", r)` -> `replyIds.p[0] === r.id`, `posts.p.commentsCount` +1; same reply again -> no duplicate id, count unchanged.
+  - `removeReply("p", r.id)` -> id gone, count -1; at count 0 stays 0.
+  - `setFeedPage("forYou", ["a","b"], false)` then `(["c"], true)` -> `["a","b","c"]`; `prependPost("forYou", post)` -> id first & post upserted.
+  - `renderHook(() => useReplyIds("unknown"))` rerendered twice -> `result.current` same ref (`toBe`).
+- [x] **Step 2:** `npm run test -- post-store` -> FAIL.
 - [x] **Step 3:** Implement with `create()`; module-level `const EMPTY_IDS: readonly string[] = Object.freeze([])`; selectors return `state.replyIds[id] ?? EMPTY_IDS`; state & `actions` separated (convention).
-- [x] **Step 4:** `npm run test -- post-store` → PASS.
+- [x] **Step 4:** `npm run test -- post-store` -> PASS.
 - [x] **Step 5:** Commit `feat(posts): add normalized post store`.
 
 ---
@@ -143,19 +139,19 @@ All paths below are relative to `ysocial-clients/web-app/`.
 
 **Interfaces:**
 - Produces: `EmptyState({ icon: LucideIcon; title: string; description?: string; action?: ReactNode })`; `TranslationKey` union gains `` `postDetail.${keyof typeof vi.postDetail}` ``.
-- Keys (spec §5.4): `title, back, replyPlaceholder{username}, replyingTo{username}, viewMoreReplies{n}, emptyReplies, notFoundTitle, backHome, loginToReply, errorTitle, retry, replySuccess, replyError, likes, replies`.
+- Keys (spec 5.4): `title, back, replyPlaceholder{username}, replyingTo{username}, viewMoreReplies{n}, emptyReplies, notFoundTitle, backHome, loginToReply, errorTitle, retry, replySuccess, replyError, likes, replies`.
   - vi values: "Thread", "Quay lại", "Trả lời @{username}…", "Trả lời @{username}", "Xem thêm {n} câu trả lời", "Chưa ai lên tiếng, mở bát đi!", "Bài viết này đã bay màu rồi", "Về trang chủ", "Đăng nhập để trả lời", "Có gì đó sai sai…", "Thử lại", "Đã gửi câu trả lời", "Không gửi được câu trả lời", "lượt thích", "câu trả lời".
-- Also add `card.like` ("Thích"), `card.comment` ("Trả lời"), `card.bookmark` ("Lưu"), `card.share` ("Chia sẻ") — used as `aria-label` on PostCard action buttons (none exist today).
+- Also add `card.like` ("Thích"), `card.comment` ("Trả lời"), `card.bookmark` ("Lưu"), `card.share` ("Chia sẻ") -> `aria-label` on `PostCard` action buttons (none exist today).
 
-- [x] **Step 1: Write failing test** `empty-state.test.tsx`: renders title, description & the action node; icon has `aria-hidden="true"`.
-- [x] **Step 2:** Run → FAIL.
+- [x] **Step 1: Write failing test** `empty-state.test.tsx`: renders title, description & action node; icon has `aria-hidden="true"`.
+- [x] **Step 2:** Run -> FAIL.
 - [x] **Step 3:** Implement (layout copied from current empty block in `post-feed.tsx`: `h-16 w-16 rounded-full bg-zinc-100 dark:bg-zinc-900` icon bubble, `py-20` centered). Add locale keys + union member.
-- [x] **Step 4:** Run test → PASS; `npm run typecheck` → exit 0.
+- [x] **Step 4:** Run test -> PASS; `npm run typecheck` -> exit 0.
 - [x] **Step 5:** Commit `feat(shared): add EmptyState & postDetail i18n keys`.
 
 ---
 
-### Task 6: PostCard reads the store, variants, navigation
+### Task 6: PostCard reads store, variants, navigation
 
 **Files:**
 - Modify: `src/features/posts/components/post-card.tsx`
@@ -163,18 +159,23 @@ All paths below are relative to `ysocial-clients/web-app/`.
 
 **Interfaces:**
 - Consumes: Task 4 store.
-- Produces: `PostCard` props = `{ post: PostItem; variant?: "feed" | "detail" | "compact"; replyToUsername?: string; isAuthorFollowing?; onAuthorFollowToggle?; isSavedPage?; onUnsave? }` — **removed** `onLikeToggle`, `onBookmarkToggle`.
+- Produces: `PostCard` props = `{ post: PostItem; variant?: "feed" | "detail" | "compact"; replyToUsername?: string; isAuthorFollowing?; onAuthorFollowToggle?; isSavedPage?; onUnsave? }` - **removed** `onLikeToggle`, `onBookmarkToggle`.
 
-- [x] **Step 1: Write failing tests** (mock `next/navigation` `useRouter` → `{ push: vi.fn(), back: vi.fn() }`; `beforeEach(resetPostStore)`):
-  - clicking like button (`getByRole("button", { name: "Thích" })`) on a post not in store → store has post with `likesCount + 1`; rendered count updates.
-  - two `PostCard`s with same post id → liking 1 updates the other's count.
-  - clicking comment button → `push("/posts/post-001")`.
-  - `does not navigate when clicking author link` → `push` not called with `/posts/...`.
-  - `variant="detail"` → comment click does not navigate; renders `t("postDetail.likes")` stats row.
-  - `replyToUsername="minh"` with `variant="detail"` → link text "Trả lời @minh".
-- [x] **Step 2:** Run → FAIL.
-- [x] **Step 3:** Implement: `const live = usePost(post.id) ?? post`; replace `isLiked/likesCount/isBookmarked` local state with `live.*` & `toggleLike(post.id, post)` / `toggleBookmark(post.id, post)` (keep animation/toast state); add `aria-label={t("card.like" | "card.comment" | "card.bookmark" | "card.share")}` to the four action buttons; content wrapper `onClick` → navigate when `variant !== "detail"`; `stopPropagation` on author links, media grid, dropdown trigger, action buttons; `detail` variant: `text-[17px]`, absolute time via `Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short", year: "numeric" })`, stats row; `compact`: avatar `h-8 w-8`.
-- [x] **Step 4:** Run tests → PASS; `npm run typecheck` → exit 0 (fix callers that passed removed props: `post-feed.tsx` handled in Task 7 — temporarily drop the prop there in this task).
+- [x] **Step 1: Write failing tests** (mock `next/navigation` `useRouter` -> `{ push: vi.fn(), back: vi.fn() }`; `beforeEach(resetPostStore)`):
+  - click like button (`getByRole("button", { name: "Thích" })`) on post not in store -> store has post with `likesCount + 1`; rendered count updates.
+  - 2 `PostCard`s with same post id -> liking 1 updates other's count.
+  - click comment button -> `push("/posts/post-001")`.
+  - `does not navigate when clicking author link` -> `push` not called with `/posts/...`.
+  - `variant="detail"` -> comment click does not navigate; renders `t("postDetail.likes")` stats row.
+  - `replyToUsername="minh"` with `variant="detail"` -> link text "Trả lời @minh".
+- [x] **Step 2:** Run -> FAIL.
+- [x] **Step 3:** Implement:
+  - `const live = usePost(post.id) ?? post`; replace `isLiked/likesCount/isBookmarked` local state with `live.*` & `toggleLike(post.id, post)` / `toggleBookmark(post.id, post)` (keep animation/toast state).
+  - add `aria-label={t("card.like" | "card.comment" | "card.bookmark" | "card.share")}` to 4 action buttons.
+  - content wrapper `onClick` -> navigate when `variant !== "detail"`; `stopPropagation` on author links, media grid, dropdown trigger, action buttons.
+  - `detail` variant: `text-[17px]`, absolute time via `Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short", year: "numeric" })`, stats row.
+  - `compact`: avatar `h-8 w-8`.
+- [x] **Step 4:** Run tests -> PASS; `npm run typecheck` -> exit 0 (fix callers passing removed props: `post-feed.tsx` handled in Task 7 - temporarily drop prop there in this task).
 - [x] **Step 5:** Commit `feat(posts): sync PostCard with post store & add variants`.
 
 ---
@@ -191,12 +192,19 @@ All paths below are relative to `ysocial-clients/web-app/`.
 
 - [x] **Step 1: Write failing tests** (fake timers):
   - initial render shows skeleton, then 10 post cards after timers flush.
-  - switching to "following" tab renders only followed authors' posts.
-  - when service returns no posts (mock `fetchFeed` via `vi.mock` → `{ posts: [] }`) → `t("feed.emptyFeed")` visible.
-  - `PostCreatorDialog` without `onPostSubmitted`: submitting "bài mới" → `useFeedIds("forYou")[0]` is the created post (today the sidebar dialog silently drops posts).
-- [x] **Step 2:** Run → FAIL.
-- [x] **Step 3:** Implement: remove `useInfiniteQuery`/`useMutation`/`apiClient`/`MOCK_FALLBACK_POSTS`; local state `{ page, nextPage, isLoading, isFetchingNext }` per tab; load → `upsertPosts` + `setFeedPage`; render `useFeedIds(activeTab)` → `<FeedPostCard id>` small inner component reading `usePost(id)`; refresh button reloads page 1 (`append: false`); composer → `createPost(input, authorFromAuthUser)` → `prependPost`; author fallback when logged out: `{ id: "me", displayName: "Me", username: "me_ysocial" }` — extract as `useCurrentAuthor(): PostAuthor` in `src/features/posts/hooks/use-current-author.ts` (reused by Task 10); `PostCreatorDialog` default submit (when no `onPostSubmitted` prop) → `createPost` + `upsertPosts` + `prependPost("forYou", post)`.
-- [x] **Step 4:** Run tests → PASS; typecheck exit 0.
+  - switch to "following" tab -> ONLY followed authors' posts.
+  - service returns no posts (mock `fetchFeed` via `vi.mock` -> `{ posts: [] }`) -> `t("feed.emptyFeed")` visible.
+  - `PostCreatorDialog` without `onPostSubmitted`: submit "bài mới" -> `useFeedIds("forYou")[0]` = created post (today sidebar dialog silently drops posts).
+- [x] **Step 2:** Run -> FAIL.
+- [x] **Step 3:** Implement:
+  - remove `useInfiniteQuery`/`useMutation`/`apiClient`/`MOCK_FALLBACK_POSTS`.
+  - local state `{ page, nextPage, isLoading, isFetchingNext }` per tab; load -> `upsertPosts` + `setFeedPage`.
+  - render `useFeedIds(activeTab)` -> `<FeedPostCard id>` small inner component reading `usePost(id)`.
+  - refresh button reloads page 1 (`append: false`).
+  - composer -> `createPost(input, authorFromAuthUser)` -> `prependPost`.
+  - author fallback when logged out: `{ id: "me", displayName: "Me", username: "me_ysocial" }` - extract as `useCurrentAuthor(): PostAuthor` in `src/features/posts/hooks/use-current-author.ts` (reused by Task 10).
+  - `PostCreatorDialog` default submit (no `onPostSubmitted` prop) -> `createPost` + `upsertPosts` + `prependPost("forYou", post)`.
+- [x] **Step 4:** Run tests -> PASS; typecheck exit 0.
 - [x] **Step 5:** Commit `refactor(posts): drive feed from mock service & post store`.
 
 ---
@@ -211,11 +219,11 @@ All paths below are relative to `ysocial-clients/web-app/`.
 - Produces: `PostCreatorCoreProps` gains `mode?: "post" | "reply"` (default `"post"`) & `placeholder?: string`.
 
 - [x] **Step 1: Write failing tests:**
-  - `mode="reply" placeholder="Trả lời @minh…"` → textarea has that placeholder; audience button (`title`/label `t("creator.audience")`) & drafts button absent.
-  - default mode → audience & drafts buttons present.
-- [x] **Step 2:** Run → FAIL.
-- [x] **Step 3:** Implement with conditional rendering only; no other behavior change.
-- [x] **Step 4:** Run → PASS.
+  - `mode="reply" placeholder="Trả lời @minh…"` -> textarea has that placeholder; audience button (`title`/label `t("creator.audience")`) & drafts button absent.
+  - default mode -> audience & drafts buttons present.
+- [x] **Step 2:** Run -> FAIL.
+- [x] **Step 3:** Implement with conditional rendering ONLY; no other behavior change.
+- [x] **Step 4:** Run -> PASS.
 - [x] **Step 5:** Commit `feat(posts): add reply mode to PostCreatorCore`.
 
 ---
@@ -230,12 +238,12 @@ All paths below are relative to `ysocial-clients/web-app/`.
 - Produces: `ReplyList({ parentId: string })`, `ReplyItem({ replyId: string })`, `export const MAX_INLINE_CHILD_REPLIES = 2`.
 
 - [x] **Step 1: Write failing tests** (seed store directly):
-  - parent with no replies → `t("postDetail.emptyReplies")` text visible.
-  - parent with 1 reply that has 3 children → 1 + 2 cards rendered; link "Xem thêm 1 câu trả lời" with `href="/posts/<replyId>"`.
-  - reply with 2 children → no "Xem thêm" link.
-- [x] **Step 2:** Run → FAIL.
+  - parent with no replies -> `t("postDetail.emptyReplies")` text visible.
+  - parent with 1 reply having 3 children -> 1 + 2 cards rendered; link "Xem thêm 1 câu trả lời" with `href="/posts/<replyId>"`.
+  - reply with 2 children -> no "Xem thêm" link.
+- [x] **Step 2:** Run -> FAIL.
 - [x] **Step 3:** Implement; thread line `absolute left-[34px] top-14 bottom-0 w-0.5 bg-zinc-200 dark:bg-zinc-800`; children rendered as plain `PostCard variant="compact"` (no further nesting).
-- [x] **Step 4:** Run → PASS.
+- [x] **Step 4:** Run -> PASS.
 - [x] **Step 5:** Commit `feat(posts): add reply list with 1-level nesting`.
 
 ---
@@ -250,13 +258,17 @@ All paths below are relative to `ysocial-clients/web-app/`.
 - Produces: `ReplyComposer({ parentId: string; replyToUsername: string })`.
 
 - [x] **Step 1: Write failing tests** (render `ReplyComposer` + `ReplyList` together; mock `next/navigation`):
-  - logged out (auth store reset) → button `t("postDetail.loginToReply")`; click → `push("/login")`.
-  - logged in → click collapsed bar → textarea visible with placeholder "Trả lời @minh…"; type "xin chào" + submit → "xin chào" appears first in list; parent `commentsCount` +1 after timers flush; composer collapses.
-  - `submits once when clicked twice` → `createReply` spy called once; count +1.
-  - `rolls back & keeps text on failure` → `vi.spyOn(service, "createReply").mockRejectedValue(new Error())` → reply removed, count restored, textarea still contains "xin chào", error toast called.
-- [x] **Step 2:** Run → FAIL.
-- [x] **Step 3:** Implement: temp reply id `reply-temp-${Date.now()}` → `addReply` → `await createReply` → success: `removeReply(temp)` + `addReply(real)` + success toast + collapse; failure: `removeReply(temp)` + `toast.error(t("postDetail.replyError"))` + **rethrow** so `PostCreatorCore` keeps content. Expand/collapse with `transition-[height] duration-200 motion-reduce:transition-none`.
-- [x] **Step 4:** Run → PASS.
+  - logged out (auth store reset) -> button `t("postDetail.loginToReply")`; click -> `push("/login")`.
+  - logged in -> click collapsed bar -> textarea visible, placeholder "Trả lời @minh…"; type "xin chào" + submit -> "xin chào" first in list; parent `commentsCount` +1 after timers flush; composer collapses.
+  - `submits once when clicked twice` -> `createReply` spy called once; count +1.
+  - `rolls back & keeps text on failure` -> `vi.spyOn(service, "createReply").mockRejectedValue(new Error())` -> reply removed, count restored, textarea still contains "xin chào", error toast called.
+- [x] **Step 2:** Run -> FAIL.
+- [x] **Step 3:** Implement:
+  - temp reply id `reply-temp-${Date.now()}` -> `addReply` -> `await createReply`.
+  - success: `removeReply(temp)` + `addReply(real)` + success toast + collapse.
+  - failure: `removeReply(temp)` + `toast.error(t("postDetail.replyError"))` + **rethrow** so `PostCreatorCore` keeps content.
+  - expand/collapse: `transition-[height] duration-200 motion-reduce:transition-none`.
+- [x] **Step 4:** Run -> PASS.
 - [x] **Step 5:** Commit `feat(posts): add inline reply composer`.
 
 ---
@@ -273,14 +285,18 @@ All paths below are relative to `ysocial-clients/web-app/`.
 - Produces: `PostDetailContainer({ postId: string })`, `PostDetailSkeleton()`, `PostDetailHeader()`, `PostDetailMain({ postId: string; replyToUsername?: string })`; barrel exports `PostDetailContainer`, `PostDetailSkeleton`.
 
 - [x] **Step 1: Write failing tests** (`post-detail-container.test.tsx`; mock `next/navigation` with `notFound: vi.fn(() => { throw new Error("NEXT_NOT_FOUND") })`):
-  - shows skeleton first, then root post content & its replies.
-  - reply thread (`postId` = a reply id) → "Trả lời @<parent username>" link to `/posts/<parentId>`.
-  - unknown id → `notFound` called.
-  - service rejects once → `t("postDetail.errorTitle")` + retry button; click retry (service now resolves) → post renders.
-  - Back button: `history.length` 1 → `push("/")`; > 1 → `back()`.
-- [x] **Step 2:** Run → FAIL.
-- [x] **Step 3:** Implement components; route `page.tsx` = `MainLayout` + `PostDetailContainer`, `generateMetadata` from `MOCK_POSTS` (title format in spec §5.1); `loading.tsx` = `MainLayout` + `PostDetailSkeleton`; `not-found.tsx` = `EmptyState` + link `/`; `error.tsx` (`"use client"`) = `EmptyState` + `reset()` button.
-- [x] **Step 4:** Run full suite `npm run test` → all PASS; `npm run typecheck` → exit 0; `npx eslint src/features/posts src/app/posts src/components/shared` → no new errors vs baseline.
+  - skeleton first, then root post content & its replies.
+  - reply thread (`postId` = reply id) -> "Trả lời @<parent username>" link to `/posts/<parentId>`.
+  - unknown id -> `notFound` called.
+  - service rejects once -> `t("postDetail.errorTitle")` + retry button; click retry (service now resolves) -> post renders.
+  - Back button: `history.length` 1 -> `push("/")`; > 1 -> `back()`.
+- [x] **Step 2:** Run -> FAIL.
+- [x] **Step 3:** Implement components; route:
+  - `page.tsx` = `MainLayout` + `PostDetailContainer`, `generateMetadata` from `MOCK_POSTS` (title format: spec 5.1).
+  - `loading.tsx` = `MainLayout` + `PostDetailSkeleton`.
+  - `not-found.tsx` = `EmptyState` + link `/`.
+  - `error.tsx` (`"use client"`) = `EmptyState` + `reset()` button.
+- [x] **Step 4:** Full suite `npm run test` -> all PASS; `npm run typecheck` -> exit 0; `npx eslint src/features/posts src/app/posts src/components/shared` -> no new errors vs baseline.
 - [x] **Step 5:** Commit `feat(posts): add post detail route & thread container`.
 
 ---
@@ -288,25 +304,31 @@ All paths below are relative to `ysocial-clients/web-app/`.
 ### Task 12: Runtime verification & context closure
 
 **Files:**
-- Modify: `.context/features/frontend-roadmap.md` (item 1.4 wording; tick F0.1–F0.3, F0.5, 1.1), `.context/INDEX.md`
+- Modify: `.context/features/frontend-roadmap.md` (item 1.4 wording; tick F0.1-F0.3, F0.5, 1.1), `.context/INDEX.md`
 - Create: `.context/features/post-detail.md`
 
-- [x] **Step 1:** `npm run dev`; in Browser pane verify: feed Comment → `/posts/post-001`; submit reply → top of list; Back → feed count +1; like on detail → feed in sync; `/posts/khong-ton-tai` → not-found; reply URL → "Trả lời @parent"; image click opens lightbox (no navigation).
-- [-] **Step 2:** Check 375 / 768 / 1440px, light + dark, Tab focus order — record results against `ui-ux-pro-max` Pre-Delivery Checklist. *(Partial: 375 + 1440 + light/dark done; 768 - [x] **Step 2:** Check 375 / 768 / 1440px, light + dark, Tab focus order — record results against `ui-ux-pro-max` Pre-Delivery Checklist. manual Tab walkthrough not done; 375 overflow is pre-existing MainLayout issue → roadmap 7.0.)*
-- [x] **Step 3:** Write `.context/features/post-detail.md` (data flow, store API, design decisions D1–D4, mock id scheme, `seed` rationale, "rethrow to keep composer content" pitfall); update INDEX + roadmap.
+- [x] **Step 1:** `npm run dev`; verify in Browser pane:
+  - feed Comment -> `/posts/post-001`
+  - submit reply -> top of list; Back -> feed count +1
+  - like on detail -> feed in sync
+  - `/posts/khong-ton-tai` -> not-found
+  - reply URL -> "Trả lời @parent"
+  - image click opens lightbox (no navigation)
+- [-] **Step 2:** Check 375 / 768 / 1440px, light + dark, Tab focus order; record results against `ui-ux-pro-max` Pre-Delivery Checklist. *(Partial: 375 + 1440 + light/dark done; 768 + manual Tab walkthrough not done; 375 overflow = pre-existing `MainLayout` issue -> roadmap 7.0.)*
+- [x] **Step 3:** Write `.context/features/post-detail.md` (data flow, store API, design decisions D1-D4, mock id scheme, `seed` rationale, "rethrow to keep composer content" pitfall); update INDEX + roadmap.
 - [x] **Step 4:** Commit `docs(context): document post detail feature`.
 
 ## Known Issues & Edge Cases Backlog
 
-### UI / UX Edge Cases
-- [ ] **Text selection navigation trigger:** Selecting text inside `PostCard` inadvertently triggers route navigation to `/posts/[id]`.
-- [ ] **Pending reply interactability:** The optimistic temporary reply component remains clickable during the submission window (~0.3s–0.6s).
-- [ ] **Infinite error toast loop on feed page 2:** Repeated failures when fetching feed page 2 result in continuous retries & stacked error toasts.
-- [ ] **Detail header layout shift (CLS):** Detail page header experiences layout shift when transitioning from loading skeleton to full content.
+### UI / UX
+- [ ] **Text selection triggers navigation:** selecting text inside `PostCard` navigates to `/posts/[id]`.
+- [ ] **Pending reply interactable:** optimistic temp reply stays clickable during submit window (~0.3s-0.6s).
+- [ ] **Infinite error toast loop, feed page 2:** repeated page-2 fetch failures -> continuous retries & stacked error toasts.
+- [ ] **Detail header layout shift (CLS):** header shifts on skeleton -> full content transition.
 
 ### Copywriting & i18n
-- [ ] **Feed refresh button label:** Feed refresh button incorrectly reuses the detail page's "Retry" ("Thử lại") label instead of a dedicated refresh string.
-- [ ] **Reply composer submit label:** Submit button inside `ReplyComposer` displays "Post" ("Đăng") instead of "Reply" ("Trả lời").
+- [ ] **Feed refresh button label:** reuses detail page "Retry" ("Thử lại") instead of dedicated refresh string.
+- [ ] **Reply composer submit label:** `ReplyComposer` submit shows "Post" ("Đăng") instead of "Reply" ("Trả lời").
 
 ### Test Coverage
-- [ ] **Non-navigating card click targets:** Add tests confirming that clicking post media attachments or the card action menu does NOT trigger thread navigation.
+- [ ] **Non-navigating card click targets:** add tests confirming click on post media attachments or card action menu does NOT trigger thread navigation.

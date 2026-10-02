@@ -1,16 +1,17 @@
 ---
 module: Identities & Authentication
-description: Account registration, JWT authentication, session limit & OTP password reset.
+description: Account registration, JWT auth, session limit & OTP password reset.
+updated: 2026-10-02
 ---
 
 # IDENTITIES SPECS
 
-## 1. Authentication & Session Management
-- **Auth Flow:** JWT Access Token + Refresh Token rotation.
-- **Session Limits:** Device session limits enforced via `DeviceSessionLimitRule`.
-- **Account Lifecycle:** Sign up, Sign in, Change password (revokes active tokens), Deactivate/Activate account.
+## 1. Auth & Session Management
+- **Auth flow:** JWT Access Token + Refresh Token rotation
+- **Session limits:** device session limits enforced via `DeviceSessionLimitRule`
+- **Account lifecycle:** Sign up, Sign in, Change password (revokes active tokens), Deactivate/Activate account
 
 ## 2. Password Reset (OTP Flow)
-- **Token Generation:** Generates OTP token & raises `PasswordResetTokenGeneratedEvent` to trigger Email dispatch.
-- **Verification Limits:** Max 5 attempts per OTP token before invalidation (`IsMaxAttemptsReached`).
-- **Reset Action:** Validates active OTP, updates password hash, marks token as used (`IsUsed = true`) & revokes all active refresh tokens.
+- **Token generation:** generate OTP token & raise `PasswordResetTokenGeneratedEvent` to trigger email dispatch
+- **Verification limits:** max 5 attempts per OTP token before invalidation (`IsMaxAttemptsReached`)
+- **Reset action:** validate active OTP -> update password hash -> mark token used (`IsUsed = true`) -> revoke all active refresh tokens
