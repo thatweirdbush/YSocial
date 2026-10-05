@@ -41,6 +41,7 @@ import { useRouter } from "next/navigation";
 import { setPostBookmark, setPostLike } from "../services/post-service";
 import { usePost, usePostActions } from "../store/post-store";
 import type { PostItem } from "../types";
+import { RichContent } from "../utils/rich-content";
 
 export type PostCardVariant = "feed" | "detail" | "compact";
 
@@ -54,6 +55,8 @@ interface PostCardProps {
   onAuthorFollowToggle?: () => void;
   isSavedPage?: boolean;
   onUnsave?: (id: string) => void;
+  /** Normalized search tokens highlighted in the content. */
+  highlightTokens?: readonly string[];
 }
 
 export function PostCard({
@@ -64,6 +67,7 @@ export function PostCard({
   onAuthorFollowToggle,
   isSavedPage = false,
   onUnsave,
+  highlightTokens,
 }: PostCardProps) {
   const { t, locale } = useTranslation();
   const router = useRouter();
@@ -487,7 +491,7 @@ export function PostCard({
           onClick={openThread}
           className={`${isDetail ? "text-[17px]" : "text-sm cursor-pointer"} text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2`}
         >
-          {live.content}
+          <RichContent content={live.content} highlightTokens={highlightTokens} />
         </div>
 
         {/* Dynamic Multi-image Grid rendering */}

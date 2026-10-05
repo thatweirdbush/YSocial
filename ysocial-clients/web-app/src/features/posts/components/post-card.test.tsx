@@ -161,3 +161,19 @@ describe("PostCard detail variant", () => {
     expect(screen.getByRole("link", { name: "Trả lời @minh" })).toHaveAttribute("href", "/posts/post-000");
   });
 });
+
+describe("PostCard rich content", () => {
+  it("opens the tag page, not the thread, when clicking a hashtag", async () => {
+    render(<PostCard post={{ ...post, content: "Moodboard #Design" }} />);
+
+    await userEvent.click(screen.getByRole("link", { name: "#Design" }));
+
+    expect(push).not.toHaveBeenCalledWith("/posts/post-001");
+  });
+
+  it("highlights search tokens in the content", () => {
+    const { container } = render(<PostCard post={post} highlightTokens={["noi", "dung"]} />);
+
+    expect(Array.from(container.querySelectorAll("mark")).map((mark) => mark.textContent)).toEqual(["Nội", "dung"]);
+  });
+});
