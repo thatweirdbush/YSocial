@@ -362,7 +362,7 @@ export function PostCard({
       {/* Left Column: Avatar & vertical Thread Line */}
       <div className="flex flex-col items-center self-stretch shrink-0">
         <Link href={`/@${post.user.username}`}>
-          <Avatar className={`${variant === "compact" ? "h-8 w-8" : "h-10 w-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
+          <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
             <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
             <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
               {post.user.displayName?.charAt(0).toUpperCase() || "U"}
@@ -384,7 +384,7 @@ export function PostCard({
                 {post.user.displayName}
               </span>
               {post.user.isVerified && (
-                <ShieldCheck className="h-4 w-4 text-blue-500 shrink-0 fill-blue-500/10" />
+                <ShieldCheck className="size-4 text-blue-500 shrink-0 fill-blue-500/10" />
               )}
               <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
                 @{post.user.username}
@@ -411,10 +411,11 @@ export function PostCard({
           {/* Triple-dot Dropdown actions */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="size-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
+                <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
+            
             <DropdownMenuContent align="end" className="w-52 rounded-2xl border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-30">
               {isSavedPage ? (
                 <DropdownMenuItem
@@ -427,35 +428,42 @@ export function PostCard({
                   }}
                   className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm text-red-600 focus:text-red-650"
                 >
-                  <Bookmark className="h-4 w-4 text-red-500 mr-2 fill-red-500/10" />
+                  <Bookmark className="size-4 text-red-500 mr-2 fill-red-500/10" />
                   {t("saved.unsave" as any) || "Unsave"}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onClick={() => toast.info(`Saved`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                  <Bookmark className="h-4 w-4 text-zinc-400 mr-2" />
+                  <Bookmark className="size-4 text-zinc-400 mr-2" />
                   Save
                 </DropdownMenuItem>
               )}
+
               <DropdownMenuItem onClick={() => toast.info(`Not interested`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <EyeOff className="h-4 w-4 text-zinc-400 mr-2" />
+                <EyeOff className="size-4 text-zinc-400 mr-2" />
                 Not interested
               </DropdownMenuItem>
+
               <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
+
               <DropdownMenuItem onClick={() => toast.info(`Muted @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <VolumeX className="h-4 w-4 text-zinc-400 mr-2" />
+                <VolumeX className="size-4 text-zinc-400 mr-2" />
                 Mute @{post.user.username}
               </DropdownMenuItem>
+
               <DropdownMenuItem onClick={() => toast.info(`Blocked @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Ban className="h-4 w-4 text-zinc-400 mr-2" />
+                <Ban className="size-4 text-zinc-400 mr-2" />
                 Block @{post.user.username}
               </DropdownMenuItem>
+
               <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
+
               <DropdownMenuItem onClick={() => toast.success("Copied embed link to clipboard!")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Link2 className="h-4 w-4 text-zinc-400 mr-2" />
+                <Link2 className="size-4 text-zinc-400 mr-2" />
                 Copy Embed Link
               </DropdownMenuItem>
+
               <DropdownMenuItem onClick={() => toast.error("Report submitted! Thank you.")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950/20 text-red-600 dark:text-red-400 text-sm font-semibold">
-                <Flag className="h-4 w-4 mr-2" />
+                <Flag className="size-4 mr-2" />
                 Report Post
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -505,7 +513,7 @@ export function PostCard({
                 : "hover:text-red-500 dark:hover:text-red-400"
                 } ${likeAnimating ? "animate-heart-pop" : ""}`}
             >
-              <Heart className={`h-4.5 w-4.5 ${isLiked ? "fill-current" : ""}`} />
+              <Heart className={`size-4.5 ${isLiked ? "fill-current" : ""}`} />
             </button>
             {likesCount > 0 && (
               <span className={`text-xs font-semibold ${isLiked ? "text-red-500 dark:text-red-450" : ""}`}>
@@ -522,7 +530,7 @@ export function PostCard({
               onClick={openThread}
               className="p-1.5 rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:text-blue-500 dark:hover:text-blue-450 active:scale-75 transition-all"
             >
-              <MessageCircle className="h-4.5 w-4.5" />
+              <MessageCircle className="size-4.5" />
             </button>
             {live.commentsCount > 0 && (
               <span className="text-xs font-semibold">{live.commentsCount}</span>
@@ -540,7 +548,7 @@ export function PostCard({
               className={`p-1.5 rounded-full hover:bg-amber-50 dark:hover:bg-amber-950/20 hover:text-amber-500 dark:hover:text-amber-450 active:scale-75 transition-all ${isBookmarked ? "text-amber-500 dark:text-amber-400" : ""
                 } ${bookmarkAnimating ? "scale-105 duration-200" : ""}`}
             >
-              <Bookmark className={`h-4.5 w-4.5 ${isBookmarked ? "fill-current" : ""}`} />
+              <Bookmark className={`size-4.5 ${isBookmarked ? "fill-current" : ""}`} />
             </button>
             {bookmarksCount > 0 && (
               <span className={`text-xs font-semibold ${isBookmarked ? "text-amber-500 dark:text-amber-450" : ""}`}>
@@ -559,9 +567,9 @@ export function PostCard({
                 }`}
             >
               {shareCopied ? (
-                <Check className="h-4.5 w-4.5 stroke-[3px] scale-105" />
+                <Check className="size-4.5 stroke-[3px] scale-105" />
               ) : (
-                <Share2 className="h-4.5 w-4.5" />
+                <Share2 className="size-4.5" />
               )}
             </button>
             {sharesCount > 0 && (
@@ -598,7 +606,7 @@ export function PostCard({
               onClick={toggleFullscreen}
               className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
             >
-              {isFullscreen ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+              {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
             </button>
 
             {/* Close Button */}
@@ -611,7 +619,7 @@ export function PostCard({
               }}
               className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
             >
-              <X className="h-5 w-5" />
+              <X className="size-5" />
             </button>
           </div>
 
@@ -621,7 +629,7 @@ export function PostCard({
               onClick={handlePrevImage}
               className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
             >
-              <ChevronLeft className="h-6 w-6 stroke-[3px]" />
+              <ChevronLeft className="size-6 stroke-[3px]" />
             </button>
           )}
 
@@ -640,7 +648,7 @@ export function PostCard({
               onClick={handleNextImage}
               className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
             >
-              <ChevronRight className="h-6 w-6 stroke-[3px]" />
+              <ChevronRight className="size-6 stroke-[3px]" />
             </button>
           )}
 

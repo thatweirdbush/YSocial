@@ -38,11 +38,9 @@ const byNewest = (a: PostItem, b: PostItem) => Date.parse(b.createdAt) - Date.pa
 const copy = (post: PostItem): PostItem => structuredClone(post);
 
 function childrenOf(parentId: string): PostItem[] {
-  const children: PostItem[] = [];
-  for (const post of db.values()) {
-    if (post.parentId === parentId) children.push(post);
-  }
-  return children.sort(byNewest);
+  return Array.from(db.values())
+    .filter((post) => post.parentId === parentId)
+    .sort(byNewest);
 }
 
 function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string): PostItem {

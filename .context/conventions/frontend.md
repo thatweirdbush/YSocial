@@ -104,6 +104,9 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 - **Scroll performance:** perfect Scroll Restoration MUST be active on Feed navigation. Back from post detail view MUST retain exact previous scroll container position
 - **Offline resiliency:** Clean global offline banner alert. Config TanStack Query to auto retry failed requests once internet restored
 
+## Prefered Patterns
+- USE `size-{n}` instead of separate `w-{n}` + `h-{n}` for square elements.
+
 ## Forbidden Patterns
 - NO inline CSS
 - NO unapproved animation/icon libraries; ONLY Lucide & Radix Primitives (Vega Preset)

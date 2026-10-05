@@ -20,9 +20,9 @@ export function PostDetailHeader() {
         type="button"
         onClick={handleBack}
         aria-label={t("postDetail.back")}
-        className="h-11 w-11 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+        className="size-11 flex items-center justify-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
       >
-        <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        <ArrowLeft className="size-5" aria-hidden="true" />
       </button>
       <h1 className="font-bold text-base">{t("postDetail.title")}</h1>
     </header>
