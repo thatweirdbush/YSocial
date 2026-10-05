@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as service from "../services/post-service";
@@ -103,6 +103,43 @@ describe("PostCard navigation", () => {
     await userEvent.click(screen.getByText("Minh Thư"));
 
     expect(push).not.toHaveBeenCalledWith("/posts/post-001");
+  });
+
+  it("does not navigate when the click ends a text selection", () => {
+    render(<PostCard post={post} />);
+    const content = screen.getByText("Nội dung bài viết");
+    window.getSelection()?.selectAllChildren(content);
+
+    fireEvent.click(content);
+
+    expect(push).not.toHaveBeenCalled();
+    window.getSelection()?.removeAllRanges();
+  });
+
+  it("does not navigate when clicking a media attachment", async () => {
+    render(<PostCard post={{ ...post, imageUrls: ["/a.jpg"] }} />);
+
+    await userEvent.click(screen.getByRole("img", { name: "Post attachment" }));
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("does not navigate when opening the card menu", async () => {
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thêm" }));
+
+    expect(push).not.toHaveBeenCalled();
+  });
+});
+
+describe("PostCard pending", () => {
+  it("is inert while the post is still being created", () => {
+    render(<PostCard post={{ ...post, isPending: true }} />);
+
+    const article = screen.getByRole("article", { hidden: true });
+    expect(article).toHaveAttribute("inert");
+    expect(article).toHaveAttribute("aria-busy", "true");
   });
 });
 

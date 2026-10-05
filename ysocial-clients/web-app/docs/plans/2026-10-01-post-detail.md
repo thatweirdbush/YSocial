@@ -318,17 +318,14 @@
 - [x] **Step 3:** Write `.context/features/post-detail.md` (data flow, store API, design decisions D1-D4, mock id scheme, `seed` rationale, "rethrow to keep composer content" pitfall); update INDEX + roadmap.
 - [x] **Step 4:** Commit `docs(context): document post detail feature`.
 
-## Known Issues & Edge Cases Backlog
+---
 
-### UI / UX
-- [ ] **Text selection triggers navigation:** selecting text inside `PostCard` navigates to `/posts/[id]`.
-- [ ] **Pending reply interactable:** optimistic temp reply stays clickable during submit window (~0.3s-0.6s).
-- [ ] **Infinite error toast loop, feed page 2:** repeated page-2 fetch failures -> continuous retries & stacked error toasts.
-- [ ] **Detail header layout shift (CLS):** header shifts on skeleton -> full content transition.
-
-### Copywriting & i18n
-- [ ] **Feed refresh button label:** reuses detail page "Retry" ("Thử lại") instead of dedicated refresh string.
-- [ ] **Reply composer submit label:** `ReplyComposer` submit shows "Post" ("Đăng") instead of "Reply" ("Trả lời").
-
-### Test Coverage
-- [ ] **Non-navigating card click targets:** add tests confirming click on post media attachments or card action menu does NOT trigger thread navigation.
+### Task 13: Backlog fixes
+- [x] **13.1 Text selection:** `openThread` skips navigation while `window.getSelection()` holds a non-collapsed range. Test: select content text, click -> `push` not called.
+- [x] **13.2 Pending reply:** `PostItem.isPending?: boolean` (client-only optimistic flag) set on temp reply; `PostCard` renders `inert` + `aria-busy` + dimmed while pending. Test: during in-flight `createReply`, temp article is `inert`.
+- [x] **13.3 Feed page-N failure loop:** root cause = observer effect re-subscribes when `isFetchingNext` flips back, sentinel still intersecting -> immediate refetch + toast. Fix: no observer while tab `failed`; render inline retry button in sentinel slot. *(Flaky 2nd call during fix traced to test pollution: previous test leaked an in-flight page-1 fetch into global store -> its late success reset `failed`. Fixed test, kept simple state guard; ref-lock rejected as YAGNI.)* Test: page 2 rejects -> `fetchFeed(…, 2)` called once, 1 toast; retry click -> called again.
+- [x] **13.4 Detail header CLS:** `loading.tsx` renders skeleton without `PostDetailHeader` -> header pops in & pushes content 56px. Fix: route loading renders header + skeleton in same wrapper as container. Test: loading view has Back button & title.
+- [x] **13.5 Refresh label:** new key `feed.refresh` on feed refresh button.
+- [x] **13.6 Reply submit label:** `PostCreatorCore mode="reply"` submit = `postDetail.reply` ("Trả lời"), submitting = `postDetail.replying` ("Đang gửi…").
+- [x] **13.7 Coverage:** media click & menu trigger click do NOT navigate; menu trigger gains `aria-label={t("card.more")}` (icon-only button rule).
+- [x] **13.8 Verify:** full `npm run test`, `npm run typecheck`, ESLint touched files no new errors (baseline 6 errors / 9 warnings); Browser pane check 13.1-13.4. *(Result: 74/74 tests, tsc 0, ESLint unchanged 6/9. Browser: selection click stays on `/`, plain click opens thread; header top constant 16px skeleton -> content; pending reply `inert` + `aria-busy` + opacity 0.6 -> cleared; labels Reply/Sending… & Refresh. 13.3 verified by test only: 82 page-2 calls/toasts in 2s before fix -> 1.)*

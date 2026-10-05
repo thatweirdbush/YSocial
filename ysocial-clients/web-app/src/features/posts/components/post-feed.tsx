@@ -62,6 +62,11 @@ export function PostFeed() {
       if (!ok) toast.error(t("common.error"));
     }), [loadPage, t]);
 
+  const loadNextPage = useCallback((tab: FeedTab, page: number) => {
+    setIsFetchingNext(true);
+    void loadWithFeedback(tab, page).finally(() => setIsFetchingNext(false));
+  }, [loadWithFeedback]);
+
   // First load per tab; switching back to a loaded tab reuses the cached ids.
   useEffect(() => {
     if (requestedTabsRef.current.has(activeTab)) return;
@@ -78,22 +83,25 @@ export function PostFeed() {
     prependPost("forYou", post);
   };
 
-  // Infinite scroll observer
+  const handleRetryNext = () => {
+    if (nextPage !== undefined && !isFetchingNext) loadNextPage(activeTab, nextPage);
+  };
+
+  // Infinite scroll observer. Paused after a failure: re-observing a still-visible sentinel would
+  // refetch (and toast) in a tight loop, so the user retries explicitly instead.
   useEffect(() => {
     const target = loadMoreRef.current;
-    if (!target || nextPage === undefined) return;
+    if (!target || nextPage === undefined || failed) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0].isIntersecting || isFetchingNext) return;
-        setIsFetchingNext(true);
-        void loadWithFeedback(activeTab, nextPage).finally(() => setIsFetchingNext(false));
+        if (entries[0].isIntersecting && !isFetchingNext) loadNextPage(activeTab, nextPage);
       },
       { threshold: 0.1 }
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [activeTab, nextPage, isFetchingNext, loadWithFeedback]);
+  }, [activeTab, nextPage, failed, isFetchingNext, loadNextPage]);
 
   return (
     <div className="flex flex-col w-full min-h-screen pb-20 lg:pb-12 bg-white dark:bg-black">
@@ -129,7 +137,7 @@ export function PostFeed() {
         {/* Quick status bar sparkle spinner */}
         <button
           onClick={handleRefresh}
-          aria-label={t("postDetail.retry")}
+          aria-label={t("feed.refresh")}
           className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-black dark:hover:text-white transition-transform active:rotate-185 shrink-0"
         >
           <RefreshCw className="h-4 w-4" />
@@ -170,7 +178,19 @@ export function PostFeed() {
       {/* Intersection Threshold for Infinite Loading */}
       {nextPage !== undefined && (
         <div ref={loadMoreRef} className="w-full flex justify-center py-6">
-          {isFetchingNext ? <PostSkeletonText /> : <div className="h-2 w-full" />}
+          {isFetchingNext ? (
+            <PostSkeletonText />
+          ) : failed && feedIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={handleRetryNext}
+              className="min-h-11 px-5 rounded-full border border-zinc-200 dark:border-zinc-800 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors motion-reduce:transition-none"
+            >
+              {t("postDetail.retry")}
+            </button>
+          ) : (
+            <div className="h-2 w-full" />
+          )}
         </div>
       )}
     </div>

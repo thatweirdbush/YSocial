@@ -18,7 +18,8 @@
     "trending": "Trending for you",
     "viewPost": "View post",
     "comments": "comments",
-    "likes": "likes"
+    "likes": "likes",
+    "refresh": "Refresh"
   },
   "creator": {
     "placeholder": "What's new?",
@@ -69,7 +70,8 @@
     "like": "Like",
     "comment": "Reply",
     "bookmark": "Save",
-    "share": "Share"
+    "share": "Share",
+    "more": "More"
   },
   "common": {
     "language": "Language",
@@ -199,6 +201,8 @@
     "replySuccess": "Reply sent",
     "replyError": "Couldn't send your reply",
     "likes": "likes",
-    "replies": "replies"
+    "replies": "replies",
+    "reply": "Reply",
+    "replying": "Sending…"
   }
 }

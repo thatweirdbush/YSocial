@@ -7,8 +7,8 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { useTranslation } from "@/hooks/use-translation";
 import { fetchPostThread } from "../../services/post-service";
 import { usePostActions } from "../../store/post-store";
-import { PostDetailHeader } from "./post-detail-header";
 import { PostDetailMain } from "./post-detail-main";
+import { PostDetailShell } from "./post-detail-shell";
 import { PostDetailSkeleton } from "./post-detail-skeleton";
 import { ReplyComposer } from "./reply-composer";
 import { ReplyList } from "./reply-list";
@@ -72,9 +72,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen pb-20 lg:pb-12 bg-white dark:bg-black">
-      <PostDetailHeader />
-
+    <PostDetailShell>
       {state.status === "loading" ? (
         <PostDetailSkeleton />
       ) : state.status === "error" ? (
@@ -98,6 +96,6 @@ export function PostDetailContainer({ postId }: { postId: string }) {
           <ReplyList parentId={postId} />
         </>
       ) : null}
-    </div>
+    </PostDetailShell>
   );
 }

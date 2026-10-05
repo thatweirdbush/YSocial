@@ -48,6 +48,10 @@ async function openAndType(text: string) {
   return textbox;
 }
 
+/** Composer submit; scoped to the form because reply cards also have "Trả lời" comment buttons. */
+const submitButton = () =>
+  within(screen.getByPlaceholderText("Trả lời @minh…").closest("form")!).getByRole("button", { name: "Trả lời" });
+
 const commentsCount = () => usePostStore.getState().posts["post-001"].commentsCount;
 
 beforeEach(() => {
@@ -112,7 +116,7 @@ describe("ReplyComposer", () => {
     renderThread();
 
     await openAndType("xin chào");
-    await userEvent.click(screen.getByRole("button", { name: "Đăng" }));
+    await userEvent.click(submitButton());
 
     await waitFor(() => {
       const articles = screen.getAllByRole("article");
@@ -122,12 +126,27 @@ describe("ReplyComposer", () => {
     expect(commentsCount()).toBe(2);
   });
 
+  it("keeps the optimistic reply non-interactive until the server confirms it", async () => {
+    let resolve!: (reply: PostItem) => void;
+    vi.spyOn(service, "createReply").mockReturnValue(new Promise((r) => { resolve = r; }));
+    renderThread();
+
+    await openAndType("xin chào");
+    await userEvent.click(submitButton());
+
+    const pending = screen.getByText("xin chào").closest("article");
+    expect(pending).toHaveAttribute("inert");
+
+    resolve({ ...existingReply, id: "reply-new", content: "xin chào" });
+    await waitFor(() => expect(screen.getByText("xin chào").closest("article")).not.toHaveAttribute("inert"), WAIT);
+  });
+
   it("submits once when clicked twice", async () => {
     const spy = vi.spyOn(service, "createReply");
     renderThread();
 
     await openAndType("xin chào");
-    const submit = screen.getByRole("button", { name: "Đăng" });
+    const submit = submitButton();
     await userEvent.click(submit);
     await userEvent.click(submit);
 
@@ -142,7 +161,7 @@ describe("ReplyComposer", () => {
     renderThread();
 
     const textbox = await openAndType("xin chào");
-    await userEvent.click(screen.getByRole("button", { name: "Đăng" }));
+    await userEvent.click(submitButton());
 
     await waitFor(() => expect(toastError).toHaveBeenCalledWith("Không gửi được câu trả lời"), WAIT);
     expect(commentsCount()).toBe(1);

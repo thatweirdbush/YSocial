@@ -66,6 +66,7 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
       isLikedByCurrentUser: false,
       isBookmarkedByCurrentUser: false,
       user: author,
+      isPending: true,
     };
     addReply(parentId, tempReply);
 

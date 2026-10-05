@@ -11,6 +11,7 @@ describe("PostCreatorCore modes", () => {
 
     expect(screen.getByRole("button", { name: AUDIENCE_LABEL })).toBeInTheDocument();
     expect(screen.getByTitle(DRAFTS_TITLE)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Đăng" })).toBeInTheDocument();
   });
 
   it("hides audience and drafts pickers and uses the custom placeholder in reply mode", () => {
@@ -19,5 +20,6 @@ describe("PostCreatorCore modes", () => {
     expect(screen.getByPlaceholderText("Trả lời @minh…")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: AUDIENCE_LABEL })).not.toBeInTheDocument();
     expect(screen.queryByTitle(DRAFTS_TITLE)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Trả lời" })).toBeInTheDocument();
   });
 });

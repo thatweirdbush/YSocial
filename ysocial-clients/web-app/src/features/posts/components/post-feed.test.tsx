@@ -1,6 +1,7 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
@@ -62,6 +63,62 @@ describe("PostFeed", () => {
     render(<PostFeed />);
 
     expect(await screen.findByText("Chưa có bài viết nào ở đây.", {}, LOAD_TIMEOUT)).toBeInTheDocument();
+  });
+});
+
+/** Sentinel always on screen: fires on every observe(), like a short feed whose bottom is visible. */
+class AlwaysVisibleObserver {
+  private active = true;
+  constructor(private readonly callback: IntersectionObserverCallback) {}
+  observe(target: Element) {
+    setTimeout(() => {
+      if (this.active) this.callback([{ isIntersecting: true, target } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+    }, 0);
+  }
+  unobserve() {}
+  disconnect() {
+    this.active = false;
+  }
+  takeRecords() {
+    return [];
+  }
+}
+
+describe("PostFeed paging & refresh", () => {
+  const originalObserver = globalThis.IntersectionObserver;
+  afterEach(() => {
+    globalThis.IntersectionObserver = originalObserver;
+  });
+
+  it("labels the header button as refresh", async () => {
+    render(<PostFeed />);
+
+    expect(screen.getByRole("button", { name: "Làm mới" })).toBeInTheDocument();
+    // Let the first page settle: an in-flight fetch would write into the next test's (global) store.
+    await screen.findAllByRole("article", {}, LOAD_TIMEOUT);
+  });
+
+  it("stops auto-loading after a next-page failure and offers a retry", async () => {
+    globalThis.IntersectionObserver = AlwaysVisibleObserver as unknown as typeof IntersectionObserver;
+    const realFetch = service.fetchFeed;
+    let failNextPage = true;
+    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page) =>
+      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page),
+    );
+    const toastError = vi.spyOn(toast, "error");
+    const nextPageCalls = () => spy.mock.calls.filter(([, page]) => page === 2).length;
+    render(<PostFeed />);
+
+    const retry = await screen.findByRole("button", { name: "Thử lại" }, LOAD_TIMEOUT);
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(nextPageCalls()).toBe(1);
+    expect(toastError).toHaveBeenCalledTimes(1);
+
+    failNextPage = false;
+    await userEvent.click(retry);
+
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(12), LOAD_TIMEOUT);
+    expect(nextPageCalls()).toBe(2);
   });
 });
 

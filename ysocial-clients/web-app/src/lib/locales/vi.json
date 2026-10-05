@@ -18,7 +18,8 @@
     "trending": "Xu hướng dành cho bạn",
     "viewPost": "Xem chuỗi thảo luận",
     "comments": "bình luận",
-    "likes": "lượt thích"
+    "likes": "lượt thích",
+    "refresh": "Làm mới"
   },
   "creator": {
     "placeholder": "Có gì mới thế?",
@@ -69,7 +70,8 @@
     "like": "Thích",
     "comment": "Trả lời",
     "bookmark": "Lưu",
-    "share": "Chia sẻ"
+    "share": "Chia sẻ",
+    "more": "Thêm"
   },
   "common": {
     "language": "Ngôn ngữ",
@@ -199,6 +201,8 @@
     "replySuccess": "Đã gửi câu trả lời",
     "replyError": "Không gửi được câu trả lời",
     "likes": "lượt thích",
-    "replies": "câu trả lời"
+    "replies": "câu trả lời",
+    "reply": "Trả lời",
+    "replying": "Đang gửi…"
   }
 }

@@ -1,6 +1,6 @@
 ---
 module: Post Detail & Reply Thread (FE, mock data)
-updated: 2026-10-02
+updated: 2026-10-05
 spec: ysocial-clients/web-app/docs/specs/2026-10-01-post-detail-design.md
 plan: ysocial-clients/web-app/docs/plans/2026-10-01-post-detail.md
 ---
@@ -20,12 +20,13 @@ PostCard / PostFeed / ReplyList <- usePost(id) / useFeedIds(tab) / useReplyIds(i
 - `features/posts/hooks/use-current-author.ts` - `AuthUser` -> `PostAuthor` (guest fallback)
 
 ## UI
-- Route `app/posts/[id]/`: `page.tsx` (server, `generateMetadata`, `<PostDetailContainer key={id}>`), `loading.tsx`, `not-found.tsx` (client, i18n), `error.tsx`
-- `components/detail/`: container (loading -> skeleton, null -> `notFound()`, error -> `EmptyState` + retry), header (Back: `router.back()`, or `/` without history), `PostCard variant="detail"`, `ReplyComposer`, `ReplyList` / `ReplyItem` (<= 2 inline children, "Xem thêm N câu trả lời" -> `/posts/[replyId]`), skeleton
-- `PostCard`: `variant: "feed" | "detail" | "compact"`, `replyToUsername`; reads `usePost(id) ?? post`; `aria-label`s `card.like/comment/bookmark/share`
-- `PostCreatorCore`: `mode="reply"` hides audience & drafts pickers; `placeholder` prop
+- Route `app/posts/[id]/`: `page.tsx` (server, `generateMetadata`, `<PostDetailContainer key={id}>`), `loading.tsx` (`PostDetailShell` + skeleton), `not-found.tsx` (client, i18n), `error.tsx`
+- `components/detail/`: `PostDetailShell` (page frame + sticky header, shared by route loading & container), container (loading -> skeleton, null -> `notFound()`, error -> `EmptyState` + retry), header (Back: `router.back()`, or `/` without history), `PostCard variant="detail"`, `ReplyComposer`, `ReplyList` / `ReplyItem` (<= 2 inline children, "Xem thêm N câu trả lời" -> `/posts/[replyId]`), skeleton
+- `PostCard`: `variant: "feed" | "detail" | "compact"`, `replyToUsername`; reads `usePost(id) ?? post`; `aria-label`s `card.like/comment/bookmark/share/more`; `post.isPending` -> `inert` + `aria-busy` + `opacity-60`; content click skipped while text selection active
+- `PostCreatorCore`: `mode="reply"` hides audience & drafts pickers, submit label `postDetail.reply` / `postDetail.replying`; `placeholder` prop
+- `PostFeed`: header button `feed.refresh`; next-page failure pauses infinite scroll -> inline retry button in sentinel slot
 - `components/shared/empty-state.tsx` shared `EmptyState`
-- i18n keys: `postDetail.*`, `card.like|comment|bookmark|share`
+- i18n keys: `postDetail.*`, `card.like|comment|bookmark|share|more`, `feed.refresh`
 
 ## Design decisions (NEVER revert without reason)
 1. **Mock service + normalized Zustand** (not TanStack cache) -> like/bookmark/reply synced across feed/detail/profile/saved in O(1); ONLY service bodies change when API wired
@@ -40,6 +41,10 @@ PostCard / PostFeed / ReplyList <- usePost(id) / useFeedIds(tab) / useReplyIds(i
 10. **Saved mock items ref shared post mocks** (`getMockPostById`) -> every card opens real thread; bookmarked mocks: post-002/006/010
 11. **Reply composer Escape**: collapses ONLY when empty (focus returns to bar); with text stays open - shared `DiscardWarningDialog` would save replies into post drafts
 12. Feed first-load guard MUST stay a **ref** (`cachedFeedTabs()` snapshot): `react-hooks/set-state-in-effect` flags async setState behind useState/getState guard
+13. **`PostItem.isPending`** (client-only optimistic flag) -> card `inert`: blocks click/focus/like on temp reply without per-handler guards; server copy never carries it
+14. **Infinite scroll paused while tab `failed`** (state guard in observer effect); resume ONLY via inline retry or a successful refresh. Ref-lock considered & rejected (YAGNI: flaky double-call was test pollution, not a prod race)
+15. **Text-selection guard**: `openThread` returns while `getSelection().isCollapsed === false` (drag/double-click select). First click of a double-click still navigates (same as Threads/X)
+16. **`PostDetailShell` shared** by route `loading.tsx` & container -> header renders identically in both, no 56px jump (CLS)
 
 ## Testing
 - Vitest 4.1 + RTL + jsdom (`npm run test`, `npm run typecheck`)
@@ -51,7 +56,8 @@ PostCard / PostFeed / ReplyList <- usePost(id) / useFeedIds(tab) / useReplyIds(i
 |---|---|---|---|
 | Like on thread -> Back -> feed count reverted | `PostFeed` remount refetched from service (never saw like); `upsertPosts` overwrote store entity | Service persists like/bookmark; `PostCard` calls `setPostLike`/`setPostBookmark` after store toggle | `post-service.test.ts` "persists likes so a refetch keeps them", "applies a like before a fetch that was already in flight resolves"; `post-card.test.tsx` "persists the like to the service..." |
 | Session-created posts sorted below seeds | Fixed `MOCK_BASE_DATE` ahead of real clock | Base = module load time | `post-service.test.ts` "puts a created post first in the feed" |
+| Feed page-2 failure -> endless refetch + stacked toasts | Observer effect re-ran on every render (`loadWithFeedback` identity follows `t`) & on `isFetchingNext` flip; new observer fires at once while sentinel visible -> refetch failed page | Observer effect skips while `failed`; inline retry button | `post-feed.test.tsx` "stops auto-loading after a next-page failure..." (`AlwaysVisibleObserver` stub; 82 calls -> 1) |
+| Flaky feed test: page 2 called twice | Previous test unmounted with in-flight page-1 fetch; late success wrote global store & reset `failed` in next test | Tests rendering `PostFeed` MUST await first page before ending | 8/8 repeated runs green |
 
 ## Known pre-existing issues (out of scope)
-- `MainLayout` `<main className="w-[600px] shrink-0">` overflows horizontally at 375px (all routes)
-- Hydration mismatch in `MainLayout` nav labels: `ui-store` reads locale from `navigator.language` during render (server "vi" vs client "en")
+- `auth-store` reads `localStorage` in initializer -> hydration mismatch in sidebar user block when logged in (violates SSR-safe store rule; follow `ui-store` `hydrateLocale()` pattern)

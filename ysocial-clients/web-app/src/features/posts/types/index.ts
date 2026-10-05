@@ -35,6 +35,8 @@ export interface PostItem {
   /** Set for replies: id of the post being replied to. */
   parentId?: string;
   isEdited?: boolean;
+  /** Client-only: optimistic copy still awaiting the server; rendered non-interactive. */
+  isPending?: boolean;
 }
 
 export type PostAudience = "anyone" | "followers" | "following" | "mention";

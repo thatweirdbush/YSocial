@@ -1244,7 +1244,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   disabled={!isValid || isSubmitting}
                   className="rounded-full px-5 py-1.5 h-9 font-semibold text-sm bg-zinc-950 dark:bg-zinc-50 text-white dark:text-black hover:bg-zinc-850 dark:hover:bg-zinc-200 transition-all duration-300 disabled:opacity-40 active:scale-95 shrink-0 cursor-pointer"
                 >
-                  {isSubmitting ? t("creator.posting") || "Posting..." : t("creator.post") || "Post"}
+                  {isReplyMode
+                    ? t(isSubmitting ? "postDetail.replying" : "postDetail.reply")
+                    : isSubmitting ? t("creator.posting") || "Posting..." : t("creator.post") || "Post"}
                 </Button>
               </div>
             </div>

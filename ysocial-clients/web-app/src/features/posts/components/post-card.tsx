@@ -142,7 +142,9 @@ export function PostCard({
   };
 
   const openThread = () => {
-    if (!isDetail) router.push(`/posts/${post.id}`);
+    // A click that ends a drag/double-click selection means the user is copying text, not opening the thread.
+    if (isDetail || window.getSelection()?.isCollapsed === false) return;
+    router.push(`/posts/${post.id}`);
   };
 
   const handleLike = () => {
@@ -357,7 +359,11 @@ export function PostCard({
   };
 
   return (
-    <article className="w-full border-b border-zinc-200/60 dark:border-zinc-900/60 p-4 bg-white dark:bg-black/40 flex gap-3 items-start relative transition-colors duration-355 hover:bg-zinc-100/10 dark:hover:bg-zinc-900/10 group">
+    <article
+      inert={live.isPending}
+      aria-busy={live.isPending || undefined}
+      className={`w-full border-b border-zinc-200/60 dark:border-zinc-900/60 p-4 bg-white dark:bg-black/40 flex gap-3 items-start relative transition-[colors,opacity] duration-300 motion-reduce:transition-none hover:bg-zinc-100/10 dark:hover:bg-zinc-900/10 group ${live.isPending ? "opacity-60" : ""}`}
+    >
 
       {/* Left Column: Avatar & vertical Thread Line */}
       <div className="flex flex-col items-center self-stretch shrink-0">
@@ -411,7 +417,7 @@ export function PostCard({
           {/* Triple-dot Dropdown actions */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
+              <Button variant="ghost" size="icon" aria-label={t("card.more")} className="size-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
