@@ -41,15 +41,17 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 3. **Follow persisted in service** (`setFollow`), same lesson as likes: store-only toggles get clobbered on refetch
 4. **Page passes `query`/`tab` as props from `searchParams`** -> NO `useSearchParams` (Suspense / CSR bailout)
 5. **Tab / sort = local state + `router.replace(..., { scroll: false })`**; containers keyed by query / tag only -> instant switch, no remount flash
-6. **Result cache in `search-store`** (last search + tag pages per key) -> Back from thread renders instantly. Skip-fetch decided once on mount (search) or via `getState()` in effect (tag)
+6. **Stale-while-revalidate everywhere**: result cache in `search-store` (last search + tag pages per key) renders at once on Back, refetch always runs & replaces it silently; refetch failure keeps cached view. Sidebar/explore widgets use `hooks/use-cached-resource.ts` (module cache, cleared in `vitest.setup.ts`) because each page renders its own `MainLayout` -> sidebar remounts on every navigation
 7. **`latestPostIds` computed at fetch time** -> pure render, no `getState()` in render
 8. **Tag matching ignores spaces in query** (`"da lat"` -> `#ĐàLạt`): tags never contain spaces
 9. **Links in post content `stopPropagation`** -> content click opens thread, link click opens tag/profile
 10. **`@mention` always linked** - posts feature must not import profile (profile mocks import posts barrel -> cycle)
-11. **Recent searches `skipHydration`** + rehydrate after mount -> SSR & first client render match
+11. **SearchBox ignores Enter while `nativeEvent.isComposing`** (Vietnamese IME confirms composition with Enter)
+12. **Icon buttons < 44px get invisible `after:` hit area** (same trick as `FollowButton`)
+13. **Recent searches `skipHydration`** + rehydrate after mount -> SSR & first client render match
 
 ## Testing
-- `npm run test` 151 passed; `npm run typecheck` 0; `npx eslint src` = baseline (64 errors, 25 warnings, all pre-existing)
+- `npm run test` 157 passed; `npm run typecheck` 0; `npx eslint src` = baseline (64 errors, 25 warnings, all pre-existing)
 - Async container tests use real timers + `waitFor` / `findBy` (3s timeout) and await first fetch
 
 ## Pitfall log
@@ -57,6 +59,9 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 |---|---|---|---|
 | Every `SearchBox` test timed out (5s) | RTL `asyncWrapper` awaits a real `setTimeout(0)`; it only auto-advances Jest fake timers, Vitest fake timers never fire it | Real timers + `waitFor` in component tests using `userEvent`; fake timers ONLY for pure hook/service tests | Minimal repro passed with real timers; `search-box.test.tsx` 7/7, 3 repeated runs green |
 | Query "da lat" showed no `#ĐàLạt` suggestion | Tag filter compared `"da lat"` (with space) to `"dalat"` | Strip spaces from query before tag match | `search-service.test.ts` "matches tags ignoring spaces in the query" RED -> GREEN |
+
+## Deferred minors (final review 2026-10-05)
+- Stale suggestions selectable until next debounced response; NFD hashtags truncated (`HASHTAG_PATTERN` lacks `\p{M}`); trailing `.` in `@mention`; bare `#`/`@` query shows landing & saved to recent; EN plurals "1 posts"; `FollowButton` toasts not i18n; combobox/tab a11y gaps (nested button in option, `aria-controls` to unrendered listbox, no arrow keys in `TabBar`); unused keys `search.postsCount`/`search.hashtags`; persisted `recent` not validated; same-query submit keeps non-default tab
 
 ## Known issues (out of scope)
 - `PostCard` author Follow button keeps its own local state -> can disagree with `user-store` (`UserResultRow` shows Following, card shows Follow). Fix with 1.6 hover card / Phase 2 (needs follow state source posts can read without importing profile)
