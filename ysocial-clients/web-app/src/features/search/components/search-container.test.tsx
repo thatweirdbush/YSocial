@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { __resetMockDb } from "@/features/posts/services/post-service";
+import { __resetMockDb, createPost } from "@/features/posts/services/post-service";
 import { resetPostStore, usePostStore } from "@/features/posts/store/post-store";
 import { __resetMockUsers } from "@/features/profile/services/user-service";
 import { resetUserStore } from "@/features/profile/store/user-store";
@@ -80,7 +80,7 @@ describe("SearchContainer", () => {
     expect(screen.getAllByRole("article").length).toBeGreaterThan(0);
   });
 
-  it("renders the cached result without calling the service", () => {
+  it("renders the cached result at once and revalidates silently", async () => {
     const spy = vi.spyOn(service, "fetchSearch");
     const post = getMockPostById("post-004")!;
     usePostStore.getState().actions.upsertPosts([post]);
@@ -91,12 +91,28 @@ describe("SearchContainer", () => {
       latestPostIds: [post.id],
       tags: [],
     });
+    await createPost({ content: "Zinc mới tinh", images: [], audience: "anyone" }, post.user);
 
     render(<SearchContainer query="zinc" tab="top" />);
 
     expect(screen.queryByTestId("search-skeleton")).toBeNull();
     expect(screen.getAllByRole("article")).toHaveLength(1);
-    expect(spy).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2), LOAD_TIMEOUT);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("search-skeleton")).toBeNull();
+  });
+
+  it("keeps the cached result when revalidation fails", async () => {
+    const spy = vi.spyOn(service, "fetchSearch").mockRejectedValueOnce(new Error("boom"));
+    const post = getMockPostById("post-004")!;
+    usePostStore.getState().actions.upsertPosts([post]);
+    useSearchStore.getState().actions.setResult({ query: "zinc", userIds: [], postIds: [post.id], latestPostIds: [post.id], tags: [] });
+
+    render(<SearchContainer query="zinc" tab="top" />);
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+
+    expect(screen.queryByText("Tìm kiếm bị lỗi rồi")).toBeNull();
+    expect(screen.getAllByRole("article")).toHaveLength(1);
   });
 
   it("adds the query to recent searches", async () => {

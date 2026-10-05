@@ -56,7 +56,7 @@ describe("TagContainer", () => {
     expect(screen.getByRole("link", { name: "Tìm kiếm khác" })).toHaveAttribute("href", "/search");
   });
 
-  it("renders a cached page without calling the service", () => {
+  it("renders a cached page at once and revalidates silently", async () => {
     const spy = vi.spyOn(postService, "fetchPostsByTag");
     const post = getMockPostById("post-006")!;
     usePostStore.getState().actions.upsertPosts([post]);
@@ -64,7 +64,9 @@ describe("TagContainer", () => {
 
     render(<TagContainer tag="dalat" sort="top" />);
 
+    expect(screen.queryByTestId("search-skeleton")).toBeNull();
     expect(screen.getAllByRole("article")).toHaveLength(1);
-    expect(spy).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2), LOAD_TIMEOUT);
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });

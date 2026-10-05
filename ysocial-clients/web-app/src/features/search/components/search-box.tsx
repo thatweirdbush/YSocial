@@ -113,6 +113,8 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Vietnamese IMEs confirm the composition with Enter; never submit half-typed text
+    if (e.nativeEvent.isComposing) return;
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
@@ -163,7 +165,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
                 e.stopPropagation();
                 removeRecent(option.query);
               }}
-              className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-200/70 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="relative -mr-2 flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 after:absolute after:-inset-1.5 after:content-[''] hover:bg-zinc-200/70 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             >
               <X className="size-3.5" aria-hidden="true" />
             </button>
@@ -242,7 +244,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
             onMouseDown={keepFocus}
             onClick={handleClear}
             aria-label={t("search.clear")}
-            className="-mr-2 flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+            className="relative -mr-2 flex size-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
           >
             <X className="size-4" aria-hidden="true" />
           </button>
@@ -261,7 +263,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
                 type="button"
                 tabIndex={-1}
                 onClick={clearRecent}
-                className="rounded-full px-2 py-1 text-xs font-semibold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100"
+                className="relative rounded-full px-2 py-1 text-xs font-semibold text-zinc-500 after:absolute after:-inset-x-1 after:-inset-y-2.5 after:content-[''] hover:text-zinc-900 dark:hover:text-zinc-100"
               >
                 {t("search.clearAll")}
               </button>

@@ -18,8 +18,6 @@ import { SearchShell } from "./search-shell";
 import { SearchSkeleton } from "./search-skeleton";
 import { TabBar } from "./tab-bar";
 
-type LoadStatus = "loading" | "error" | "ready";
-
 const TAB_LABEL_KEYS = {
   top: "search.tabTop",
   users: "search.tabUsers",
@@ -44,14 +42,13 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
   const result = useSearchResult();
   const cached = hasQuery && result && normalizeText(result.query) === normalizeText(query) ? result : null;
 
-  // A cached result (Back from a thread) renders at once; only the first mount decides
-  const [skipFirstFetch] = useState(() => cached !== null);
-  const [status, setStatus] = useState<LoadStatus>(cached ? "ready" : "loading");
+  // Stale-while-revalidate: a cached result (Back from a thread) renders at once, the refetch replaces it silently
+  const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [activeTab, setActiveTab] = useState(tab);
 
   useEffect(() => {
-    if (!hasQuery || (attempt === 0 && skipFirstFetch)) return;
+    if (!hasQuery) return;
     let active = true;
 
     fetchSearch(query)
@@ -67,14 +64,13 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
           tags,
         });
         addRecent(query);
-        setStatus("ready");
       })
-      .catch(() => active && setStatus("error"));
+      .catch(() => active && setFailed(true));
 
     return () => {
       active = false;
     };
-  }, [query, hasQuery, attempt, skipFirstFetch, upsertPosts, upsertUsers, setResult, addRecent]);
+  }, [query, hasQuery, attempt, upsertPosts, upsertUsers, setResult, addRecent]);
 
   const tokens = useMemo(() => tokenize(query.replace(/^[#@]/, "")), [query]);
   const tabs = useMemo(() => SEARCH_TABS.map((value) => ({ value, label: t(TAB_LABEL_KEYS[value]) })), [t]);
@@ -85,7 +81,7 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
   };
 
   const handleRetry = () => {
-    setStatus("loading");
+    setFailed(false);
     setAttempt((n) => n + 1);
   };
 
@@ -111,7 +107,9 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
     <SearchShell header={header}>
       <h1 className="sr-only">{t("search.results")}</h1>
       <div role="tabpanel" aria-label={t(TAB_LABEL_KEYS[activeTab])}>
-        {status === "error" ? (
+        {cached ? (
+          <SearchPanel tab={activeTab} result={cached} tokens={tokens} onTabChange={handleTabChange} />
+        ) : failed ? (
           <EmptyState
             icon={AlertCircle}
             title={t("search.error")}
@@ -125,10 +123,8 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
               </button>
             }
           />
-        ) : status === "loading" || !cached ? (
-          <SearchSkeleton />
         ) : (
-          <SearchPanel tab={activeTab} result={cached} tokens={tokens} onTabChange={handleTabChange} />
+          <SearchSkeleton />
         )}
       </div>
     </SearchShell>

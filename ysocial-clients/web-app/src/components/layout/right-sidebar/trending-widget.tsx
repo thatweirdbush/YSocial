@@ -2,10 +2,9 @@
 
 import { ChevronRight, TrendingUp } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchTrendingTags } from "@/features/posts";
-import type { HashtagStat } from "@/features/posts/types";
+import { useCachedResource } from "@/hooks/use-cached-resource";
 import { useTranslation } from "@/hooks/use-translation";
 
 const TREND_COUNT = 3;
@@ -21,19 +20,9 @@ function TrendSkeleton() {
 
 export function TrendingWidget() {
   const { t } = useTranslation();
-  const [trends, setTrends] = useState<HashtagStat[] | null>(null);
+  const { data: trends, failed } = useCachedResource("trending-tags:3", () => fetchTrendingTags(TREND_COUNT));
 
-  useEffect(() => {
-    let active = true;
-    fetchTrendingTags(TREND_COUNT)
-      .then((result) => active && setTrends(result))
-      .catch(() => active && setTrends([]));
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (trends?.length === 0) return null;
+  if (failed || trends?.length === 0) return null;
 
   return (
     <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4 shrink-0">

@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SearchSuggestions } from "../types";
@@ -123,5 +123,29 @@ describe("SearchBox", () => {
     await user.click(screen.getByRole("option", { name: 'Tìm "zinc"' }));
 
     expect(push).toHaveBeenCalledWith("/search?q=zinc");
+  });
+
+  it("does not submit while an IME composition is active", async () => {
+    const user = setup();
+    render(<SearchBox variant="page" />);
+    const input = screen.getByRole("combobox");
+
+    await user.type(input, "dal");
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("gives small icon buttons a 44px hit area", async () => {
+    useSearchStore.getState().actions.addRecent("zinc");
+    const user = setup();
+    render(<SearchBox variant="page" />);
+
+    await user.click(screen.getByRole("combobox"));
+    for (const name of ['Xóa "zinc"', "Xóa tất cả"]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("after:absolute");
+    }
+    await user.type(screen.getByRole("combobox"), "x");
+    expect(screen.getByRole("button", { name: "Xóa" })).toHaveClass("after:absolute");
   });
 });

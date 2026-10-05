@@ -2,11 +2,11 @@
 
 import { History, X } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchTrendingTags } from "@/features/posts";
-import type { HashtagStat } from "@/features/posts/types";
 import { fetchSuggestedUsers, useUserActions } from "@/features/profile";
+import { useCachedResource } from "@/hooks/use-cached-resource";
 import { useTranslation } from "@/hooks/use-translation";
 import { buildSearchHref } from "../services/search-service";
 import { useRecentSearches, useSearchActions } from "../store/search-store";
@@ -88,25 +88,14 @@ function TagRowSkeleton() {
 export function ExploreLanding() {
   const { t } = useTranslation();
   const { upsertUsers } = useUserActions();
-  const [tags, setTags] = useState<HashtagStat[] | null>(null);
-  const [userIds, setUserIds] = useState<string[] | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    fetchTrendingTags(TRENDING_COUNT)
-      .then((result) => active && setTags(result))
-      .catch(() => active && setTags([]));
-    fetchSuggestedUsers(SUGGESTED_COUNT)
-      .then((users) => {
-        if (!active) return;
-        upsertUsers(users);
-        setUserIds(users.map((user) => user.id));
-      })
-      .catch(() => active && setUserIds([]));
-    return () => {
-      active = false;
-    };
-  }, [upsertUsers]);
+  const trending = useCachedResource("trending-tags:6", () => fetchTrendingTags(TRENDING_COUNT));
+  const suggested = useCachedResource("suggested-users:5", async () => {
+    const users = await fetchSuggestedUsers(SUGGESTED_COUNT);
+    upsertUsers(users);
+    return users.map((user) => user.id);
+  });
+  const tags = trending.failed ? [] : trending.data;
+  const userIds = suggested.failed ? [] : suggested.data;
 
   return (
     <div className="flex flex-col divide-y divide-zinc-200/60 dark:divide-zinc-900/60">

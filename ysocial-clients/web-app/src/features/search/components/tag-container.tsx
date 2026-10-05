@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { fetchPostsByTag, PostCard, usePost, usePostActions } from "@/features/posts";
 import type { TagSort } from "@/features/posts/types";
 import { useTranslation } from "@/hooks/use-translation";
-import { tagPageKey, useSearchActions, useSearchStore, useTagPage } from "../store/search-store";
+import { tagPageKey, useSearchActions, useTagPage } from "../store/search-store";
 import { SearchShell } from "./search-shell";
 import { SearchSkeleton } from "./search-skeleton";
 import { TabBar } from "./tab-bar";
@@ -39,8 +39,7 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
   const page = useTagPage(key);
 
   useEffect(() => {
-    // Cached pages (Back from a thread, sort switched back) render without refetching
-    if (attempt === 0 && useSearchStore.getState().tagPages[key]) return;
+    // Stale-while-revalidate: cached pages (Back, sort switched back) render at once, refetch replaces them silently
     let active = true;
 
     fetchPostsByTag(tag, sort)
@@ -92,7 +91,7 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
   );
 
   let body;
-  if (failedKey === key) {
+  if (failedKey === key && !page) {
     body = (
       <EmptyState
         icon={AlertCircle}

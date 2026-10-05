@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchSuggestedUsers, FollowButton, useUser, useUserActions } from "@/features/profile";
+import { useCachedResource } from "@/hooks/use-cached-resource";
 import { useTranslation } from "@/hooks/use-translation";
 
 const SUGGESTION_COUNT = 3;
@@ -49,26 +49,14 @@ function FollowSuggestionSkeleton() {
 export function FollowSuggestions() {
   const { t } = useTranslation();
   const { upsertUsers } = useUserActions();
-  const [ids, setIds] = useState<string[] | null>(null);
+  // Ids are kept after following, so the list does not reshuffle under the cursor
+  const { data: ids, failed } = useCachedResource("suggested-users:3", async () => {
+    const users = await fetchSuggestedUsers(SUGGESTION_COUNT);
+    upsertUsers(users);
+    return users.map((user) => user.id);
+  });
 
-  useEffect(() => {
-    let active = true;
-    fetchSuggestedUsers(SUGGESTION_COUNT)
-      .then((users) => {
-        if (!active) return;
-        upsertUsers(users);
-        // Ids are kept after following, so the list does not reshuffle under the cursor
-        setIds(users.map((user) => user.id));
-      })
-      .catch(() => {
-        if (active) setIds([]);
-      });
-    return () => {
-      active = false;
-    };
-  }, [upsertUsers]);
-
-  if (ids?.length === 0) return null;
+  if (failed || ids?.length === 0) return null;
 
   return (
     <div className="bg-white/60 dark:bg-zinc-950/20 border border-zinc-200/40 dark:border-zinc-800/40 rounded-3xl p-5 flex flex-col gap-4 shrink-0">
