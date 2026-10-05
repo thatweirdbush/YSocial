@@ -42,6 +42,13 @@ describe("fetchSuggestions", () => {
   });
 });
 
+describe("fetchSuggestions tags", () => {
+  it("matches tags ignoring spaces in the query", async () => {
+    const { tags } = await settle(fetchSuggestions("da lat"));
+    expect(tags.map((stat) => stat.tag)).toContain("ĐàLạt");
+  });
+});
+
 describe("fetchSearch", () => {
   it("filters tags by the query without the leading #", async () => {
     const result = await settle(fetchSearch("#design"));

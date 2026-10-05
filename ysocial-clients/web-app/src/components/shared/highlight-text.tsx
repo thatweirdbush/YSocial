@@ -62,7 +62,7 @@ export function HighlightText({ text, tokens }: HighlightTextProps) {
   for (const [start, end] of ranges) {
     if (start > cursor) nodes.push(text.slice(cursor, start));
     nodes.push(
-      <mark key={start} className="rounded-sm bg-zinc-200/70 text-inherit dark:bg-zinc-700/60">
+      <mark key={start} className="rounded-sm bg-zinc-200/70 text-inherit dark:bg-zinc-700/90">
         {text.slice(start, end)}
       </mark>,
     );

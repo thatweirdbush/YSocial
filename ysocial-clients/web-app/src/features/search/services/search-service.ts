@@ -27,7 +27,8 @@ export function buildSearchHref(query: string, tab?: SearchTab): string {
 }
 
 async function matchingTags(query: string, limit: number) {
-  const bare = bareQuery(query);
+  // Tags never contain spaces: "da lat" must match #ĐàLạt
+  const bare = bareQuery(query).replace(/ /g, "");
   const tags = await fetchTrendingTags(SEARCH_LIMIT);
   return tags.filter((stat) => normalizeText(stat.tag).includes(bare)).slice(0, limit);
 }
