@@ -1,4 +1,5 @@
-import type { PostItem } from "../types";
+import type { HashtagStat, PostItem } from "../types";
+import { collectTagStats, tagKey } from "../utils/hashtags";
 import { MOCK_AUTHORS } from "./mock-authors";
 
 /**
@@ -19,30 +20,30 @@ type RawPost = Omit<PostItem, "user" | "createdAt" | "commentsCount" | "isLikedB
 const RAW_POSTS: RawPost[] = [
   // #region Root posts
   { id: "post-001", author: 0, minutesAgo: 10, likesCount: 128, liked: false, imageUrl: image("photo-1618005182384-a83a8bd57fbe"),
-    content: "Chào mừng các bạn đến với YSocial! Giao diện theo phong cách Luxury Minimalist lấy cảm hứng từ Threads và X. Thử Like (Heart Pop) và Share (Rotate Copy) nhé! ✨" },
+    content: "Chào mừng các bạn đến với YSocial! Giao diện theo phong cách Luxury Minimalist lấy cảm hứng từ Threads và X. Thử Like (Heart Pop) và Share (Rotate Copy) nhé! ✨ #YSocial #Minimalism" },
   { id: "post-002", author: 1, minutesAgo: 45, likesCount: 42, liked: true, bookmarked: true,
-    content: "Next.js App Router đi cùng Tailwind CSS v4 thật sự quá mượt. Mọi người thích Server hay Client Components cho feed hơn?" },
+    content: "Next.js App Router đi cùng Tailwind CSS v4 thật sự quá mượt. Mọi người thích Server hay Client Components cho feed hơn? #NextJS" },
   { id: "post-003", author: 2, minutesAgo: 180, likesCount: 89, imageUrl: image("photo-1507525428034-b723cf961d3e"),
-    content: "Tối giản không phải là thiếu đi thứ gì đó. Nó là vừa đủ mọi thứ." },
+    content: "Tối giản không phải là thiếu đi thứ gì đó. Nó là vừa đủ mọi thứ. #Minimalism" },
   { id: "post-004", author: 3, minutesAgo: 240, likesCount: 56,
     imageUrls: [image("photo-1558655146-9f40138edfeb"), image("photo-1561070791-2526d30994b5")],
-    content: "Moodboard tuần này: zinc, kính mờ và thật nhiều khoảng trắng. Bạn chọn tấm nào?" },
+    content: "Moodboard tuần này: zinc, kính mờ và thật nhiều khoảng trắng. Bạn chọn tấm nào? #Design #Minimalism" },
   { id: "post-005", author: 4, minutesAgo: 300, likesCount: 31,
-    content: "Hôm nay refactor xong toàn bộ types theo Vertical Slice. Import chéo giữa các feature giờ sạch như lau ly 🧼" },
+    content: "Hôm nay refactor xong toàn bộ types theo Vertical Slice. Import chéo giữa các feature giờ sạch như lau ly 🧼 cc @anquoc.dev #VietCode" },
   { id: "post-006", author: 5, minutesAgo: 420, likesCount: 214, bookmarked: true, imageUrl: image("photo-1500530855697-b586d89ba3ee"),
-    content: "Bình minh ở Đà Lạt sáng nay. Không filter, chỉ có sương và một chút cà phê." },
+    content: "Bình minh ở Đà Lạt sáng nay. Không filter, chỉ có sương và một chút cà phê. #ĐàLạt" },
   { id: "post-007", author: 6, minutesAgo: 600, likesCount: 12,
-    content: "Có ai dùng Zustand với useShallow chưa? Re-render giảm thấy rõ luôn." },
+    content: "Có ai dùng Zustand với useShallow chưa? Re-render giảm thấy rõ luôn. #Zustand #NextJS" },
   { id: "post-008", author: 7, minutesAgo: 780, likesCount: 67,
     content: "Viết mỗi ngày 300 chữ, sau 30 ngày mình nhận ra suy nghĩ rõ ràng hơn hẳn. Thử thách tháng 10 ai chơi không?" },
   { id: "post-009", author: 2, minutesAgo: 1_020, likesCount: 45,
-    content: "Skeleton phải khớp kích thước thật của card. CLS = 0 hoặc không là gì cả." },
+    content: "Skeleton phải khớp kích thước thật của card. CLS = 0 hoặc không là gì cả. #NextJS" },
   { id: "post-010", author: 1, minutesAgo: 1_440, likesCount: 23, bookmarked: true, imageUrl: image("photo-1517694712202-14dd9538aa97"),
     content: "Setup bàn làm việc mới. Màn hình dọc cho code review là chân ái." },
   { id: "post-011", author: 3, minutesAgo: 2_000, likesCount: 9,
-    content: "Dark mode không chỉ là đảo màu. Độ tương phản 4.5:1 vẫn là luật." },
+    content: "Dark mode không chỉ là đảo màu. Độ tương phản 4.5:1 vẫn là luật. #DarkMode #Design" },
   { id: "post-012", author: 5, minutesAgo: 2_880, likesCount: 150, imageUrl: image("photo-1469474968028-56623f02e42e"),
-    content: "Một tuần trekking, 0 thông báo, 100% bình yên. Giờ quay lại feed thôi 🏔️" },
+    content: "Một tuần trekking, 0 thông báo, 100% bình yên. Giờ quay lại feed thôi 🏔️ #dalat" },
   // #endregion
 
   // #region Replies — post-001 thread (one reply with 3 children for "view more")
@@ -94,3 +95,11 @@ export const MOCK_POSTS: PostItem[] = RAW_POSTS.map(({ author, minutesAgo, liked
 
 /** Synchronous seed lookup for server-side metadata (session-created posts are client-only). */
 export const getMockPostById = (id: string): PostItem | undefined => MOCK_POSTS.find((post) => post.id === id);
+
+let seedTagStats: Map<string, HashtagStat> | undefined;
+
+/** Synchronous seed hashtag stat for server-side metadata; case & diacritics insensitive. */
+export const getMockTagStat = (tag: string): HashtagStat | undefined => {
+  seedTagStats ??= collectTagStats(MOCK_POSTS);
+  return seedTagStats.get(tagKey(tag));
+};

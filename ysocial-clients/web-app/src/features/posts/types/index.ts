@@ -57,6 +57,18 @@ export interface PostThread {
   childReplies: Record<string, PostItem[]>;
 }
 
+export type TagSort = "top" | "latest";
+
+export interface HashtagStat {
+  /** Most frequent original casing, without `#`. */
+  tag: string;
+  postsCount: number;
+}
+
+export interface TagPage extends HashtagStat {
+  posts: PostItem[];
+}
+
 export interface CreatePostInput {
   content: string;
   images: string[];
