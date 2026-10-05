@@ -41,7 +41,7 @@ describe("search-store recent searches", () => {
 
   it("persists only the recent list", () => {
     actions().addRecent("zinc");
-    actions().setResult({ query: "zinc", userIds: [], postIds: ["post-004"], tags: [] });
+    actions().setResult({ query: "zinc", userIds: [], postIds: ["post-004"], latestPostIds: ["post-004"], tags: [] });
 
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
     expect(stored.state).toEqual({ recent: ["zinc"] });

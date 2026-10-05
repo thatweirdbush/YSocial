@@ -1,0 +1,108 @@
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { __resetMockDb } from "@/features/posts/services/post-service";
+import { resetPostStore, usePostStore } from "@/features/posts/store/post-store";
+import { __resetMockUsers } from "@/features/profile/services/user-service";
+import { resetUserStore } from "@/features/profile/store/user-store";
+import { getMockPostById } from "@/features/posts";
+import * as service from "../services/search-service";
+import { resetSearchStore, useSearchStore } from "../store/search-store";
+import { SearchContainer } from "./search-container";
+
+const push = vi.fn();
+const replace = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace, back: vi.fn() }),
+}));
+
+const LOAD_TIMEOUT = { timeout: 3000 };
+
+const waitForResults = () => waitFor(() => expect(screen.queryByTestId("search-skeleton")).toBeNull(), LOAD_TIMEOUT);
+
+beforeEach(() => {
+  vi.restoreAllMocks();
+  __resetMockDb();
+  __resetMockUsers();
+  resetPostStore();
+  resetUserStore();
+  resetSearchStore();
+  push.mockClear();
+  replace.mockClear();
+});
+
+describe("SearchContainer", () => {
+  it("shows the explore landing for an empty query", async () => {
+    render(<SearchContainer query="" tab="top" />);
+
+    expect(screen.getByRole("heading", { name: "Khám phá" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /#Minimalism/ }, LOAD_TIMEOUT)).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /Antigravity Architect/ }, LOAD_TIMEOUT)).toBeInTheDocument();
+  });
+
+  it("renders top results with highlighted posts", async () => {
+    const { container } = render(<SearchContainer query="next" tab="top" />);
+
+    expect(screen.getByTestId("search-skeleton")).toBeInTheDocument();
+    await waitForResults();
+
+    const usersSection = screen.getByRole("heading", { name: "Người dùng" }).closest("section")!;
+    expect(within(usersSection).getByRole("link", { name: /Elena Vance/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("article").length).toBeGreaterThan(0);
+    expect(container.querySelector("article mark")).not.toBeNull();
+  });
+
+  it("switches tab via router.replace", async () => {
+    render(<SearchContainer query="next" tab="top" />);
+    await waitForResults();
+
+    await userEvent.click(screen.getByRole("tab", { name: "Người dùng" }));
+
+    expect(replace).toHaveBeenCalledWith("/search?q=next&tab=users", { scroll: false });
+    expect(screen.getByRole("tab", { name: "Người dùng" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("shows the tab empty state", async () => {
+    render(<SearchContainer query="zzzz" tab="users" />);
+    await waitForResults();
+
+    expect(screen.getByText("Chưa thấy ai khớp, thử tên khác xem")).toBeInTheDocument();
+  });
+
+  it("retries after a failure", async () => {
+    vi.spyOn(service, "fetchSearch").mockRejectedValueOnce(new Error("boom"));
+    render(<SearchContainer query="next" tab="posts" />);
+
+    expect(await screen.findByText("Tìm kiếm bị lỗi rồi", undefined, LOAD_TIMEOUT)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+    await waitForResults();
+
+    expect(screen.getAllByRole("article").length).toBeGreaterThan(0);
+  });
+
+  it("renders the cached result without calling the service", () => {
+    const spy = vi.spyOn(service, "fetchSearch");
+    const post = getMockPostById("post-004")!;
+    usePostStore.getState().actions.upsertPosts([post]);
+    useSearchStore.getState().actions.setResult({
+      query: "Zinc",
+      userIds: [],
+      postIds: [post.id],
+      latestPostIds: [post.id],
+      tags: [],
+    });
+
+    render(<SearchContainer query="zinc" tab="top" />);
+
+    expect(screen.queryByTestId("search-skeleton")).toBeNull();
+    expect(screen.getAllByRole("article")).toHaveLength(1);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("adds the query to recent searches", async () => {
+    render(<SearchContainer query="next" tab="top" />);
+    await waitForResults();
+
+    expect(useSearchStore.getState().recent[0]).toBe("next");
+  });
+});

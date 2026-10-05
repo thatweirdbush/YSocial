@@ -17,7 +17,10 @@ export interface SearchResponse {
 export interface SearchResult {
   query: string;
   userIds: string[];
+  /** Relevance order (Top tab). */
   postIds: string[];
+  /** Newest first (Posts tab); computed once at fetch time. */
+  latestPostIds: string[];
   tags: HashtagStat[];
 }
 

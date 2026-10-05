@@ -12,3 +12,4 @@ export { getMockPostById, getMockTagStat } from "./mocks/mock-posts";
 export { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "./mocks/mock-authors";
 export { fetchPostsByTag, fetchTrendingTags, searchPosts, SEARCH_LIMIT } from "./services/post-service";
 export { usePost, usePostActions } from "./store/post-store";
+export { byNewest as byNewestPost } from "./utils/hashtags";
