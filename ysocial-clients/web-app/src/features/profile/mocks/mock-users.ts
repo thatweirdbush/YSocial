@@ -1,4 +1,4 @@
-import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "@/features/posts";
+import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import type { UserProfile } from "../types";
 
 type UserExtras = Pick<UserProfile, "bio" | "followersCount" | "followingCount">;
@@ -15,8 +15,8 @@ const EXTRAS: Record<string, UserExtras> = {
 };
 
 /** Same ids as post authors, so feeds, search & follow state refer to one person. */
-export const MOCK_USERS: UserProfile[] = MOCK_AUTHORS.map((author) => ({
+export const MOCK_USERS: UserProfile[] = SEED_AUTHORS.map((author) => ({
   ...author,
   ...EXTRAS[author.id],
-  isFollowing: MOCK_FOLLOWED_AUTHOR_IDS.includes(author.id),
+  isFollowing: SEED_FOLLOWED_AUTHOR_IDS.includes(author.id),
 }));

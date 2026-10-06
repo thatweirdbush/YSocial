@@ -1,4 +1,4 @@
-import { MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
+import { SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import { MOCK_POSTS } from "../mocks/mock-posts";
 import { normalizeText, tokenize } from "@/lib/text";
 import type { CreatePostInput, FeedPage, FeedTab, HashtagStat, PostAuthor, PostItem, PostSearchSort, PostThread, TagPage, TagSort } from "../types";
@@ -90,7 +90,7 @@ export async function fetchFeed(tab: FeedTab, page: number): Promise<FeedPage> {
 
   const roots = [...db.values()]
     .filter((post) => post.parentId === undefined)
-    .filter((post) => tab === "forYou" || MOCK_FOLLOWED_AUTHOR_IDS.includes(post.user.id))
+    .filter((post) => tab === "forYou" || SEED_FOLLOWED_AUTHOR_IDS.includes(post.user.id))
     .sort(byNewest);
 
   const start = (page - 1) * FEED_PAGE_SIZE;

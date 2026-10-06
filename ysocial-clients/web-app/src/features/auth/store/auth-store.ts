@@ -69,3 +69,9 @@ export const useRefreshToken = () => useAuthStore((state) => state.refreshToken)
 export const useAuthUser = () => useAuthStore((state) => state.user);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useAuthActions = () => useAuthStore((state) => state.actions);
+
+/** Viewer id used when nobody is signed in (matches the guest post author). */
+export const GUEST_VIEWER_ID = "me";
+
+/** Id of whoever is viewing: signed-in user or guest. Scopes follow state in mock services & stores. */
+export const useViewerId = () => useAuthStore((state) => state.user?.id ?? GUEST_VIEWER_ID);

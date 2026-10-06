@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
+import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
 import { PostCreatorDialog } from "./post-creator-dialog";
@@ -34,7 +34,7 @@ describe("PostFeed", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Đang theo dõi" }));
 
-    const followedNames = MOCK_AUTHORS.filter((a) => MOCK_FOLLOWED_AUTHOR_IDS.includes(a.id)).map((a) => a.displayName);
+    const followedNames = SEED_AUTHORS.filter((a) => SEED_FOLLOWED_AUTHOR_IDS.includes(a.id)).map((a) => a.displayName);
     await waitFor(() => {
       const articles = screen.getAllByRole("article");
       expect(articles.length).toBeLessThan(service.FEED_PAGE_SIZE);

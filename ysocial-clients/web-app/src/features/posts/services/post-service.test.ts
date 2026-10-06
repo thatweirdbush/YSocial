@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
+import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import type { CreatePostInput } from "../types";
 import {
   __resetMockDb,
@@ -22,7 +22,7 @@ async function settle<T>(promise: Promise<T>): Promise<T> {
   return promise;
 }
 
-const author = MOCK_AUTHORS[4];
+const author = SEED_AUTHORS[4];
 const input = (content: string): CreatePostInput => ({ content, images: [], audience: "anyone" });
 
 beforeEach(() => {
@@ -56,7 +56,7 @@ describe("fetchFeed", () => {
     const page = await settle(fetchFeed("following", 1));
 
     expect(page.posts.length).toBeGreaterThan(0);
-    expect(page.posts.every((p) => MOCK_FOLLOWED_AUTHOR_IDS.includes(p.user.id))).toBe(true);
+    expect(page.posts.every((p) => SEED_FOLLOWED_AUTHOR_IDS.includes(p.user.id))).toBe(true);
   });
 });
 

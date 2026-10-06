@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "./mock-authors";
+import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import { getMockTagStat, MOCK_POSTS } from "./mock-posts";
 
 const roots = MOCK_POSTS.filter((p) => p.parentId === undefined);
@@ -35,10 +35,10 @@ describe("mock dataset", () => {
   });
 
   it("uses 8 authors and follows 3 of them", () => {
-    const authorIds = new Set(MOCK_AUTHORS.map((a) => a.id));
-    expect(MOCK_AUTHORS).toHaveLength(8);
-    expect(MOCK_FOLLOWED_AUTHOR_IDS).toHaveLength(3);
-    expect(MOCK_FOLLOWED_AUTHOR_IDS.every((id) => authorIds.has(id))).toBe(true);
+    const authorIds = new Set(SEED_AUTHORS.map((a) => a.id));
+    expect(SEED_AUTHORS).toHaveLength(8);
+    expect(SEED_FOLLOWED_AUTHOR_IDS).toHaveLength(3);
+    expect(SEED_FOLLOWED_AUTHOR_IDS.every((id) => authorIds.has(id))).toBe(true);
   });
 
   it("looks up seed hashtag stats case & diacritics insensitive", () => {
