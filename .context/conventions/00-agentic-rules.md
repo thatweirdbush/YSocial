@@ -47,7 +47,8 @@ MUST check & activate these core skills before ANY task.
    - Created/Updated AFTER completion. Documents actual implemented state, API mappings, permanent Design Decisions & Pitfall Logs
 
 ### 4.2. Completion Protocol - Check off Progress
-> Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if a phase/feature is done.
+- Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if a phase/feature is done.
+- If decisions/architecture shifted during execution, update Tier 2 spec 7 plan to reflect the new reality (or note the change).
 
 ## 5. Working Habits & Directives
 

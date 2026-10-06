@@ -38,7 +38,7 @@
 - Create: `src/lib/text.ts`, `src/lib/text.test.ts`, `src/hooks/use-debounced-value.ts`, `src/hooks/use-debounced-value.test.ts`, `src/components/shared/highlight-text.tsx`, `src/components/shared/highlight-text.test.tsx`
 
 **Interfaces:**
-- Produces: `normalizeText(input: string): string`, `tokenize(input: string): string[]`, `extractHashtags(content: string): string[]`, `HASHTAG_PATTERN: RegExp` (`/#([\p{L}\p{N}_]+)/gu`), `MENTION_PATTERN: RegExp` (`/@([a-zA-Z0-9._]+)/g`), `useDebouncedValue<T>(value: T, delayMs: number): T`, `<HighlightText text: string tokens: string[] />`.
+- Produces: `normalizeText(input: string): string`, `tokenize(input: string): string[]`, `extractHashtags(content: string): string[]`, `HASHTAG_PATTERN: RegExp` (`/(?<=^|\s)#([\p{L}\p{M}\p{N}_]+)/gu`), `MENTION_PATTERN: RegExp` (`/(?<=^|\s)@([a-zA-Z0-9._]*[a-zA-Z0-9_])/g`), `useDebouncedValue<T>(value: T, delayMs: number): T`, `<HighlightText text: string tokens: string[] />`.
 
 - [x] **Step 1: Write failing tests**
   - `text.test.ts`: `normalizeText("  Đà   LẠT ")` -> `"da lat"`; `normalizeText("Phở")` -> `"pho"`; `tokenize(" Next  JS ")` -> `["next","js"]`; `tokenize("   ")` -> `[]`; `extractHashtags("Hi #ĐàLạt #NextJS #dalat #")` -> `["ĐàLạt","NextJS"]` (dedupe by normalized form, keep first casing, lone `#` ignored); `#` MUST be at start or after whitespace: `extractHashtags("a#b #c")` -> `["c"]`.

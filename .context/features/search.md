@@ -1,6 +1,6 @@
 ---
 module: Search / Explore & Hashtag Page (FE, mock data)
-updated: 2026-10-05
+updated: 2026-10-06
 spec: ysocial-clients/web-app/docs/specs/2026-10-05-search-and-tags-design.md
 plan: ysocial-clients/web-app/docs/plans/2026-10-05-search-and-tags.md
 ---
@@ -17,7 +17,7 @@ SearchContainer / TagContainer / ExploreLanding / SearchBox / sidebar widgets
   -> upsertPosts (post-store) + upsertUsers (user-store) + setResult / setTagPage (search-store)
 PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 ```
-- `src/lib/text.ts` - `foldText` (NFD, strip marks, đ->d, lowercase), `normalizeText` (+ collapse spaces), `tokenize`, `extractHashtags`, `HASHTAG_PATTERN` / `MENTION_PATTERN` (start or after whitespace)
+- `src/lib/text.ts` - `foldText` (NFD, strip marks, đ->d, lowercase), `normalizeText` (+ collapse spaces), `tokenize`, `extractHashtags`, `HASHTAG_PATTERN` (start or after whitespace, `\p{M}` for NFD input) / `MENTION_PATTERN` (trailing `.` excluded)
 - `posts/utils/hashtags.ts` - `tagKey`, `collectTagStats` (display casing = most frequent form, tie -> newest-first first seen), `hasTag`, `byNewest` (barrel: `byNewestPost`)
 - `posts/services/post-service.ts` - `searchPosts(q)` roots only, every token required, score = content occurrences + 2 × author-name hits, order score -> likes -> newest; `#x` query = exact tag. `fetchPostsByTag(tag, sort)`, `fetchTrendingTags(n)` (count desc, key asc). `SEARCH_LIMIT = 50`. `getMockTagStat` (seed, sync) for metadata
 - `profile/mocks/mock-users.ts` - `MOCK_USERS` = `MOCK_AUTHORS` + bio/counts; `isFollowing` from `MOCK_FOLLOWED_AUTHOR_IDS`
@@ -42,7 +42,7 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 4. **Page passes `query`/`tab` as props from `searchParams`** -> NO `useSearchParams` (Suspense / CSR bailout)
 5. **Tab / sort = local state + `router.replace(..., { scroll: false })`**; containers keyed by query / tag only -> instant switch, no remount flash
 6. **Stale-while-revalidate everywhere**: result cache in `search-store` (last search + tag pages per key) renders at once on Back, refetch always runs & replaces it silently; refetch failure keeps cached view. Sidebar/explore widgets use `hooks/use-cached-resource.ts` (module cache, cleared in `vitest.setup.ts`) because each page renders its own `MainLayout` -> sidebar remounts on every navigation
-7. **`latestPostIds` computed at fetch time** -> pure render, no `getState()` in render
+7. **Tab order comes from the service ONLY**: `fetchSearch` calls `searchPosts(q, limit, "relevance")` & `searchPosts(q, limit, "latest")` in parallel; `latestPostIds` stored in service order, NEVER re-sorted on client (client re-sort of top-N relevance != newest overall once API is real)
 8. **Tag matching ignores spaces in query** (`"da lat"` -> `#ĐàLạt`): tags never contain spaces
 9. **Links in post content `stopPropagation`** -> content click opens thread, link click opens tag/profile
 10. **`@mention` always linked** - posts feature must not import profile (profile mocks import posts barrel -> cycle)
@@ -51,7 +51,7 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 13. **Recent searches `skipHydration`** + rehydrate after mount -> SSR & first client render match
 
 ## Testing
-- `npm run test` 157 passed; `npm run typecheck` 0; `npx eslint src` = baseline (64 errors, 25 warnings, all pre-existing)
+- `npm run test` 180 passed; `npm run typecheck` 0; `npx eslint src` = baseline (64 errors, 25 warnings, all pre-existing)
 - Async container tests use real timers + `waitFor` / `findBy` (3s timeout) and await first fetch
 
 ## Pitfall log
@@ -60,8 +60,13 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 | Every `SearchBox` test timed out (5s) | RTL `asyncWrapper` awaits a real `setTimeout(0)`; it only auto-advances Jest fake timers, Vitest fake timers never fire it | Real timers + `waitFor` in component tests using `userEvent`; fake timers ONLY for pure hook/service tests | Minimal repro passed with real timers; `search-box.test.tsx` 7/7, 3 repeated runs green |
 | Query "da lat" showed no `#ĐàLạt` suggestion | Tag filter compared `"da lat"` (with space) to `"dalat"` | Strip spaces from query before tag match | `search-service.test.ts` "matches tags ignoring spaces in the query" RED -> GREEN |
 
-## Deferred minors (final review 2026-10-05)
-- Stale suggestions selectable until next debounced response; NFD hashtags truncated (`HASHTAG_PATTERN` lacks `\p{M}`); trailing `.` in `@mention`; bare `#`/`@` query shows landing & saved to recent; EN plurals "1 posts"; `FollowButton` toasts not i18n; combobox/tab a11y gaps (nested button in option, `aria-controls` to unrendered listbox, no arrow keys in `TabBar`); unused keys `search.postsCount`/`search.hashtags`; persisted `recent` not validated; same-query submit keeps non-default tab
+## Review follow-up (2026-10-06)
+| Item | Decision |
+|---|---|
+| `skipHydration` + rehydrate in `Providers` | KEEP: without it persist reads `localStorage` at store creation -> recent list differs from SSR -> hydration mismatch in `ExploreLanding`. Root rehydrate = documented `hydrateLocale` pattern; 1 call vs 3 consumers |
+| Hashtag boundary | Already `(?<=^|\s)` (= `(?:^|(?<=\s))`); docs fixed + URL-fragment test |
+| Client re-sort of Posts tab | Removed; see decision 7 |
+| Former deferred minors | All fixed: stale suggestions shown only while text refines their query + request id bumped on empty input; NFD hashtags; mention trailing `.`; bare `#`/`@` -> empty-result state, never saved to recent; EN singular keys (`tags.postsCountOne`, `search.followersOne`); `FollowButton` toasts via `card.followSuccess`/`unfollowSuccess`; remove-recent X `aria-hidden` (mouse) + `Delete` key (keyboard), `aria-controls` only when listbox rendered, `TabBar` roving tabindex + ←/→/Home/End + tab/panel ids; unused keys removed; persisted `recent` validated in `merge`; tab/sort prop synced on same-query navigation |
 
 ## Known issues (out of scope)
 - `PostCard` author Follow button keeps its own local state -> can disagree with `user-store` (`UserResultRow` shows Following, card shows Follow). Fix with 1.6 hover card / Phase 2 (needs follow state source posts can read without importing profile)

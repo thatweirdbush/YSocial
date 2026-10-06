@@ -64,8 +64,8 @@ usePost(id) / useUser(id)  ->  PostCard / UserResultRow / FollowButton
 export function normalizeText(input: string): string;   // NFD, strip \p{M}, đ/Đ -> d, lowercase, trim, collapse spaces
 export function tokenize(input: string): string[];      // normalizeText -> split on whitespace, drop empty
 export function extractHashtags(content: string): string[]; // /#([\p{L}\p{N}_]+)/gu, original casing, in order, deduped by normalized form
-export const HASHTAG_PATTERN: RegExp;                   // shared with rich-content
-export const MENTION_PATTERN: RegExp;                   // /@([a-zA-Z0-9._]+)/g (usernames are ASCII)
+export const HASHTAG_PATTERN: RegExp;                   // /(?<=^|\s)#([\p{L}\p{M}\p{N}_]+)/gu - start or after whitespace (never URL fragments / ids), \p{M} keeps NFD marks
+export const MENTION_PATTERN: RegExp;                   // /(?<=^|\s)@([a-zA-Z0-9._]*[a-zA-Z0-9_])/g - ASCII, trailing `.` excluded
 ```
 
 `src/hooks/use-debounced-value.ts` - `useDebouncedValue<T>(value: T, delayMs: number): T`
@@ -109,7 +109,7 @@ Barrel `features/profile/index.ts` adds: `FollowButton`, `useUser`, `useUserActi
 
 `post-service.ts`
 ```ts
-export async function searchPosts(query: string, limit?: number): Promise<PostItem[]>;           // roots only, relevance order
+export async function searchPosts(query: string, limit?: number, sort?: PostSearchSort): Promise<PostItem[]>; // roots only; "relevance" (default) | "latest"
 export async function fetchPostsByTag(tag: string, sort: TagSort): Promise<TagPage>;
 export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]>;
 ```
@@ -167,7 +167,7 @@ Components (`search/components/`)
 | `search-box.tsx` | Combobox input. Props `defaultValue`, `autoFocus?`, `variant: "page" \| "sidebar"`. Empty + focused -> recent list (remove per item); typing -> `useDebouncedValue(q, 250)` -> `fetchSuggestions`, stale responses dropped via request counter. Keys: ↑↓ move `aria-activedescendant`, Enter = selected option or submit query, Esc closes. Submit -> `addRecent` + `router.push("/search?q=...")`. Option mousedown `preventDefault` (keeps focus). User option -> `/@username`, tag option -> `/tags/x` |
 | `search-container.tsx` | Client. Props `query`, `tab?`. Empty query -> `ExploreLanding`. Else cache hit (`result.query` normalized equal) -> render at once; miss -> skeleton + `fetchSearch` -> `upsertPosts` / `upsertUsers` / `setResult`; error -> `EmptyState` + retry. Renders `SearchTabs` + active panel |
 | `search-tabs.tsx` | Tab bar (same style as `PostFeed` tabs), `role="tablist"`, change -> `router.replace` with `tab` param |
-| `search-panels.tsx` | `TopPanel` (<= 3 `UserResultRow` + "Xem tất cả" + posts), `UsersPanel`, `PostsPanel` (newest first, re-sorted client-side from cached ids by `createdAt`), `TagsPanel`; each with tab-specific `EmptyState` |
+| `search-panels.tsx` | `TopPanel` (<= 3 `UserResultRow` + "Xem tất cả" + posts), `UsersPanel`, `PostsPanel` (renders `latestPostIds` in the order returned by `search-service` (`searchPosts(q, limit, "latest")`); MUST NOT re-sort by `createdAt` on the client), `TagsPanel`; each with tab-specific `EmptyState` |
 | `user-result-row.tsx` | Avatar, name (highlighted), @username, bio 1 line, followers count, `FollowButton`; row links to `/@username` |
 | `tag-result-row.tsx` | `#tag` (highlighted) + "N bài viết", links to `/tags/x` |
 | `explore-landing.tsx` | Recent searches (chips, remove, clear all; hidden when empty), trending tags (`fetchTrendingTags(6)`), suggested users (`fetchSuggestedUsers(5)`) |
