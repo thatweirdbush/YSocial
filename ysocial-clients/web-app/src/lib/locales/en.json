@@ -19,7 +19,10 @@
     "viewPost": "View post",
     "comments": "comments",
     "likes": "likes",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "newPosts": "{n} new posts",
+    "newPostsOverflow": "20+ new posts",
+    "newPostsAria": "New posts available, click to show"
   },
   "creator": {
     "placeholder": "What's new?",
@@ -73,7 +76,36 @@
     "share": "Share",
     "more": "More",
     "followSuccess": "Followed @{username}",
-    "unfollowSuccess": "Unfollowed @{username}"
+    "unfollowSuccess": "Unfollowed @{username}",
+    "edit": "Edit",
+    "editLabel": "Post content",
+    "editSave": "Save",
+    "editCancel": "Cancel",
+    "editSuccess": "Post updated",
+    "edited": "Edited",
+    "pin": "Pin to profile",
+    "unpin": "Unpin",
+    "pinned": "Pinned",
+    "pinSuccess": "Post pinned",
+    "unpinSuccess": "Post unpinned",
+    "hideLikes": "Hide like count",
+    "showLikes": "Show like count",
+    "likesHiddenHint": "Only you can see the like count",
+    "likesAria": "{n} likes",
+    "delete": "Delete",
+    "deleteTitle": "Delete post?",
+    "deleteDescription": "This post and its replies will be permanently deleted.",
+    "deleteSuccess": "Post deleted",
+    "forbidden": "You don't have permission to do that",
+    "notInterested": "Not interested",
+    "notInterestedToast": "You'll see fewer posts like this",
+    "mute": "Mute @{username}",
+    "muteToast": "Muted @{username}",
+    "block": "Block @{username}",
+    "blockToast": "Blocked @{username}",
+    "copyLink": "Copy link",
+    "report": "Report post",
+    "reportToast": "Report submitted. Thank you!"
   },
   "common": {
     "language": "Language",
@@ -243,5 +275,11 @@
     "emptyCta": "Search something else",
     "error": "Couldn't load hashtag",
     "postsCountOne": "{count} post"
+  },
+  "hoverCard": {
+    "followers": "followers",
+    "following": "following",
+    "loadError": "Couldn't load profile",
+    "retry": "Retry"
   }
 }

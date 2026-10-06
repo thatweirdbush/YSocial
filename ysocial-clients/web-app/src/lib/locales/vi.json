@@ -19,7 +19,10 @@
     "viewPost": "Xem chuỗi thảo luận",
     "comments": "bình luận",
     "likes": "lượt thích",
-    "refresh": "Làm mới"
+    "refresh": "Làm mới",
+    "newPosts": "{n} bài mới",
+    "newPostsOverflow": "20+ bài mới",
+    "newPostsAria": "Có bài mới, nhấn để xem"
   },
   "creator": {
     "placeholder": "Có gì mới thế?",
@@ -73,7 +76,36 @@
     "share": "Chia sẻ",
     "more": "Thêm",
     "followSuccess": "Đã theo dõi @{username}",
-    "unfollowSuccess": "Đã bỏ theo dõi @{username}"
+    "unfollowSuccess": "Đã bỏ theo dõi @{username}",
+    "edit": "Chỉnh sửa",
+    "editLabel": "Nội dung bài viết",
+    "editSave": "Lưu",
+    "editCancel": "Huỷ",
+    "editSuccess": "Đã cập nhật bài viết",
+    "edited": "Đã chỉnh sửa",
+    "pin": "Ghim lên trang cá nhân",
+    "unpin": "Bỏ ghim",
+    "pinned": "Đã ghim",
+    "pinSuccess": "Đã ghim bài viết",
+    "unpinSuccess": "Đã bỏ ghim bài viết",
+    "hideLikes": "Ẩn số lượt thích",
+    "showLikes": "Hiện số lượt thích",
+    "likesHiddenHint": "Chỉ bạn thấy số lượt thích",
+    "likesAria": "{n} lượt thích",
+    "delete": "Xoá",
+    "deleteTitle": "Xoá bài viết?",
+    "deleteDescription": "Bài viết và các trả lời của nó sẽ bị xoá vĩnh viễn.",
+    "deleteSuccess": "Đã xoá bài viết",
+    "forbidden": "Bạn không có quyền thực hiện thao tác này",
+    "notInterested": "Không quan tâm",
+    "notInterestedToast": "Sẽ hiển thị ít bài như thế này hơn",
+    "mute": "Ẩn @{username}",
+    "muteToast": "Đã ẩn @{username}",
+    "block": "Chặn @{username}",
+    "blockToast": "Đã chặn @{username}",
+    "copyLink": "Sao chép liên kết",
+    "report": "Báo cáo bài viết",
+    "reportToast": "Đã gửi báo cáo. Cảm ơn bạn!"
   },
   "common": {
     "language": "Ngôn ngữ",
@@ -243,5 +275,11 @@
     "emptyCta": "Tìm kiếm khác",
     "error": "Không tải được hashtag",
     "postsCountOne": "{count} bài viết"
+  },
+  "hoverCard": {
+    "followers": "người theo dõi",
+    "following": "đang theo dõi",
+    "loadError": "Không tải được hồ sơ",
+    "retry": "Thử lại"
   }
 }
