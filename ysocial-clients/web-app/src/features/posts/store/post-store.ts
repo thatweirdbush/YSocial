@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import type { FeedTab, IncomingBuffer, PostItem, RemovalSnapshot } from "../types";
+import type { FeedTab, IncomingBuffer, OwnerOp, PostItem, RemovalSnapshot } from "../types";
 
 // Normalized client cache of posts. Every screen reads the same entity via usePost(id),
 // so like/bookmark/reply changes are reflected everywhere in O(1).
@@ -23,6 +23,10 @@ interface PostStoreData extends IncomingBuffer {
   feedMeta: Record<FeedTab, FeedMeta>;
   /** Tombstones: deleted ids never re-enter the cache (lists holding their own props hide them too). */
   deletedIds: Record<string, true>;
+  /** authorId -> pinned root post id; invariant: points at the only cached post of that author with isPinned. */
+  pinnedIdByAuthor: Record<string, string>;
+  /** At most 1 pending owner mutation per post. */
+  ownerOpById: Record<string, OwnerOp>;
 }
 
 interface PostStoreActions {
@@ -51,6 +55,15 @@ interface PostStoreActions {
   markDeleted: (ids: string[]) => void;
   /** Rollback of `removePost`; idempotent. */
   restorePosts: (snapshot: RemovalSnapshot) => void;
+  /** Takes the post's owner-op lock; false when another op is pending. */
+  beginOwnerOp: (id: string, op: OwnerOp) => boolean;
+  endOwnerOp: (id: string) => void;
+  editPost: (id: string, content: string) => void;
+  /** Pins/unpins in one update (target, previous pin & index); returns the id it unpinned. */
+  setPinned: (id: string, pinned: boolean) => string | undefined;
+  setHideLikeCount: (id: string, hidden: boolean) => void;
+  /** Field-scoped rollback: applies `patch` only while every `expected` field is unchanged. */
+  patchPostIf: (id: string, expected: Partial<PostItem>, patch: Partial<PostItem>) => void;
 }
 
 interface PostStoreState extends PostStoreData {
@@ -68,6 +81,8 @@ const initialData = (): PostStoreData => ({
   consumedIncoming: { forYou: {}, following: {} },
   droppedAuthorIds: { forYou: [], following: [] },
   deletedIds: {},
+  pinnedIdByAuthor: {},
+  ownerOpById: {},
 });
 
 // #region Helpers
@@ -117,6 +132,31 @@ function collectSubtree(replyIds: Record<string, string[]>, rootId: string): str
   return ids;
 }
 
+/**
+ * Keeps the pin index in sync with posts that just entered the cache: a pinned arrival unpins the author's
+ * other cached pin; an unpinned arrival that the index points at clears the entry. Mutates `posts`.
+ */
+function reindexPins(
+  posts: Record<string, PostItem>,
+  index: Record<string, string>,
+  changed: readonly PostItem[],
+): Record<string, string> {
+  let next = index;
+  for (const post of changed) {
+    const authorId = post.user.id;
+    const current = next[authorId];
+    if (post.isPinned) {
+      if (current === post.id) continue;
+      if (current && posts[current]) posts[current] = { ...posts[current], isPinned: false };
+      next = { ...next, [authorId]: post.id };
+    } else if (current === post.id) {
+      next = { ...next };
+      delete next[authorId];
+    }
+  }
+  return next;
+}
+
 /** Removes `ids` from every list in the store; returns only the changed slices. */
 function purge(state: PostStoreData, ids: ReadonlySet<string>): Partial<PostStoreData> {
   const posts = { ...state.posts };
@@ -136,10 +176,13 @@ function purge(state: PostStoreData, ids: ReadonlySet<string>): Partial<PostStor
   const deletedIds = { ...state.deletedIds };
   for (const id of ids) deletedIds[id] = true;
 
+  const pinnedIdByAuthor = Object.fromEntries(Object.entries(state.pinnedIdByAuthor).filter(([, id]) => !ids.has(id)));
+
   return {
     posts,
     feedIds,
     replyIds,
+    pinnedIdByAuthor,
     incoming: state.incoming.some((id) => ids.has(id)) ? state.incoming.filter((id) => !ids.has(id)) : state.incoming,
     consumedIncoming: withoutConsumed(state.consumedIncoming, ids),
     deletedIds,
@@ -161,10 +204,9 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
     upsertPosts: (posts) =>
       set((state) => {
         const next = { ...state.posts };
-        for (const post of posts) {
-          if (!state.deletedIds[post.id]) next[post.id] = post;
-        }
-        return { posts: next };
+        const alive = posts.filter((post) => !state.deletedIds[post.id]);
+        for (const post of alive) next[post.id] = post;
+        return { posts: next, pinnedIdByAuthor: reindexPins(next, state.pinnedIdByAuthor, alive) };
       }),
 
     setFeedPage: (tab, ids, append, nextPage) =>
@@ -223,6 +265,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         }
         return {
           posts,
+          pinnedIdByAuthor: reindexPins(posts, state.pinnedIdByAuthor, [reply]),
           replyIds: isNew ? { ...state.replyIds, [parentId]: [reply.id, ...ids] } : state.replyIds,
         };
       }),
@@ -245,10 +288,14 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
       }),
 
     prependPost: (tab, post) =>
-      set((state) => ({
-        posts: { ...state.posts, [post.id]: post },
-        feedIds: { ...state.feedIds, [tab]: [post.id, ...state.feedIds[tab].filter((id) => id !== post.id)] },
-      })),
+      set((state) => {
+        const posts = { ...state.posts, [post.id]: post };
+        return {
+          posts,
+          pinnedIdByAuthor: reindexPins(posts, state.pinnedIdByAuthor, [post]),
+          feedIds: { ...state.feedIds, [tab]: [post.id, ...state.feedIds[tab].filter((id) => id !== post.id)] },
+        };
+      }),
 
     bufferIncoming: (post) =>
       set((state) => {
@@ -259,6 +306,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         let consumedIncoming = state.consumedIncoming;
         for (const tab of inFeeds) consumedIncoming = withConsumed(consumedIncoming, tab, [post.id]);
         const posts = { ...state.posts, [post.id]: post };
+        const pinnedIdByAuthor = reindexPins(posts, state.pinnedIdByAuthor, [post]);
         let incoming = [post.id, ...state.incoming];
         let droppedAuthorIds = state.droppedAuthorIds;
 
@@ -276,7 +324,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
           }
           consumedIncoming = withoutConsumed(consumedIncoming, new Set([dropped]));
         }
-        return { posts, incoming, consumedIncoming, droppedAuthorIds };
+        return { posts, pinnedIdByAuthor, incoming, consumedIncoming, droppedAuthorIds };
       }),
 
     flushPending: (tab, ids) =>
@@ -322,7 +370,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         replyIndex: parentId ? (state.replyIds[parentId] ?? EMPTY_IDS).indexOf(id) : -1,
         replyIds,
         parentDecremented: parent !== undefined,
-        wasPinned: false,
+        wasPinned: root.isPinned === true,
       };
 
       set((current) => {
@@ -375,14 +423,67 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         const deletedIds = { ...state.deletedIds };
         for (const post of snapshot.posts) delete deletedIds[post.id];
 
+        const pinnedIdByAuthor = snapshot.wasPinned
+          ? reindexPins(posts, state.pinnedIdByAuthor, [posts[root.id]])
+          : state.pinnedIdByAuthor;
+
         return {
           posts,
+          pinnedIdByAuthor,
           feedIds,
           replyIds,
           incoming: insertAt(state.incoming, root.id, snapshot.incomingIndex),
           consumedIncoming,
           deletedIds,
         };
+      }),
+
+    beginOwnerOp: (id, op) => {
+      if (get().ownerOpById[id]) return false;
+      set((state) => ({ ownerOpById: { ...state.ownerOpById, [id]: op } }));
+      return true;
+    },
+
+    endOwnerOp: (id) =>
+      set((state) => {
+        if (!state.ownerOpById[id]) return state;
+        const ownerOpById = { ...state.ownerOpById };
+        delete ownerOpById[id];
+        return { ownerOpById };
+      }),
+
+    editPost: (id, content) =>
+      set((state) => {
+        const posts = updatePost(state.posts, id, undefined, (post) => ({ ...post, content, isEdited: true }));
+        return posts ? { posts } : state;
+      }),
+
+    setPinned: (id, pinned) => {
+      const { posts: current, pinnedIdByAuthor } = get();
+      const post = current[id];
+      if (!post) return undefined;
+      const previous = pinnedIdByAuthor[post.user.id];
+      const unpinned = pinned && previous !== undefined && previous !== id ? previous : undefined;
+
+      set((state) => {
+        const posts = { ...state.posts, [id]: { ...post, isPinned: pinned } };
+        return { posts, pinnedIdByAuthor: reindexPins(posts, state.pinnedIdByAuthor, [posts[id]]) };
+      });
+      return unpinned;
+    },
+
+    setHideLikeCount: (id, hidden) =>
+      set((state) => {
+        const posts = updatePost(state.posts, id, undefined, (post) => ({ ...post, hideLikeCount: hidden }));
+        return posts ? { posts } : state;
+      }),
+
+    patchPostIf: (id, expected, patch) =>
+      set((state) => {
+        const post = state.posts[id];
+        if (!post) return state;
+        const matches = (Object.keys(expected) as (keyof PostItem)[]).every((key) => Object.is(post[key], expected[key]));
+        return matches ? { posts: { ...state.posts, [id]: { ...post, ...patch } } } : state;
       }),
   },
 }));
@@ -405,5 +506,6 @@ export const useIncomingBuffer = (): IncomingBuffer =>
     })),
   );
 export const useIsDeleted = (id: string) => usePostStore((state) => state.deletedIds[id] === true);
+export const useOwnerOp = (id: string): OwnerOp | undefined => usePostStore((state) => state.ownerOpById[id]);
 export const usePostActions = () => usePostStore((state) => state.actions);
 // #endregion

@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FeedTab, PostItem } from "../types";
 import { getPendingFeed } from "../utils/pending-feed";
-import { INCOMING_CAP, resetPostStore, useIsDeleted, usePostStore, useReplyIds } from "./post-store";
+import { INCOMING_CAP, resetPostStore, useIsDeleted, useOwnerOp, usePostStore, useReplyIds } from "./post-store";
 
 const makePost = (id: string, overrides: Partial<PostItem> = {}): PostItem => ({
   id,
@@ -429,6 +429,143 @@ describe("restorePosts", () => {
     const { result } = renderHook(() => useIsDeleted("r1a"));
     expect(result.current).toBe(false);
     expect(state().feedIds).toEqual({ forYou: ["x", "r"], following: ["r"] });
+  });
+});
+// #endregion
+
+// #region Owner ops
+describe("owner-op locks", () => {
+  it("allows one pending op per post", () => {
+    expect(actions().beginOwnerOp("p", "edit")).toBe(true);
+    expect(actions().beginOwnerOp("p", "pin")).toBe(false);
+    expect(actions().beginOwnerOp("q", "pin")).toBe(true);
+
+    const { result } = renderHook(() => useOwnerOp("p"));
+    expect(result.current).toBe("edit");
+
+    actions().endOwnerOp("p");
+    expect(state().ownerOpById.p).toBeUndefined();
+    expect(actions().beginOwnerOp("p", "pin")).toBe(true);
+  });
+});
+
+describe("editPost & setHideLikeCount", () => {
+  it("edits content and marks the post edited", () => {
+    actions().upsertPosts([makePost("p")]);
+
+    actions().editPost("p", "mới");
+
+    expect(state().posts.p).toMatchObject({ content: "mới", isEdited: true });
+  });
+
+  it("toggles the hidden like count flag", () => {
+    actions().upsertPosts([makePost("p")]);
+
+    actions().setHideLikeCount("p", true);
+    expect(state().posts.p.hideLikeCount).toBe(true);
+    actions().setHideLikeCount("p", false);
+    expect(state().posts.p.hideLikeCount).toBe(false);
+  });
+});
+
+describe("patchPostIf", () => {
+  it("applies the patch when expected fields still match", () => {
+    actions().upsertPosts([makePost("p", { content: "B", isEdited: true })]);
+
+    actions().patchPostIf("p", { content: "B" }, { content: "A", isEdited: false });
+
+    expect(state().posts.p).toMatchObject({ content: "A", isEdited: false });
+  });
+
+  it("edit rollback keeps concurrent hideLikeCount", () => {
+    actions().upsertPosts([makePost("p", { content: "B", isEdited: true })]);
+    actions().setHideLikeCount("p", true);
+
+    actions().patchPostIf("p", { content: "B" }, { content: "A", isEdited: false });
+
+    expect(state().posts.p).toMatchObject({ content: "A", hideLikeCount: true });
+  });
+
+  it("does nothing when any expected field changed", () => {
+    actions().upsertPosts([makePost("p", { content: "C" })]);
+    const before = state();
+
+    actions().patchPostIf("p", { content: "B" }, { content: "A" });
+
+    expect(state()).toBe(before);
+  });
+});
+
+describe("pin index", () => {
+  const pinIndex = () => state().pinnedIdByAuthor;
+
+  beforeEach(() => {
+    actions().upsertPosts([makePost("A"), makePost("B"), makePost("C"), makePost("other", { user: alice })]);
+  });
+
+  it("pinning a post unpins the author's previous pin", () => {
+    expect(actions().setPinned("A", true)).toBeUndefined();
+    expect(pinIndex()).toEqual({ u1: "A" });
+
+    expect(actions().setPinned("B", true)).toBe("A");
+    expect(state().posts.A.isPinned).toBe(false);
+    expect(state().posts.B.isPinned).toBe(true);
+    expect(pinIndex()).toEqual({ u1: "B" });
+  });
+
+  it("keeps pins of different authors apart", () => {
+    actions().setPinned("A", true);
+    actions().setPinned("other", true);
+
+    expect(pinIndex()).toEqual({ u1: "A", a1: "other" });
+  });
+
+  it("unpin clears the index entry", () => {
+    actions().setPinned("B", true);
+    actions().setPinned("B", false);
+
+    expect(pinIndex()).toEqual({});
+    expect(state().posts.B.isPinned).toBe(false);
+  });
+
+  it("upsertPosts reindexes from server data", () => {
+    actions().setPinned("B", true);
+
+    actions().upsertPosts([makePost("C", { isPinned: true })]);
+    expect(pinIndex()).toEqual({ u1: "C" });
+    expect(state().posts.B.isPinned).toBe(false);
+
+    actions().upsertPosts([makePost("C", { isPinned: false })]);
+    expect(pinIndex()).toEqual({});
+  });
+
+  it("removePost of the pinned post clears the index, restorePosts brings it back", () => {
+    actions().setPinned("A", true);
+
+    const snapshot = actions().removePost("A")!;
+    expect(pinIndex()).toEqual({});
+    expect(snapshot.wasPinned).toBe(true);
+
+    actions().restorePosts(snapshot);
+    expect(pinIndex()).toEqual({ u1: "A" });
+  });
+
+  it("markDeleted clears the index of a pinned id and never points at a tombstone", () => {
+    actions().setPinned("A", true);
+    actions().setPinned("other", true);
+
+    actions().markDeleted(["A"]);
+
+    expect(pinIndex()).toEqual({ a1: "other" });
+    expect(Object.values(pinIndex()).some((id) => state().deletedIds[id])).toBe(false);
+  });
+
+  it("markDeleted of a non-pinned id keeps the author's pin", () => {
+    actions().setPinned("A", true);
+
+    actions().markDeleted(["B"]);
+
+    expect(pinIndex()).toEqual({ u1: "A" });
   });
 });
 // #endregion
