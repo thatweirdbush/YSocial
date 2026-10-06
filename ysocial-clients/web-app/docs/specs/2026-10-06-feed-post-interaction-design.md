@@ -28,10 +28,11 @@
 | D9 | Ownership | Enforced by service (`actorId` arg, `ForbiddenError`); UI visibility is only presentation |
 | D10 | Concurrency | Max 1 pending owner mutation per post (`ownerOpById`) + field-scoped conditional rollback |
 | D11 | Follow source | `src/mocks/follow-graph.ts` = viewer-scoped mock backend table; feed tab classification via pure `getPostFeedTabs`; client classifies pending posts at read time from `user-store` |
-| D14 | Delete navigation | Delete of the post being viewed (or its ancestor) is NOT optimistic: navigate only after the mock service resolves |
-| D15 | Scroll owner | Document scroll (verified: `MainLayout` `main` has no `overflow`, header `sticky top-0`) -> `window.scrollTo` |
+| D14 | Delete semantics | Delete is ALWAYS optimistic (list & detail). On the viewed route, `router.replace("/")` runs ONLY after the mock service resolves; failure -> `restorePosts` + toast, no navigation |
+| D15 | Scroll owner | Feed scroll owner = **document** (verified 2026-10-06: `MainLayout` `main` has no `overflow`, only `min-h-screen`; header `sticky top-0`). All feed scrolling goes through ONE helper `scrollFeedToTop()` (`posts/utils/scroll.ts`) -> `window.scrollTo`; a future scroll container changes only that helper |
+| D16 | Viewer-scoped user cache | `user-store` keeps shared profile data (`users`) + per-viewer follow projection (`follows[viewerId]`); complete follow set loaded via `fetchFollowedIds(viewerId)`; `useUser(id)` projects `isFollowing` for the current viewer |
 | D12 | Seed "me" post | NO seed (current user id varies: login "1", register "2", guest "me"); demo via composer |
-| D13 | Hover card data | Subscribes `useUser(id)`; `ensureUser(id)` fetches only when not cached; touch devices -> link navigates, no card |
+| D13 | Hover card data | Subscribes `useUser(id)`; `ensureUser(id, viewerId)` fetches only when not cached; touch devices -> link navigates, no card |
 
 ## 3. Global Constraints
 
@@ -115,12 +116,24 @@ export interface PendingFeed { ids: string[]; overflow: boolean; }
 - Constants: `NEW_POST_INTERVAL_MS = 45_000`, `NEW_POST_JITTER_MS = 10_000` (exported for tests / dev tuning).
 - Test-only `__resetMockDb()` also stops the stream timer & clears listeners.
 
-### 4.5 `user-service` (mock)
+### 4.5 `user-service` (mock) & viewer-scoped `user-store`
 
-- All reads/writes take `viewerId`: `searchUsers(query, viewerId, limit?)`, `fetchSuggestedUsers(limit, viewerId)`, `fetchUser(id, viewerId): Promise<UserProfile | null>` (new), `setFollow(id, following, viewerId)`. `isFollowing` = `getFollowedAuthorIds(viewerId).has(id)` at read time.
-- Callers updated: `search-service`, `FollowSuggestions`, `FollowButton`, hover card (all via `useCurrentAuthor().id`).
-- `user-store` gains `ensureUser(id, viewerId): Promise<void>` helper (module fn, not action): no-op when cached; dedupes in-flight requests per id (`Map<id, Promise>`); upserts result.
-- **Known limitation:** client caches (`user-store`, `post-store`) are not viewer-scoped; switching account without reload may show the previous viewer's follow/like flags until refetch. Cache reset on viewer change belongs to 2.7 (profile switcher).
+- All reads/writes take `viewerId`: `searchUsers(query, viewerId, limit?)`, `fetchSuggestedUsers(limit, viewerId)`, `fetchUser(id, viewerId): Promise<UserProfile | null>` (new), `fetchFollowedIds(viewerId): Promise<string[]>` (new, complete set from `follow-graph`), `setFollow(id, following, viewerId)`. Returned `isFollowing` = `getFollowedAuthorIds(viewerId).has(id)` at read time; `followersCount` global.
+- Callers updated: `search-service`, `FollowSuggestions`, `ExploreLanding`, `FollowButton`, hover card (all via `useViewerId()`).
+- **`user-store` (D16):**
+  ```ts
+  users: Record<string, UserProfileBase>;          // shared profile data, NO isFollowing
+  follows: Record<string, ViewerFollows>;          // viewerId -> projection
+  interface ViewerFollows { ids: Record<string, true>; loaded: boolean; version: number }
+  ```
+  - `UserProfileBase = Omit<UserProfile, "isFollowing">` (in `profile/types`).
+  - `upsertUsers(users: UserProfile[], viewerId)`: base -> `users`, `isFollowing` -> `follows[viewerId].ids` (partial knowledge; does not set `loaded`).
+  - `toggleFollow(viewerId, id)`: flips `follows[viewerId].ids[id]`, `followersCount ±1` on shared base, `version + 1` (ONE `set()`).
+  - `setFollowedIds(viewerId, ids, sinceVersion)`: replaces the set & `loaded = true` ONLY if `version === sinceVersion` (a local toggle during the request wins; caller retries once).
+  - `useUser(id): UserProfile | undefined` reads `useViewerId()` internally and projects `isFollowing` (memoized merge of base + flag -> stable reference); `ensureUser(id, viewerId)` (module fn): no-op when base cached; dedupes in-flight per id; upserts.
+  - `ensureFollowGraph(viewerId)` (module fn): loads `fetchFollowedIds` once per viewer (dedupe in-flight), called by `PostFeed` mount.
+  - `useFollowedIds(): { ids: ReadonlySet<string>; loaded: boolean }` for current viewer; `getFollowedIds(viewerId)` non-hook twin. Pending "Đang theo dõi" classification uses this COMPLETE set; while `loaded === false` the following pending list is empty (never guessed from partial cache).
+- **Known limitation:** `post-store` per-viewer flags (`isLikedByCurrentUser`, `isBookmarkedByCurrentUser`) are not viewer-scoped yet; cache reset on viewer change belongs to 2.7.
 
 ### 4.6 `post-store`
 
@@ -144,7 +157,7 @@ New actions (each ONE `set()`):
 | `bufferIncoming(post)` | Skip if id already in `incoming`, in any `feedIds[tab]`, or tombstoned. Upsert post, prepend id; any tab already holding it in `feedIds` marks it consumed. If length > 20: drop oldest id X; for each tab with `!consumed[tab][X]` -> add `posts[X].user.id` to `droppedAuthorIds[tab]`; prune X from every `consumed[tab]`. Buffered regardless of `loaded`; pill hidden until tab loaded |
 | `flushPending(tab, ids)` | `feedIds[tab] = [...ids, ...feedIds[tab] minus ids]`; mark `ids` consumed for `tab` ONLY; `droppedAuthorIds[tab] = []`. Other incoming ids stay unconsumed -> a skipped post becomes pending later if its author gets followed. `ids` = `getPendingFeed` result (classification stays out of the store) |
 | `consumeIncoming(tab, ids)` | Mark `ids` consumed for `tab`, `droppedAuthorIds[tab] = []`. Called by `PostFeed` after a successful page-1 load/refetch with `getPendingFeed(getState(), tab, followed).ids` -> those posts are covered by the fetched feed (same follow graph), so no pending duplicates; unclassified ids stay eligible |
-| `setFeedPage(tab, ids, append=false, ...)` (existing, extended) | Also marks `ids ∩ incoming` consumed for `tab` (exact server truth) -> covers stream posts whose author is not yet in `user-store` during a page-1 load |
+| `setFeedPage(tab, ids, append=false, ...)` (existing, extended) | Also marks `ids ∩ incoming` consumed for `tab` (exact server truth) and clears `droppedAuthorIds[tab]` -> successful page-1 load/refetch hides the `20+` state |
 | `beginOwnerOp(id, op)` / `endOwnerOp(id)` | Set / clear lock; `beginOwnerOp` returns `false` when a lock exists |
 | `editPost(id, content)` | `content`, `isEdited = true` |
 | `removePost(id)` | Collect subtree via `replyIds` (cached); delete from `posts`, all `feedIds`, `incoming` (+ `consumed`), `replyIds[parent]` (+ parent `commentsCount - 1` if reply), `replyIds[x]` of removed; clear `pinnedIdByAuthor` entry if pinned; add tombstones. Returns snapshot (removed posts, their list positions, whether parent count was decremented) |
@@ -154,7 +167,8 @@ New actions (each ONE `set()`):
 | `setHideLikeCount(id, hidden)` | Toggle flag |
 | `patchPostIf(id, expected, patch)` | Field-scoped rollback: apply `patch` only when every key of `expected` still equals current value |
 
-- **Pin index invariant (cached posts):** `pinnedIdByAuthor[a] === id` <=> `posts[id].isPinned === true && posts[id].user.id === a`. Maintained by helper `reindexPins(state, incomingPosts)` inside `upsertPosts`, `prependPost`, `bufferIncoming`, `addReply` (reply never pinned) and by `setPinned`, `removePost`, `restorePosts`. Init `{}`.
+- **Pin index invariant (cached posts):** `pinnedIdByAuthor[a] === id` <=> `posts[id].isPinned === true && posts[id].user.id === a`. Maintained by helper `reindexPins(state, incomingPosts)` inside `upsertPosts`, `prependPost`, `bufferIncoming`, `addReply` (reply never pinned) and by `setPinned`, `removePost`, `markDeleted`, `restorePosts`. Init `{}`.
+- **Tombstone invariant:** `deletedIds[id]` => `id` absent from `posts`, every `feedIds`, `incoming`, `replyIds` lists and `pinnedIdByAuthor` values; `restorePosts` removes restored ids from `deletedIds`.
 - Tombstones: `PostCard` returns `null` when `deletedIds[id]` -> deleted post disappears from lists holding their own props (search, saved, tag). `upsertPosts`, `bufferIncoming`, `setReplies`, `setFeedPage` skip tombstoned ids -> a deleted descendant can never reappear.
 - Selectors: `usePendingFeed(tab): PendingFeed & { authors: PostAuthor[] }` (`getPendingFeed` over `post-store` + followed ids from `user-store`; `useShallow` per store + `useMemo`; O(20)), `useOwnerOp(id)`, `useIsDeleted(id)`.
 
@@ -177,14 +191,14 @@ run(op, id):
 | hideLikeCount | `hideLikeCount` | `patchPostIf(id, { hideLikeCount: next }, { hideLikeCount: prev })` |
 | delete | whole subtree | `restorePosts(snapshot)` (card gone -> no concurrent op on it); success -> `markDeleted(deletedIds)` |
 
-Delete has 2 modes, picked by `isViewedSubtree` = current route `/posts/[x]` where `x === id` or `x` descends from `id` (walk cached `parentId` chain):
+Delete is always optimistic; only navigation depends on the route (`isViewedSubtree` = current route `/posts/[x]` where `x === id` or `x` descends from `id`, walking cached `parentId`):
 
 ```
-optimistic (default):     lock -> removePost -> deletePost -> markDeleted        | fail: restorePosts + toast
-viewed route (no optimism): lock -> dialog Delete button busy -> deletePost
-                            -> success: router.replace("/") then removePost + markDeleted (same tick)
-                            -> fail: toast, dialog stays, page untouched
+lock -> removePost (snapshot) -> deletePost
+  success: markDeleted(deletedIds); IF isViewedSubtree -> router.replace("/")
+  fail:    restorePosts(snapshot) + toast; no navigation
 ```
+- Detail page stays safe while removed: `PostDetailMain` renders `null` for a missing store post and `notFound()` depends only on the fetch result (verified 2026-10-06).
 
 ## 5. UI / Components
 
@@ -194,7 +208,7 @@ viewed route (no optimism): lock -> dialog Delete button busy -> deletePost
   - Position: wrapper `sticky top-14 h-0 z-10` under 56px header + inner `absolute` centered -> 0 layout space (no CLS)
   - Look: rounded-full, `bg-white/80 dark:bg-zinc-900/80 backdrop-blur`, thin zinc border, shadow; 3 stacked avatars (`-space-x-2`, ring), label `feed.newPosts` (`{n}` or `20+`), `ArrowUp` icon; min-h 44px
   - Enter: `animate-in fade-in slide-in-from-top-2` (tw-animate-css), `motion-reduce:animate-none`; `aria-live="polite"` region
-  - Click: overflow -> `loadPage(tab, 1)` (+ `consumeIncoming`); else `flushPending(tab, ids)`. Then `window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" })` (document scroll, D15; if the layout ever moves to a scroll container, scroll that element via ref instead)
+  - Click: overflow -> `loadPage(tab, 1)` (+ `consumeIncoming`); else `flushPending(tab, ids)`. Then `scrollFeedToTop()` (D15: document scroll -> `window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" })`)
 - Every successful page-1 load (first load, Refresh, overflow) runs `consumeIncoming(tab, getPendingFeed(...).ids)`. Composer `prependPost` dedupes by id (own posts never come from the stream).
 
 ### 5.2 Owner actions (1.5)
@@ -206,9 +220,10 @@ viewed route (no optimism): lock -> dialog Delete button busy -> deletePost
 - Labels: "· Đã chỉnh sửa" after timestamp when `isEdited`; pinned badge (`Pin` icon + `card.pinned`) above header in `feed`/`detail` variants.
 - Hidden like count: non-owner sees no number; owner sees number + small `EyeOff` with tooltip `card.likesHiddenHint`.
 - Delete `AlertDialog`: title `card.deleteTitle`, description, Cancel / Delete (destructive). Confirm -> run delete (§4.7) -> toast `card.deleteSuccess`.
-  - **Root delete (in a list):** optimistic; root + cached replies vanish everywhere; service `deletedIds` tombstoned.
-  - **Reply delete (in a thread, not the viewed post):** optimistic; reply (+ its children) removed; parent `commentsCount - 1`; stays on page.
-  - **Viewed post or its ancestor:** non-optimistic; Delete button shows busy state (`aria-busy`, disabled, Cancel disabled); navigate to `/` ONLY after the service resolves, then remove. Failure -> toast, nothing moves.
+  - **Root delete (in a list):** root + cached replies vanish everywhere; service `deletedIds` tombstoned.
+  - **Reply delete (in a thread, not the viewed post):** reply (+ its children) removed; parent `commentsCount - 1`; stays on page.
+  - **Viewed post or its ancestor:** removed optimistically too; navigate to `/` ONLY after the service resolves; failure -> restored in place + toast, no navigation.
+  - Dialog closes on confirm in all modes (owner lock prevents a 2nd delete).
 
 ### 5.3 User hover card (1.6)
 - `components/ui/hover-card.tsx`: shadcn primitive over `radix-ui` `HoverCard` (flat, no domain logic).
@@ -238,12 +253,14 @@ viewed route (no optimism): lock -> dialog Delete button busy -> deletePost
 | Post flushed into "Dành cho bạn", author followed later | Still unconsumed for following -> becomes pending there (consumed ids are per tab) |
 | 21st incoming | Oldest dropped; its author recorded per unconsumed tab -> pill "20+" only for tabs it belongs to (read-time); click refetches page 1 |
 | Delete succeeds, service returns uncached descendants | All `deletedIds` tombstoned -> never reappear via later fetch/upsert |
-| Delete of viewed post fails | No navigation, no removal, toast |
-| Viewer A follows X, then guest/other viewer | Follow graph separate per viewer (client cache caveat §4.5) |
+| Delete of viewed post fails | Post restored in place, no navigation, toast |
+| Following tab before follow graph loaded | Following pending list empty (never classified from partial cache) |
+| Viewer switches account | `follows[viewerId]` separate -> no `isFollowing` leak between viewers |
+| Viewer A follows X, then guest/other viewer | Follow graph & `user-store` projection separate per viewer |
 | Tab not loaded | Pill hidden; first load fetches incl. generated posts |
 | Browser tab hidden / feed unmounted | Stream unsubscribed; last unsubscribe stops timer |
 | Deleted post in search/saved list | Tombstone -> card renders `null` |
-| Hover card on touch | No card; tap navigates to profile |
+| Hover card on touch | No card (Radix `excludeTouch`); tap follows the link to `/@username` |
 | Follow in hover card | `user-store` -> header button, sidebar, counts update together |
 
 ## 8. Testing (TDD, Vitest + RTL)
@@ -254,16 +271,16 @@ viewed route (no optimism): lock -> dialog Delete button busy -> deletePost
 | `posts/utils/pending-feed.test.ts` | excludes consumed per tab; following filter uses passed follow set (follow later -> becomes pending); post consumed in forYou still pending in following; overflow only when dropped author classified into tab |
 | `posts/utils/feed-tabs.test.ts` | reply -> `[]`; root followed -> both; not followed -> forYou |
 | `posts/utils/like-visibility.test.ts` | owner sees; non-owner null when hidden; not hidden -> count |
-| `posts/services/post-service.test.ts` (extend) | **Timer lifecycle (fake timers):** 0 subscribers -> no timer; 1st -> starts; 2nd -> same timer, no duplicate emit; unsubscribe one -> continues; last -> stops; resubscribe -> exactly one timer. Generated post in `db` + emitted to all. **Authorization:** edit/delete/pin/hideLikeCount by non-owner -> `ForbiddenError`, no write. deletePost removes subtree & decrements parent; pin unpins previous; pin reply rejects; `fetchFeed("following")` reflects `setFollowed` |
-| `profile/services/user-service.test.ts` (extend) | `fetchUser` hit/miss; `isFollowing` derived per viewer; `setFollow` updates that viewer's graph only, `followersCount` global ±1 |
-| `profile/store/user-store.test.ts` (extend) | `ensureUser` no fetch when cached; dedupes in-flight |
-| `posts/store/post-store.test.ts` (extend) | buffer: dedupe vs feed/incoming/tombstone, cap 20 records dropped author only for unconsumed tabs & prunes consumed; flush prepends & consumes ONLY given ids for that tab; `consumeIncoming` clears dropped authors; `markDeleted` tombstones uncached ids & blocks later upsert/buffer/setReplies; `restorePosts` twice = once (no duplicate ids, count +1 once); edit; **pin:** new pin unpins old, index updated, unpin clears, remove pinned clears index, `upsertPosts` reindexes; remove root (subtree, all lists, tombstone) & reply (parent count); `restorePosts` exact inverse; `patchPostIf` applies only on match; owner lock begin/end |
-| `posts/hooks/use-owner-actions.test.tsx` | edit reject reverts content but keeps concurrent `hideLikeCount`; 2nd op while pending ignored; Forbidden -> toast key; delete success -> `markDeleted(deletedIds)`; **viewed-route delete:** no removal before resolve, `router.replace("/")` only after success, failure -> no navigation & post intact |
-| `posts/components/new-posts-pill.test.tsx` | hidden at 0 / not loaded; count + avatars; "20+" on overflow; click flushes + `window.scrollTo` top; overflow click refetches + consumes; following tab counts only followed authors at read time |
+| `posts/services/post-service.test.ts` (extend) | **Timer lifecycle (fake timers):** 0 subscribers -> no timer; 1st -> starts; 2nd -> same timer, no duplicate emit; unsubscribe one -> continues; last -> stops; resubscribe -> exactly one timer. Generated post in `db` + emitted to all. **Randomness:** contract = 1-2 posts per tick at 45s ±10s; deterministic case `Math.random() = 0.5` -> exactly 45_000ms & 2 posts (a test case, not the contract); bounds checked with `0` (35_000ms, 1 post) & `0.999` (~55_000ms, 2 posts). `__resetMockDb()` resets db, `idCounter`, listeners & timer (isolation test). **Authorization:** edit/delete/pin/hideLikeCount by non-owner -> `ForbiddenError`, no write. deletePost removes subtree & decrements parent; pin unpins previous; pin reply rejects; `fetchFeed("following")` reflects `setFollowed` |
+| `profile/services/user-service.test.ts` (extend) | `fetchUser` hit/miss; `fetchFollowedIds` complete per viewer; `isFollowing` derived per viewer; `setFollow` updates that viewer's graph only, `followersCount` global ±1 |
+| `profile/store/user-store.test.ts` (extend) | viewer isolation (toggle as v1 -> v2 projection unchanged, shared `followersCount` ±1); `setFollowedIds` ignored when version moved; `ensureUser` no fetch when cached, dedupes in-flight; `ensureFollowGraph` once per viewer |
+| `posts/store/post-store.test.ts` (extend) | buffer: dedupe vs feed/incoming/tombstone, cap 20 records dropped author only for unconsumed tabs & prunes consumed; flush prepends & consumes ONLY given ids for that tab; `consumeIncoming` clears dropped authors; `markDeleted` tombstones uncached ids & blocks later upsert/buffer/setReplies, clears pin index of a cached pinned id; `restorePosts` twice = once (no duplicate ids, count +1 once) & removes restored ids from `deletedIds`; page-1 `setFeedPage` consumes `ids ∩ incoming` & clears `droppedAuthorIds[tab]`; edit; **pin:** new pin unpins old, index updated, unpin clears, remove pinned clears index, `upsertPosts` reindexes; remove root (subtree, all lists, tombstone) & reply (parent count); `restorePosts` exact inverse; `patchPostIf` applies only on match; owner lock begin/end |
+| `posts/hooks/use-owner-actions.test.tsx` | edit reject reverts content but keeps concurrent `hideLikeCount`; 2nd op while pending ignored; Forbidden -> toast key; delete success -> `markDeleted(deletedIds)`; **viewed-route delete:** removed optimistically, `router.replace("/")` NOT called before resolve, called after success; failure -> restored in place, no navigation |
+| `posts/components/new-posts-pill.test.tsx` | hidden at 0 / not loaded; count + avatars; "20+" on overflow; click flushes + `scrollFeedToTop()`; overflow click refetches + consumes; following tab counts only followed authors at read time, empty while follow graph not loaded |
 | `posts/components/post-inline-editor.test.tsx` | Esc cancel; Ctrl+Enter save; Save disabled unchanged/empty/pending; counter |
 | `posts/components/post-card-menu.test.tsx` | owner vs non-owner items; Pin hidden on reply; items disabled while op pending; delete confirm flow |
 | `posts/components/post-card.test.tsx` | tombstoned -> null; hidden like count per viewer; edited label; pinned badge |
-| `profile/components/user-hover-card.test.tsx` | skeleton -> data; cached -> no fetch; Follow hidden for self; **follow in card -> `PostCard` header button + card follower count update** |
+| `profile/components/user-hover-card.test.tsx` | skeleton -> data; cached -> no fetch; Follow hidden for self; `fetchUser` null -> error + Retry; **touch:** `pointerEnter` with `pointerType: "touch"` -> no card, trigger is a link to `/@username`; **follow in card -> `PostCard` header button + card follower count update** |
 
 - Tests rendering async containers MUST await first fetch before ending (post-detail pitfall).
 - Verification: `npm run test`, `npm run typecheck`, `npm run lint` (0 new errors); browser pass (temporarily lower interval in dev): pill appears & flushes, edit/delete/pin/hide on own new post, hover card + follow sync; 375/768/1440, light & dark, keyboard focus.
