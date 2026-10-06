@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Heart,
   MessageCircle,
@@ -13,6 +13,7 @@ import {
   Pin,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ensureUser, FollowButton, UserHoverCard } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -37,8 +38,6 @@ interface PostCardProps {
   variant?: PostCardVariant;
   /** Shown above content in the detail variant when the post is a reply. */
   replyToUsername?: string;
-  isAuthorFollowing?: boolean;
-  onAuthorFollowToggle?: () => void;
   isSavedPage?: boolean;
   onUnsave?: (id: string) => void;
   /** Normalized search tokens highlighted in the content. */
@@ -49,8 +48,6 @@ export function PostCard({
   post,
   variant = "feed",
   replyToUsername,
-  isAuthorFollowing,
-  onAuthorFollowToggle,
   isSavedPage = false,
   onUnsave,
   highlightTokens,
@@ -75,14 +72,12 @@ export function PostCard({
   const isDetail = variant === "detail";
 
   const [sharesCount, setSharesCount] = useState(14);
-  const [isFollowing, setIsFollowing] = useState(isAuthorFollowing ?? false);
 
-  // Synchronize local follow state with parent prop using primitive equality check to prevent render loops
+  // Header Follow & hover card read the author from `user-store`; load it once per author (deduped, cached)
+  const authorId = post.user.id;
   useEffect(() => {
-    if (isAuthorFollowing !== undefined && isAuthorFollowing !== isFollowing) {
-      setIsFollowing(isAuthorFollowing);
-    }
-  }, [isAuthorFollowing, isFollowing]);
+    if (!isOwner) ensureUser(authorId, viewerId).catch(() => undefined);
+  }, [authorId, viewerId, isOwner]);
 
   // Micro-UX Animation triggers
   const [likeAnimating, setLikeAnimating] = useState(false);
@@ -183,21 +178,6 @@ export function PostCard({
     }
   };
 
-  const handleFollowToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextState = !isFollowing;
-    setIsFollowing(nextState);
-    if (onAuthorFollowToggle) {
-      onAuthorFollowToggle();
-    } else {
-      if (nextState) {
-        toast.success(`Following @${post.user.username}`);
-      } else {
-        toast.info(`Unfollowed @${post.user.username}`);
-      }
-    }
-  };
-
   const saveEdit = async (content: string) => {
     const saved = await edit(content);
     if (saved) setIsEditing(false);
@@ -216,14 +196,16 @@ export function PostCard({
 
       {/* Left Column: Avatar & vertical Thread Line */}
       <div className="flex flex-col items-center self-stretch shrink-0">
-        <Link href={`/@${post.user.username}`}>
-          <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
-            <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
-            <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-              {post.user.displayName?.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
+        <UserHoverCard userId={post.user.id}>
+          <Link href={`/@${post.user.username}`}>
+            <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
+              <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
+              <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
+                {post.user.displayName?.charAt(0).toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </UserHoverCard>
         {/* Thread connector line running through */}
         <div className="w-[1.5px] grow bg-zinc-200 dark:bg-zinc-900 my-2 rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -241,28 +223,22 @@ export function PostCard({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            <Link href={`/@${post.user.username}`} className="flex items-center gap-1.5 min-w-0">
-              <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
-                {post.user.displayName}
-              </span>
-              {post.user.isVerified && (
-                <ShieldCheck className="size-4 text-blue-500 shrink-0 fill-blue-500/10" />
-              )}
-              <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
-                @{post.user.username}
-              </span>
-            </Link>
+            <UserHoverCard userId={post.user.id}>
+              <Link href={`/@${post.user.username}`} className="flex items-center gap-1.5 min-w-0">
+                <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
+                  {post.user.displayName}
+                </span>
+                {post.user.isVerified && (
+                  <ShieldCheck className="size-4 text-blue-500 shrink-0 fill-blue-500/10" />
+                )}
+                <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
+                  @{post.user.username}
+                </span>
+              </Link>
+            </UserHoverCard>
 
-            {/* Small premium Follow Button in Header */}
-            <button
-              onClick={handleFollowToggle}
-              className={`ml-1.5 text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${isFollowing
-                ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450"
-                : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-                }`}
-            >
-              {isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
-            </button>
+            {/* Follow bound to user-store: same state as the hover card, sidebar & search */}
+            {!isOwner && <FollowButton userId={post.user.id} className="ml-1.5" />}
 
             <span className="text-zinc-300 dark:text-zinc-850 text-xs select-none">•</span>
             <span className="text-zinc-400 dark:text-zinc-500 text-xs">

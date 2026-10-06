@@ -196,8 +196,6 @@ export function ProfileContainer({ username, initialProfile }: ProfileContainerP
                 <PostCard 
                   key={post.id} 
                   post={post}
-                  isAuthorFollowing={post.user.id === profile.id ? profile.isFollowing : undefined}
-                  onAuthorFollowToggle={post.user.id === profile.id ? handleFollowToggle : undefined}
                 />
               ))}
             </div>

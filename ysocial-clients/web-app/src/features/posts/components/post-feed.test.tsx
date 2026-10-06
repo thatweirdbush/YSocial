@@ -33,7 +33,7 @@ describe("PostFeed", () => {
     render(<PostFeed />);
     await waitFor(() => expect(screen.getAllByRole("article").length).toBeGreaterThan(0), LOAD_TIMEOUT);
 
-    await userEvent.click(screen.getByRole("button", { name: "Đang theo dõi" }));
+    await userEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "Đang theo dõi" }));
 
     const followedNames = SEED_AUTHORS.filter((a) => SEED_FOLLOWED_AUTHOR_IDS.includes(a.id)).map((a) => a.displayName);
     await waitFor(() => {
