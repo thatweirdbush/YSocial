@@ -338,3 +338,43 @@
   - 375 / 768 / 1440, light & dark, keyboard: menu, dialog focus trap, editor shortcuts, pill focusable
 - [x] **Step 3:** Docs (Task Closure Protocol, `01-doc-standards.md` format): new `.context/features/feed-post-interaction.md` (as-built; spec decisions D1-D16 + D5b as actually implemented, plus any NEW implementation decisions numbered separately as I1, I2...; pitfalls found); INDEX entry; roadmap: 1.4/1.5/1.6 `[x]`, gap #2 `[x]`, F0.2 note (seed authors + follow graph), gap #5 / 7.6 note (`post-card.tsx` `as any` removed).
 - [x] **Step 4:** Commit `docs(feed): as-built context, roadmap & plan status`.
+
+---
+
+## Follow-ups (final review minors)
+
+> Source: as-built "Deferred follow-ups". Baseline: 326 passed / 38 files, typecheck 0, eslint 62 / 25.
+
+### Task 14: Owner mutation reconciliation
+
+**Files:** `services/post-service.ts`, `hooks/use-owner-actions.ts`, `store/post-store.ts`, `utils/post-content.ts` (new), `components/post-inline-editor.tsx` + tests
+
+- [x] **Step 1:** `setPostPinned` / `setHideLikeCount` return the post copy (like `updatePostContent`). Hook applies the service copy on success, field-scoped (edit: `content`, `isEdited`; pin: `setPinned(id, server.isPinned)`; hide: `hideLikeCount`) -> a stale page-1 refetch landing mid-op cannot win. Test: upsert stale copy while op pending -> resolved state = service copy
+- [x] **Step 2:** Delete navigation: `router.replace("/")` only when `window.location.pathname` still equals the pathname captured at start. Test: route changed before resolve -> no navigation
+- [x] **Step 3:** `restorePosts` restores a previously pinned root as unpinned when the author has another pin in the index. Test in `post-store.test.ts`
+- [x] **Step 4:** `POST_CONTENT_MAX` -> `utils/post-content.ts`; mock `updatePostContent` rejects trimmed content > max or empty without images. Tests in `post-service.test.ts`
+
+### Task 15: Viewer-scoped follow knowledge (account switch)
+
+**Files:** `profile/types`, `profile/store/user-store.ts`, `profile/components/{follow-button,user-hover-card}.tsx`, `posts/components/post-feed.tsx` + tests
+
+- [x] **Step 1:** `ViewerFollows.known` (ids whose follow state was fetched/toggled for that viewer). `ensureUser` treats a user as cached ONLY when the viewer's graph is loaded or the id is known; `useFollowState(id)` -> `boolean | undefined`. Test: user cached by viewer A -> `ensureUser(id, B)` fetches
+- [x] **Step 2:** `FollowButton` renders nothing (or reserved placeholder) while follow state unknown -> never shows a guessed "Follow". Hover card loads when user or follow state is missing
+- [x] **Step 3:** `PostFeed` page-1 load retries `ensureFollowGraph` when not loaded (refresh / tab first load / pill overflow). Test: 1st graph load fails, refresh -> graph loaded
+
+### Task 16: Card & pill polish
+
+**Files:** `posts/components/{post-card,post-card-menu,new-posts-pill}.tsx`, `profile/components/{follow-button,user-hover-card}.tsx`, `services/post-service.ts` + tests
+
+- [x] **Step 1:** `FollowButton reserveSpace`: invisible, `aria-hidden` same-size placeholder while user/follow state unknown (header CLS at 375px); used by `PostCard` header
+- [x] **Step 2:** Hover card `Intl.NumberFormat` cached per locale (module-level, like `user-result-row.tsx`)
+- [x] **Step 3:** `useOwnerActions` runs ONLY for owner cards, once: `PostCard` -> `OwnerPostCard` (calls hook) -> body; `PostCardMenu` takes `owner?: OwnerActions` instead of `isOwner`. Test: viewer card never reads `usePathname`
+- [x] **Step 4:** Pill: in-flight guard on overflow refetch (button `disabled`, `aria-busy`). Test: 2 clicks -> 1 refetch
+- [x] **Step 5:** ⋯ trigger: invisible `after:` hit area -> 44px, visual size unchanged
+- [x] **Step 6:** Stream: tick reschedules ONLY while a listener remains (listener unsubscribing inside callback leaves 0 timers). Test with fake timers
+
+### Task 17: Verification & docs
+
+- [x] **Step 1:** `npm run test`, `npm run typecheck`, `npx eslint src` (<= 62 / 25, none new)
+- [x] **Step 2:** Browser pane: feed renders, owner menu / edit / pin, hover card, 375px header no shift
+- [x] **Step 3:** As-built: move items from "Deferred follow-ups" into decisions (I8+), update Files/Testing; spec note; roadmap `updated`

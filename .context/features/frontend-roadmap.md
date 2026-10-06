@@ -50,6 +50,7 @@ updated: 2026-10-06
 - [ ] **F0.6 Profile on mocks** (drop real-BE SSR fetch, keep `generateMetadata`) *(deferred, do with Phase 2)*
 
 ### Phase 1 - Core content loop (P0)
+> Closed 2026-10-06, incl. final-review follow-ups (see `features/feed-post-interaction.md` I8-I15). Next: Phase 2 (with F0.6)
 - [x] **1.1 Post Detail & Reply Thread** (see `features/post-detail.md`) `/posts/[id]` - *priority #1, see Step 4*
 - [x] **1.2 Search / Explore** (see `features/search.md`) `/search?q=` - tabs "Top / Người dùng / Bài viết / Hashtag", recent searches (localStorage), debounced suggestions, keyword highlight; `SearchWidget` navigates here
 - [x] **1.3 Hashtag page** (merged into 1.2 spec) `/tags/[tag]` - target for bio parser, trending, linkified post content

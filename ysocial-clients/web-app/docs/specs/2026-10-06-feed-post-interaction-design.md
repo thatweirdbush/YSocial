@@ -288,3 +288,15 @@ lock -> removePost (snapshot) -> deletePost
 ## 9. Out of Scope
 
 - Real API/SignalR, profile pinned ordering & profile on mocks (F0.6 / 2.1), real Mute/Block/Report (2.5 / 6.5), editing images, edit history, undo delete, hover card on touch (long-press), notifications for new posts (3.3)
+
+## 10. Post-review changes (plan Tasks 14-17)
+
+Supersede the matching lines above where they differ:
+- **Owner success reconcile (§4.7):** `setPostPinned` / `setHideLikeCount` return the post copy (like `updatePostContent`); on success the runner applies it field-scoped (`content`+`isEdited` / `setPinned(server.isPinned)` / `hideLikeCount`) -> a stale refetch that landed mid-op never wins
+- **Delete navigation (§4.7):** `router.replace("/")` ONLY IF viewed at start AND `window.location.pathname` still equals the start pathname (card may be unmounted -> hook `pathname` stale)
+- **`restorePosts` pin (§4.6):** if the author pinned another post meanwhile (index entry != root), the root comes back `isPinned: false`
+- **`updatePostContent` validation (§4.4):** reject trimmed length > `POST_CONTENT_MAX` (now `posts/utils/post-content.ts`) or empty text without images
+- **Stream (§4.4):** tick reschedules ONLY while a listener remains
+- **Viewer follow knowledge (§4.5):** `ViewerFollows.known` = ids fetched/toggled for that viewer; `ensureUser` cache hit ONLY IF `loaded || known[id]`; `useFollowState(id): boolean | undefined`; `FollowButton` never renders a guessed state (null, or invisible placeholder with `reserveSpace`); hover card loads when follow state unknown; `PostFeed` page-1 load retries `ensureFollowGraph`
+- **`PostCard` (§5.4):** `PostCard` -> `OwnerPostCard` (single `useOwnerActions`) | `PostCardView`; `PostCardMenu` takes `owner?: OwnerActions` instead of `isOwner`
+- **Pill (§5.1):** overflow refetch in-flight guard (`disabled`, `aria-busy`); ⋯ trigger 44px hit area via `after:`
