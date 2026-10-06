@@ -5,6 +5,7 @@ import type { PostItem } from "../../types";
 import { ReplyList } from "./reply-list";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 

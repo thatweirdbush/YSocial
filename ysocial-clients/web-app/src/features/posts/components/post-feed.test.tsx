@@ -9,6 +9,7 @@ import { PostCreatorDialog } from "./post-creator-dialog";
 import { PostFeed } from "./post-feed";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 

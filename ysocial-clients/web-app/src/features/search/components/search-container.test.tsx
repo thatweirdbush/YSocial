@@ -13,6 +13,7 @@ import { SearchContainer } from "./search-container";
 const push = vi.fn();
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push, replace, back: vi.fn() }),
 }));
 

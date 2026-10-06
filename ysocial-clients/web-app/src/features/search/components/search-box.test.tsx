@@ -9,6 +9,7 @@ import { SearchBox } from "./search-box";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
 }));
 

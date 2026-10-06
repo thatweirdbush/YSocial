@@ -10,6 +10,7 @@ import { ReplyList } from "./reply-list";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push, back: vi.fn() }),
 }));
 

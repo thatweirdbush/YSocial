@@ -6,33 +6,26 @@ import {
   MessageCircle,
   Share2,
   Bookmark,
-  MoreHorizontal,
   Check,
   Sparkles,
   ShieldCheck,
   EyeOff,
-  Flag,
-  VolumeX,
-  Ban,
-  Link2,
+  Pin,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import Link from "next/link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { setPostBookmark, setPostLike } from "../services/post-service";
-import { usePost, usePostActions } from "../store/post-store";
+import { useCurrentAuthor } from "../hooks/use-current-author";
+import { useOwnerActions } from "../hooks/use-owner-actions";
+import { useIsDeleted, usePost, usePostActions } from "../store/post-store";
 import type { PostItem } from "../types";
+import { getVisibleLikeCount } from "../utils/like-visibility";
 import { RichContent } from "../utils/rich-content";
+import { PostCardMenu } from "./post-card-menu";
+import { PostInlineEditor } from "./post-inline-editor";
 import { PostLightbox } from "./post-lightbox";
 import { PostMediaGrid } from "./post-media-grid";
 
@@ -68,8 +61,15 @@ export function PostCard({
 
   // Shared store copy wins so every card of this post stays in sync; fall back to the prop until cached.
   const live = usePost(post.id) ?? post;
+  const isDeleted = useIsDeleted(post.id);
+  const viewerId = useCurrentAuthor().id;
+  const isOwner = live.user.id === viewerId;
+  const { edit, pendingOp } = useOwnerActions(post.id);
+  const [isEditing, setIsEditing] = useState(false);
   const isLiked = live.isLikedByCurrentUser;
-  const likesCount = live.likesCount;
+  // null = owner hid the count from this viewer
+  const likesCount = getVisibleLikeCount(live, viewerId);
+  const likesHiddenForOthers = isOwner && live.hideLikeCount === true;
   const isBookmarked = live.isBookmarkedByCurrentUser;
   const bookmarksCount = isBookmarked ? 12 : 11;
   const isDetail = variant === "detail";
@@ -198,6 +198,15 @@ export function PostCard({
     }
   };
 
+  const saveEdit = async (content: string) => {
+    const saved = await edit(content);
+    if (saved) setIsEditing(false);
+    return saved;
+  };
+
+  // Tombstoned: lists holding their own copy (search, saved) must not show a deleted post
+  if (isDeleted) return null;
+
   return (
     <article
       inert={live.isPending}
@@ -221,6 +230,13 @@ export function PostCard({
 
       {/* Right Column: User details, content, actions */}
       <div className="flex-1 flex flex-col gap-2 min-w-0">
+
+        {live.isPinned && !live.parentId && variant !== "compact" && (
+          <div className="flex items-center gap-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <Pin className="size-3.5" aria-hidden="true" />
+            {t("card.pinned")}
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -252,68 +268,21 @@ export function PostCard({
             <span className="text-zinc-400 dark:text-zinc-500 text-xs">
               {isDetail ? formatFullTime(post.createdAt) : formatTime(post.createdAt)}
             </span>
+            {live.isEdited && (
+              <span className="text-zinc-400 dark:text-zinc-500 text-xs">· {t("card.edited")}</span>
+            )}
           </div>
 
-          {/* Triple-dot Dropdown actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t("card.more")} className="size-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            
-            <DropdownMenuContent align="end" className="w-52 rounded-2xl border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-30">
-              {isSavedPage ? (
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (onUnsave) {
-                      onUnsave(post.id);
-                    } else {
-                      toast.success(t("card.unbookmarkSuccess") || "Removed from saved posts!");
-                    }
-                  }}
-                  className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm text-red-600 focus:text-red-650"
-                >
-                  <Bookmark className="size-4 text-red-500 mr-2 fill-red-500/10" />
-                  {t("saved.unsave" as any) || "Unsave"}
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => toast.info(`Saved`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                  <Bookmark className="size-4 text-zinc-400 mr-2" />
-                  Save
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuItem onClick={() => toast.info(`Not interested`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <EyeOff className="size-4 text-zinc-400 mr-2" />
-                Not interested
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-
-              <DropdownMenuItem onClick={() => toast.info(`Muted @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <VolumeX className="size-4 text-zinc-400 mr-2" />
-                Mute @{post.user.username}
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => toast.info(`Blocked @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Ban className="size-4 text-zinc-400 mr-2" />
-                Block @{post.user.username}
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-
-              <DropdownMenuItem onClick={() => toast.success("Copied embed link to clipboard!")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Link2 className="size-4 text-zinc-400 mr-2" />
-                Copy Embed Link
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => toast.error("Report submitted! Thank you.")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950/20 text-red-600 dark:text-red-400 text-sm font-semibold">
-                <Flag className="size-4 mr-2" />
-                Report Post
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Triple-dot actions (owner vs viewer) */}
+          {!live.isPending && (
+            <PostCardMenu
+              post={live}
+              isOwner={isOwner}
+              isSavedPage={isSavedPage}
+              onUnsave={onUnsave}
+              onEdit={() => setIsEditing(true)}
+            />
+          )}
         </div>
 
         {isDetail && replyToUsername && live.parentId && (
@@ -323,19 +292,31 @@ export function PostCard({
         )}
 
         {/* Content body — opens the thread (only text, so lightbox portal clicks never bubble into navigation) */}
-        <div
-          onClick={openThread}
-          className={`${isDetail ? "text-[17px]" : "text-sm cursor-pointer"} text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2`}
-        >
-          <RichContent content={live.content} highlightTokens={highlightTokens} />
-        </div>
+        {isEditing ? (
+          <PostInlineEditor
+            initialContent={live.content}
+            hasImages={images.length > 0}
+            disabled={pendingOp !== undefined}
+            onSave={saveEdit}
+            onCancel={() => setIsEditing(false)}
+          />
+        ) : (
+          <div
+            onClick={openThread}
+            className={`${isDetail ? "text-[17px]" : "text-sm cursor-pointer"} text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2`}
+          >
+            <RichContent content={live.content} highlightTokens={highlightTokens} />
+          </div>
+        )}
 
         {/* Dynamic Multi-image Grid rendering */}
         <PostMediaGrid images={images} onOpen={setLightboxIndex} />
 
         {isDetail && (
           <div className="flex items-center gap-4 pt-3 mt-1 border-t border-zinc-200/60 dark:border-zinc-900/60 text-sm text-zinc-500 dark:text-zinc-400">
-            <span><strong className="text-black dark:text-white">{likesCount}</strong> {t("postDetail.likes")}</span>
+            {likesCount !== null && (
+              <span><strong className="text-black dark:text-white">{likesCount}</strong> {t("postDetail.likes")}</span>
+            )}
             <span><strong className="text-black dark:text-white">{live.commentsCount}</strong> {t("postDetail.replies")}</span>
           </div>
         )}
@@ -361,10 +342,15 @@ export function PostCard({
             >
               <Heart className={`size-4.5 ${isLiked ? "fill-current" : ""}`} />
             </button>
-            {likesCount > 0 && (
+            {likesCount !== null && likesCount > 0 && (
               <span className={`text-xs font-semibold ${isLiked ? "text-red-500 dark:text-red-450" : ""}`}>
                 {likesCount}
               </span>
+            )}
+            {likesHiddenForOthers && (
+              <EyeOff className="size-3.5" role="img" aria-label={t("card.likesHiddenHint")}>
+                <title>{t("card.likesHiddenHint")}</title>
+              </EyeOff>
             )}
           </div>
 
