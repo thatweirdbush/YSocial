@@ -22,6 +22,13 @@ export function usePendingFeed(tab: FeedTab): PendingFeed & { authors: PostAutho
     const posts: Record<string, PostItem> = {};
     for (const post of buffered) if (post) posts[post.id] = post;
     const pending = getPendingFeed(posts, buffer, tab, followed.ids);
-    return { ...pending, authors: pending.ids.slice(0, PILL_AVATARS).map((id) => posts[id].user) };
+    // Distinct authors, newest first: several posts by one author show one avatar
+    const authors = new Map<string, PostAuthor>();
+    for (const id of pending.ids) {
+      if (authors.size === PILL_AVATARS) break;
+      const user = posts[id].user;
+      if (!authors.has(user.id)) authors.set(user.id, user);
+    }
+    return { ...pending, authors: [...authors.values()] };
   }, [tab, buffer, buffered, followed]);
 }

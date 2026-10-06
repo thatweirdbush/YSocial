@@ -63,6 +63,14 @@ describe("NewPostsPill", () => {
     expect(container.querySelectorAll('[data-slot="avatar"]')).toHaveLength(3);
   });
 
+  it("shows each author once even with several pending posts by them", () => {
+    buffer(makePost("n1", "a1"), makePost("n2", "a1"), makePost("n3", "a2"));
+    const { container } = render(<NewPostsPill tab="forYou" onRefetch={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /3 bài mới/ })).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-slot="avatar"]')).toHaveLength(2);
+  });
+
   it("flushes pending posts on click and scrolls to the top", async () => {
     buffer(makePost("n1", "a1"), makePost("n2", "a2"));
     const onRefetch = vi.fn();
