@@ -51,14 +51,23 @@ Spec D1-D16 + D5b hold as implemented. Key ones + implementation decisions (I*):
 13. **I3 - `bufferIncoming` skips only posts already in BOTH feeds**; in one feed -> buffered & consumed for that feed
 14. **I4 - Pill avatars = up to 3 DISTINCT authors**, newest first
 15. **I5 - Hidden-likes hint = `EyeOff` svg `role=img` + `aria-label` + `<title>`** (no `TooltipProvider` in app tree)
+16. **I6 - No hover card on the viewer's own name/avatar** (`UserHoverCard` renders children only): viewer ids ("1", "2", "me") are not mock users -> a self card could only fail
+17. **I7 - Singular pill label** `feed.newPostsOne` (EN "1 new post")
 
 ## Known limitations
 - `post-store` per-viewer flags (`isLikedByCurrentUser`, `isBookmarkedByCurrentUser`) not viewer-scoped; reset on viewer switch -> 2.7
 - Pin shown as badge only; profile ordering waits for F0.6 / 2.1
 - Guest composer header shows hard-coded "YSocial Member" fallback while posts are authored by guest "me" (pre-existing, `post-creator-core.tsx`)
 
+## Deferred follow-ups (final review minors)
+- Apply service copy after owner mutation success (concurrent refetch can show stale content/pin/hide)
+- Re-check route at delete resolve before `router.replace("/")`; `restorePosts` should not re-pin when another post of the author got pinned meanwhile
+- Account switch: treat users as uncached for a viewer whose follow graph is not loaded; retry failed follow-graph load
+- Reserve header Follow width (CLS at 375px); memoize hover-card `Intl.NumberFormat`; single `useOwnerActions` per card (owner only)
+- Pill in-flight guard on overflow refetch; ⋯ trigger 44px hit area; guard `scheduleTick` when no listener; mock `updatePostContent` validation
+
 ## Testing
-- `npm run test` 325 passed / 38 files; `npm run typecheck` 0; `npx eslint src` 62 errors / 25 warnings (baseline 64/25; the 2 `post-card.tsx` errors removed, none new)
+- `npm run test` 326 passed / 38 files; `npm run typecheck` 0; `npx eslint src` 62 errors / 25 warnings (baseline 64/25; the 2 `post-card.tsx` errors removed, none new)
 - Stream tests: fake timers + `advanceTimersByTimeAsync`; NEVER `runAllTimersAsync` while a listener is subscribed (self-rescheduling timer -> infinite loop)
 - Tests rendering `PostCard` MUST mock `usePathname` in `next/navigation` (used via `useOwnerActions`)
 
