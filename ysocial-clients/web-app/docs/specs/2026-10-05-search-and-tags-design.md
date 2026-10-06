@@ -208,16 +208,7 @@ src/app/tags/[tag]/error.tsx
 
 ## 6. i18n keys (vi & en)
 
-> Keys MUST be flat (`TranslationKey` types 1 nesting level): `search.tabs.top` -> `search.tabTop`, `search.empty.users` -> `search.emptyUsers`, `tags.empty.title` -> `tags.emptyTitle`. Final list: plan Task 6.
-
-```
-search.placeholder, search.clear, search.recent, search.clearAll, search.removeRecent,
-search.tabs.top|users|posts|tags, search.seeAllUsers, search.users, search.hashtags,
-search.trending, search.suggested, search.postsCount ({count}), search.followers ({count}),
-search.empty.title|description (per tab: search.empty.users|posts|tags), search.error, search.retry,
-search.exploreTitle,
-tags.latest, tags.top, tags.postsCount ({count}), tags.empty.title|description|cta, tags.error
-```
+- **Domain**: `search`, `tags`
 
 ## 7. Edge Cases
 
