@@ -4,11 +4,15 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
+import { ensureFollowGraph, getFollowedIds } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../hooks/use-current-author";
+import { useNewPostsStream } from "../hooks/use-new-posts-stream";
 import { createPost, fetchFeed } from "../services/post-service";
 import { useFeedIds, useFeedMeta, usePost, usePostActions, usePostStore } from "../store/post-store";
 import type { CreatePostInput, FeedTab } from "../types";
+import { getPendingFeed } from "../utils/pending-feed";
+import { NewPostsPill } from "./new-posts-pill";
 import { PostCard } from "./post-card";
 import { PostCreator } from "./post-creator";
 import { PostSkeletonList, PostSkeletonText } from "./post-skeleton";
@@ -30,7 +34,8 @@ function FeedPostCard({ id }: { id: string }) {
 export function PostFeed() {
   const { t } = useTranslation();
   const author = useCurrentAuthor();
-  const { upsertPosts, setFeedPage, prependPost } = usePostActions();
+  const viewerId = author.id;
+  const { upsertPosts, setFeedPage, prependPost, consumeIncoming } = usePostActions();
   const [activeTab, setActiveTab] = useState<FeedTab>("forYou");
   // Transient per-mount failure flags; loaded pages + nextPage live in the store and survive remounts.
   const [failedTabs, setFailedTabs] = useState(NO_FAILURES);
@@ -46,21 +51,37 @@ export function PostFeed() {
   /** Loads one page into the store; resolves false on failure. Stable identity (no `t` dependency). */
   const loadPage = useCallback(async (tab: FeedTab, page: number) => {
     try {
-      const result = await fetchFeed(tab, page, author.id);
+      const result = await fetchFeed(tab, page, viewerId);
       upsertPosts(result.posts);
       setFeedPage(tab, result.posts.map((p) => p.id), page > 1, result.nextPage);
+      if (page === 1) {
+        // The fresh page covers every buffered post of this tab (same follow graph) -> nothing stays pending
+        const followed = getFollowedIds(viewerId);
+        if (tab === "forYou" || followed.loaded) {
+          const state = usePostStore.getState();
+          consumeIncoming(tab, getPendingFeed(state.posts, state, tab, followed.ids).ids);
+        }
+      }
       setFailedTabs((prev) => (prev[tab] ? { ...prev, [tab]: false } : prev));
       return true;
     } catch {
       setFailedTabs((prev) => ({ ...prev, [tab]: true }));
       return false;
     }
-  }, [author.id, upsertPosts, setFeedPage]);
+  }, [viewerId, upsertPosts, setFeedPage, consumeIncoming]);
 
   const loadWithFeedback = useCallback((tab: FeedTab, page: number) =>
     loadPage(tab, page).then((ok) => {
       if (!ok) toast.error(t("common.error"));
     }), [loadPage, t]);
+
+  // Complete follow set: classifies "following" pending posts; stream runs only while the feed is visible
+  useEffect(() => {
+    ensureFollowGraph(viewerId).catch(() => undefined);
+  }, [viewerId]);
+  useNewPostsStream();
+
+  const refetchFirstPage = useCallback(() => loadWithFeedback(activeTab, 1), [activeTab, loadWithFeedback]);
 
   const loadNextPage = useCallback((tab: FeedTab, page: number) => {
     setIsFetchingNext(true);
@@ -143,6 +164,8 @@ export function PostFeed() {
           <RefreshCw className="h-4 w-4" />
         </button>
       </header>
+
+      <NewPostsPill tab={activeTab} onRefetch={refetchFirstPage} />
 
       {/* Composition Block */}
       <PostCreator onSuccess={handleComposerSuccess} />
