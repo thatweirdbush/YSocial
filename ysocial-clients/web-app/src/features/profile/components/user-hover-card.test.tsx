@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import Link from "next/link";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAuthStore } from "@/features/auth/store/auth-store";
+import { GUEST_VIEWER_ID, useAuthStore } from "@/features/auth/store/auth-store";
 import { PostCard } from "@/features/posts";
 import type { PostItem } from "@/features/posts/types";
 import * as service from "../services/user-service";
@@ -86,15 +87,21 @@ describe("UserHoverCard", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it("hides Follow for the viewer's own card", async () => {
-    useAuthStore.setState({ user: { id: author.id, email: "a@ysocial.dev" } });
-    useUserStore.getState().actions.upsertUsers([author], author.id);
-    renderCard();
+  it("never opens on the viewer's own name (real guest viewer, not in the user mocks)", async () => {
+    useAuthStore.setState({ user: null });
+    const spy = vi.spyOn(service, "fetchUser");
+    render(
+      <UserHoverCard userId={GUEST_VIEWER_ID}>
+        <Link href="/@me_ysocial">Me</Link>
+      </UserHoverCard>,
+    );
 
-    await userEvent.hover(screen.getByRole("link", { name: author.displayName }));
+    await userEvent.hover(screen.getByRole("link", { name: "Me" }));
+    await new Promise((resolve) => setTimeout(resolve, 700));
 
-    expect(await screen.findByText("@antigravity.core", {}, OPEN_WAIT)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Theo dõi" })).toBeNull();
+    expect(screen.queryByText("Không tải được hồ sơ")).toBeNull();
+    expect(screen.queryByTestId("hover-card-skeleton")).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("does not open on touch; the trigger stays a profile link", async () => {

@@ -51,7 +51,7 @@ export function NewPostsPill({ tab, onRefetch }: NewPostsPillProps) {
                 ))}
               </span>
             )}
-            {overflow ? t("feed.newPostsOverflow") : t("feed.newPosts", { n: ids.length })}
+            {overflow ? t("feed.newPostsOverflow") : ids.length === 1 ? t("feed.newPostsOne") : t("feed.newPosts", { n: ids.length })}
           </button>
         </div>
       )}

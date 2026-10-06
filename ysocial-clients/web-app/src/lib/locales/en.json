@@ -21,6 +21,7 @@
     "likes": "likes",
     "refresh": "Refresh",
     "newPosts": "{n} new posts",
+    "newPostsOne": "1 new post",
     "newPostsOverflow": "20+ new posts",
     "newPostsAria": "New posts available, click to show"
   },

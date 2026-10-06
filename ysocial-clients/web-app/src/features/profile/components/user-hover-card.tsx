@@ -53,6 +53,9 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
     if (open && !user && status !== "loading") load();
   };
 
+  // No self-preview: the viewer is not a mock user, so loading their card could only fail
+  if (userId === viewerId) return children;
+
   const compact = new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US", { notation: "compact" });
 
   return (
@@ -73,7 +76,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
                   </AvatarFallback>
                 </Avatar>
               </Link>
-              {user.id !== viewerId && <FollowButton userId={user.id} />}
+              <FollowButton userId={user.id} />
             </div>
             <div className="flex flex-col min-w-0">
               <Link href={`/@${user.username}`} className="flex items-center gap-1 min-w-0 hover:underline">

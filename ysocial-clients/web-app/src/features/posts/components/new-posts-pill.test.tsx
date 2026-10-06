@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GUEST_VIEWER_ID } from "@/features/auth/store/auth-store";
 import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
+import { useUIStore } from "@/lib/store/ui-store";
 import { INCOMING_CAP, resetPostStore, usePostStore } from "../store/post-store";
 import type { PostItem } from "../types";
 import * as scroll from "../utils/scroll";
@@ -69,6 +70,16 @@ describe("NewPostsPill", () => {
 
     expect(screen.getByRole("button", { name: /3 bài mới/ })).toBeInTheDocument();
     expect(container.querySelectorAll('[data-slot="avatar"]')).toHaveLength(2);
+  });
+
+  it("uses the singular label for one post in English", () => {
+    useUIStore.getState().actions.setLocale("en");
+    buffer(makePost("n1", "a1"));
+
+    render(<NewPostsPill tab="forYou" onRefetch={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: /^1 new post$/ })).toBeInTheDocument();
+    useUIStore.getState().actions.setLocale("vi");
   });
 
   it("flushes pending posts on click and scrolls to the top", async () => {
