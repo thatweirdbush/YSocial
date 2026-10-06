@@ -5,10 +5,22 @@ import { Search, FolderPlus, Plus, Bookmark, Sliders, CheckSquare, Layers, X, Ch
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import { SavedItem, Collection } from "../types";
-import { PostCard } from "@/features/posts";
+import { getMockPostById, PostCard } from "@/features/posts";
 import { SavedCommandBar } from "./saved-command-bar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+
+// Saved items reference the shared post mocks so cards open real threads (/posts/[id]).
+const SAVED_SEED: { id: string; postId: string; collectionIds: string[]; savedAt: string }[] = [
+  { id: "save-1", postId: "post-002", collectionIds: ["col-1"], savedAt: "2026-05-30T10:00:00Z" },
+  { id: "save-2", postId: "post-006", collectionIds: ["col-2"], savedAt: "2026-05-29T14:22:00Z" },
+  { id: "save-3", postId: "post-010", collectionIds: ["col-3"], savedAt: "2026-05-28T08:15:00Z" },
+];
+
+const INITIAL_SAVED_ITEMS: SavedItem[] = SAVED_SEED.flatMap(({ postId, ...item }) => {
+  const post = getMockPostById(postId);
+  return post ? [{ ...item, post }] : [];
+});
 
 export const SavedList: React.FC = () => {
   const { t } = useTranslation();
@@ -22,71 +34,7 @@ export const SavedList: React.FC = () => {
   ]);
 
   // 2. Master Array of Saved Items
-  const [savedItems, setSavedItems] = useState<SavedItem[]>([
-    {
-      id: "save-1",
-      savedAt: "2026-05-30T10:00:00Z",
-      collectionIds: ["col-1"],
-      post: {
-        id: "post-101",
-        content: "Luxury Minimalist is the new supreme standard. Threads-inspired Zinc palettes, ultra-thin border layouts, and dynamic motion states make interfaces feel truly alive. #design #uipro",
-        createdAt: "2026-05-30T09:00:00Z",
-        likesCount: 124,
-        commentsCount: 18,
-        isLikedByCurrentUser: true,
-        isBookmarkedByCurrentUser: true,
-        user: {
-          id: "usr-1",
-          displayName: "Alex Rivera",
-          username: "alexr_design",
-          avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80",
-          isVerified: true,
-        },
-      },
-    },
-    {
-      id: "save-2",
-      savedAt: "2026-05-29T14:22:00Z",
-      collectionIds: ["col-2"],
-      post: {
-        id: "post-102",
-        content: "If your app takes more than 100ms to react to a user touch gesture, you have failed them. Optimistic UI states paired with micro-animations aren't optional anymore, they are mandatory requirements. ⚡️",
-        createdAt: "2026-05-29T13:00:00Z",
-        likesCount: 98,
-        commentsCount: 9,
-        isLikedByCurrentUser: false,
-        isBookmarkedByCurrentUser: true,
-        user: {
-          id: "usr-2",
-          displayName: "Emma Watson",
-          username: "emma_dev",
-          avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
-          isVerified: false,
-        },
-      },
-    },
-    {
-      id: "save-3",
-      savedAt: "2026-05-28T08:15:00Z",
-      collectionIds: ["col-3"],
-      post: {
-        id: "post-103",
-        content: "Next.js 16 + React 19 Server Components are completely changing the mental model. Zero client bundle overhead for static portions combined with ultra-light dynamic components is absolute magic.",
-        createdAt: "2026-05-28T07:30:00Z",
-        likesCount: 230,
-        commentsCount: 45,
-        isLikedByCurrentUser: true,
-        isBookmarkedByCurrentUser: true,
-        user: {
-          id: "usr-3",
-          displayName: "Devon Lane",
-          username: "devon_codes",
-          avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80",
-          isVerified: true,
-        },
-      },
-    },
-  ]);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>(INITIAL_SAVED_ITEMS);
 
   // UI Interactive States
   const [activeCollectionId, setActiveCollectionId] = useState<string>("all");

@@ -5,3 +5,7 @@ export { PostCreatorDialog } from "./components/post-creator-dialog";
 export { PostCard } from "./components/post-card";
 export { PostSkeletonList } from "./components/post-skeleton";
 export type * from "./types";
+export { PostDetailContainer } from "./components/detail/post-detail-container";
+export { PostDetailShell } from "./components/detail/post-detail-shell";
+export { PostDetailSkeleton } from "./components/detail/post-detail-skeleton";
+export { getMockPostById } from "./mocks/mock-posts";

@@ -1,0 +1,159 @@
+---
+module: Frontend Roadmap (FE-only, mock data)
+updated: 2026-10-02
+---
+
+# YSocial Frontend - Audit & Roadmap (FE-only, mock data)
+
+## Context
+- Audit current YSocial FE state + **full** roadmap of features missing vs Threads/X
+- **Scope:** UI/UX, components, layouts, Zustand. NO connect BE/API/DB -> all data rendered from FE mocks
+- **`brainstorming` classification:** **Architectural** (many independent subsystems) -> this plan is **roadmap + sub-project breakdown**
+- **Each sub-project MUST run full cycle:** brainstorm -> spec `docs/specs/YYYY-MM-DD-<topic>-design.md` -> `writing-plans` -> execute (subagent-driven / executing-plans) -> review -> verify
+- **Skills applied:** using-superpowers, brainstorming, writing-plans, concise-planning, kaizen, frontend-design, ui-ux-pro-max, nextjs-best-practices, react-best-practices, react-patterns, scroll-experience, tailwind-patterns, seo-audit, lint-and-validate, verification-before-completion, test-driven-development
+
+---
+
+## Step 1 - Current State
+
+| Route | Feature | Status |
+├──-├──-├──-|
+| `/` | `posts` - `PostFeed` (infinite query + mock fallback), `PostCard` (like/bookmark/share, menu, image carousel + fullscreen), skeleton | Done |
+| dialog/inline | `posts` - `PostCreatorCore/Dialog/Feed`, `post-draft-store` (localStorage), audience picker, discard dialog | Done |
+| `/login`, `/register` | `auth` - multi-step login, forgot/reset OTP, `auth-store` | Done |
+| `/@username` | `profile` - header, tabs, edit dialog, followers dialog, bio parser | Warning: SSR `fetch` to real BE (`app/[@username]/page.tsx`) -> **breaks without BE**; Replies tab = placeholder |
+| `/notifications` | `notifications` - like/follow/reply list, mock `INITIAL_NOTIFICATIONS` | Done (basic) |
+| `/saved` | `saved` - collections, manage mode, drag sort, bulk unsave (mock) | Done |
+| Layout | `main-layout` (sidebar collapse, mobile bottom nav, dropdown: profile/language/theme/logout), right sidebar (search widget, trending, follow suggestions - static) | Done |
+
+**Technical gaps found:**
+1. Nav `/search` -> **404**. **Comment** button (`post-card.tsx:496`) has no handler; no `/posts/[id]`
+2. Like/bookmark = local state per `PostCard` -> feed/profile/saved **out of sync**
+3. No `loading.tsx` / `error.tsx` / `not-found.tsx` for any route (violates `nextjs-best-practices`)
+4. **No test runner** (no Vitest/Jest, no `typecheck` script) -> TDD (required by skill) not yet possible
+5. Many `t("..." as any)` in `saved-list.tsx` -> i18n keys missing/untyped
+6. Mocks scattered per component (`post-feed.tsx`, `notification-container.tsx`, `saved-list.tsx`) -> no shared data source
+
+---
+
+## Steps 2 & 3 - Feature Checklist (priority high -> low)
+
+### Phase 0 - Foundation (MUST go first, blocks all later phases)
+- [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, scripts `test` & `typecheck` (devDependencies install needs approval)
+- [x] **F0.2 Mock data layer:** *(posts only - users/notifications/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
+- [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` -> like/bookmark/reply synced everywhere, O(1) toggle, no list re-render
+- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, general routes pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
+- [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): Lucide icon + Gen Z message + CTA - standard for all lists
+- [ ] **F0.6 Profile on mocks** (drop real-BE SSR fetch, keep `generateMetadata`) *(deferred, do with Phase 2)*
+
+### Phase 1 - Core content loop (P0)
+- [x] **1.1 Post Detail & Reply Thread** (see `features/post-detail.md`) `/posts/[id]` - *priority #1, see Step 4*
+- [ ] **1.2 Search / Explore** `/search?q=` - tabs "Top / Người dùng / Bài viết / Hashtag", recent searches (localStorage), debounced suggestions, keyword highlight; `SearchWidget` navigates here
+- [ ] **1.3 Hashtag page** `/tags/[tag]` - target for bio parser, trending, linkified post content
+- [ ] **1.4 "Có bài mới" pill** (simulated push every N sec) - tabs "Dành cho bạn / Đang theo dõi" already exist in `PostFeed`
+- [ ] **1.5 Post owner actions:** Edit (inline editor + "edited" label), Delete (confirm + undo toast), Pin to profile, Hide like count
+- [ ] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, Follow button - on name/avatar in `PostCard`
+
+### Phase 2 - Profile & Social graph (P1)
+- [ ] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Reposts / Saved (self)
+- [ ] **2.2 Followers / Following pages** `/@username/followers|following` (replace/alongside dialog), search within list
+- [ ] **2.3 Private account & Follow requests:** Pending state (match BE spec), request approval screen
+- [ ] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
+- [ ] **2.5 Block / Mute / Restrict:** from `PostCard` menu (currently toast only) -> actually hide content in store, management list in Settings
+- [ ] **2.6 Share profile:** copy link + QR code dialog
+- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown
+
+### Phase 3 - Notifications & Activity (P1)
+- [ ] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"
+- [ ] **3.2 Unread badge** on nav (Zustand `notification-store`), mark-all-read, mark-on-view
+- [ ] **3.3 Simulated realtime:** timer fires mock notification + toast (prepare SignalR plug-in point)
+- [ ] **3.4 Notification settings** (toggle per type) - shares store with Settings
+
+### Phase 4 - Settings & Account (P1)
+- [ ] **4.1 Settings hub** `/settings`, 2-col layout (desktop) / stack (mobile), child routes:
+  - `account` (email, username, birth date, gender - match `UpdateProfileRequest`), `privacy` (private account, who can reply/mention), `notifications`, `appearance` (theme, font size, reduced motion - moved from dropdown), `language`, `blocked`, `muted`, `close-friends`, `sessions` (device list, remote logout - UI), `danger` (deactivate/delete account UI + confirm)
+- [ ] **4.2 `settings-store`** persisted to localStorage, `useShallow` when selecting multiple fields
+
+### Phase 5 - Direct Messages (P2)
+- [ ] **5.1 Inbox** `/messages` - conversation list (unread, typing, last message), search
+- [ ] **5.2 Chat thread** `/messages/[conversationId]` - bubbles grouped by time, send text/image/emoji, reactions, reply-to, seen status, simulated typing indicator, auto-scroll + "jump to latest"
+- [ ] **5.3 Message requests** (strangers) & new conversation (pick user)
+- [ ] **5.4 Share post via DM** from `PostCard` Share button
+
+### Phase 6 - Advanced engagement (P2)
+- [ ] **6.1 Repost & Quote post** (quote embed card)
+- [ ] **6.2 Polls** in composer + vote UI (% results, expiry)
+- [ ] **6.3 Advanced composer:** `@mention` & `#hashtag` autocomplete, circular char counter, multi-post thread ("Add to thread"), link preview card
+- [ ] **6.4 Drafts page** `/drafts` (store exists) - edit/delete/repost
+- [ ] **6.5 Report flow** multi-step dialog (replaces current toast)
+- [ ] **6.6 Post-register onboarding:** avatar -> interests -> follow suggestions -> feed
+
+### Phase 7 - Polish & System UX (P3)
+- [x] **7.0 MainLayout mobile overflow** - `<main className="w-[600px] shrink-0">` overflows horizontally at 375px; **locale hydration mismatch** (`ui-store` reads `navigator.language` during render). *(pre-existing)*
+- [ ] **7.1 Command palette** (Ctrl/Cmd+K) + keyboard shortcuts (`j/k` move post, `l` like, `n` new post, `?` shortcut sheet)
+- [ ] **7.2 Offline banner** + retry (Offline Resiliency convention)
+- [ ] **7.3 Scroll restoration** feed <-> detail (convention), `content-visibility` for long lists
+- [ ] **7.4 Micro-animations:** like "pop & sparkle", share -> ✓, `prefers-reduced-motion`
+- [ ] **7.5 A11y pass:** focus ring, icon button `aria-label`, touch target >= 44px, contrast 4.5:1 in both themes
+- [ ] **7.6 i18n cleanup:** typed keys, remove all `as any`, full vi/en for every new feature
+- [ ] **7.7 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]`
+
+**Out of scope:** real API/SignalR, Communities/Lists, Analytics, Scheduled posts, PWA
+
+---
+
+## Step 4 - Structure for priority #1: Phase 0 (F0.2-F0.3) + 1.1 Post Detail & Reply Thread
+
+Reply = post with `parentId` (Threads-like) -> lives in `posts` feature, no new feature.
+
+```
+src/app/posts/[id]/
+├── page.tsx                       # Thin wrapper: MainLayout + <PostDetailContainer postId>, generateMetadata (from mock)
+├── loading.tsx                    # <PostDetailSkeleton />
+└── not-found.tsx                  # EmptyState "Bài viết không tồn tại"
+
+src/components/shared/
+└── empty-state.tsx                # (F0.5) shared
+
+src/features/posts/
+├── components/
+|   ├── post-card.tsx              # (edit) Comment -> router.push(`/posts/${id}`); like/bookmark read/write via post-store
+|   ├── post-feed.tsx              # (edit) data source = useFeedPostIds() instead of apiClient
+|   └── detail/
+|       ├── post-detail-container.tsx   # client container: usePost + useReplyIds, not-found state
+|       ├── post-detail-header.tsx      # sticky: Back + "Thread"
+|       ├── post-detail-main.tsx        # expanded root post (full timestamp, stats)
+|       ├── reply-composer.tsx          # reuses PostCreatorCore ("Reply to @username")
+|       ├── reply-list.tsx              # replies + "View more replies" (1-level nesting)
+|       ├── reply-item.tsx              # compact PostCard + thread line
+|       └── post-detail-skeleton.tsx    # matches real size (CLS)
+├── mocks/
+|   ├── mock-authors.ts            # PostAuthor[] (seed later shared with profile/search)
+|   └── mock-posts.ts              # root PostItem[] + replies (parentId), images, timestamps
+├── store/
+|   ├── post-draft-store.ts        # unchanged
+|   ├── post-store.ts              # state: posts: Record<id, PostItem>, replyIds: Record<parentId, id[]>, feedIds: id[]
+|   |                              # actions: toggleLike, toggleBookmark, addReply, addPost (optimistic, no API)
+|   |                              # selectors: usePost(id), useReplyIds(id), useFeedPostIds(), usePostActions()
+|   └── post-store.test.ts         # TDD: toggleLike changes count +/-1, addReply increments commentsCount & prepends to replyIds, unknown id -> no-op
+├── types/index.ts                 # PostItem adds parentId?: string, isEdited?: boolean
+└── index.ts                       # export PostDetailContainer
+```
+
+**Design decisions**
+- Normalized store `Record<id>` -> `PostCard` subscribes ONLY `usePost(id)`; like toggle O(1), no whole-feed re-render (`rerender-derived-state`)
+- Mocks loaded once at store init (lazy init); later swap to TanStack Query = change source in store/hooks ONLY, UI unchanged
+- `page.tsx` stays Server Component (metadata/OG); interactive part = client container (`nextjs-best-practices`)
+- Keep cross-feature convention via `@/features/posts` / `@/features/posts/types` (settled); accept slight deviation from `bundle-barrel-imports` rule
+- Design: follow existing language (Luxury Minimal, Zinc, thin borders) - NO new animation/icon libs. `ui-ux-pro-max` script needs Python (check if installed) -> use skill's Quick Reference + Pre-Delivery Checklist
+- i18n: add `postDetail.*` to `lib/locales/vi.json` & `en.json`
+
+**Reuse:** `PostCard`, `PostCreatorCore`, `PostSkeletonList`, `MainLayout`, `SafeHydration`, `useTranslation`, shadcn `avatar/button/dropdown-menu/scroll-area/skeleton`
+
+---
+
+## Verification (per sub-project)
+- `npm run test` (store/hook tests written first - RED -> GREEN), `npm run typecheck`, `npm run lint` - report exact results, no new errors
+- `npm run dev` -> Browser pane `http://localhost:3000`: click Comment -> `/posts/[id]`; send reply -> appears immediately, feed `commentsCount` increments; like in detail -> back to feed synced; Back keeps scroll; bad id -> not-found
+- Check 375px / 768px / 1440px, light & dark, keyboard focus (`ui-ux-pro-max` Pre-Delivery Checklist)
+- Update `.context/features/<feature>.md` + `INDEX.md` after each sub-project (Task Closure Protocol)

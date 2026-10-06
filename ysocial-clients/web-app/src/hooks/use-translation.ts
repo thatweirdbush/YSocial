@@ -13,7 +13,8 @@ type TranslationKey =
   | `common.${keyof typeof vi.common}`
   | `profile.${keyof typeof vi.profile}`
   | `notifications.${keyof typeof vi.notifications}`
-  | `auth.${keyof typeof vi.auth}`;
+  | `auth.${keyof typeof vi.auth}`
+  | `postDetail.${keyof typeof vi.postDetail}`;
 
 export const useTranslation = () => {
   const locale = useLocale();

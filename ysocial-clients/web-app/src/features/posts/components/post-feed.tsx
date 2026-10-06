@@ -1,238 +1,107 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, RefreshCw } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { EmptyState } from "@/components/shared/empty-state";
 import { useTranslation } from "@/hooks/use-translation";
+import { useCurrentAuthor } from "../hooks/use-current-author";
+import { createPost, fetchFeed } from "../services/post-service";
+import { useFeedIds, useFeedMeta, usePost, usePostActions, usePostStore } from "../store/post-store";
+import type { CreatePostInput, FeedTab } from "../types";
 import { PostCard } from "./post-card";
-import type { PostItem } from "../types";
 import { PostCreator } from "./post-creator";
 import { PostSkeletonList, PostSkeletonText } from "./post-skeleton";
-import { toast } from "sonner";
 
-// High-fidelity Mock Posts to fallback elegantly if backend server is not running during local inspection
-const MOCK_FALLBACK_POSTS: PostItem[] = [
-  {
-    id: "post-1",
-    content: "Chào mừng các bạn đến với mạng xã hội YSocial! Giao diện được thiết kế theo phong cách Luxury Minimalist lấy cảm hứng từ Threads và X, tập trung vào những tiểu tiết tinh tế nhất. Trải nghiệm thử tính năng Like (Heart Pop) và Share (Rotate Copy) nhé! ✨",
-    createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(), // 10 mins ago
-    likesCount: 128,
-    commentsCount: 32,
-    isLikedByCurrentUser: false,
-    isBookmarkedByCurrentUser: false,
-    imageUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80",
-    user: {
-      id: "admin-1",
-      displayName: "Antigravity Architect",
-      username: "antigravity.core",
-      avatarUrl: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=100&q=80",
-      isVerified: true,
-    }
-  },
-  {
-    id: "post-2",
-    content: "Next.js 15 App Router pairing with Tailwind CSS v4 is absolutely stellar. Writing clean, modular components inside feature-driven layouts ensures maximum developer productivity and code clarity. Do you prefer server or client components for feed views?",
-    createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(), // 45 mins ago
-    likesCount: 42,
-    commentsCount: 8,
-    isLikedByCurrentUser: true,
-    isBookmarkedByCurrentUser: true,
-    user: {
-      id: "user-2",
-      displayName: "Elena Vance",
-      username: "elena_v",
-      avatarUrl: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80",
-      isVerified: false,
-    }
-  },
-  {
-    id: "post-3",
-    content: "Minimalism isn't the lack of something. It's the perfect amount of something.",
-    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(), // 3 hours ago
-    likesCount: 89,
-    commentsCount: 14,
-    isLikedByCurrentUser: false,
-    isBookmarkedByCurrentUser: false,
-    imageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
-    user: {
-      id: "user-3",
-      displayName: "Trần Anh Quốc",
-      username: "anquoc.dev",
-      avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=100&q=80",
-      isVerified: true,
-    }
-  }
-];
+const NO_FAILURES: Record<FeedTab, boolean> = { forYou: false, following: false };
+
+/** Tabs whose pages are already in the store (snapshot at mount). */
+function cachedFeedTabs(): Set<FeedTab> {
+  const { feedMeta } = usePostStore.getState();
+  return new Set((Object.keys(feedMeta) as FeedTab[]).filter((tab) => feedMeta[tab].loaded));
+}
+
+/** Subscribes to a single post so a like re-renders only this card. */
+function FeedPostCard({ id }: { id: string }) {
+  const post = usePost(id);
+  return post ? <PostCard post={post} /> : null;
+}
 
 export function PostFeed() {
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"forYou" | "following">("forYou");
+  const author = useCurrentAuthor();
+  const { upsertPosts, setFeedPage, prependPost } = usePostActions();
+  const [activeTab, setActiveTab] = useState<FeedTab>("forYou");
+  // Transient per-mount failure flags; loaded pages + nextPage live in the store and survive remounts.
+  const [failedTabs, setFailedTabs] = useState(NO_FAILURES);
+  const [isFetchingNext, setIsFetchingNext] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  // Tabs whose first page was already requested (seeded with tabs cached in the store, e.g. Back from a
+  // thread, so they render instantly); guards against duplicate fetches across re-renders.
+  const requestedTabsRef = useRef<Set<FeedTab>>(cachedFeedTabs());
+  const feedIds = useFeedIds(activeTab);
+  const { loaded, nextPage } = useFeedMeta(activeTab);
+  const failed = failedTabs[activeTab];
 
-  // 1. INIFINITE QUERY WITH 5-MINUTE CACHE (Fulfills Scroll Restoration requirement)
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-    isError,
-    refetch,
-  } = useInfiniteQuery({
-    queryKey: ["posts", activeTab],
-    queryFn: async ({ pageParam = 1 }) => {
-      try {
-        const response = await apiClient.get("/api/posts", {
-          params: {
-            page: pageParam,
-            pageSize: 10,
-            tab: activeTab,
-          },
-        });
-        // Handle empty array response or null check
-        return response || [];
-      } catch (err) {
-        // Safe fallback to mock data on local development error or server down
-        console.warn("[Feed] Backend API offline. Falling back to high-fidelity local Mock Posts:", err);
-        return pageParam === 1 ? MOCK_FALLBACK_POSTS : [];
-      }
-    },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage: any, allPages) => {
-      if (!lastPage || lastPage.length < 10) return undefined;
-      return allPages.length + 1;
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes fresh boundary to support backward scroll recovery!
-  });
-
-  // 2. MUTATION WITH OPTIMISTIC UPDATES (Fulfills heart pop updates on TanStack query)
-  const likeMutation = useMutation({
-    mutationFn: async ({ postId, isLiked }: { postId: string; isLiked: boolean }) => {
-      // Toggle backend state
-      return apiClient.post(`/api/likes/toggle`, { postId });
-    },
-    onMutate: async ({ postId, isLiked }) => {
-      // Cancel refetch queries to avoid overwriting optimistic updates
-      await queryClient.cancelQueries({ queryKey: ["posts", activeTab] });
-
-      const previousPosts = queryClient.getQueryData(["posts", activeTab]);
-
-      // Optimistically update values in cache
-      queryClient.setQueryData(["posts", activeTab], (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          pages: oldData.pages.map((page: any) => {
-            if (!Array.isArray(page)) return page;
-            return page.map((post: PostItem) => {
-              if (post.id === postId) {
-                return {
-                  ...post,
-                  isLikedByCurrentUser: isLiked,
-                  likesCount: isLiked ? post.likesCount + 1 : Math.max(0, post.likesCount - 1),
-                };
-              }
-              return post;
-            });
-          }),
-        };
-      });
-
-      return { previousPosts };
-    },
-    onError: (err, variables, context) => {
-      // Rollback values in case of request failures
-      if (context?.previousPosts) {
-        queryClient.setQueryData(["posts", activeTab], context.previousPosts);
-      }
-      toast.error(t("common.error"));
-    },
-    onSettled: () => {
-      // Invalidate query to sync final server values
-      queryClient.invalidateQueries({ queryKey: ["posts", activeTab] });
-    },
-  });
-
-  const handleLikeToggle = async (postId: string, currentlyLiked: boolean) => {
-    // Fire mutation optimistically
-    likeMutation.mutate({ postId, isLiked: !currentlyLiked });
-  };
-
-  // Helper handling local composer success injection
-  const handleComposerSuccess = async (content: string, imageUrl?: string) => {
+  /** Loads one page into the store; resolves false on failure. Stable identity (no `t` dependency). */
+  const loadPage = useCallback(async (tab: FeedTab, page: number) => {
     try {
-      const payload = { content, imageUrl };
-
-      // Perform backend POST API
-      await apiClient.post("/api/posts", payload);
-      toast.success(t("card.likeSuccess").replace("liked", "created")); // generic toast helper
-
-      // Re-invalidate post feed query to pull new posts instantly
-      queryClient.invalidateQueries({ queryKey: ["posts", activeTab] });
-    } catch (err) {
-      console.warn("[Composer] API submission error, prepending optimistically to local display:", err);
-
-      // Dynamic client prepend mock on error to maintain rich interactive fidelity
-      const newMockPost: PostItem = {
-        id: `post-temp-${Date.now()}`,
-        content,
-        imageUrl,
-        createdAt: new Date().toISOString(),
-        likesCount: 0,
-        commentsCount: 0,
-        isLikedByCurrentUser: false,
-        isBookmarkedByCurrentUser: false,
-        user: {
-          id: "mock-user-current",
-          displayName: "Me",
-          username: "me_ysocial",
-          avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80",
-          isVerified: false,
-        }
-      };
-
-      queryClient.setQueryData(["posts", activeTab], (oldData: any) => {
-        if (!oldData) return { pages: [[newMockPost]], pageParams: [1] };
-        return {
-          ...oldData,
-          pages: [
-            [newMockPost, ...(oldData.pages[0] || [])],
-            ...oldData.pages.slice(1),
-          ],
-        };
-      });
-
-      toast.success("Post added locally!");
+      const result = await fetchFeed(tab, page);
+      upsertPosts(result.posts);
+      setFeedPage(tab, result.posts.map((p) => p.id), page > 1, result.nextPage);
+      setFailedTabs((prev) => (prev[tab] ? { ...prev, [tab]: false } : prev));
+      return true;
+    } catch {
+      setFailedTabs((prev) => ({ ...prev, [tab]: true }));
+      return false;
     }
+  }, [upsertPosts, setFeedPage]);
+
+  const loadWithFeedback = useCallback((tab: FeedTab, page: number) =>
+    loadPage(tab, page).then((ok) => {
+      if (!ok) toast.error(t("common.error"));
+    }), [loadPage, t]);
+
+  const loadNextPage = useCallback((tab: FeedTab, page: number) => {
+    setIsFetchingNext(true);
+    void loadWithFeedback(tab, page).finally(() => setIsFetchingNext(false));
+  }, [loadWithFeedback]);
+
+  // First load per tab; switching back to a loaded tab reuses the cached ids.
+  useEffect(() => {
+    if (requestedTabsRef.current.has(activeTab)) return;
+    requestedTabsRef.current.add(activeTab);
+    void loadWithFeedback(activeTab, 1);
+  }, [activeTab, loadWithFeedback]);
+
+  const handleRefresh = () => {
+    void loadWithFeedback(activeTab, 1);
   };
 
-  // 3. INFINITE SCROLL OBSERVER
+  const handleComposerSuccess = async (input: CreatePostInput) => {
+    const post = await createPost(input, author);
+    prependPost("forYou", post);
+  };
+
+  const handleRetryNext = () => {
+    if (nextPage !== undefined && !isFetchingNext) loadNextPage(activeTab, nextPage);
+  };
+
+  // Infinite scroll observer. Paused after a failure: re-observing a still-visible sentinel would
+  // refetch (and toast) in a tight loop, so the user retries explicitly instead.
   useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || nextPage === undefined || failed) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage();
-        }
+        if (entries[0].isIntersecting && !isFetchingNext) loadNextPage(activeTab, nextPage);
       },
       { threshold: 0.1 }
     );
-
-    const currentRef = loadMoreRef.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
-
-  // Read flat array list of posts from pages
-  const allPosts = data?.pages ? data.pages.flat() : [];
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [activeTab, nextPage, failed, isFetchingNext, loadNextPage]);
 
   return (
     <div className="flex flex-col w-full min-h-screen pb-20 lg:pb-12 bg-white dark:bg-black">
@@ -267,7 +136,8 @@ export function PostFeed() {
 
         {/* Quick status bar sparkle spinner */}
         <button
-          onClick={() => refetch()}
+          onClick={handleRefresh}
+          aria-label={t("feed.refresh")}
           className="p-2 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-black dark:hover:text-white transition-transform active:rotate-185 shrink-0"
         >
           <RefreshCw className="h-4 w-4" />
@@ -279,36 +149,45 @@ export function PostFeed() {
 
       {/* Infinite Feed Container */}
       <div className="flex flex-col w-full divide-y divide-zinc-200/60 dark:divide-zinc-900/60">
-        {isLoading ? (
+        {!loaded && !failed ? (
           /* Enforce Zero CLS Skeletal shimmer list */
           <PostSkeletonList count={4} />
-        ) : allPosts.length === 0 ? (
-          /* Generous, clean Empty State with CTA */
-          <div className="flex flex-col items-center justify-center py-20 px-4 text-center gap-4">
-            <div className="h-16 w-16 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-400">
-              <Sparkles className="h-8 w-8" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-lg">{t("feed.emptyFeed")}</h3>
-              <p className="text-sm text-zinc-400 max-w-[280px]">Be the catalyst of conversations and post something new.</p>
-            </div>
-          </div>
-        ) : (
-          allPosts.map((post: any) => (
-            <PostCard
-              key={post.id}
-              post={post as PostItem}
-              onLikeToggle={handleLikeToggle}
+        ) : feedIds.length === 0 ? (
+          failed ? (
+            <EmptyState
+              icon={AlertCircle}
+              title={t("postDetail.errorTitle")}
+              action={
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="min-h-11 px-5 rounded-full border border-zinc-200 dark:border-zinc-800 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                >
+                  {t("postDetail.retry")}
+                </button>
+              }
             />
-          ))
+          ) : (
+            <EmptyState icon={Sparkles} title={t("feed.emptyFeed")} description={t("feed.createCTA")} />
+          )
+        ) : (
+          feedIds.map((id) => <FeedPostCard key={id} id={id} />)
         )}
       </div>
 
       {/* Intersection Threshold for Infinite Loading */}
-      {hasNextPage && (
+      {nextPage !== undefined && (
         <div ref={loadMoreRef} className="w-full flex justify-center py-6">
-          {isFetchingNextPage ? (
+          {isFetchingNext ? (
             <PostSkeletonText />
+          ) : failed && feedIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={handleRetryNext}
+              className="min-h-11 px-5 rounded-full border border-zinc-200 dark:border-zinc-800 text-sm font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors motion-reduce:transition-none"
+            >
+              {t("postDetail.retry")}
+            </button>
           ) : (
             <div className="h-2 w-full" />
           )}

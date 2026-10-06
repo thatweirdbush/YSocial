@@ -18,7 +18,8 @@
     "trending": "Trending for you",
     "viewPost": "View post",
     "comments": "comments",
-    "likes": "likes"
+    "likes": "likes",
+    "refresh": "Refresh"
   },
   "creator": {
     "placeholder": "What's new?",
@@ -65,7 +66,12 @@
     "closeFriend": "Close Friend",
     "follow": "Follow",
     "unfollow": "Unfollow",
-    "following": "Following"
+    "following": "Following",
+    "like": "Like",
+    "comment": "Reply",
+    "bookmark": "Save",
+    "share": "Share",
+    "more": "More"
   },
   "common": {
     "language": "Language",
@@ -179,5 +185,24 @@
     "deleteCollectionConfirmDesc": "This will delete the collection permanently. Saved items inside this collection will not be deleted.",
     "delete": "Delete",
     "search": "Search"
+  },
+  "postDetail": {
+    "title": "Thread",
+    "back": "Back",
+    "replyPlaceholder": "Reply to @{username}…",
+    "replyingTo": "Replying to @{username}",
+    "viewMoreReplies": "View {n} more replies",
+    "emptyReplies": "No replies yet — be the first!",
+    "notFoundTitle": "This post has vanished",
+    "backHome": "Back to home",
+    "loginToReply": "Log in to reply",
+    "errorTitle": "Something went wrong…",
+    "retry": "Try again",
+    "replySuccess": "Reply sent",
+    "replyError": "Couldn't send your reply",
+    "likes": "likes",
+    "replies": "replies",
+    "reply": "Reply",
+    "replying": "Sending…"
   }
 }
