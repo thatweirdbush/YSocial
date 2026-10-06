@@ -1,6 +1,6 @@
 ---
 module: Frontend Roadmap (FE-only, mock data)
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # YSocial Frontend - Audit & Roadmap (FE-only, mock data)
@@ -15,24 +15,27 @@ updated: 2026-10-05
 ---
 
 ## Step 1 - Current State
+> Audit 2026-10-01, status refreshed 2026-10-06 (after Phase 1.1-1.3)
 
 | Route | Feature | Status |
-├──-├──-├──-|
-| `/` | `posts` - `PostFeed` (infinite query + mock fallback), `PostCard` (like/bookmark/share, menu, image carousel + fullscreen), skeleton | Done |
+|---|---|---|
+| `/` | `posts` - `PostFeed` (mock `post-service` + normalized `post-store`, infinite scroll), `PostCard` (like/bookmark/share, menu, carousel + fullscreen, linkified `#tag`/`@mention`), skeleton | Done |
+| `/posts/[id]` | `posts` - thread + 1-level replies, reply composer, loading/error/not-found | Done |
+| `/search`, `/tags/[tag]` | `search` - explore landing, 4 result tabs, combobox suggestions, recent searches, tag page | Done |
 | dialog/inline | `posts` - `PostCreatorCore/Dialog/Feed`, `post-draft-store` (localStorage), audience picker, discard dialog | Done |
 | `/login`, `/register` | `auth` - multi-step login, forgot/reset OTP, `auth-store` | Done |
-| `/@username` | `profile` - header, tabs, edit dialog, followers dialog, bio parser | Warning: SSR `fetch` to real BE (`app/[@username]/page.tsx`) -> **breaks without BE**; Replies tab = placeholder |
-| `/notifications` | `notifications` - like/follow/reply list, mock `INITIAL_NOTIFICATIONS` | Done (basic) |
-| `/saved` | `saved` - collections, manage mode, drag sort, bulk unsave (mock) | Done |
-| Layout | `main-layout` (sidebar collapse, mobile bottom nav, dropdown: profile/language/theme/logout), right sidebar (search widget, trending, follow suggestions - static) | Done |
+| `/@username` | `profile` - header, tabs, edit dialog, followers dialog, bio parser | Warning: SSR `fetch` + `apiClient` to real BE -> **breaks without BE**; Replies tab = placeholder (F0.6) |
+| `/notifications` | `notifications` - like/follow/reply list, inline mock `INITIAL_NOTIFICATIONS` | Done (basic) |
+| `/saved` | `saved` - collections, manage mode, drag sort, bulk unsave; items = shared post mocks | Done |
+| Layout | `main-layout` (sidebar collapse, mobile bottom nav, dropdown), right sidebar (`SearchBox`, live trending, follow suggestions via `user-store`) | Done |
 
 **Technical gaps found:**
-1. Nav `/search` -> **404**. **Comment** button (`post-card.tsx:496`) has no handler; no `/posts/[id]`
-2. Like/bookmark = local state per `PostCard` -> feed/profile/saved **out of sync**
-3. No `loading.tsx` / `error.tsx` / `not-found.tsx` for any route (violates `nextjs-best-practices`)
-4. **No test runner** (no Vitest/Jest, no `typecheck` script) -> TDD (required by skill) not yet possible
-5. Many `t("..." as any)` in `saved-list.tsx` -> i18n keys missing/untyped
-6. Mocks scattered per component (`post-feed.tsx`, `notification-container.tsx`, `saved-list.tsx`) -> no shared data source
+1. [x] Nav `/search` 404, Comment button without handler, no `/posts/[id]` -> fixed by 1.1 & 1.2
+2. [-] Like/bookmark/follow out of sync -> feed/detail/search/tag/saved share `post-store`/`user-store`; **profile still on real BE** (F0.6); `PostCard` author Follow button still local state (1.6)
+3. [-] Route shells -> done `/posts/[id]`, `/search`, `/tags/[tag]`; missing global `not-found`, `/`, `/notifications`, `/saved`, `/@username` (F0.4)
+4. [x] Need test runner -> Vitest + RTL + jsdom, `test` & `typecheck` scripts (F0.1)
+5. [ ] `t("..." as any)` -> still 21 in `saved-list.tsx`, plus `notification-list.tsx`, `post-card.tsx`, `saved-command-bar.tsx` (7.6)
+6. [-] Scattered mocks -> posts & users centralized; notifications & saved collections still inline (F0.2)
 
 ---
 
@@ -40,9 +43,9 @@ updated: 2026-10-05
 
 ### Phase 0 - Foundation (MUST go first, blocks all later phases)
 - [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, scripts `test` & `typecheck` (devDependencies install needs approval)
-- [x] **F0.2 Mock data layer:** *(posts + users done - notifications/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
+- [-] **F0.2 Mock data layer:** *(posts + users done - notifications/saved collections/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
 - [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` -> like/bookmark/reply synced everywhere, O(1) toggle, no list re-render
-- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, general routes pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
+- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, `/search`, `/tags/[tag]`; global not-found, `/`, `/notifications`, `/saved`, `/@username` pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
 - [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): Lucide icon + Gen Z message + CTA - standard for all lists
 - [ ] **F0.6 Profile on mocks** (drop real-BE SSR fetch, keep `generateMetadata`) *(deferred, do with Phase 2)*
 
@@ -96,7 +99,7 @@ updated: 2026-10-05
 - [ ] **7.4 Micro-animations:** like "pop & sparkle", share -> ✓, `prefers-reduced-motion`
 - [ ] **7.5 A11y pass:** focus ring, icon button `aria-label`, touch target >= 44px, contrast 4.5:1 in both themes
 - [ ] **7.6 i18n cleanup:** typed keys, remove all `as any`, full vi/en for every new feature
-- [ ] **7.7 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]`
+- [-] **7.7 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`; `/@username` metadata exists but page depends on BE)*
 
 **Out of scope:** real API/SignalR, Communities/Lists, Analytics, Scheduled posts, PWA
 
