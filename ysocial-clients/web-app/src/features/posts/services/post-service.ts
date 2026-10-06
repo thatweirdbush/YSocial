@@ -1,7 +1,7 @@
 import { MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
 import { MOCK_POSTS } from "../mocks/mock-posts";
 import { normalizeText, tokenize } from "@/lib/text";
-import type { CreatePostInput, FeedPage, FeedTab, HashtagStat, PostAuthor, PostItem, PostThread, TagPage, TagSort } from "../types";
+import type { CreatePostInput, FeedPage, FeedTab, HashtagStat, PostAuthor, PostItem, PostSearchSort, PostThread, TagPage, TagSort } from "../types";
 import { byNewest, collectTagStats, hasTag, tagKey } from "../utils/hashtags";
 
 // Mock data source for posts. Replace the bodies with real API calls when the backend is wired;
@@ -159,8 +159,11 @@ export async function createReply(parentId: string, input: CreatePostInput, auth
   return copy(reply);
 }
 
-/** Root posts matching every token (relevance, likes, newest). `#tag` query -> exact tag match. */
-export async function searchPosts(query: string, limit = SEARCH_LIMIT): Promise<PostItem[]> {
+/**
+ * Root posts matching every token. `relevance`: score, likes, newest; `latest`: newest first.
+ * `#tag` query -> exact tag match (relevance = likes, newest).
+ */
+export async function searchPosts(query: string, limit = SEARCH_LIMIT, sort: PostSearchSort = "relevance"): Promise<PostItem[]> {
   await simulateNetwork();
 
   const trimmed = query.trim();
@@ -169,7 +172,7 @@ export async function searchPosts(query: string, limit = SEARCH_LIMIT): Promise<
     if (!key) return [];
     return roots()
       .filter((post) => hasTag(post, key))
-      .sort((a, b) => b.likesCount - a.likesCount || byNewest(a, b))
+      .sort(sort === "latest" ? byNewest : (a, b) => b.likesCount - a.likesCount || byNewest(a, b))
       .slice(0, limit)
       .map(copy);
   }
@@ -180,7 +183,11 @@ export async function searchPosts(query: string, limit = SEARCH_LIMIT): Promise<
   return roots()
     .map((post) => ({ post, score: scorePost(post, tokens) }))
     .filter((entry): entry is { post: PostItem; score: number } => entry.score !== null)
-    .sort((a, b) => b.score - a.score || b.post.likesCount - a.post.likesCount || byNewest(a.post, b.post))
+    .sort((a, b) =>
+      sort === "latest"
+        ? byNewest(a.post, b.post)
+        : b.score - a.score || b.post.likesCount - a.post.likesCount || byNewest(a.post, b.post),
+    )
     .slice(0, limit)
     .map((entry) => copy(entry.post));
 }

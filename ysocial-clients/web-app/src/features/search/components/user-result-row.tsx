@@ -33,7 +33,9 @@ export function UserResultRow({ userId, tokens = [] }: UserResultRowProps) {
             <HighlightText text={user.displayName} tokens={tokens} />
           </span>
           <span className="truncate text-xs text-zinc-500">
-            @<HighlightText text={user.username} tokens={tokens} /> · {t("search.followers", { count: COMPACT_FORMATS[locale].format(user.followersCount) })}
+            @<HighlightText text={user.username} tokens={tokens} /> · {t(user.followersCount === 1 ? "search.followersOne" : "search.followers", {
+              count: COMPACT_FORMATS[locale].format(user.followersCount),
+            })}
           </span>
           {user.bio && (
             <span className="mt-0.5 line-clamp-1 text-xs text-zinc-600 dark:text-zinc-400">

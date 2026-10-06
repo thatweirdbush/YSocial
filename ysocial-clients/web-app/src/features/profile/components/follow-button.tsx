@@ -28,8 +28,8 @@ export function FollowButton({ userId, className }: FollowButtonProps) {
     const next = !user.isFollowing;
     toggleFollow(userId);
     void setFollow(userId, next);
-    if (next) toast.success(`Following @${user.username}`);
-    else toast.info(`Unfollowed @${user.username}`);
+    if (next) toast.success(t("card.followSuccess", { username: user.username }));
+    else toast.info(t("card.unfollowSuccess", { username: user.username }));
   };
 
   return (

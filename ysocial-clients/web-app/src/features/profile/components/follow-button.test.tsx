@@ -5,6 +5,9 @@ import * as service from "../services/user-service";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import { FollowButton } from "./follow-button";
 
+const toast = vi.hoisted(() => ({ success: vi.fn(), info: vi.fn() }));
+vi.mock("sonner", () => ({ toast }));
+
 beforeEach(() => {
   resetUserStore();
   vi.restoreAllMocks();
@@ -31,5 +34,16 @@ describe("FollowButton", () => {
   it("renders nothing for an unknown user", () => {
     const { container } = render(<FollowButton userId="nope" />);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows translated toasts", async () => {
+    vi.spyOn(service, "setFollow").mockResolvedValue();
+    render(<FollowButton userId="u1" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Theo dõi" }));
+    expect(toast.success).toHaveBeenCalledWith("Đã theo dõi @minhthu");
+
+    await userEvent.click(screen.getByRole("button", { name: "Đang theo dõi" }));
+    expect(toast.info).toHaveBeenCalledWith("Đã bỏ theo dõi @minhthu");
   });
 });

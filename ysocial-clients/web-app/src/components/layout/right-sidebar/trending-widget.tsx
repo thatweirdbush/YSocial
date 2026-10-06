@@ -42,7 +42,7 @@ export function TrendingWidget() {
                   <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-zinc-600 dark:group-hover:text-zinc-300 transition-colors">
                     #{trend.tag}
                   </span>
-                  <span className="text-xs text-zinc-500 font-normal mt-0.5">{t("tags.postsCount", { count: trend.postsCount })}</span>
+                  <span className="text-xs text-zinc-500 font-normal mt-0.5">{t(trend.postsCount === 1 ? "tags.postsCountOne" : "tags.postsCount", { count: trend.postsCount })}</span>
                 </div>
                 <ChevronRight className="size-4 text-zinc-300 dark:text-zinc-700 group-hover:translate-x-0.5 transition-transform motion-reduce:transition-none shrink-0" aria-hidden="true" />
               </Link>

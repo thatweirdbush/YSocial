@@ -1,10 +1,10 @@
 // Text helpers shared by search, highlight & hashtag parsing. Matching is case & diacritics insensitive.
 
-/** `#tag` at start or after whitespace; letters (incl. Vietnamese), digits, `_`. */
-export const HASHTAG_PATTERN = /(?<=^|\s)#([\p{L}\p{N}_]+)/gu;
+/** `#tag` at start or after whitespace (never URL fragments / ids); letters + combining marks (NFD Vietnamese), digits, `_`. */
+export const HASHTAG_PATTERN = /(?<=^|\s)#([\p{L}\p{M}\p{N}_]+)/gu;
 
-/** `@username` at start or after whitespace (usernames are ASCII). */
-export const MENTION_PATTERN = /(?<=^|\s)@([a-zA-Z0-9._]+)/g;
+/** `@username` at start or after whitespace (usernames are ASCII); a trailing `.` ends the sentence, not the name. */
+export const MENTION_PATTERN = /(?<=^|\s)@([a-zA-Z0-9._]*[a-zA-Z0-9_])/g;
 
 /** Folds one string without touching whitespace: NFD, strip marks, đ -> d, lowercase. */
 export function foldText(input: string): string {

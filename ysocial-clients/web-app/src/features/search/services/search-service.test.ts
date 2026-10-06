@@ -56,7 +56,17 @@ describe("fetchSearch", () => {
     expect(result.tags.every((stat) => normalizeText(stat.tag).includes("design"))).toBe(true);
   });
 
+  it("returns the latest order from the service", async () => {
+    const result = await settle(fetchSearch("nextjs"));
+    expect(result.posts.map((post) => post.id)).toEqual(["post-009", "post-002", "post-007"]);
+    expect(result.latestPosts.map((post) => post.id)).toEqual(["post-002", "post-007", "post-009"]);
+  });
+
+  it("resolves at once without calling services for a bare # or @", async () => {
+    await expect(fetchSearch("#")).resolves.toEqual({ users: [], posts: [], latestPosts: [], tags: [] });
+  });
+
   it("resolves at once without calling services for a blank query", async () => {
-    await expect(fetchSearch("  ")).resolves.toEqual({ users: [], posts: [], tags: [] });
+    await expect(fetchSearch("  ")).resolves.toEqual({ users: [], posts: [], latestPosts: [], tags: [] });
   });
 });

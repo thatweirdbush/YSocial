@@ -9,9 +9,9 @@ import type { HashtagStat } from "@/features/posts/types";
 import type { UserProfile } from "@/features/profile/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useTranslation } from "@/hooks/use-translation";
-import { tokenize } from "@/lib/text";
+import { normalizeText, tokenize } from "@/lib/text";
 import { cn } from "@/lib/utils";
-import { buildSearchHref, fetchSuggestions } from "../services/search-service";
+import { bareQuery, buildSearchHref, fetchSuggestions } from "../services/search-service";
 import { useRecentSearches, useSearchActions } from "../store/search-store";
 import type { SearchSuggestions } from "../types";
 
@@ -29,7 +29,12 @@ type SearchOption =
   | { kind: "user"; user: UserProfile }
   | { kind: "tag"; stat: HashtagStat };
 
-const EMPTY_SUGGESTIONS: SearchSuggestions = { users: [], tags: [] };
+/** Suggestions tagged with the normalized query they answer. */
+interface SuggestionState extends SearchSuggestions {
+  query: string;
+}
+
+const EMPTY_SUGGESTIONS: SuggestionState = { query: "", users: [], tags: [] };
 
 // Keeps focus in the input while clicking inside the popup (blur would close it first)
 const keepFocus = (e: React.MouseEvent) => e.preventDefault();
@@ -48,20 +53,20 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
   const [value, setValue] = useState(defaultValue);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [suggestions, setSuggestions] = useState<SearchSuggestions>(EMPTY_SUGGESTIONS);
+  const [suggestions, setSuggestions] = useState<SuggestionState>(EMPTY_SUGGESTIONS);
 
   const debounced = useDebouncedValue(value, SUGGEST_DEBOUNCE_MS);
-  const hasQuery = tokenize(value.replace(/^\s*[#@]/, "")).length > 0;
+  const hasQuery = bareQuery(value) !== "";
 
   useEffect(() => {
-    const query = debounced.trim();
-    if (tokenize(query.replace(/^[#@]/, "")).length === 0) return;
-
-    // Only the latest request may write; slower earlier responses are dropped
+    // Only the latest request may write; slower earlier responses are dropped (also when the input was cleared)
     const requestId = ++requestRef.current;
+    const query = debounced.trim();
+    if (!bareQuery(query)) return;
+
     fetchSuggestions(query)
       .then((result) => {
-        if (requestId === requestRef.current) setSuggestions(result);
+        if (requestId === requestRef.current) setSuggestions({ ...result, query: normalizeText(query) });
       })
       .catch(() => {
         // Suggestions are best-effort; the query row still submits
@@ -70,10 +75,13 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
 
   const options = useMemo<SearchOption[]>(() => {
     if (!hasQuery) return recent.map((query) => ({ kind: "recent", query }));
+    // Suggestions for an older query stay only while the text still refines it ("an" -> "ann"), never for "zz"
+    const current = normalizeText(value);
+    const fresh = suggestions.query !== "" && current.startsWith(suggestions.query);
     return [
       { kind: "query", query: value.trim() },
-      ...suggestions.users.map((user): SearchOption => ({ kind: "user", user })),
-      ...suggestions.tags.map((stat): SearchOption => ({ kind: "tag", stat })),
+      ...(fresh ? suggestions.users.map((user): SearchOption => ({ kind: "user", user })) : []),
+      ...(fresh ? suggestions.tags.map((stat): SearchOption => ({ kind: "tag", stat })) : []),
     ];
   }, [hasQuery, recent, suggestions, value]);
 
@@ -89,7 +97,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
 
   const submit = (query: string) => {
     const trimmed = query.trim();
-    if (!trimmed) return;
+    if (!bareQuery(trimmed)) return;
     addRecent(trimmed);
     close();
     router.push(buildSearchHref(trimmed));
@@ -135,6 +143,15 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
           e.preventDefault();
           close();
         }
+        return;
+      case "Delete": {
+        // Keyboard path for removing a recent search (the X button is mouse-only, see renderOption)
+        const option = isOpen ? options[activeIndex] : undefined;
+        if (option?.kind !== "recent") return;
+        e.preventDefault();
+        removeRecent(option.query);
+        setActiveIndex((index) => Math.min(index, options.length - 2));
+      }
     }
   };
 
@@ -157,9 +174,12 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
           <>
             <History className="size-4 shrink-0 text-zinc-400" aria-hidden="true" />
             <span className="flex-1 truncate">{option.query}</span>
+            {/* Mouse affordance only: interactive content inside role=option is invalid; keyboard uses Delete */}
             <button
               type="button"
               tabIndex={-1}
+              aria-hidden="true"
+              title={t("search.removeRecent", { query: option.query })}
               aria-label={t("search.removeRecent", { query: option.query })}
               onClick={(e) => {
                 e.stopPropagation();
@@ -203,7 +223,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
             </span>
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate font-semibold">#{option.stat.tag}</span>
-              <span className="truncate text-xs text-zinc-500">{t("tags.postsCount", { count: option.stat.postsCount })}</span>
+              <span className="truncate text-xs text-zinc-500">{t(option.stat.postsCount === 1 ? "tags.postsCountOne" : "tags.postsCount", { count: option.stat.postsCount })}</span>
             </span>
           </>
         );
@@ -225,7 +245,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
           role="combobox"
           aria-label={t("search.label")}
           aria-expanded={isOpen}
-          aria-controls={listboxId}
+          aria-controls={isOpen ? listboxId : undefined}
           aria-autocomplete="list"
           aria-activedescendant={isOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined}
           enterKeyHint="search"

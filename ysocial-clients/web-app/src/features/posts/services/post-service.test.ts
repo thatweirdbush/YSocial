@@ -10,6 +10,7 @@ import {
   fetchPostThread,
   fetchTrendingTags,
   FEED_PAGE_SIZE,
+  SEARCH_LIMIT,
   searchPosts,
   setPostBookmark,
   setPostLike,
@@ -223,5 +224,17 @@ describe("fetchTrendingTags", () => {
       { tag: "NextJS", postsCount: 3 },
       { tag: "ĐàLạt", postsCount: 2 },
     ]);
+  });
+});
+
+describe("searchPosts latest sort", () => {
+  it("orders matches newest first when sort is latest", async () => {
+    const posts = await settle(searchPosts("nextjs", SEARCH_LIMIT, "latest"));
+    expect(posts.map((post) => post.id)).toEqual(["post-002", "post-007", "post-009"]);
+  });
+
+  it("orders exact-tag matches newest first when sort is latest", async () => {
+    const posts = await settle(searchPosts("#design", SEARCH_LIMIT, "latest"));
+    expect(posts.map((post) => post.id)).toEqual(["post-004", "post-011"]);
   });
 });

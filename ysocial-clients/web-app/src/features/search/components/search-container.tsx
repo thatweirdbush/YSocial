@@ -1,10 +1,10 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { byNewestPost, usePostActions } from "@/features/posts";
+import { usePostActions } from "@/features/posts";
 import { useUserActions } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { normalizeText, tokenize } from "@/lib/text";
@@ -16,7 +16,7 @@ import { SearchBox } from "./search-box";
 import { SearchPanel } from "./search-panels";
 import { SearchShell } from "./search-shell";
 import { SearchSkeleton } from "./search-skeleton";
-import { TabBar } from "./tab-bar";
+import { TabBar, tabId } from "./tab-bar";
 
 const TAB_LABEL_KEYS = {
   top: "search.tabTop",
@@ -46,21 +46,29 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [activeTab, setActiveTab] = useState(tab);
+  const panelId = useId();
+
+  // Same-query navigation (e.g. resubmitting from the Users tab) changes the tab prop without a remount
+  const [syncedTab, setSyncedTab] = useState(tab);
+  if (tab !== syncedTab) {
+    setSyncedTab(tab);
+    setActiveTab(tab);
+  }
 
   useEffect(() => {
     if (!hasQuery) return;
     let active = true;
 
     fetchSearch(query)
-      .then(({ users, posts, tags }) => {
+      .then(({ users, posts, latestPosts, tags }) => {
         if (!active) return;
-        upsertPosts(posts);
+        upsertPosts([...posts, ...latestPosts]);
         upsertUsers(users);
         setResult({
           query,
           userIds: users.map((user) => user.id),
           postIds: posts.map((post) => post.id),
-          latestPostIds: [...posts].sort(byNewestPost).map((post) => post.id),
+          latestPostIds: latestPosts.map((post) => post.id),
           tags,
         });
         addRecent(query);
@@ -90,11 +98,11 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
       <div className="px-4 pt-3 pb-3">
         <SearchBox variant="page" defaultValue={query} autoFocus={!hasQuery} />
       </div>
-      {hasQuery && <TabBar tabs={tabs} active={activeTab} onChange={handleTabChange} label={t("search.results")} />}
+      {hasQuery && <TabBar tabs={tabs} active={activeTab} onChange={handleTabChange} label={t("search.results")} panelId={panelId} />}
     </>
   );
 
-  if (!hasQuery) {
+  if (!query.trim()) {
     return (
       <SearchShell header={header}>
         <h1 className="sr-only">{t("search.exploreTitle")}</h1>
@@ -103,10 +111,20 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
     );
   }
 
+  // Bare `#` / `@`: nothing searchable, but the user did search -> empty result, not the landing
+  if (!hasQuery) {
+    return (
+      <SearchShell header={header}>
+        <h1 className="sr-only">{t("search.results")}</h1>
+        <EmptyState icon={SearchX} title={t("search.emptyTitle", { query: query.trim() })} />
+      </SearchShell>
+    );
+  }
+
   return (
     <SearchShell header={header}>
       <h1 className="sr-only">{t("search.results")}</h1>
-      <div role="tabpanel" aria-label={t(TAB_LABEL_KEYS[activeTab])}>
+      <div role="tabpanel" id={panelId} aria-labelledby={tabId(panelId, activeTab)}>
         {cached ? (
           <SearchPanel tab={activeTab} result={cached} tokens={tokens} onTabChange={handleTabChange} />
         ) : failed ? (

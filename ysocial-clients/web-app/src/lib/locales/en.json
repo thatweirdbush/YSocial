@@ -71,7 +71,9 @@
     "comment": "Reply",
     "bookmark": "Save",
     "share": "Share",
-    "more": "More"
+    "more": "More",
+    "followSuccess": "Followed @{username}",
+    "unfollowSuccess": "Unfollowed @{username}"
   },
   "common": {
     "language": "Language",
@@ -217,11 +219,9 @@
     "tabTags": "Hashtags",
     "seeAllUsers": "See all",
     "users": "People",
-    "hashtags": "Hashtags",
     "trending": "Trending",
     "suggested": "Suggested for you",
     "exploreTitle": "Explore",
-    "postsCount": "{count} posts",
     "followers": "{count} followers",
     "emptyTitle": "No results for \"{query}\"",
     "emptyUsers": "Nobody matches yet, try another name",
@@ -231,7 +231,8 @@
     "retry": "Retry",
     "searchFor": "Search for \"{query}\"",
     "label": "Search",
-    "results": "Search results"
+    "results": "Search results",
+    "followersOne": "{count} follower"
   },
   "tags": {
     "top": "Top",
@@ -240,6 +241,7 @@
     "emptyTitle": "No posts in #{tag} yet",
     "emptyDescription": "Be the first to post",
     "emptyCta": "Search something else",
-    "error": "Couldn't load hashtag"
+    "error": "Couldn't load hashtag",
+    "postsCountOne": "{count} post"
   }
 }

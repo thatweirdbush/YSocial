@@ -71,7 +71,9 @@
     "comment": "Trả lời",
     "bookmark": "Lưu",
     "share": "Chia sẻ",
-    "more": "Thêm"
+    "more": "Thêm",
+    "followSuccess": "Đã theo dõi @{username}",
+    "unfollowSuccess": "Đã bỏ theo dõi @{username}"
   },
   "common": {
     "language": "Ngôn ngữ",
@@ -217,11 +219,9 @@
     "tabTags": "Hashtag",
     "seeAllUsers": "Xem tất cả",
     "users": "Người dùng",
-    "hashtags": "Hashtag",
     "trending": "Đang thịnh hành",
     "suggested": "Gợi ý cho bạn",
     "exploreTitle": "Khám phá",
-    "postsCount": "{count} bài viết",
     "followers": "{count} người theo dõi",
     "emptyTitle": "Không có kết quả cho \"{query}\"",
     "emptyUsers": "Chưa thấy ai khớp, thử tên khác xem",
@@ -231,7 +231,8 @@
     "retry": "Thử lại",
     "searchFor": "Tìm \"{query}\"",
     "label": "Tìm kiếm",
-    "results": "Kết quả tìm kiếm"
+    "results": "Kết quả tìm kiếm",
+    "followersOne": "{count} người theo dõi"
   },
   "tags": {
     "top": "Hàng đầu",
@@ -240,6 +241,7 @@
     "emptyTitle": "#{tag} chưa có bài nào",
     "emptyDescription": "Hãy là người đầu tiên khai phá",
     "emptyCta": "Tìm kiếm khác",
-    "error": "Không tải được hashtag"
+    "error": "Không tải được hashtag",
+    "postsCountOne": "{count} bài viết"
   }
 }

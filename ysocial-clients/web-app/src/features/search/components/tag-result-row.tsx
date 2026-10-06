@@ -26,7 +26,7 @@ export function TagResultRow({ stat, tokens = [] }: TagResultRowProps) {
         <span className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-50">
           #<HighlightText text={stat.tag} tokens={tokens} />
         </span>
-        <span className="text-xs text-zinc-500">{t("tags.postsCount", { count: stat.postsCount })}</span>
+        <span className="text-xs text-zinc-500">{t(stat.postsCount === 1 ? "tags.postsCountOne" : "tags.postsCount", { count: stat.postsCount })}</span>
       </span>
     </Link>
   );

@@ -39,6 +39,22 @@ describe("search-store recent searches", () => {
     expect(recent()).toEqual([]);
   });
 
+  it("ignores a bare # or @", () => {
+    actions().addRecent("#");
+    actions().addRecent(" @ ");
+    expect(recent()).toEqual([]);
+  });
+
+  it("drops corrupted persisted data on rehydrate", async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { recent: "oops" }, version: 0 }));
+    await useSearchStore.persist.rehydrate();
+    expect(recent()).toEqual([]);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { recent: ["ok", 42, ""] }, version: 0 }));
+    await useSearchStore.persist.rehydrate();
+    expect(recent()).toEqual(["ok"]);
+  });
+
   it("persists only the recent list", () => {
     actions().addRecent("zinc");
     actions().setResult({ query: "zinc", userIds: [], postIds: ["post-004"], latestPostIds: ["post-004"], tags: [] });

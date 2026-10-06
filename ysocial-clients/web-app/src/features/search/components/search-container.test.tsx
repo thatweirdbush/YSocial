@@ -115,6 +115,45 @@ describe("SearchContainer", () => {
     expect(screen.getAllByRole("article")).toHaveLength(1);
   });
 
+  it("renders the Posts tab in service order without re-sorting", async () => {
+    const [older, newer] = [getMockPostById("post-009")!, getMockPostById("post-002")!];
+    vi.spyOn(service, "fetchSearch").mockResolvedValueOnce({ users: [], posts: [newer, older], latestPosts: [older, newer], tags: [] });
+    render(<SearchContainer query="next" tab="posts" />);
+    await waitForResults();
+
+    const articles = screen.getAllByRole("article");
+    expect(articles[0]).toHaveTextContent("Skeleton phải khớp");
+    expect(articles[1]).toHaveTextContent("Next.js App Router");
+  });
+
+  it("shows no results, not the landing, for a bare #", () => {
+    const spy = vi.spyOn(service, "fetchSearch");
+    render(<SearchContainer query="#" tab="tags" />);
+
+    expect(screen.getByText('Không có kết quả cho "#"')).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Khám phá" })).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("follows the tab prop when the URL changes without a remount", async () => {
+    const { rerender } = render(<SearchContainer query="next" tab="users" />);
+    await waitForResults();
+
+    rerender(<SearchContainer query="next" tab="top" />);
+
+    expect(screen.getByRole("tab", { name: "Hàng đầu" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("links the selected tab to its panel", async () => {
+    render(<SearchContainer query="next" tab="top" />);
+    await waitForResults();
+
+    const tab = screen.getByRole("tab", { name: "Hàng đầu" });
+    const panel = screen.getByRole("tabpanel");
+    expect(tab).toHaveAttribute("aria-controls", panel.id);
+    expect(panel).toHaveAttribute("aria-labelledby", tab.id);
+  });
+
   it("adds the query to recent searches", async () => {
     render(<SearchContainer query="next" tab="top" />);
     await waitForResults();

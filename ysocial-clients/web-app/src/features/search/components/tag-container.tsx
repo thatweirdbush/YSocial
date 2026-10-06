@@ -3,7 +3,7 @@
 import { AlertCircle, Hash } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { fetchPostsByTag, PostCard, usePost, usePostActions } from "@/features/posts";
 import type { TagSort } from "@/features/posts/types";
@@ -11,7 +11,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { tagPageKey, useSearchActions, useTagPage } from "../store/search-store";
 import { SearchShell } from "./search-shell";
 import { SearchSkeleton } from "./search-skeleton";
-import { TabBar } from "./tab-bar";
+import { TabBar, tabId } from "./tab-bar";
 
 interface TagContainerProps {
   /** Decoded tag without `#`. */
@@ -32,6 +32,14 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
   const { setTagPage } = useSearchActions();
 
   const [sort, setSort] = useState(initialSort);
+  const panelId = useId();
+
+  // Same-tag navigation (e.g. a #tag link while on ?sort=latest) changes the sort prop without a remount
+  const [syncedSort, setSyncedSort] = useState(initialSort);
+  if (initialSort !== syncedSort) {
+    setSyncedSort(initialSort);
+    setSort(initialSort);
+  }
   const [attempt, setAttempt] = useState(0);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
@@ -83,10 +91,12 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
         </span>
         <div className="flex min-w-0 flex-col">
           <h1 className="truncate text-2xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50">#{displayTag}</h1>
-          <p className="h-5 text-sm text-zinc-500">{page && t("tags.postsCount", { count: page.postsCount })}</p>
+          <p className="h-5 text-sm text-zinc-500">
+            {page && t(page.postsCount === 1 ? "tags.postsCountOne" : "tags.postsCount", { count: page.postsCount })}
+          </p>
         </div>
       </div>
-      <TabBar tabs={tabs} active={sort} onChange={handleSortChange} label={`#${displayTag}`} />
+      <TabBar tabs={tabs} active={sort} onChange={handleSortChange} label={`#${displayTag}`} panelId={panelId} />
     </>
   );
 
@@ -137,7 +147,7 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
 
   return (
     <SearchShell header={header}>
-      <div role="tabpanel" aria-label={tabs.find((tab) => tab.value === sort)?.label}>
+      <div role="tabpanel" id={panelId} aria-labelledby={tabId(panelId, sort)}>
         {body}
       </div>
     </SearchShell>

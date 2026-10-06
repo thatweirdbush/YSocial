@@ -9,7 +9,10 @@ export const SEARCH_TABS: readonly SearchTab[] = ["top", "users", "posts", "tags
 /** Entities returned by one search; containers upsert them into post/user stores. */
 export interface SearchResponse {
   users: UserProfile[];
+  /** Relevance order (Top tab). */
   posts: PostItem[];
+  /** Newest first (Posts tab), ordered by the service. */
+  latestPosts: PostItem[];
   tags: HashtagStat[];
 }
 
@@ -19,7 +22,7 @@ export interface SearchResult {
   userIds: string[];
   /** Relevance order (Top tab). */
   postIds: string[];
-  /** Newest first (Posts tab); computed once at fetch time. */
+  /** Newest first (Posts tab), in service order. */
   latestPostIds: string[];
   tags: HashtagStat[];
 }

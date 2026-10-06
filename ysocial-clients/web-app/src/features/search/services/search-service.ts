@@ -7,10 +7,10 @@ import { SEARCH_TABS, type SearchResponse, type SearchSuggestions, type SearchTa
 
 export const SUGGESTION_LIMIT = 4;
 
-const EMPTY_RESPONSE: SearchResponse = Object.freeze({ users: [], posts: [], tags: [] }) as SearchResponse;
+const EMPTY_RESPONSE: SearchResponse = Object.freeze({ users: [], posts: [], latestPosts: [], tags: [] }) as SearchResponse;
 
-/** Query without a leading `#` / `@`, normalized. */
-const bareQuery = (query: string) => normalizeText(query.trim().replace(/^[#@]/, ""));
+/** Query without a leading `#` / `@`, normalized. Empty -> nothing to search. */
+export const bareQuery = (query: string) => normalizeText(query.trim().replace(/^[#@]/, ""));
 
 export function resolveDefaultTab(query: string): SearchTab {
   const trimmed = query.trim();
@@ -36,12 +36,14 @@ async function matchingTags(query: string, limit: number) {
 export async function fetchSearch(query: string): Promise<SearchResponse> {
   if (!bareQuery(query)) return EMPTY_RESPONSE;
 
-  const [users, posts, tags] = await Promise.all([
+  // Each tab's order comes from the service (real API: a sort param), never re-sorted on the client
+  const [users, posts, latestPosts, tags] = await Promise.all([
     searchUsers(query),
-    searchPosts(query),
+    searchPosts(query, SEARCH_LIMIT, "relevance"),
+    searchPosts(query, SEARCH_LIMIT, "latest"),
     matchingTags(query, SEARCH_LIMIT),
   ]);
-  return { users, posts, tags };
+  return { users, posts, latestPosts, tags };
 }
 
 export async function fetchSuggestions(query: string): Promise<SearchSuggestions> {

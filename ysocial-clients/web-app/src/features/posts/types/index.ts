@@ -59,6 +59,9 @@ export interface PostThread {
 
 export type TagSort = "top" | "latest";
 
+/** Post search order: relevance (Top tab) or newest first (Posts tab). */
+export type PostSearchSort = "relevance" | "latest";
+
 export interface HashtagStat {
   /** Most frequent original casing, without `#`. */
   tag: string;

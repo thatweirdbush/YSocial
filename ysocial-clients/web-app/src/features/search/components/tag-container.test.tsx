@@ -56,6 +56,16 @@ describe("TagContainer", () => {
     expect(screen.getByRole("link", { name: "Tìm kiếm khác" })).toHaveAttribute("href", "/search");
   });
 
+  it("follows the sort prop when the URL changes without a remount", async () => {
+    const { rerender } = render(<TagContainer tag="dalat" sort="latest" />);
+    await waitForPage();
+
+    rerender(<TagContainer tag="dalat" sort="top" />);
+
+    expect(screen.getByRole("tab", { name: "Hàng đầu" })).toHaveAttribute("aria-selected", "true");
+    await waitForPage();
+  });
+
   it("renders a cached page at once and revalidates silently", async () => {
     const spy = vi.spyOn(postService, "fetchPostsByTag");
     const post = getMockPostById("post-006")!;

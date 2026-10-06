@@ -17,7 +17,7 @@ interface SearchStoreData {
 }
 
 interface SearchStoreActions {
-  /** Trims, ignores blank, dedupes by normalized text, newest first, max `RECENT_LIMIT`. */
+  /** Trims, ignores blank or bare `#`/`@`, dedupes by normalized text, newest first, max `RECENT_LIMIT`. */
   addRecent: (query: string) => void;
   removeRecent: (query: string) => void;
   clearRecent: () => void;
@@ -56,6 +56,9 @@ const safeStorage: StateStorage = {
   },
 };
 
+/** Something searchable remains after trimming & dropping a leading `#` / `@`. */
+const isSearchable = (query: string) => normalizeText(query.trim().replace(/^[#@]/, "")) !== "";
+
 const withoutQuery = (list: string[], query: string) => {
   const key = normalizeText(query);
   return list.filter((item) => normalizeText(item) !== key);
@@ -69,7 +72,7 @@ export const useSearchStore = create<SearchStoreState>()(
         addRecent: (query) =>
           set((state) => {
             const trimmed = query.trim();
-            if (!normalizeText(trimmed)) return state;
+            if (!isSearchable(trimmed)) return state;
             return { recent: [trimmed, ...withoutQuery(state.recent, trimmed)].slice(0, RECENT_LIMIT) };
           }),
         removeRecent: (query) => set((state) => ({ recent: withoutQuery(state.recent, query) })),
@@ -82,6 +85,14 @@ export const useSearchStore = create<SearchStoreState>()(
       name: STORAGE_KEY,
       storage: createJSONStorage(() => safeStorage),
       partialize: (state) => ({ recent: state.recent }),
+      // Storage is user-editable: keep only non-empty strings, never trust the shape
+      merge: (persisted, current) => {
+        const raw = (persisted as { recent?: unknown } | undefined)?.recent;
+        const recent = Array.isArray(raw)
+          ? raw.filter((item): item is string => typeof item === "string" && isSearchable(item)).slice(0, RECENT_LIMIT)
+          : [];
+        return { ...current, recent };
+      },
       // SSR-safe: server & first client render use empty state; Providers rehydrates after mount
       skipHydration: true,
     },

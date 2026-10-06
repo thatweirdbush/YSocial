@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SearchSuggestions } from "../types";
@@ -42,7 +42,7 @@ describe("SearchBox", () => {
     await user.click(screen.getByRole("combobox"));
     expect(screen.getByRole("option", { name: /zinc/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: 'Xóa "zinc"' }));
+    await user.click(screen.getByTitle('Xóa "zinc"'));
     expect(useSearchStore.getState().recent).toEqual([]);
   });
 
@@ -125,6 +125,52 @@ describe("SearchBox", () => {
     expect(push).toHaveBeenCalledWith("/search?q=zinc");
   });
 
+  it("hides suggestions that belong to an older query", async () => {
+    mockedFetch.mockResolvedValueOnce(suggestions("First")).mockImplementation(() => new Promise(() => {}));
+    const user = setup();
+    render(<SearchBox variant="page" />);
+    const input = screen.getByRole("combobox");
+
+    await user.type(input, "an");
+    expect(await screen.findByRole("option", { name: /#First/ })).toBeInTheDocument();
+
+    await user.clear(input);
+    await user.type(input, "zz");
+    expect(screen.queryByRole("option", { name: /#First/ })).toBeNull();
+  });
+
+  it("does not submit a bare #", async () => {
+    const user = setup();
+    render(<SearchBox variant="page" />);
+
+    await user.type(screen.getByRole("combobox"), "#{Enter}");
+
+    expect(push).not.toHaveBeenCalled();
+    expect(useSearchStore.getState().recent).toEqual([]);
+  });
+
+  it("only points aria-controls at a rendered listbox", async () => {
+    const user = setup();
+    render(<SearchBox variant="page" />);
+    const input = screen.getByRole("combobox");
+    expect(input).not.toHaveAttribute("aria-controls");
+
+    await user.type(input, "zinc");
+    expect(input).toHaveAttribute("aria-controls", screen.getByRole("listbox").id);
+  });
+
+  it("removes the active recent search with Delete, with no nested interactive control in the option", async () => {
+    useSearchStore.getState().actions.addRecent("zinc");
+    const user = setup();
+    render(<SearchBox variant="page" />);
+
+    await user.click(screen.getByRole("combobox"));
+    expect(within(screen.getByRole("option", { name: /zinc/ })).queryByRole("button")).toBeNull();
+
+    await user.keyboard("{ArrowDown}{Delete}");
+    expect(useSearchStore.getState().recent).toEqual([]);
+  });
+
   it("does not submit while an IME composition is active", async () => {
     const user = setup();
     render(<SearchBox variant="page" />);
@@ -142,9 +188,8 @@ describe("SearchBox", () => {
     render(<SearchBox variant="page" />);
 
     await user.click(screen.getByRole("combobox"));
-    for (const name of ['Xóa "zinc"', "Xóa tất cả"]) {
-      expect(screen.getByRole("button", { name })).toHaveClass("after:absolute");
-    }
+    expect(screen.getByTitle('Xóa "zinc"')).toHaveClass("after:absolute");
+    expect(screen.getByRole("button", { name: "Xóa tất cả" })).toHaveClass("after:absolute");
     await user.type(screen.getByRole("combobox"), "x");
     expect(screen.getByRole("button", { name: "Xóa" })).toHaveClass("after:absolute");
   });
