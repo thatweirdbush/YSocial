@@ -95,7 +95,7 @@ export interface PendingFeed { ids: string[]; overflow: boolean; }
 
 - `feed-tabs.ts`: `getPostFeedTabs(post, followedAuthorIds: ReadonlySet<string>): FeedTab[]` -> replies `[]`; root `["forYou"]` + `"following"` when author followed. Used by `fetchFeed` AND pending selector.
 - `like-visibility.ts`: `getVisibleLikeCount(post, viewerId): number | null` -> `null` when `hideLikeCount && post.user.id !== viewerId`. EVERY render of a like count goes through it (`PostCard` all variants, detail stats row, `aria-label`). Ranking by likes (search Top, tag Top) still uses raw `likesCount` inside the mock service; the number is never rendered.
-- `pending-feed.ts`: `getPendingFeed(state, tab, followedAuthorIds): PendingFeed` (pure, O(20))
+- `pending-feed.ts`: `getPendingFeed(posts, buffer: IncomingBuffer, tab, followedAuthorIds): PendingFeed` (pure, O(20))
   - `ids` = `incoming` (newest first) where `!consumedIncoming[tab][id]` & `getPostFeedTabs(posts[id], followed)` includes `tab`
   - `overflow` = `droppedAuthorIds[tab]` has any author classified into `tab` (forYou: non-empty; following: any followed)
   - Used by `usePendingFeed` (hook) AND by `PostFeed` after a page-1 load (via `getState()`), so both read the same rule.
@@ -144,6 +144,7 @@ New actions (each ONE `set()`):
 | `bufferIncoming(post)` | Skip if id already in `incoming`, in any `feedIds[tab]`, or tombstoned. Upsert post, prepend id; any tab already holding it in `feedIds` marks it consumed. If length > 20: drop oldest id X; for each tab with `!consumed[tab][X]` -> add `posts[X].user.id` to `droppedAuthorIds[tab]`; prune X from every `consumed[tab]`. Buffered regardless of `loaded`; pill hidden until tab loaded |
 | `flushPending(tab, ids)` | `feedIds[tab] = [...ids, ...feedIds[tab] minus ids]`; mark `ids` consumed for `tab` ONLY; `droppedAuthorIds[tab] = []`. Other incoming ids stay unconsumed -> a skipped post becomes pending later if its author gets followed. `ids` = `getPendingFeed` result (classification stays out of the store) |
 | `consumeIncoming(tab, ids)` | Mark `ids` consumed for `tab`, `droppedAuthorIds[tab] = []`. Called by `PostFeed` after a successful page-1 load/refetch with `getPendingFeed(getState(), tab, followed).ids` -> those posts are covered by the fetched feed (same follow graph), so no pending duplicates; unclassified ids stay eligible |
+| `setFeedPage(tab, ids, append=false, ...)` (existing, extended) | Also marks `ids ∩ incoming` consumed for `tab` (exact server truth) -> covers stream posts whose author is not yet in `user-store` during a page-1 load |
 | `beginOwnerOp(id, op)` / `endOwnerOp(id)` | Set / clear lock; `beginOwnerOp` returns `false` when a lock exists |
 | `editPost(id, content)` | `content`, `isEdited = true` |
 | `removePost(id)` | Collect subtree via `replyIds` (cached); delete from `posts`, all `feedIds`, `incoming` (+ `consumed`), `replyIds[parent]` (+ parent `commentsCount - 1` if reply), `replyIds[x]` of removed; clear `pinnedIdByAuthor` entry if pinned; add tombstones. Returns snapshot (removed posts, their list positions, whether parent count was decremented) |
