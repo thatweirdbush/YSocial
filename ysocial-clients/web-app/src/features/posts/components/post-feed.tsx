@@ -46,7 +46,7 @@ export function PostFeed() {
   /** Loads one page into the store; resolves false on failure. Stable identity (no `t` dependency). */
   const loadPage = useCallback(async (tab: FeedTab, page: number) => {
     try {
-      const result = await fetchFeed(tab, page);
+      const result = await fetchFeed(tab, page, author.id);
       upsertPosts(result.posts);
       setFeedPage(tab, result.posts.map((p) => p.id), page > 1, result.nextPage);
       setFailedTabs((prev) => (prev[tab] ? { ...prev, [tab]: false } : prev));
@@ -55,7 +55,7 @@ export function PostFeed() {
       setFailedTabs((prev) => ({ ...prev, [tab]: true }));
       return false;
     }
-  }, [upsertPosts, setFeedPage]);
+  }, [author.id, upsertPosts, setFeedPage]);
 
   const loadWithFeedback = useCallback((tab: FeedTab, page: number) =>
     loadPage(tab, page).then((ok) => {

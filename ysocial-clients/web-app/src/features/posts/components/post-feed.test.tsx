@@ -102,8 +102,8 @@ describe("PostFeed paging & refresh", () => {
     globalThis.IntersectionObserver = AlwaysVisibleObserver as unknown as typeof IntersectionObserver;
     const realFetch = service.fetchFeed;
     let failNextPage = true;
-    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page) =>
-      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page),
+    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page, viewerId) =>
+      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page, viewerId),
     );
     const toastError = vi.spyOn(toast, "error");
     const nextPageCalls = () => spy.mock.calls.filter(([, page]) => page === 2).length;

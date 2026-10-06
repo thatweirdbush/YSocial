@@ -1,19 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import type { CreatePostInput } from "../types";
+import { __resetFollowGraph, setFollowed } from "@/mocks/follow-graph";
 import {
   __resetMockDb,
   createPost,
   createReply,
+  deletePost,
   fetchFeed,
   fetchPostsByTag,
   fetchPostThread,
+  ForbiddenError,
+  NEW_POST_INTERVAL_MS,
   fetchTrendingTags,
   FEED_PAGE_SIZE,
   SEARCH_LIMIT,
   searchPosts,
   setPostBookmark,
+  setHideLikeCount,
   setPostLike,
+  setPostPinned,
+  subscribeToNewPosts,
+  updatePostContent,
 } from "./post-service";
 
 /** Runs a service call to completion under fake timers. */
@@ -22,21 +30,25 @@ async function settle<T>(promise: Promise<T>): Promise<T> {
   return promise;
 }
 
+const VIEWER = "v1";
 const author = SEED_AUTHORS[4];
 const input = (content: string): CreatePostInput => ({ content, images: [], audience: "anyone" });
 
 beforeEach(() => {
   vi.useFakeTimers();
   __resetMockDb();
+  __resetFollowGraph();
 });
 
 afterEach(() => {
+  __resetMockDb();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
 describe("fetchFeed", () => {
   it("returns the first page of root posts, newest first", async () => {
-    const page = await settle(fetchFeed("forYou", 1));
+    const page = await settle(fetchFeed("forYou", 1, VIEWER));
 
     expect(page.posts).toHaveLength(FEED_PAGE_SIZE);
     expect(page.posts.every((p) => p.parentId === undefined)).toBe(true);
@@ -46,14 +58,26 @@ describe("fetchFeed", () => {
   });
 
   it("ends pagination on the last page", async () => {
-    const page = await settle(fetchFeed("forYou", 2));
+    const page = await settle(fetchFeed("forYou", 2, VIEWER));
 
     expect(page.posts).toHaveLength(2);
     expect(page.nextPage).toBeUndefined();
   });
 
+  it("follows the viewer's live follow graph", async () => {
+    const before = await settle(fetchFeed("following", 1, VIEWER));
+    expect(before.posts.some((p) => p.user.id === "author-01")).toBe(false);
+
+    setFollowed(VIEWER, "author-01", true);
+    const after = await settle(fetchFeed("following", 1, VIEWER));
+    expect(after.posts.some((p) => p.user.id === "author-01")).toBe(true);
+
+    const other = await settle(fetchFeed("following", 1, "v2"));
+    expect(other.posts.some((p) => p.user.id === "author-01")).toBe(false);
+  });
+
   it("limits the following tab to followed authors", async () => {
-    const page = await settle(fetchFeed("following", 1));
+    const page = await settle(fetchFeed("following", 1, VIEWER));
 
     expect(page.posts.length).toBeGreaterThan(0);
     expect(page.posts.every((p) => SEED_FOLLOWED_AUTHOR_IDS.includes(p.user.id))).toBe(true);
@@ -104,7 +128,7 @@ describe("mutations", () => {
 
   it("puts a created post first in the feed", async () => {
     const created = await settle(createPost(input("bài mới"), author));
-    const page = await settle(fetchFeed("forYou", 1));
+    const page = await settle(fetchFeed("forYou", 1, VIEWER));
 
     expect(page.posts[0].id).toBe(created.id);
   });
@@ -114,7 +138,7 @@ describe("mutations", () => {
 
     await settle(setPostLike("post-001", true));
     await settle(setPostLike("post-001", true));
-    const liked = await settle(fetchFeed("forYou", 1));
+    const liked = await settle(fetchFeed("forYou", 1, VIEWER));
     const post = liked.posts.find((p) => p.id === "post-001")!;
 
     expect(post.isLikedByCurrentUser).toBe(true);
@@ -236,5 +260,199 @@ describe("searchPosts latest sort", () => {
   it("orders exact-tag matches newest first when sort is latest", async () => {
     const posts = await settle(searchPosts("#design", SEARCH_LIMIT, "latest"));
     expect(posts.map((post) => post.id)).toEqual(["post-004", "post-011"]);
+  });
+});
+
+/** Expects a service call to reject with `type` after its simulated latency. */
+async function rejects(promise: Promise<unknown>, type: new (...args: never[]) => Error): Promise<void> {
+  const assertion = expect(promise).rejects.toBeInstanceOf(type);
+  await vi.runAllTimersAsync();
+  await assertion;
+}
+
+describe("owner mutations", () => {
+  it("rejects non-owners with ForbiddenError and writes nothing", async () => {
+    const before = await settle(fetchPostThread("post-001"));
+
+    await rejects(updatePostContent("post-001", "hack", "author-02"), ForbiddenError);
+    await rejects(deletePost("post-001", "author-02"), ForbiddenError);
+    await rejects(setPostPinned("post-001", true, "author-02"), ForbiddenError);
+    await rejects(setHideLikeCount("post-001", true, "author-02"), ForbiddenError);
+
+    expect(await settle(fetchPostThread("post-001"))).toEqual(before);
+  });
+
+  it("rejects unknown ids", async () => {
+    await rejects(updatePostContent("nope", "x", "author-01"), Error);
+    await rejects(deletePost("nope", "author-01"), Error);
+  });
+
+  it("updatePostContent re-indexes tags & trims", async () => {
+    const updated = await settle(updatePostContent("post-003", "  Mới #Moi  ", "author-03"));
+
+    expect(updated).toMatchObject({ content: "Mới #Moi", isEdited: true });
+    expect((await settle(fetchPostsByTag("Moi", "latest"))).posts.map((p) => p.id)).toEqual(["post-003"]);
+    expect((await settle(fetchPostsByTag("Minimalism", "latest"))).posts.some((p) => p.id === "post-003")).toBe(false);
+  });
+
+  it("deletes a root post with its whole reply tree", async () => {
+    const thread = (await settle(fetchPostThread("post-001")))!;
+    const expected = [
+      "post-001",
+      ...thread.replies.map((r) => r.id),
+      ...Object.values(thread.childReplies).flat().map((r) => r.id),
+    ];
+
+    const { deletedIds } = await settle(deletePost("post-001", "author-01"));
+
+    expect([...deletedIds].sort()).toEqual([...expected].sort());
+    expect(await settle(fetchPostThread("post-001"))).toBeNull();
+    expect(await settle(fetchPostThread("reply-001-02-01"))).toBeNull();
+  });
+
+  it("deleting a reply decrements the parent counter", async () => {
+    const before = (await settle(fetchPostThread("post-001")))!.post.commentsCount;
+
+    await settle(deletePost("reply-001-01", "author-03"));
+
+    expect((await settle(fetchPostThread("post-001")))!.post.commentsCount).toBe(before - 1);
+  });
+
+  it("keeps at most one pinned post per author", async () => {
+    const a = await settle(createPost(input("A"), author));
+    const b = await settle(createPost(input("B"), author));
+
+    await settle(setPostPinned(a.id, true, author.id));
+    await settle(setPostPinned(b.id, true, author.id));
+
+    expect((await settle(fetchPostThread(a.id)))!.post.isPinned).toBe(false);
+    expect((await settle(fetchPostThread(b.id)))!.post.isPinned).toBe(true);
+
+    await settle(setPostPinned(b.id, false, author.id));
+    expect((await settle(fetchPostThread(b.id)))!.post.isPinned).toBe(false);
+  });
+
+  it("rejects pinning a reply", async () => {
+    await rejects(setPostPinned("reply-001-02-01", true, "author-01"), Error);
+  });
+
+  it("persists the hidden like count flag", async () => {
+    await settle(setHideLikeCount("post-001", true, "author-01"));
+
+    expect((await settle(fetchPostThread("post-001")))!.post.hideLikeCount).toBe(true);
+  });
+});
+
+describe("subscribeToNewPosts", () => {
+  it("runs no timer without subscribers", () => {
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("shares one timer between subscribers and emits the same posts to each", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const unsubscribeFirst = subscribeToNewPosts(first);
+    expect(vi.getTimerCount()).toBe(1);
+    const unsubscribeSecond = subscribeToNewPosts(second);
+    expect(vi.getTimerCount()).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS);
+    expect(first).toHaveBeenCalledTimes(2);
+    const ids = first.mock.calls.map(([post]) => post.id);
+    expect(second.mock.calls.map(([post]) => post.id)).toEqual(ids);
+
+    unsubscribeFirst();
+    unsubscribeFirst();
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS);
+    expect(first).toHaveBeenCalledTimes(2);
+    expect(second).toHaveBeenCalledTimes(4);
+
+    unsubscribeSecond();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("stores generated posts so a refetch shows them", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const listener = vi.fn();
+    const unsubscribe = subscribeToNewPosts(listener);
+
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS);
+    unsubscribe();
+
+    const page = await settle(fetchFeed("forYou", 1, VIEWER));
+    const emitted = listener.mock.calls.map(([post]) => post.id);
+    expect(page.posts.slice(0, 2).map((p) => p.id).sort()).toEqual([...emitted].sort());
+  });
+
+  it("resubscribe -> exactly one timer", () => {
+    const unsubscribe = subscribeToNewPosts(vi.fn());
+    unsubscribe();
+    const again = subscribeToNewPosts(vi.fn());
+
+    expect(vi.getTimerCount()).toBe(1);
+    again();
+  });
+
+  it("pins the random bounds: 0 -> 35s & 1 post, 0.999 -> 54.98s & 2 posts", async () => {
+    const random = vi.spyOn(Math, "random").mockReturnValue(0);
+    const listener = vi.fn();
+    const unsubscribe = subscribeToNewPosts(listener);
+
+    await vi.advanceTimersByTimeAsync(34_999);
+    expect(listener).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    random.mockReturnValue(0.999);
+    listener.mockClear();
+    const again = subscribeToNewPosts(listener);
+    await vi.advanceTimersByTimeAsync(54_979);
+    expect(listener).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(listener).toHaveBeenCalledTimes(2);
+    again();
+  });
+
+  it("emits 1-2 posts per tick every 35-55s (contract)", async () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribeToNewPosts(listener);
+    let last = Date.now();
+
+    for (let tick = 0; tick < 10; tick += 1) {
+      const before = listener.mock.calls.length;
+      await vi.advanceTimersToNextTimerAsync();
+      const gap = Date.now() - last;
+      last = Date.now();
+      expect(gap).toBeGreaterThanOrEqual(35_000);
+      expect(gap).toBeLessThanOrEqual(55_000);
+      expect([1, 2]).toContain(listener.mock.calls.length - before);
+    }
+    unsubscribe();
+  });
+
+  it("__resetMockDb stops the stream and resets ids & data", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const stale = vi.fn();
+    subscribeToNewPosts(stale);
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS);
+    // Stream is live: advance a bounded time (runAllTimers would never end)
+    const created = createPost(input("tạm biệt"), author);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await created;
+
+    __resetMockDb();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS * 2);
+    expect(stale).toHaveBeenCalledTimes(2);
+    expect(await settle(searchPosts("tạm biệt"))).toEqual([]);
+
+    const fresh = vi.fn();
+    const unsubscribe = subscribeToNewPosts(fresh);
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS);
+    expect(fresh.mock.calls[0][0].id).toMatch(/-1$/);
+    unsubscribe();
   });
 });
