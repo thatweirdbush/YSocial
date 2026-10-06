@@ -71,7 +71,9 @@
     "comment": "Reply",
     "bookmark": "Save",
     "share": "Share",
-    "more": "More"
+    "more": "More",
+    "followSuccess": "Followed @{username}",
+    "unfollowSuccess": "Unfollowed @{username}"
   },
   "common": {
     "language": "Language",
@@ -204,5 +206,42 @@
     "replies": "replies",
     "reply": "Reply",
     "replying": "Sending…"
+  },
+  "search": {
+    "placeholder": "Search people, posts, #hashtags",
+    "clear": "Clear",
+    "recent": "Recent",
+    "clearAll": "Clear all",
+    "removeRecent": "Remove \"{query}\"",
+    "tabTop": "Top",
+    "tabUsers": "People",
+    "tabPosts": "Posts",
+    "tabTags": "Hashtags",
+    "seeAllUsers": "See all",
+    "users": "People",
+    "trending": "Trending",
+    "suggested": "Suggested for you",
+    "exploreTitle": "Explore",
+    "followers": "{count} followers",
+    "emptyTitle": "No results for \"{query}\"",
+    "emptyUsers": "Nobody matches yet, try another name",
+    "emptyPosts": "Nobody has posted about this yet",
+    "emptyTags": "No hashtags match",
+    "error": "Search failed",
+    "retry": "Retry",
+    "searchFor": "Search for \"{query}\"",
+    "label": "Search",
+    "results": "Search results",
+    "followersOne": "{count} follower"
+  },
+  "tags": {
+    "top": "Top",
+    "latest": "Latest",
+    "postsCount": "{count} posts",
+    "emptyTitle": "No posts in #{tag} yet",
+    "emptyDescription": "Be the first to post",
+    "emptyCta": "Search something else",
+    "error": "Couldn't load hashtag",
+    "postsCountOne": "{count} post"
   }
 }

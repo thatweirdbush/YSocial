@@ -6,8 +6,12 @@ import {
   createPost,
   createReply,
   fetchFeed,
+  fetchPostsByTag,
   fetchPostThread,
+  fetchTrendingTags,
   FEED_PAGE_SIZE,
+  SEARCH_LIMIT,
+  searchPosts,
   setPostBookmark,
   setPostLike,
 } from "./post-service";
@@ -143,5 +147,94 @@ describe("mutations", () => {
     const again = await settle(fetchPostThread("post-001"));
 
     expect(again?.post.likesCount).not.toBe(9999);
+  });
+});
+
+describe("searchPosts", () => {
+  const ids = async (query: string) => (await settle(searchPosts(query))).map((post) => post.id);
+
+  it("matches every token, diacritics-insensitive", async () => {
+    expect(await ids("binh minh da lat")).toEqual(["post-006"]);
+  });
+
+  it("excludes replies", async () => {
+    const posts = await settle(searchPosts("zinc"));
+    expect(posts.length).toBeGreaterThan(0);
+    expect(posts.every((post) => post.parentId === undefined)).toBe(true);
+  });
+
+  it("matches author name", async () => {
+    const posts = await settle(searchPosts("elena"));
+    expect(posts.length).toBeGreaterThan(0);
+    expect(posts.every((post) => post.user.username === "elena_v")).toBe(true);
+  });
+
+  it("orders by relevance then likes", async () => {
+    expect(await ids("nextjs")).toEqual(["post-009", "post-002", "post-007"]);
+  });
+
+  it("boosts author-name matches", async () => {
+    expect((await ids("antigravity"))[0]).toBe("post-001");
+  });
+
+  it("finds a post created this session", async () => {
+    const created = await settle(createPost(input("Hello #Fresh"), author));
+    expect((await ids("fresh"))[0]).toBe(created.id);
+  });
+
+  it("matches the exact tag for a # query", async () => {
+    expect(new Set(await ids("#design"))).toEqual(new Set(["post-004", "post-011"]));
+    expect(await ids("#des")).toEqual([]);
+  });
+
+  it("treats regex characters literally", async () => {
+    expect(await ids("c++ (")).toEqual([]);
+  });
+
+  it("returns nothing for empty tokens", async () => {
+    expect(await ids("#")).toEqual([]);
+    expect(await ids("   ")).toEqual([]);
+  });
+});
+
+describe("fetchPostsByTag", () => {
+  it("matches the tag case & diacritics insensitive with the most frequent casing", async () => {
+    const page = await settle(fetchPostsByTag("DALAT", "latest"));
+    expect(page.tag).toBe("ĐàLạt");
+    expect(page.postsCount).toBe(2);
+    expect(page.posts.map((post) => post.id)).toEqual(["post-006", "post-012"]);
+  });
+
+  it("sorts latest by date and top by likes", async () => {
+    const latest = await settle(fetchPostsByTag("nextjs", "latest"));
+    const top = await settle(fetchPostsByTag("nextjs", "top"));
+    expect(latest.posts.map((post) => post.id)).toEqual(["post-002", "post-007", "post-009"]);
+    expect(top.posts.map((post) => post.id)).toEqual(["post-009", "post-002", "post-007"]);
+  });
+
+  it("returns an empty page for an unknown tag", async () => {
+    expect(await settle(fetchPostsByTag("nope", "top"))).toEqual({ tag: "nope", postsCount: 0, posts: [] });
+  });
+});
+
+describe("fetchTrendingTags", () => {
+  it("counts root posts per tag, count desc then tag asc", async () => {
+    expect(await settle(fetchTrendingTags(3))).toEqual([
+      { tag: "Minimalism", postsCount: 3 },
+      { tag: "NextJS", postsCount: 3 },
+      { tag: "ĐàLạt", postsCount: 2 },
+    ]);
+  });
+});
+
+describe("searchPosts latest sort", () => {
+  it("orders matches newest first when sort is latest", async () => {
+    const posts = await settle(searchPosts("nextjs", SEARCH_LIMIT, "latest"));
+    expect(posts.map((post) => post.id)).toEqual(["post-002", "post-007", "post-009"]);
+  });
+
+  it("orders exact-tag matches newest first when sort is latest", async () => {
+    const posts = await settle(searchPosts("#design", SEARCH_LIMIT, "latest"));
+    expect(posts.map((post) => post.id)).toEqual(["post-004", "post-011"]);
   });
 });

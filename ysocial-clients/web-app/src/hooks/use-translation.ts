@@ -14,7 +14,9 @@ type TranslationKey =
   | `profile.${keyof typeof vi.profile}`
   | `notifications.${keyof typeof vi.notifications}`
   | `auth.${keyof typeof vi.auth}`
-  | `postDetail.${keyof typeof vi.postDetail}`;
+  | `postDetail.${keyof typeof vi.postDetail}`
+  | `search.${keyof typeof vi.search}`
+  | `tags.${keyof typeof vi.tags}`;
 
 export const useTranslation = () => {
   const locale = useLocale();

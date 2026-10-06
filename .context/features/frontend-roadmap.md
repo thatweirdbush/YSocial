@@ -1,6 +1,6 @@
 ---
 module: Frontend Roadmap (FE-only, mock data)
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # YSocial Frontend - Audit & Roadmap (FE-only, mock data)
@@ -40,7 +40,7 @@ updated: 2026-10-02
 
 ### Phase 0 - Foundation (MUST go first, blocks all later phases)
 - [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, scripts `test` & `typecheck` (devDependencies install needs approval)
-- [x] **F0.2 Mock data layer:** *(posts only - users/notifications/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
+- [x] **F0.2 Mock data layer:** *(posts + users done - notifications/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
 - [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` -> like/bookmark/reply synced everywhere, O(1) toggle, no list re-render
 - [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, general routes pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
 - [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): Lucide icon + Gen Z message + CTA - standard for all lists
@@ -48,8 +48,8 @@ updated: 2026-10-02
 
 ### Phase 1 - Core content loop (P0)
 - [x] **1.1 Post Detail & Reply Thread** (see `features/post-detail.md`) `/posts/[id]` - *priority #1, see Step 4*
-- [ ] **1.2 Search / Explore** `/search?q=` - tabs "Top / Người dùng / Bài viết / Hashtag", recent searches (localStorage), debounced suggestions, keyword highlight; `SearchWidget` navigates here
-- [ ] **1.3 Hashtag page** `/tags/[tag]` - target for bio parser, trending, linkified post content
+- [x] **1.2 Search / Explore** (see `features/search.md`) `/search?q=` - tabs "Top / Người dùng / Bài viết / Hashtag", recent searches (localStorage), debounced suggestions, keyword highlight; `SearchWidget` navigates here
+- [x] **1.3 Hashtag page** (merged into 1.2 spec) `/tags/[tag]` - target for bio parser, trending, linkified post content
 - [ ] **1.4 "Có bài mới" pill** (simulated push every N sec) - tabs "Dành cho bạn / Đang theo dõi" already exist in `PostFeed`
 - [ ] **1.5 Post owner actions:** Edit (inline editor + "edited" label), Delete (confirm + undo toast), Pin to profile, Hide like count
 - [ ] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, Follow button - on name/avatar in `PostCard`

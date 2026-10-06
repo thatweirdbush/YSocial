@@ -106,6 +106,7 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 
 ## Prefered Patterns
 - USE `size-{n}` instead of separate `w-{n}` + `h-{n}` for square elements.
+- i18n keys MUST be flat (`TranslationKey` types 1 nesting level): `domain.elementName`
 
 ## Forbidden Patterns
 - NO inline CSS

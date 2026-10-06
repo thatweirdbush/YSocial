@@ -1,14 +1,18 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import React from "react";
 import { SearchWidget } from "./search-widget";
 import { FollowSuggestions } from "./follow-suggestions";
 import { TrendingWidget } from "./trending-widget";
 
 export function RightSidebar() {
+  // The search page has its own search box
+  const isSearchPage = usePathname() === "/search";
+
   return (
     <aside className="hidden lg:flex flex-col gap-6 py-6 px-2 w-[340px] ml-6 xl:ml-8 shrink-0 sticky top-0 h-screen overflow-y-auto bg-zinc-50 dark:bg-black">
-      <SearchWidget />
+      {!isSearchPage && <SearchWidget />}
       <FollowSuggestions />
       <TrendingWidget />
 

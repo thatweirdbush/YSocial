@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "./mock-authors";
-import { MOCK_POSTS } from "./mock-posts";
+import { getMockTagStat, MOCK_POSTS } from "./mock-posts";
 
 const roots = MOCK_POSTS.filter((p) => p.parentId === undefined);
 const childrenOf = (id: string) => MOCK_POSTS.filter((p) => p.parentId === id);
@@ -39,5 +39,11 @@ describe("mock dataset", () => {
     expect(MOCK_AUTHORS).toHaveLength(8);
     expect(MOCK_FOLLOWED_AUTHOR_IDS).toHaveLength(3);
     expect(MOCK_FOLLOWED_AUTHOR_IDS.every((id) => authorIds.has(id))).toBe(true);
+  });
+
+  it("looks up seed hashtag stats case & diacritics insensitive", () => {
+    expect(getMockTagStat("nextjs")).toEqual({ tag: "NextJS", postsCount: 3 });
+    expect(getMockTagStat("DALAT")?.postsCount).toBe(2);
+    expect(getMockTagStat("nope")).toBeUndefined();
   });
 });

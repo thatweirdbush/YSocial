@@ -12,4 +12,5 @@
 - [User Profile & Relations Spec](features/user-profile-and-relations.md) - User profiles, follow states (Pending vs Accepted), Close Friends toggle, soft-deleted relation restore, self-block prevention with auto-purging active follows
 - [FE Roadmap](features/frontend-roadmap.md) - FE audit (2026-10-01) & prioritized 8-phase checklist (Foundation -> Post Detail -> Search -> Social graph -> Notifications -> Settings -> DMs -> Engagement -> Polish), mock data ONLY, no BE
 - [Post Detail Spec](features/post-detail.md) - `/posts/[id]` thread + 1-level replies, mock `post-service` + normalized Zustand `post-store` (like/bookmark/reply sync), Vitest/RTL setup, design decisions & pitfalls
+- [Search & Tags Spec](features/search.md) - `/search` explore + Top/Users/Posts/Hashtag tabs, ARIA combobox suggestions, persisted recent searches, `/tags/[tag]`, linkified `#tag`/`@mention`, mock `user-service` + `user-store` (follow sync), diacritics-insensitive matching
 - [BE Unit Test Spec](features/backend-unit-test.md) - xUnit, NSubstitute & FluentAssertions test matrix: Domain entities, Business Rules, Services, Application CQRS Command/Event Handlers

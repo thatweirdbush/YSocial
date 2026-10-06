@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchStore } from "@/features/search";
 import { useUIStore } from "@/lib/store/ui-store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -21,9 +22,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
-  // Apply persisted/browser locale right after hydration; layout effect re-renders before the next paint
+  // Apply persisted client state right after hydration; layout effect re-renders before the next paint
   useLayoutEffect(() => {
     useUIStore.getState().actions.hydrateLocale();
+    void useSearchStore.persist.rehydrate();
   }, []);
 
   return (
