@@ -62,7 +62,7 @@ interface PostStoreActions {
   /** Pins/unpins in one update (target, previous pin & index); returns the id it unpinned. */
   setPinned: (id: string, pinned: boolean) => string | undefined;
   setHideLikeCount: (id: string, hidden: boolean) => void;
-  /** Field-scoped rollback: applies `patch` only while every `expected` field is unchanged. */
+  /** Field-scoped rollback: applies `patch` only while every `expected` field is unchanged (empty -> always). */
   patchPostIf: (id: string, expected: Partial<PostItem>, patch: Partial<PostItem>) => void;
 }
 
@@ -423,7 +423,10 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         const deletedIds = { ...state.deletedIds };
         for (const post of snapshot.posts) delete deletedIds[post.id];
 
-        const pinnedIdByAuthor = snapshot.wasPinned
+        // A pin the author made while the delete was pending wins; the restored post comes back unpinned
+        const pinnedMeanwhile = snapshot.wasPinned ? state.pinnedIdByAuthor[root.user.id] : undefined;
+        if (pinnedMeanwhile !== undefined && pinnedMeanwhile !== root.id) posts[root.id] = { ...posts[root.id], isPinned: false };
+        const pinnedIdByAuthor = snapshot.wasPinned && posts[root.id].isPinned
           ? reindexPins(posts, state.pinnedIdByAuthor, [posts[root.id]])
           : state.pinnedIdByAuthor;
 
@@ -493,6 +496,8 @@ export const resetPostStore = () => usePostStore.setState(initialData());
 
 // #region Selectors
 export const usePost = (id: string) => usePostStore((state) => state.posts[id]);
+/** Author id only: re-renders just when the cached author changes, not on every post update. */
+export const usePostAuthorId = (id: string): string | undefined => usePostStore((state) => state.posts[id]?.user.id);
 export const useReplyIds = (parentId: string) =>
   usePostStore((state) => state.replyIds[parentId] ?? EMPTY_IDS);
 export const useFeedIds = (tab: FeedTab) => usePostStore((state) => state.feedIds[tab]);

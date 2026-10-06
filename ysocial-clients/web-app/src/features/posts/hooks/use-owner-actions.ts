@@ -19,7 +19,7 @@ export function isInViewedSubtree(pathname: string, postId: string, posts: Recor
   return false;
 }
 
-interface OwnerActions {
+export interface OwnerActions {
   pendingOp: OwnerOp | undefined;
   /** Resolves true when saved. */
   edit: (content: string) => Promise<boolean>;
@@ -31,7 +31,8 @@ interface OwnerActions {
 
 /**
  * Owner mutations for one post: lock -> optimistic store update -> mock service (enforces ownership)
- * -> field-scoped rollback on failure. At most 1 op per post runs at a time.
+ * -> service copy applied on success (beats a stale refetch that landed mid-op) | field-scoped rollback.
+ * At most 1 op per post runs at a time.
  */
 export function useOwnerActions(postId: string): OwnerActions {
   const { t } = useTranslation();
@@ -61,7 +62,8 @@ export function useOwnerActions(postId: string): OwnerActions {
       const next = content.trim();
       actions.editPost(postId, next);
       try {
-        await updatePostContent(postId, next, actorId);
+        const saved = await updatePostContent(postId, next, actorId);
+        actions.patchPostIf(postId, {}, { content: saved.content, isEdited: saved.isEdited });
         toast.success(t("card.editSuccess"));
         return true;
       } catch (error) {
@@ -76,7 +78,8 @@ export function useOwnerActions(postId: string): OwnerActions {
       const next = !post.isPinned;
       const unpinned = actions.setPinned(postId, next);
       try {
-        await setPostPinned(postId, next, actorId);
+        const saved = await setPostPinned(postId, next, actorId);
+        if (current()?.isPinned !== saved.isPinned) actions.setPinned(postId, saved.isPinned === true);
         toast.success(t(next ? "card.pinSuccess" : "card.unpinSuccess"));
       } catch (error) {
         // Undo only what is still in the optimistic state
@@ -93,7 +96,8 @@ export function useOwnerActions(postId: string): OwnerActions {
       const next = !previous;
       actions.setHideLikeCount(postId, next);
       try {
-        await setHideLikeCount(postId, next, actorId);
+        const saved = await setHideLikeCount(postId, next, actorId);
+        actions.patchPostIf(postId, {}, { hideLikeCount: saved.hideLikeCount });
       } catch (error) {
         actions.patchPostIf(postId, { hideLikeCount: next }, { hideLikeCount: previous });
         fail(error);
@@ -109,7 +113,8 @@ export function useOwnerActions(postId: string): OwnerActions {
         const { deletedIds } = await deletePost(postId, actorId);
         actions.markDeleted(deletedIds);
         toast.success(t("card.deleteSuccess"));
-        if (viewed) router.replace("/");
+        // The card may be unmounted by now (stale `pathname`): re-check the live route before leaving it
+        if (viewed && window.location.pathname === pathname) router.replace("/");
         return true;
       } catch (error) {
         if (snapshot) actions.restorePosts(snapshot);

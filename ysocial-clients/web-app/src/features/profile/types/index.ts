@@ -32,6 +32,8 @@ export type UserProfileBase = Omit<UserProfile, "isFollowing">;
 /** One viewer's follow projection in `user-store`. */
 export interface ViewerFollows {
   ids: Record<string, true>;
+  /** Ids whose follow state was fetched or toggled for this viewer (trusted even before `loaded`). */
+  known: Record<string, true>;
   /** True once the complete follow set was loaded (not just ids seen in fetched profiles). */
   loaded: boolean;
   /** Bumped by every local toggle; a follow-set load started before a toggle is discarded. */

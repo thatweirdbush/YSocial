@@ -8,8 +8,9 @@ import type { PostItem } from "../types";
 import { PostCard } from "./post-card";
 
 const push = vi.fn();
+const usePathname = vi.hoisted(() => vi.fn(() => "/"));
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname,
   useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
 }));
 
@@ -204,6 +205,14 @@ describe("PostCard media", () => {
 describe("PostCard owner state", () => {
   afterEach(() => {
     useAuthStore.setState({ user: null });
+  });
+
+  it("never runs owner actions for another author's card", () => {
+    usePathname.mockClear();
+    render(<PostCard post={post} />);
+
+    expect(screen.getByRole("button", { name: "Thêm" })).toBeInTheDocument();
+    expect(usePathname).not.toHaveBeenCalled();
   });
 
   it("renders nothing for a deleted post", () => {

@@ -550,6 +550,18 @@ describe("pin index", () => {
     expect(pinIndex()).toEqual({ u1: "A" });
   });
 
+  it("restorePosts keeps a pin the author made meanwhile; the restored post comes back unpinned", () => {
+    actions().setPinned("A", true);
+    const snapshot = actions().removePost("A")!;
+    actions().setPinned("B", true);
+
+    actions().restorePosts(snapshot);
+
+    expect(pinIndex()).toEqual({ u1: "B" });
+    expect(state().posts.B.isPinned).toBe(true);
+    expect(state().posts.A.isPinned).toBe(false);
+  });
+
   it("markDeleted clears the index of a pinned id and never points at a tombstone", () => {
     actions().setPinned("A", true);
     actions().setPinned("other", true);

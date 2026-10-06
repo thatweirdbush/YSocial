@@ -1,7 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { POST_CONTENT_MAX, PostInlineEditor } from "./post-inline-editor";
+import { POST_CONTENT_MAX } from "../utils/post-content";
+import { PostInlineEditor } from "./post-inline-editor";
 
 const setup = (props: Partial<React.ComponentProps<typeof PostInlineEditor>> = {}) => {
   const onSave = vi.fn().mockResolvedValue(true);

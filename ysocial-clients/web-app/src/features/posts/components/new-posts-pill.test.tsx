@@ -107,6 +107,22 @@ describe("NewPostsPill", () => {
     expect(scroll.scrollFeedToTop).toHaveBeenCalledTimes(1);
   });
 
+  it("ignores clicks while the overflow refetch is in flight", async () => {
+    buffer(...Array.from({ length: INCOMING_CAP + 1 }, (_, i) => makePost(`n${i}`, "a1")));
+    let finish!: () => void;
+    const onRefetch = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)));
+    render(<NewPostsPill tab="forYou" onRefetch={onRefetch} />);
+    const pill = screen.getByRole("button", { name: /20\+ bài mới/ });
+
+    await userEvent.click(pill);
+    expect(pill).toHaveAttribute("aria-busy", "true");
+    await userEvent.click(pill);
+    expect(onRefetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish());
+    expect(pill).not.toHaveAttribute("aria-busy");
+  });
+
   it("counts only followed authors on the following tab, at read time", () => {
     buffer(makePost("n1", "a1"), makePost("n2", "a2"));
     render(<NewPostsPill tab="following" onRefetch={vi.fn()} />);

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import * as service from "../services/user-service";
 import type { UserProfile } from "../types";
-import { ensureFollowGraph, ensureUser, getFollowedIds, resetUserStore, useFollowedIds, useUser, useUserStore } from "./user-store";
+import { ensureFollowGraph, ensureUser, getFollowedIds, resetUserStore, useFollowedIds, useFollowState, useUser, useUserStore } from "./user-store";
 
 const user: UserProfile = {
   id: "u1",
@@ -111,6 +111,23 @@ describe("ensureUser", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it("refetches a user cached for another viewer while this viewer's follow state is unknown", async () => {
+    const spy = vi.spyOn(service, "fetchUser").mockResolvedValue({ ...user, isFollowing: true });
+
+    await expect(ensureUser("u1", "v2")).resolves.toMatchObject({ isFollowing: true });
+
+    expect(spy).toHaveBeenCalledWith("u1", "v2");
+    expect(isFollowing("v2", "u1")).toBe(true);
+  });
+
+  it("trusts the cache once the viewer's follow graph is loaded", async () => {
+    const spy = vi.spyOn(service, "fetchUser");
+    actions().setFollowedIds("v2", ["u1"], 0);
+
+    await expect(ensureUser("u1", "v2")).resolves.toMatchObject({ isFollowing: true });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
   it("dedupes concurrent requests and upserts the result", async () => {
     const spy = vi.spyOn(service, "fetchUser").mockResolvedValue({ ...user, id: "u9", isFollowing: true });
 
@@ -144,6 +161,19 @@ describe("ensureFollowGraph", () => {
 
     expect(spy).toHaveBeenCalledTimes(2);
     expect(getFollowedIds("v1").loaded).toBe(true);
+  });
+});
+
+describe("useFollowState", () => {
+  it("is known for the viewer that fetched the user, unknown for another viewer", () => {
+    const { result } = renderHook(() => useFollowState("u1"));
+    expect(result.current).toBe(false);
+
+    act(() => signInAs("v2"));
+    expect(result.current).toBeUndefined();
+
+    act(() => actions().setFollowedIds("v2", ["u1"], 0));
+    expect(result.current).toBe(true);
   });
 });
 

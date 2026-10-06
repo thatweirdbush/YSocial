@@ -4,9 +4,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
-
-/** Same limit as the composer's `postSchema`. */
-export const POST_CONTENT_MAX = 500;
+import { POST_CONTENT_MAX } from "../utils/post-content";
 
 interface PostInlineEditorProps {
   initialContent: string;

@@ -50,6 +50,7 @@ beforeEach(() => {
   toast.error.mockClear();
   nav.pathname = "/";
   nav.replace.mockClear();
+  window.history.replaceState(null, "", "/");
   useAuthStore.setState({ user: { id: "u1", email: "me@ysocial.dev", username: "me" } });
   store().actions.upsertPosts([
     makePost("A", { commentsCount: 1 }),
@@ -117,6 +118,24 @@ describe("edit", () => {
     expect(toast.error).toHaveBeenCalledWith("Đã có lỗi xảy ra. Vui lòng thử lại!");
   });
 
+  it("applies the service copy over a stale refetch that landed mid-op", async () => {
+    const call = deferred<PostItem>();
+    vi.spyOn(service, "updatePostContent").mockReturnValue(call.promise);
+    const result = render();
+
+    let pending!: Promise<boolean>;
+    act(() => {
+      pending = result.current.edit("mới");
+    });
+    act(() => store().actions.upsertPosts([makePost("A", { commentsCount: 1 })]));
+    await act(async () => {
+      call.resolve(makePost("A", { content: "mới", isEdited: true }));
+      await pending;
+    });
+
+    expect(store().posts.A).toMatchObject({ content: "mới", isEdited: true });
+  });
+
   it("shows the forbidden message for ForbiddenError", async () => {
     vi.spyOn(service, "updatePostContent").mockRejectedValue(new service.ForbiddenError());
     const result = render();
@@ -131,7 +150,7 @@ describe("edit", () => {
   it("ignores a 2nd op while one is pending", async () => {
     const call = deferred<PostItem>();
     vi.spyOn(service, "updatePostContent").mockReturnValue(call.promise);
-    const pin = vi.spyOn(service, "setPostPinned").mockResolvedValue();
+    const pin = vi.spyOn(service, "setPostPinned").mockResolvedValue(makePost("A", { isPinned: true }));
     const result = render();
 
     act(() => {
@@ -162,8 +181,29 @@ describe("togglePin", () => {
     expect(store().pinnedIdByAuthor).toEqual({ u1: "B" });
   });
 
+  it("re-applies the pin over a stale refetch that landed mid-op", async () => {
+    store().actions.setPinned("B", true);
+    const call = deferred<PostItem>();
+    vi.spyOn(service, "setPostPinned").mockReturnValue(call.promise);
+    const result = render();
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.togglePin();
+    });
+    act(() => store().actions.upsertPosts([makePost("A"), makePost("B", { isPinned: true })]));
+    await act(async () => {
+      call.resolve(makePost("A", { isPinned: true }));
+      await pending;
+    });
+
+    expect(store().posts.A.isPinned).toBe(true);
+    expect(store().posts.B.isPinned).toBe(false);
+    expect(store().pinnedIdByAuthor).toEqual({ u1: "A" });
+  });
+
   it("pins and reports success", async () => {
-    vi.spyOn(service, "setPostPinned").mockResolvedValue();
+    vi.spyOn(service, "setPostPinned").mockResolvedValue(makePost("A", { isPinned: true }));
     const result = render();
 
     await act(async () => {
@@ -186,6 +226,24 @@ describe("toggleHideLikeCount", () => {
     });
 
     expect(store().posts.A.hideLikeCount).toBe(false);
+  });
+
+  it("re-applies the flag over a stale refetch that landed mid-op", async () => {
+    const call = deferred<PostItem>();
+    vi.spyOn(service, "setHideLikeCount").mockReturnValue(call.promise);
+    const result = render();
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.toggleHideLikeCount();
+    });
+    act(() => store().actions.upsertPosts([makePost("A", { hideLikeCount: false })]));
+    await act(async () => {
+      call.resolve(makePost("A", { hideLikeCount: true }));
+      await pending;
+    });
+
+    expect(store().posts.A.hideLikeCount).toBe(true);
   });
 });
 
@@ -238,6 +296,7 @@ describe("remove", () => {
 
   it.each(["/posts/A", "/posts/R"])("viewed route %s: removes at once, navigates only after success", async (pathname) => {
     nav.pathname = pathname;
+    window.history.replaceState(null, "", pathname);
     const call = deferred<{ deletedIds: string[] }>();
     vi.spyOn(service, "deletePost").mockReturnValue(call.promise);
     const result = render();
@@ -255,6 +314,26 @@ describe("remove", () => {
     });
     expect(nav.replace).toHaveBeenCalledTimes(1);
     expect(nav.replace).toHaveBeenCalledWith("/");
+  });
+
+  it("viewed route: does not navigate when the user left the route before success", async () => {
+    nav.pathname = "/posts/A";
+    window.history.replaceState(null, "", "/posts/A");
+    const call = deferred<{ deletedIds: string[] }>();
+    vi.spyOn(service, "deletePost").mockReturnValue(call.promise);
+    const result = render();
+
+    let pending!: Promise<boolean>;
+    act(() => {
+      pending = result.current.remove();
+    });
+    window.history.replaceState(null, "", "/search");
+    await act(async () => {
+      call.resolve({ deletedIds: ["A", "R"] });
+      await pending;
+    });
+
+    expect(nav.replace).not.toHaveBeenCalled();
   });
 
   it("viewed route failure: restores in place without navigating", async () => {

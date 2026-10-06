@@ -75,6 +75,17 @@ describe("UserHoverCard", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
+  it("fetches the follow state for a user cached by another viewer", async () => {
+    useUserStore.getState().actions.upsertUsers([author], "v0");
+    const spy = vi.spyOn(service, "fetchUser").mockResolvedValue({ ...author, isFollowing: true });
+    renderCard();
+
+    await userEvent.hover(screen.getByRole("link", { name: author.displayName }));
+
+    expect(await screen.findByRole("button", { name: "Đang theo dõi" }, OPEN_WAIT)).toBeInTheDocument();
+    expect(spy).toHaveBeenCalledWith(author.id, "v1");
+  });
+
   it("shows an error with retry when the user cannot be loaded", async () => {
     const spy = vi.spyOn(service, "fetchUser").mockResolvedValueOnce(null).mockResolvedValueOnce(author);
     renderCard();

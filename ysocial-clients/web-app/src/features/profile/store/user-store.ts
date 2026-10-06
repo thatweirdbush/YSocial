@@ -27,7 +27,13 @@ interface UserStoreState extends UserStoreData {
   actions: UserStoreActions;
 }
 
-const EMPTY_FOLLOWS: ViewerFollows = Object.freeze({ ids: {}, loaded: false, version: 0 }) as ViewerFollows;
+const EMPTY_FOLLOWS: ViewerFollows = Object.freeze({ ids: {}, known: {}, loaded: false, version: 0 }) as ViewerFollows;
+
+/** Viewer's follow flag for `id`; undefined while unknown (graph not loaded & never fetched for this viewer). */
+function followState(follows: ViewerFollows | undefined, id: string): boolean | undefined {
+  if (!follows || !(follows.loaded || follows.known[id])) return undefined;
+  return follows.ids[id] === true;
+}
 
 const initialData = (): UserStoreData => ({ users: {}, follows: {} });
 
@@ -39,12 +45,14 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         const next = { ...state.users };
         const current = state.follows[viewerId] ?? EMPTY_FOLLOWS;
         const ids = { ...current.ids };
+        const known = { ...current.known };
         for (const { isFollowing, ...base } of users) {
           next[base.id] = base;
+          known[base.id] = true;
           if (isFollowing) ids[base.id] = true;
           else delete ids[base.id];
         }
-        return { users: next, follows: { ...state.follows, [viewerId]: { ...current, ids } } };
+        return { users: next, follows: { ...state.follows, [viewerId]: { ...current, ids, known } } };
       }),
 
     toggleFollow: (viewerId, id) =>
@@ -58,7 +66,10 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         else delete ids[id];
         return {
           users: { ...state.users, [id]: { ...user, followersCount: Math.max(0, user.followersCount + (following ? 1 : -1)) } },
-          follows: { ...state.follows, [viewerId]: { ...current, ids, version: current.version + 1 } },
+          follows: {
+            ...state.follows,
+            [viewerId]: { ...current, ids, known: { ...current.known, [id]: true }, version: current.version + 1 },
+          },
         };
       }),
 
@@ -67,7 +78,7 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
       if (current.version !== sinceVersion) return false;
       const next: Record<string, true> = {};
       for (const id of ids) next[id] = true;
-      set((state) => ({ follows: { ...state.follows, [viewerId]: { ids: next, loaded: true, version: current.version } } }));
+      set((state) => ({ follows: { ...state.follows, [viewerId]: { ...current, ids: next, loaded: true } } }));
       return true;
     },
   },
@@ -83,15 +94,20 @@ export const resetUserStore = () => {
   useUserStore.setState(initialData());
 };
 
-function projected(id: string, viewerId: string): UserProfile | null {
+/** Cached user as seen by `viewerId`; null when missing or the viewer's follow state for it is unknown. */
+function cachedFor(id: string, viewerId: string): UserProfile | null {
   const { users, follows } = useUserStore.getState();
   const base = users[id];
-  return base ? { ...base, isFollowing: follows[viewerId]?.ids[id] === true } : null;
+  const isFollowing = followState(follows[viewerId], id);
+  return base && isFollowing !== undefined ? { ...base, isFollowing } : null;
 }
 
-/** Fetches a user only when not cached; concurrent calls share one request. */
+/**
+ * Fetches a user unless cached with a known follow state for this viewer (an account switch must not reuse
+ * another viewer's projection); concurrent calls share one request.
+ */
 export function ensureUser(id: string, viewerId: string): Promise<UserProfile | null> {
-  const cached = projected(id, viewerId);
+  const cached = cachedFor(id, viewerId);
   if (cached) return Promise.resolve(cached);
 
   const key = `${viewerId}:${id}`;
@@ -144,6 +160,12 @@ export const useUser = (id: string): UserProfile | undefined => {
     useShallow((state) => [state.users[id], state.follows[viewerId]?.ids[id] === true] as const),
   );
   return useMemo(() => (base ? { ...base, isFollowing } : undefined), [base, isFollowing]);
+};
+
+/** Current viewer's follow flag for `id`; undefined while unknown (FollowButton must not guess). */
+export const useFollowState = (id: string): boolean | undefined => {
+  const viewerId = useViewerId();
+  return useUserStore((state) => followState(state.follows[viewerId], id));
 };
 
 /** Complete follow set of the current viewer (`loaded` false until `ensureFollowGraph` resolves). */

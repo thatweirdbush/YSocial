@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUp } from "lucide-react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import { usePendingFeed } from "../hooks/use-pending-feed";
@@ -20,11 +21,22 @@ export function NewPostsPill({ tab, onRefetch }: NewPostsPillProps) {
   const { loaded } = useFeedMeta(tab);
   const { ids, overflow, authors } = usePendingFeed(tab);
   const { flushPending } = usePostActions();
+  const [refetching, setRefetching] = useState(false);
   const visible = loaded && (ids.length > 0 || overflow);
 
   const handleClick = async () => {
-    if (overflow) await onRefetch();
-    else flushPending(tab, ids);
+    if (refetching) return;
+    if (overflow) {
+      // 1 page-1 reload at a time (double click must not refetch twice)
+      setRefetching(true);
+      try {
+        await onRefetch();
+      } finally {
+        setRefetching(false);
+      }
+    } else {
+      flushPending(tab, ids);
+    }
     scrollFeedToTop();
   };
 
@@ -35,8 +47,10 @@ export function NewPostsPill({ tab, onRefetch }: NewPostsPillProps) {
           <button
             type="button"
             onClick={() => void handleClick()}
+            disabled={refetching}
+            aria-busy={refetching || undefined}
             title={t("feed.newPostsAria")}
-            className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-full border border-zinc-200/70 dark:border-zinc-800/70 bg-white/80 dark:bg-zinc-900/80 py-1.5 pl-2 pr-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100 shadow-lg backdrop-blur-md transition-colors hover:bg-white dark:hover:bg-zinc-900 animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60"
+            className="pointer-events-auto flex min-h-11 items-center gap-2 rounded-full border border-zinc-200/70 dark:border-zinc-800/70 bg-white/80 dark:bg-zinc-900/80 py-1.5 pl-2 pr-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100 shadow-lg backdrop-blur-md transition-colors hover:bg-white dark:hover:bg-zinc-900 disabled:cursor-progress disabled:opacity-70 animate-in fade-in slide-in-from-top-2 duration-300 motion-reduce:animate-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60"
           >
             <ArrowUp className="size-4" aria-hidden="true" />
             {authors.length > 0 && (

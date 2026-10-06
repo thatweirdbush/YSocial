@@ -8,7 +8,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewerId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
-import { ensureUser, useUser } from "../store/user-store";
+import { ensureUser, useFollowState, useUser } from "../store/user-store";
 import { parseBio } from "../utils/bio-parser";
 import { FollowButton } from "./follow-button";
 
@@ -19,6 +19,12 @@ interface UserHoverCardProps {
 }
 
 type LoadStatus = "idle" | "loading" | "error";
+
+/** Built once per locale, not per render. */
+const COMPACT_FORMATS = {
+  vi: new Intl.NumberFormat("vi-VN", { notation: "compact" }),
+  en: new Intl.NumberFormat("en-US", { notation: "compact" }),
+};
 
 function HoverCardSkeleton() {
   return (
@@ -39,6 +45,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
   const { t, locale } = useTranslation();
   const viewerId = useViewerId();
   const user = useUser(userId);
+  const isFollowing = useFollowState(userId);
   // Data always comes from the store; local state tracks only the request
   const [status, setStatus] = useState<LoadStatus>("idle");
 
@@ -50,13 +57,14 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
   };
 
   const handleOpenChange = (open: boolean) => {
-    if (open && !user && status !== "loading") load();
+    // Also when only this viewer's follow state is missing (user cached by another account)
+    if (open && (!user || isFollowing === undefined) && status !== "loading") load();
   };
 
   // No self-preview: the viewer is not a mock user, so loading their card could only fail
   if (userId === viewerId) return children;
 
-  const compact = new Intl.NumberFormat(locale === "vi" ? "vi-VN" : "en-US", { notation: "compact" });
+  const compact = COMPACT_FORMATS[locale];
 
   return (
     <HoverCard openDelay={500} closeDelay={150} onOpenChange={handleOpenChange}>

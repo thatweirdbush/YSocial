@@ -57,6 +57,8 @@ export function PostFeed() {
       if (page === 1) {
         // The fresh page covers every buffered post of this tab (same follow graph) -> nothing stays pending
         const followed = getFollowedIds(viewerId);
+        // Refresh / first tab load / pill overflow also retry a follow graph that failed to load
+        if (!followed.loaded) ensureFollowGraph(viewerId).catch(() => undefined);
         if (tab === "forYou" || followed.loaded) {
           const state = usePostStore.getState();
           consumeIncoming(tab, getPendingFeed(state.posts, state, tab, followed.ids).ids);

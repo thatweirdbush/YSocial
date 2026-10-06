@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import type { CreatePostInput } from "../types";
+import { POST_CONTENT_MAX } from "../utils/post-content";
 import { __resetFollowGraph, setFollowed } from "@/mocks/follow-graph";
 import {
   __resetMockDb,
@@ -295,6 +296,14 @@ describe("owner mutations", () => {
     expect((await settle(fetchPostsByTag("Minimalism", "latest"))).posts.some((p) => p.id === "post-003")).toBe(false);
   });
 
+  it("updatePostContent rejects content over the limit or empty text without images", async () => {
+    await rejects(updatePostContent("post-002", "a".repeat(POST_CONTENT_MAX + 1), "author-02"), Error);
+    await rejects(updatePostContent("post-002", "   ", "author-02"), Error);
+
+    expect(await settle(updatePostContent("post-003", "  ", "author-03"))).toMatchObject({ content: "" });
+    expect((await settle(fetchPostThread("post-002")))!.post.isEdited).toBeFalsy();
+  });
+
   it("deletes a root post with its whole reply tree", async () => {
     const thread = (await settle(fetchPostThread("post-001")))!;
     const expected = [
@@ -370,6 +379,17 @@ describe("subscribeToNewPosts", () => {
     expect(second).toHaveBeenCalledTimes(4);
 
     unsubscribeSecond();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("stops the timer when the last listener unsubscribes inside its callback", async () => {
+    vi.spyOn(Math, "random").mockReturnValue(0.5);
+    const listener = vi.fn(() => unsubscribe());
+    const unsubscribe = subscribeToNewPosts(listener);
+
+    await vi.advanceTimersByTimeAsync(NEW_POST_INTERVAL_MS);
+
+    expect(listener).toHaveBeenCalledTimes(1);
     expect(vi.getTimerCount()).toBe(0);
   });
 

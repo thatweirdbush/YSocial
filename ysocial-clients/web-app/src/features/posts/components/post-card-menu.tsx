@@ -22,13 +22,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/use-translation";
-import { useOwnerActions } from "../hooks/use-owner-actions";
+import type { OwnerActions } from "../hooks/use-owner-actions";
 import type { PostItem } from "../types";
 
 interface PostCardMenuProps {
   post: PostItem;
-  /** Presentation only; the mock service enforces ownership. */
-  isOwner: boolean;
+  /** Owner's actions runner (from `PostCard`); its presence shows owner items. Presentation only: the mock service enforces ownership. */
+  owner?: OwnerActions;
   isSavedPage?: boolean;
   onUnsave?: (id: string) => void;
   onEdit: () => void;
@@ -38,13 +38,12 @@ const ITEM = "rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:b
 const ICON = "size-4 text-zinc-400 mr-2";
 
 /** Triple-dot menu: owner actions (edit, pin, hide likes, delete) or viewer actions. */
-export function PostCardMenu({ post, isOwner, isSavedPage = false, onUnsave, onEdit }: PostCardMenuProps) {
+export function PostCardMenu({ post, owner, isSavedPage = false, onUnsave, onEdit }: PostCardMenuProps) {
   const { t } = useTranslation();
-  const { pendingOp, togglePin, toggleHideLikeCount, remove } = useOwnerActions(post.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
   // Edit opens only after the menu closed: its focus scope would otherwise swallow the editor's autofocus
   const editRequestedRef = useRef(false);
-  const busy = pendingOp !== undefined;
+  const busy = owner?.pendingOp !== undefined;
   const username = post.user.username;
 
   const copyLink = async () => {
@@ -60,7 +59,8 @@ export function PostCardMenu({ post, isOwner, isSavedPage = false, onUnsave, onE
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={t("card.more")} className="size-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
+          {/* `after:` = invisible 44px hit area around the 32px visual */}
+          <Button variant="ghost" size="icon" aria-label={t("card.more")} className="relative size-8 after:absolute after:-inset-1.5 after:content-[''] rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
             <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -82,14 +82,14 @@ export function PostCardMenu({ post, isOwner, isSavedPage = false, onUnsave, onE
               <Bookmark className="size-4 text-red-500 mr-2 fill-red-500/10" />
               {t("saved.unsave")}
             </DropdownMenuItem>
-          ) : !isOwner && (
+          ) : !owner && (
             <DropdownMenuItem onSelect={() => toast.success(t("card.bookmarkSuccess"))} className={ITEM}>
               <Bookmark className={ICON} />
               {t("card.bookmark")}
             </DropdownMenuItem>
           )}
 
-          {isOwner ? (
+          {owner ? (
             <>
               <DropdownMenuItem
                 disabled={busy}
@@ -102,12 +102,12 @@ export function PostCardMenu({ post, isOwner, isSavedPage = false, onUnsave, onE
                 {t("card.edit")}
               </DropdownMenuItem>
               {post.parentId === undefined && (
-                <DropdownMenuItem disabled={busy} onSelect={() => void togglePin()} className={ITEM}>
+                <DropdownMenuItem disabled={busy} onSelect={() => void owner.togglePin()} className={ITEM}>
                   {post.isPinned ? <PinOff className={ICON} /> : <Pin className={ICON} />}
                   {t(post.isPinned ? "card.unpin" : "card.pin")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem disabled={busy} onSelect={() => void toggleHideLikeCount()} className={ITEM}>
+              <DropdownMenuItem disabled={busy} onSelect={() => void owner.toggleHideLikeCount()} className={ITEM}>
                 {post.hideLikeCount ? <Eye className={ICON} /> : <EyeOff className={ICON} />}
                 {t(post.hideLikeCount ? "card.showLikes" : "card.hideLikes")}
               </DropdownMenuItem>
@@ -157,7 +157,7 @@ export function PostCardMenu({ post, isOwner, isSavedPage = false, onUnsave, onE
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {isOwner && (
+      {owner && (
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogContent onClick={(event) => event.stopPropagation()}>
             <AlertDialogHeader>
@@ -166,7 +166,7 @@ export function PostCardMenu({ post, isOwner, isSavedPage = false, onUnsave, onE
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel className="min-h-11 rounded-full">{t("card.editCancel")}</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" onClick={() => void remove()} className="min-h-11 rounded-full">
+              <AlertDialogAction variant="destructive" onClick={() => void owner.remove()} className="min-h-11 rounded-full">
                 {t("card.delete")}
               </AlertDialogAction>
             </AlertDialogFooter>

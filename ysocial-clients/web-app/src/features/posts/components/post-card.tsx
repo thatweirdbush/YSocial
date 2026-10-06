@@ -20,8 +20,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { setPostBookmark, setPostLike } from "../services/post-service";
 import { useCurrentAuthor } from "../hooks/use-current-author";
-import { useOwnerActions } from "../hooks/use-owner-actions";
-import { useIsDeleted, usePost, usePostActions } from "../store/post-store";
+import { useOwnerActions, type OwnerActions } from "../hooks/use-owner-actions";
+import { useIsDeleted, usePost, usePostActions, usePostAuthorId } from "../store/post-store";
 import type { PostItem } from "../types";
 import { getVisibleLikeCount } from "../utils/like-visibility";
 import { RichContent } from "../utils/rich-content";
@@ -44,14 +44,27 @@ interface PostCardProps {
   highlightTokens?: readonly string[];
 }
 
-export function PostCard({
+export function PostCard(props: PostCardProps) {
+  const authorId = usePostAuthorId(props.post.id) ?? props.post.user.id;
+  const isOwner = authorId === useCurrentAuthor().id;
+  return isOwner ? <OwnerPostCard {...props} /> : <PostCardView {...props} />;
+}
+
+/** Owner cards only: one owner-actions runner shared by the menu & the inline editor. */
+function OwnerPostCard(props: PostCardProps) {
+  const owner = useOwnerActions(props.post.id);
+  return <PostCardView {...props} owner={owner} />;
+}
+
+function PostCardView({
   post,
   variant = "feed",
   replyToUsername,
   isSavedPage = false,
   onUnsave,
   highlightTokens,
-}: PostCardProps) {
+  owner,
+}: PostCardProps & { owner?: OwnerActions }) {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const { toggleLike, toggleBookmark } = usePostActions();
@@ -60,8 +73,7 @@ export function PostCard({
   const live = usePost(post.id) ?? post;
   const isDeleted = useIsDeleted(post.id);
   const viewerId = useCurrentAuthor().id;
-  const isOwner = live.user.id === viewerId;
-  const { edit, pendingOp } = useOwnerActions(post.id);
+  const isOwner = owner !== undefined;
   const [isEditing, setIsEditing] = useState(false);
   const isLiked = live.isLikedByCurrentUser;
   // null = owner hid the count from this viewer
@@ -179,7 +191,8 @@ export function PostCard({
   };
 
   const saveEdit = async (content: string) => {
-    const saved = await edit(content);
+    if (!owner) return false;
+    const saved = await owner.edit(content);
     if (saved) setIsEditing(false);
     return saved;
   };
@@ -238,7 +251,7 @@ export function PostCard({
             </UserHoverCard>
 
             {/* Follow bound to user-store: same state as the hover card, sidebar & search */}
-            {!isOwner && <FollowButton userId={post.user.id} className="ml-1.5" />}
+            {!isOwner && <FollowButton userId={post.user.id} className="ml-1.5" reserveSpace />}
 
             <span className="text-zinc-300 dark:text-zinc-850 text-xs select-none">•</span>
             <span className="text-zinc-400 dark:text-zinc-500 text-xs">
@@ -253,7 +266,7 @@ export function PostCard({
           {!live.isPending && (
             <PostCardMenu
               post={live}
-              isOwner={isOwner}
+              owner={owner}
               isSavedPage={isSavedPage}
               onUnsave={onUnsave}
               onEdit={() => setIsEditing(true)}
@@ -272,7 +285,7 @@ export function PostCard({
           <PostInlineEditor
             initialContent={live.content}
             hasImages={images.length > 0}
-            disabled={pendingOp !== undefined}
+            disabled={owner?.pendingOp !== undefined}
             onSave={saveEdit}
             onCancel={() => setIsEditing(false)}
           />

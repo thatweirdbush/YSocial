@@ -44,6 +44,21 @@ describe("FollowButton", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("renders nothing while the viewer's follow state is unknown (never guesses Follow)", () => {
+    useAuthStore.setState({ user: { id: "v2", email: "v2@ysocial.dev" } });
+    const { container } = render(<FollowButton userId="u1" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("reserveSpace: keeps an invisible, non-interactive placeholder while unknown", () => {
+    const { container } = render(<FollowButton userId="nope" reserveSpace />);
+
+    const placeholder = container.firstElementChild;
+    expect(placeholder).toHaveAttribute("aria-hidden", "true");
+    expect(placeholder).toHaveClass("invisible");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+
   it("shows translated toasts", async () => {
     vi.spyOn(service, "setFollow").mockResolvedValue();
     render(<FollowButton userId="u1" />);

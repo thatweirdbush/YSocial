@@ -6,6 +6,7 @@ import { MOCK_POSTS } from "../mocks/mock-posts";
 import type { CreatePostInput, FeedPage, FeedTab, HashtagStat, PostAuthor, PostItem, PostSearchSort, PostThread, TagPage, TagSort } from "../types";
 import { getPostFeedTabs } from "../utils/feed-tabs";
 import { byNewest, collectTagStats, hasTag, tagKey } from "../utils/hashtags";
+import { POST_CONTENT_MAX } from "../utils/post-content";
 
 // Mock data source for posts. Replace the bodies with real API calls when the backend is wired;
 // callers (containers + post-store) stay unchanged.
@@ -259,7 +260,10 @@ export async function updatePostContent(id: string, content: string, actorId: st
   await simulateNetwork();
 
   const post = ownedPost(id, actorId);
-  post.content = content.trim();
+  const next = content.trim();
+  const hasImages = (post.imageUrls?.length ?? 0) > 0 || post.imageUrl !== undefined;
+  if (next.length > POST_CONTENT_MAX || (next === "" && !hasImages)) throw new Error("Invalid post content");
+  post.content = next;
   post.isEdited = true;
   return copy(post);
 }
@@ -277,7 +281,7 @@ export async function deletePost(id: string, actorId: string): Promise<{ deleted
 }
 
 /** Root posts only; pinning unpins the author's previously pinned post. */
-export async function setPostPinned(id: string, pinned: boolean, actorId: string): Promise<void> {
+export async function setPostPinned(id: string, pinned: boolean, actorId: string): Promise<PostItem> {
   await simulateNetwork();
 
   const post = ownedPost(id, actorId);
@@ -288,12 +292,15 @@ export async function setPostPinned(id: string, pinned: boolean, actorId: string
     }
   }
   post.isPinned = pinned;
+  return copy(post);
 }
 
-export async function setHideLikeCount(id: string, hidden: boolean, actorId: string): Promise<void> {
+export async function setHideLikeCount(id: string, hidden: boolean, actorId: string): Promise<PostItem> {
   await simulateNetwork();
 
-  ownedPost(id, actorId).hideLikeCount = hidden;
+  const post = ownedPost(id, actorId);
+  post.hideLikeCount = hidden;
+  return copy(post);
 }
 // #endregion
 
@@ -302,13 +309,15 @@ function scheduleTick(): void {
   const delay = NEW_POST_INTERVAL_MS + Math.round((Math.random() * 2 - 1) * NEW_POST_JITTER_MS);
   streamTimer = setTimeout(() => {
     const count = Math.random() < 0.5 ? 1 : 2;
-    for (let i = 0; i < count; i += 1) {
+    for (let i = 0; i < count && listeners.size > 0; i += 1) {
       const input: CreatePostInput = { content: pick(MOCK_INCOMING_CONTENTS), images: [], audience: "anyone" };
       const post = buildPost(input, pick(SEED_AUTHORS), undefined, "post-live");
       db.set(post.id, post);
       for (const listener of listeners) listener(copy(post));
     }
-    scheduleTick();
+    // A listener may have unsubscribed the last one inside its callback: never leave an orphan timer chain
+    if (listeners.size > 0) scheduleTick();
+    else streamTimer = undefined;
   }, delay);
 }
 
