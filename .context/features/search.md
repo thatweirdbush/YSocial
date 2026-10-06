@@ -20,9 +20,9 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 - `src/lib/text.ts` - `foldText` (NFD, strip marks, đ->d, lowercase), `normalizeText` (+ collapse spaces), `tokenize`, `extractHashtags`, `HASHTAG_PATTERN` (start or after whitespace, `\p{M}` for NFD input) / `MENTION_PATTERN` (trailing `.` excluded)
 - `posts/utils/hashtags.ts` - `tagKey`, `collectTagStats` (display casing = most frequent form, tie -> newest-first first seen), `hasTag`, `byNewest` (barrel: `byNewestPost`)
 - `posts/services/post-service.ts` - `searchPosts(q)` roots only, every token required, score = content occurrences + 2 × author-name hits, order score -> likes -> newest; `#x` query = exact tag. `fetchPostsByTag(tag, sort)`, `fetchTrendingTags(n)` (count desc, key asc). `SEARCH_LIMIT = 50`. `getMockTagStat` (seed, sync) for metadata
-- `profile/mocks/mock-users.ts` - `MOCK_USERS` = `MOCK_AUTHORS` + bio/counts; `isFollowing` from `MOCK_FOLLOWED_AUTHOR_IDS`
+- `profile/mocks/mock-users.ts` - `MOCK_USERS` = `SEED_AUTHORS` (`src/mocks/seed-authors.ts`) + bio/counts; follow flags come from viewer-scoped `src/mocks/follow-graph.ts` (see `feed-post-interaction.md`)
 - `profile/services/user-service.ts` - `searchUsers` (name/username/bio, username-prefix first, then followers), `fetchSuggestedUsers` (not followed), `setFollow` (idempotent, persisted before latency). **Swap point for real API**
-- `profile/store/user-store.ts` - `users: Record<id, UserProfile>`, `upsertUsers`, `toggleFollow` (±followersCount, floor 0)
+- `profile/store/user-store.ts` - shared `users` + viewer-scoped `follows` projection (see `feed-post-interaction.md`); `toggleFollow(viewerId, id)` (±followersCount, floor 0)
 - `search/services/search-service.ts` - `fetchSearch`, `fetchSuggestions` (<= 4 users / tags), `resolveDefaultTab` (`#` -> tags, `@` -> users), `isSearchTab`, `buildSearchHref`
 - `search/store/search-store.ts` - `recent` (persist key `ysocial_recent_searches`, `partialize`, `skipHydration`, max 10, normalized dedupe), `result` (last search, ids + `latestPostIds`), `tagPages[tagPageKey(tag, sort)]`; rehydrated in `Providers` `useLayoutEffect`
 
@@ -45,7 +45,7 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 7. **Tab order comes from the service ONLY**: `fetchSearch` calls `searchPosts(q, limit, "relevance")` & `searchPosts(q, limit, "latest")` in parallel; `latestPostIds` stored in service order, NEVER re-sorted on client (client re-sort of top-N relevance != newest overall once API is real)
 8. **Tag matching ignores spaces in query** (`"da lat"` -> `#ĐàLạt`): tags never contain spaces
 9. **Links in post content `stopPropagation`** -> content click opens thread, link click opens tag/profile
-10. **`@mention` always linked** - posts feature must not import profile (profile mocks import posts barrel -> cycle)
+10. **`@mention` always linked** (no user lookup). Import cycle via mocks removed 2026-10-06 (seeds moved to `src/mocks/`); posts now imports profile at render time only
 11. **SearchBox ignores Enter while `nativeEvent.isComposing`** (Vietnamese IME confirms composition with Enter)
 12. **Icon buttons < 44px get invisible `after:` hit area** (same trick as `FollowButton`)
 13. **Recent searches `skipHydration`** + rehydrate after mount -> SSR & first client render match

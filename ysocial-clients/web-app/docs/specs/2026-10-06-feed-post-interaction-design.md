@@ -1,7 +1,7 @@
 # Feed & Post Interaction - Design Spec
 
 - **Date:** 2026-10-06
-- **Status:** approved in brainstorming (incl. review round 1), pending spec review
+- **Status:** implemented 2026-10-06 (as-built notes: `.context/features/feed-post-interaction.md`, implementation decisions I1-I5)
 - **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 1.4 ("Có bài mới" pill) + 1.5 (Post owner actions) + 1.6 (User hover card), merged; also closes gap #2 (`PostCard` follow local state) & part of F0.2 (shared seed authors, follow graph)
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks.
 
@@ -154,7 +154,7 @@ New actions (each ONE `set()`):
 
 | Action | Behavior |
 |---|---|
-| `bufferIncoming(post)` | Skip if id already in `incoming`, in any `feedIds[tab]`, or tombstoned. Upsert post, prepend id; any tab already holding it in `feedIds` marks it consumed. If length > 20: drop oldest id X; for each tab with `!consumed[tab][X]` -> add `posts[X].user.id` to `droppedAuthorIds[tab]`; prune X from every `consumed[tab]`. Buffered regardless of `loaded`; pill hidden until tab loaded |
+| `bufferIncoming(post)` | Skip if id already in `incoming`, in BOTH `feedIds` (as-built I3; in one feed -> buffered & consumed for that feed), or tombstoned. Upsert post, prepend id; any tab already holding it in `feedIds` marks it consumed. If length > 20: drop oldest id X; for each tab with `!consumed[tab][X]` -> add `posts[X].user.id` to `droppedAuthorIds[tab]`; prune X from every `consumed[tab]`. Buffered regardless of `loaded`; pill hidden until tab loaded |
 | `flushPending(tab, ids)` | `feedIds[tab] = [...ids, ...feedIds[tab] minus ids]`; mark `ids` consumed for `tab` ONLY; `droppedAuthorIds[tab] = []`. Other incoming ids stay unconsumed -> a skipped post becomes pending later if its author gets followed. `ids` = `getPendingFeed` result (classification stays out of the store) |
 | `consumeIncoming(tab, ids)` | Mark `ids` consumed for `tab`, `droppedAuthorIds[tab] = []`. Called by `PostFeed` after a successful page-1 load/refetch with `getPendingFeed(getState(), tab, followed).ids` -> those posts are covered by the fetched feed (same follow graph), so no pending duplicates; unclassified ids stay eligible |
 | `setFeedPage(tab, ids, append=false, ...)` (existing, extended) | Also marks `ids ∩ incoming` consumed for `tab` (exact server truth) and clears `droppedAuthorIds[tab]` -> successful page-1 load/refetch hides the `20+` state |

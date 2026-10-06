@@ -15,11 +15,11 @@ updated: 2026-10-06
 ---
 
 ## Step 1 - Current State
-> Audit 2026-10-01, status refreshed 2026-10-06 (after Phase 1.1-1.3)
+> Audit 2026-10-01, status refreshed 2026-10-06 (after Phase 1.1-1.6)
 
 | Route | Feature | Status |
 |---|---|---|
-| `/` | `posts` - `PostFeed` (mock `post-service` + normalized `post-store`, infinite scroll), `PostCard` (like/bookmark/share, menu, carousel + fullscreen, linkified `#tag`/`@mention`), skeleton | Done |
+| `/` | `posts` - `PostFeed` (mock `post-service` + normalized `post-store`, infinite scroll, "N bài mới" pill from simulated push), `PostCard` (like/bookmark/share, owner menu edit/delete/pin/hide likes, author hover card, store-bound Follow, carousel + fullscreen, linkified `#tag`/`@mention`), skeleton (see `features/feed-post-interaction.md`) | Done |
 | `/posts/[id]` | `posts` - thread + 1-level replies, reply composer, loading/error/not-found | Done |
 | `/search`, `/tags/[tag]` | `search` - explore landing, 4 result tabs, combobox suggestions, recent searches, tag page | Done |
 | dialog/inline | `posts` - `PostCreatorCore/Dialog/Feed`, `post-draft-store` (localStorage), audience picker, discard dialog | Done |
@@ -31,11 +31,11 @@ updated: 2026-10-06
 
 **Technical gaps found:**
 1. [x] Nav `/search` 404, Comment button without handler, no `/posts/[id]` -> fixed by 1.1 & 1.2
-2. [-] Like/bookmark/follow out of sync -> feed/detail/search/tag/saved share `post-store`/`user-store`; **profile still on real BE** (F0.6); `PostCard` author Follow button still local state (1.6)
+2. [-] Like/bookmark/follow out of sync -> feed/detail/search/tag/saved share `post-store`/`user-store`; `PostCard` Follow bound to viewer-scoped `user-store` (1.6 done); **profile still on real BE** (F0.6)
 3. [-] Route shells -> done `/posts/[id]`, `/search`, `/tags/[tag]`; missing global `not-found`, `/`, `/notifications`, `/saved`, `/@username` (F0.4)
 4. [x] Need test runner -> Vitest + RTL + jsdom, `test` & `typecheck` scripts (F0.1)
-5. [ ] `t("..." as any)` -> still 21 in `saved-list.tsx`, plus `notification-list.tsx`, `post-card.tsx`, `saved-command-bar.tsx` (7.6)
-6. [-] Scattered mocks -> posts & users centralized; notifications & saved collections still inline (F0.2)
+5. [-] `t("..." as any)` -> `post-card.tsx` cleaned & `saved` domain added to `TranslationKey`; still 21 in `saved-list.tsx`, plus `notification-list.tsx`, `saved-command-bar.tsx` (7.6)
+6. [-] Scattered mocks -> posts & users centralized, shared seeds + viewer-scoped follow graph in `src/mocks/`; notifications & saved collections still inline (F0.2)
 
 ---
 
@@ -43,7 +43,7 @@ updated: 2026-10-06
 
 ### Phase 0 - Foundation (MUST go first, blocks all later phases)
 - [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, scripts `test` & `typecheck` (devDependencies install needs approval)
-- [-] **F0.2 Mock data layer:** *(posts + users done - notifications/saved collections/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
+- [-] **F0.2 Mock data layer:** *(posts + users + `src/mocks/` seed authors & follow graph done - notifications/saved collections/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
 - [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` -> like/bookmark/reply synced everywhere, O(1) toggle, no list re-render
 - [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, `/search`, `/tags/[tag]`; global not-found, `/`, `/notifications`, `/saved`, `/@username` pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
 - [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): Lucide icon + Gen Z message + CTA - standard for all lists
@@ -53,9 +53,9 @@ updated: 2026-10-06
 - [x] **1.1 Post Detail & Reply Thread** (see `features/post-detail.md`) `/posts/[id]` - *priority #1, see Step 4*
 - [x] **1.2 Search / Explore** (see `features/search.md`) `/search?q=` - tabs "Top / Người dùng / Bài viết / Hashtag", recent searches (localStorage), debounced suggestions, keyword highlight; `SearchWidget` navigates here
 - [x] **1.3 Hashtag page** (merged into 1.2 spec) `/tags/[tag]` - target for bio parser, trending, linkified post content
-- [ ] **1.4 "Có bài mới" pill** (simulated push every N sec) - tabs "Dành cho bạn / Đang theo dõi" already exist in `PostFeed`
-- [ ] **1.5 Post owner actions:** Edit (inline editor + "edited" label), Delete (confirm + undo toast), Pin to profile, Hide like count
-- [ ] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, Follow button - on name/avatar in `PostCard`
+- [x] **1.4 "Có bài mới" pill** (see `features/feed-post-interaction.md`) - simulated push 45s ±10s, per-tab buffer, X-style pill
+- [x] **1.5 Post owner actions:** Edit (inline, text only, "edited" label), Delete (confirm only, no undo - decided), Pin (badge; profile ordering with 2.1), Hide like count
+- [x] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, Follow button - on name/avatar in `PostCard`
 
 ### Phase 2 - Profile & Social graph (P1)
 - [ ] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Reposts / Saved (self)
