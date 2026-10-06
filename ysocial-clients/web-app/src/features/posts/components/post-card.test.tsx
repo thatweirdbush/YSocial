@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as service from "../services/post-service";
@@ -175,5 +175,26 @@ describe("PostCard rich content", () => {
     const { container } = render(<PostCard post={post} highlightTokens={["noi", "dung"]} />);
 
     expect(Array.from(container.querySelectorAll("mark")).map((mark) => mark.textContent)).toEqual(["Nội", "dung"]);
+  });
+});
+
+describe("PostCard media", () => {
+  const gallery = { ...post, imageUrls: ["/a.jpg", "/b.jpg", "/c.jpg"] };
+
+  it("opens the lightbox on the clicked image and pages forward", async () => {
+    render(<PostCard post={gallery} />);
+
+    await userEvent.click(screen.getByRole("img", { name: "Attachment 2" }));
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+
+    const buttons = within(screen.getByRole("dialog")).getAllByRole("button");
+    await userEvent.click(buttons[buttons.length - 1]);
+    expect(screen.getByText("3 / 3")).toBeInTheDocument();
+  });
+
+  it("renders a +N overlay beyond 4 images", () => {
+    render(<PostCard post={{ ...post, imageUrls: ["/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg"] }} />);
+
+    expect(screen.getByText("+2")).toBeInTheDocument();
   });
 });

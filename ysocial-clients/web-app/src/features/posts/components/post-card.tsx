@@ -15,11 +15,6 @@ import {
   VolumeX,
   Ban,
   Link2,
-  ChevronLeft,
-  ChevronRight,
-  Maximize2,
-  Minimize2,
-  X
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -33,15 +28,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { setPostBookmark, setPostLike } from "../services/post-service";
 import { usePost, usePostActions } from "../store/post-store";
 import type { PostItem } from "../types";
 import { RichContent } from "../utils/rich-content";
+import { PostLightbox } from "./post-lightbox";
+import { PostMediaGrid } from "./post-media-grid";
 
 export type PostCardVariant = "feed" | "detail" | "compact";
 
@@ -97,24 +90,11 @@ export function PostCard({
   const [shareCopied, setShareCopied] = useState(false);
   const [bookmarkAnimating, setBookmarkAnimating] = useState(false);
 
-  // Lightbox Viewer States
-  const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Open lightbox image index (null = closed)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Safely capture single image fallback or multi-image lists
   const images = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
-
-  // Monitor fullscreen API events to maintain exact UI states
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
 
   // Parse relative time dynamically matching i18n
   const formatTime = (dateStr: string) => {
@@ -216,150 +196,6 @@ export function PostCard({
         toast.info(`Unfollowed @${post.user.username}`);
       }
     }
-  };
-
-  // Lightbox Media Control Functions
-  const handlePrevImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const prevIdx = (lightboxIndex - 1 + images.length) % images.length;
-    setLightboxIndex(prevIdx);
-    setActiveLightboxImage(images[prevIdx]);
-  };
-
-  const handleNextImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const nextIdx = (lightboxIndex + 1) % images.length;
-    setLightboxIndex(nextIdx);
-    setActiveLightboxImage(images[nextIdx]);
-  };
-
-  const toggleFullscreen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error("Fullscreen error:", err);
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  // Render different multi-media grid configurations perfectly matching Threads/X layouts
-  const renderMediaGrid = () => {
-    if (images.length === 0) return null;
-
-    if (images.length === 1) {
-      return (
-        <div
-          onClick={() => {
-            setLightboxIndex(0);
-            setActiveLightboxImage(images[0]);
-          }}
-          className="mt-2 rounded-2xl overflow-hidden border border-zinc-200/50 dark:border-zinc-800/40 max-h-[350px] w-full bg-zinc-150 dark:bg-zinc-900 flex items-center justify-center relative shadow-sm cursor-zoom-in transition-all duration-300"
-        >
-          <img
-            src={images[0]}
-            alt="Post attachment"
-            className="w-full h-full object-cover max-h-[350px] transition-transform duration-700 hover:scale-101"
-            loading="lazy"
-          />
-        </div>
-      );
-    }
-
-    if (images.length === 2) {
-      return (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden max-h-[280px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-          {images.map((img, idx) => (
-            <div
-              key={idx}
-              onClick={() => {
-                setLightboxIndex(idx);
-                setActiveLightboxImage(img);
-              }}
-              className="w-full h-full min-h-[160px] max-h-[280px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-            >
-              <img
-                src={img}
-                alt={`Attachment ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-              />
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (images.length === 3) {
-      return (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden max-h-[320px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-          <div
-            onClick={() => {
-              setLightboxIndex(0);
-              setActiveLightboxImage(images[0]);
-            }}
-            className="w-full h-full min-h-[240px] max-h-[320px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img row-span-2"
-          >
-            <img
-              src={images[0]}
-              alt="Attachment 1"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-            />
-          </div>
-          <div className="grid grid-rows-2 gap-1.5 h-full">
-            {images.slice(1, 3).map((img, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  setLightboxIndex(idx + 1);
-                  setActiveLightboxImage(img);
-                }}
-                className="w-full h-full min-h-[110px] max-h-[155px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-              >
-                <img
-                  src={img}
-                  alt={`Attachment ${idx + 2}`}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // 4 or more images grid configuration
-    return (
-      <div className="mt-2 grid grid-cols-2 grid-rows-2 gap-1.5 rounded-2xl overflow-hidden max-h-[350px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-        {images.slice(0, 4).map((img, idx) => {
-          const isFourth = idx === 3;
-          const extraCount = images.length - 4;
-          return (
-            <div
-              key={idx}
-              onClick={() => {
-                setLightboxIndex(idx);
-                setActiveLightboxImage(img);
-              }}
-              className="w-full h-full min-h-[120px] max-h-[170px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-            >
-              <img
-                src={img}
-                alt={`Attachment ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-              />
-              {isFourth && extraCount > 0 && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-lg select-none">
-                  +{extraCount}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
   };
 
   return (
@@ -495,7 +331,7 @@ export function PostCard({
         </div>
 
         {/* Dynamic Multi-image Grid rendering */}
-        {renderMediaGrid()}
+        <PostMediaGrid images={images} onOpen={setLightboxIndex} />
 
         {isDetail && (
           <div className="flex items-center gap-4 pt-3 mt-1 border-t border-zinc-200/60 dark:border-zinc-900/60 text-sm text-zinc-500 dark:text-zinc-400">
@@ -593,84 +429,12 @@ export function PostCard({
 
       </div>
 
-      {/* ==================== HIGH-FIDELITY MEDIA LIGHTBOX VIEWER ==================== */}
-      <Dialog
-        open={!!activeLightboxImage}
-        onOpenChange={(open) => {
-          if (!open) {
-            setActiveLightboxImage(null);
-            if (document.fullscreenElement) {
-              document.exitFullscreen().catch(() => { });
-            }
-          }
-        }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-screen max-w-none sm:max-w-none max-h-none sm:max-h-none m-0 p-0 bg-black/95 border-none rounded-none outline-none flex flex-col items-center justify-center z-50"
-        >
-          {/* Top Toolbar Actions */}
-          <div className="absolute top-6 right-6 z-55 flex items-center gap-4">
-            {/* Fullscreen Button */}
-            <button
-              onClick={toggleFullscreen}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
-            >
-              {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
-            </button>
-
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                setActiveLightboxImage(null);
-                if (document.fullscreenElement) {
-                  document.exitFullscreen().catch(() => { });
-                }
-              }}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-
-          {/* Left navigation arrows for multi-image lightbox */}
-          {images.length > 1 && (
-            <button
-              onClick={handlePrevImage}
-              className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
-            >
-              <ChevronLeft className="size-6 stroke-[3px]" />
-            </button>
-          )}
-
-          {/* Main high-resolution image container */}
-          {activeLightboxImage && (
-            <img
-              src={activeLightboxImage}
-              alt="Full resolution viewer"
-              className="max-w-[90vw] max-h-[85vh] object-contain select-none transition-transform duration-300"
-            />
-          )}
-
-          {/* Right navigation arrows for multi-image lightbox */}
-          {images.length > 1 && (
-            <button
-              onClick={handleNextImage}
-              className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
-            >
-              <ChevronRight className="size-6 stroke-[3px]" />
-            </button>
-          )}
-
-          {/* Image pagination counter at the bottom */}
-          {images.length > 1 && (
-            <div className="absolute bottom-6 px-4 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold tracking-wider z-55">
-              {lightboxIndex + 1} / {images.length}
-            </div>
-          )}
-
-        </DialogContent>
-      </Dialog>
+      <PostLightbox
+        images={images}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
 
     </article>
   );
