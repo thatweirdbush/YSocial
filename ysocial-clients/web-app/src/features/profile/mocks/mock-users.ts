@@ -1,7 +1,7 @@
-import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
-import type { UserProfile } from "../types";
+import { SEED_AUTHORS } from "@/mocks/seed-authors";
+import type { UserProfileBase } from "../types";
 
-type UserExtras = Pick<UserProfile, "bio" | "followersCount" | "followingCount">;
+type UserExtras = Pick<UserProfileBase, "bio" | "followersCount" | "followingCount">;
 
 const EXTRAS: Record<string, UserExtras> = {
   "author-01": { bio: "Kiến trúc sư phần mềm. Xây YSocial bằng Clean Architecture.", followersCount: 48_200, followingCount: 120 },
@@ -14,9 +14,8 @@ const EXTRAS: Record<string, UserExtras> = {
   "author-08": { bio: "Viết mỗi ngày. Sách, trà và những buổi chiều chậm.", followersCount: 5_200, followingCount: 430 },
 };
 
-/** Same ids as post authors, so feeds, search & follow state refer to one person. */
-export const MOCK_USERS: UserProfile[] = SEED_AUTHORS.map((author) => ({
+/** Same ids as post authors, so feeds, search & follow state refer to one person. Follow flags come from `follow-graph`. */
+export const MOCK_USERS: UserProfileBase[] = SEED_AUTHORS.map((author) => ({
   ...author,
   ...EXTRAS[author.id],
-  isFollowing: SEED_FOLLOWED_AUTHOR_IDS.includes(author.id),
 }));

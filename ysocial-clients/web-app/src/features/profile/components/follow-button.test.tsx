@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/features/auth/store/auth-store";
 import * as service from "../services/user-service";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import { FollowButton } from "./follow-button";
@@ -11,9 +12,15 @@ vi.mock("sonner", () => ({ toast }));
 beforeEach(() => {
   resetUserStore();
   vi.restoreAllMocks();
-  useUserStore.getState().actions.upsertUsers([
-    { id: "u1", displayName: "Minh Thư", username: "minhthu", followersCount: 10, followingCount: 0, isFollowing: false },
-  ]);
+  useAuthStore.setState({ user: { id: "v1", email: "v1@ysocial.dev" } });
+  useUserStore.getState().actions.upsertUsers(
+    [{ id: "u1", displayName: "Minh Thư", username: "minhthu", followersCount: 10, followingCount: 0, isFollowing: false }],
+    "v1",
+  );
+});
+
+afterEach(() => {
+  useAuthStore.setState({ user: null });
 });
 
 describe("FollowButton", () => {
@@ -26,9 +33,10 @@ describe("FollowButton", () => {
 
     await userEvent.click(button);
 
-    expect(useUserStore.getState().users.u1).toMatchObject({ isFollowing: true, followersCount: 11 });
+    expect(useUserStore.getState().follows.v1.ids.u1).toBe(true);
+    expect(useUserStore.getState().users.u1.followersCount).toBe(11);
     expect(screen.getByRole("button", { name: "Đang theo dõi" })).toHaveAttribute("aria-pressed", "true");
-    expect(spy).toHaveBeenCalledWith("u1", true);
+    expect(spy).toHaveBeenCalledWith("u1", true, "v1");
   });
 
   it("renders nothing for an unknown user", () => {

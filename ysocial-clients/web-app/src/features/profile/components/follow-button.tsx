@@ -3,6 +3,7 @@
 import React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useViewerId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
 import { setFollow } from "../services/user-service";
@@ -16,6 +17,7 @@ interface FollowButtonProps {
 /** Follow toggle bound to `user-store`; persists to the user service. */
 export function FollowButton({ userId, className }: FollowButtonProps) {
   const { t } = useTranslation();
+  const viewerId = useViewerId();
   const user = useUser(userId);
   const { toggleFollow } = useUserActions();
 
@@ -26,8 +28,8 @@ export function FollowButton({ userId, className }: FollowButtonProps) {
     e.preventDefault();
     e.stopPropagation();
     const next = !user.isFollowing;
-    toggleFollow(userId);
-    void setFollow(userId, next);
+    toggleFollow(viewerId, userId);
+    void setFollow(userId, next, viewerId);
     if (next) toast.success(t("card.followSuccess", { username: user.username }));
     else toast.info(t("card.unfollowSuccess", { username: user.username }));
   };

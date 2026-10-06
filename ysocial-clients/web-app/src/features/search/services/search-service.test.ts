@@ -35,7 +35,7 @@ describe("buildSearchHref", () => {
 
 describe("fetchSuggestions", () => {
   it("caps users and tags", async () => {
-    const suggestions = await settle(fetchSuggestions("n"));
+    const suggestions = await settle(fetchSuggestions("n", "v1"));
     expect(suggestions.users.length).toBeGreaterThan(0);
     expect(suggestions.users.length).toBeLessThanOrEqual(SUGGESTION_LIMIT);
     expect(suggestions.tags.length).toBeLessThanOrEqual(SUGGESTION_LIMIT);
@@ -44,29 +44,29 @@ describe("fetchSuggestions", () => {
 
 describe("fetchSuggestions tags", () => {
   it("matches tags ignoring spaces in the query", async () => {
-    const { tags } = await settle(fetchSuggestions("da lat"));
+    const { tags } = await settle(fetchSuggestions("da lat", "v1"));
     expect(tags.map((stat) => stat.tag)).toContain("ĐàLạt");
   });
 });
 
 describe("fetchSearch", () => {
   it("filters tags by the query without the leading #", async () => {
-    const result = await settle(fetchSearch("#design"));
+    const result = await settle(fetchSearch("#design", "v1"));
     expect(result.tags.length).toBeGreaterThan(0);
     expect(result.tags.every((stat) => normalizeText(stat.tag).includes("design"))).toBe(true);
   });
 
   it("returns the latest order from the service", async () => {
-    const result = await settle(fetchSearch("nextjs"));
+    const result = await settle(fetchSearch("nextjs", "v1"));
     expect(result.posts.map((post) => post.id)).toEqual(["post-009", "post-002", "post-007"]);
     expect(result.latestPosts.map((post) => post.id)).toEqual(["post-002", "post-007", "post-009"]);
   });
 
   it("resolves at once without calling services for a bare # or @", async () => {
-    await expect(fetchSearch("#")).resolves.toEqual({ users: [], posts: [], latestPosts: [], tags: [] });
+    await expect(fetchSearch("#", "v1")).resolves.toEqual({ users: [], posts: [], latestPosts: [], tags: [] });
   });
 
   it("resolves at once without calling services for a blank query", async () => {
-    await expect(fetchSearch("  ")).resolves.toEqual({ users: [], posts: [], latestPosts: [], tags: [] });
+    await expect(fetchSearch("  ", "v1")).resolves.toEqual({ users: [], posts: [], latestPosts: [], tags: [] });
   });
 });
