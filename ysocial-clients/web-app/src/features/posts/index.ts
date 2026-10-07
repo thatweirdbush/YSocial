@@ -9,7 +9,6 @@ export { PostDetailContainer } from "./components/detail/post-detail-container";
 export { PostDetailShell } from "./components/detail/post-detail-shell";
 export { PostDetailSkeleton } from "./components/detail/post-detail-skeleton";
 export { getMockPostById, getMockTagStat } from "./mocks/mock-posts";
-export { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "./mocks/mock-authors";
-export { fetchPostsByTag, fetchTrendingTags, searchPosts, SEARCH_LIMIT } from "./services/post-service";
+export { fetchPostsByTag, fetchTrendingTags, ForbiddenError, searchPosts, SEARCH_LIMIT } from "./services/post-service";
 export { usePost, usePostActions } from "./store/post-store";
 export { byNewest as byNewestPost } from "./utils/hashtags";

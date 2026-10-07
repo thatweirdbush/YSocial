@@ -1,47 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Heart,
   MessageCircle,
   Share2,
   Bookmark,
-  MoreHorizontal,
   Check,
   Sparkles,
   ShieldCheck,
   EyeOff,
-  Flag,
-  VolumeX,
-  Ban,
-  Link2,
-  ChevronLeft,
-  ChevronRight,
-  Maximize2,
-  Minimize2,
-  X
+  Pin,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { ensureUser, FollowButton, UserHoverCard } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import Link from "next/link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 import { setPostBookmark, setPostLike } from "../services/post-service";
-import { usePost, usePostActions } from "../store/post-store";
+import { useCurrentAuthor } from "../hooks/use-current-author";
+import { useOwnerActions, type OwnerActions } from "../hooks/use-owner-actions";
+import { useIsDeleted, usePost, usePostActions, usePostAuthorId } from "../store/post-store";
 import type { PostItem } from "../types";
+import { getVisibleLikeCount } from "../utils/like-visibility";
 import { RichContent } from "../utils/rich-content";
+import { PostCardMenu } from "./post-card-menu";
+import { PostInlineEditor } from "./post-inline-editor";
+import { PostLightbox } from "./post-lightbox";
+import { PostMediaGrid } from "./post-media-grid";
 
 export type PostCardVariant = "feed" | "detail" | "compact";
 
@@ -51,45 +38,58 @@ interface PostCardProps {
   variant?: PostCardVariant;
   /** Shown above content in the detail variant when the post is a reply. */
   replyToUsername?: string;
-  isAuthorFollowing?: boolean;
-  onAuthorFollowToggle?: () => void;
   isSavedPage?: boolean;
   onUnsave?: (id: string) => void;
   /** Normalized search tokens highlighted in the content. */
   highlightTokens?: readonly string[];
 }
 
-export function PostCard({
+export function PostCard(props: PostCardProps) {
+  const authorId = usePostAuthorId(props.post.id) ?? props.post.user.id;
+  const isOwner = authorId === useCurrentAuthor().id;
+  return isOwner ? <OwnerPostCard {...props} /> : <PostCardView {...props} />;
+}
+
+/** Owner cards only: one owner-actions runner shared by the menu & the inline editor. */
+function OwnerPostCard(props: PostCardProps) {
+  const owner = useOwnerActions(props.post.id);
+  return <PostCardView {...props} owner={owner} />;
+}
+
+function PostCardView({
   post,
   variant = "feed",
   replyToUsername,
-  isAuthorFollowing,
-  onAuthorFollowToggle,
   isSavedPage = false,
   onUnsave,
   highlightTokens,
-}: PostCardProps) {
+  owner,
+}: PostCardProps & { owner?: OwnerActions }) {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const { toggleLike, toggleBookmark } = usePostActions();
 
   // Shared store copy wins so every card of this post stays in sync; fall back to the prop until cached.
   const live = usePost(post.id) ?? post;
+  const isDeleted = useIsDeleted(post.id);
+  const viewerId = useCurrentAuthor().id;
+  const isOwner = owner !== undefined;
+  const [isEditing, setIsEditing] = useState(false);
   const isLiked = live.isLikedByCurrentUser;
-  const likesCount = live.likesCount;
+  // null = owner hid the count from this viewer
+  const likesCount = getVisibleLikeCount(live, viewerId);
+  const likesHiddenForOthers = isOwner && live.hideLikeCount === true;
   const isBookmarked = live.isBookmarkedByCurrentUser;
   const bookmarksCount = isBookmarked ? 12 : 11;
   const isDetail = variant === "detail";
 
   const [sharesCount, setSharesCount] = useState(14);
-  const [isFollowing, setIsFollowing] = useState(isAuthorFollowing ?? false);
 
-  // Synchronize local follow state with parent prop using primitive equality check to prevent render loops
+  // Header Follow & hover card read the author from `user-store`; load it once per author (deduped, cached)
+  const authorId = post.user.id;
   useEffect(() => {
-    if (isAuthorFollowing !== undefined && isAuthorFollowing !== isFollowing) {
-      setIsFollowing(isAuthorFollowing);
-    }
-  }, [isAuthorFollowing, isFollowing]);
+    if (!isOwner) ensureUser(authorId, viewerId).catch(() => undefined);
+  }, [authorId, viewerId, isOwner]);
 
   // Micro-UX Animation triggers
   const [likeAnimating, setLikeAnimating] = useState(false);
@@ -97,24 +97,11 @@ export function PostCard({
   const [shareCopied, setShareCopied] = useState(false);
   const [bookmarkAnimating, setBookmarkAnimating] = useState(false);
 
-  // Lightbox Viewer States
-  const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Open lightbox image index (null = closed)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Safely capture single image fallback or multi-image lists
   const images = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
-
-  // Monitor fullscreen API events to maintain exact UI states
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
 
   // Parse relative time dynamically matching i18n
   const formatTime = (dateStr: string) => {
@@ -203,164 +190,15 @@ export function PostCard({
     }
   };
 
-  const handleFollowToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const nextState = !isFollowing;
-    setIsFollowing(nextState);
-    if (onAuthorFollowToggle) {
-      onAuthorFollowToggle();
-    } else {
-      if (nextState) {
-        toast.success(`Following @${post.user.username}`);
-      } else {
-        toast.info(`Unfollowed @${post.user.username}`);
-      }
-    }
+  const saveEdit = async (content: string) => {
+    if (!owner) return false;
+    const saved = await owner.edit(content);
+    if (saved) setIsEditing(false);
+    return saved;
   };
 
-  // Lightbox Media Control Functions
-  const handlePrevImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const prevIdx = (lightboxIndex - 1 + images.length) % images.length;
-    setLightboxIndex(prevIdx);
-    setActiveLightboxImage(images[prevIdx]);
-  };
-
-  const handleNextImage = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    const nextIdx = (lightboxIndex + 1) % images.length;
-    setLightboxIndex(nextIdx);
-    setActiveLightboxImage(images[nextIdx]);
-  };
-
-  const toggleFullscreen = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => {
-        console.error("Fullscreen error:", err);
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen();
-      setIsFullscreen(false);
-    }
-  };
-
-  // Render different multi-media grid configurations perfectly matching Threads/X layouts
-  const renderMediaGrid = () => {
-    if (images.length === 0) return null;
-
-    if (images.length === 1) {
-      return (
-        <div
-          onClick={() => {
-            setLightboxIndex(0);
-            setActiveLightboxImage(images[0]);
-          }}
-          className="mt-2 rounded-2xl overflow-hidden border border-zinc-200/50 dark:border-zinc-800/40 max-h-[350px] w-full bg-zinc-150 dark:bg-zinc-900 flex items-center justify-center relative shadow-sm cursor-zoom-in transition-all duration-300"
-        >
-          <img
-            src={images[0]}
-            alt="Post attachment"
-            className="w-full h-full object-cover max-h-[350px] transition-transform duration-700 hover:scale-101"
-            loading="lazy"
-          />
-        </div>
-      );
-    }
-
-    if (images.length === 2) {
-      return (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden max-h-[280px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-          {images.map((img, idx) => (
-            <div
-              key={idx}
-              onClick={() => {
-                setLightboxIndex(idx);
-                setActiveLightboxImage(img);
-              }}
-              className="w-full h-full min-h-[160px] max-h-[280px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-            >
-              <img
-                src={img}
-                alt={`Attachment ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-              />
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (images.length === 3) {
-      return (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden max-h-[320px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-          <div
-            onClick={() => {
-              setLightboxIndex(0);
-              setActiveLightboxImage(images[0]);
-            }}
-            className="w-full h-full min-h-[240px] max-h-[320px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img row-span-2"
-          >
-            <img
-              src={images[0]}
-              alt="Attachment 1"
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-            />
-          </div>
-          <div className="grid grid-rows-2 gap-1.5 h-full">
-            {images.slice(1, 3).map((img, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  setLightboxIndex(idx + 1);
-                  setActiveLightboxImage(img);
-                }}
-                className="w-full h-full min-h-[110px] max-h-[155px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-              >
-                <img
-                  src={img}
-                  alt={`Attachment ${idx + 2}`}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
-    // 4 or more images grid configuration
-    return (
-      <div className="mt-2 grid grid-cols-2 grid-rows-2 gap-1.5 rounded-2xl overflow-hidden max-h-[350px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-        {images.slice(0, 4).map((img, idx) => {
-          const isFourth = idx === 3;
-          const extraCount = images.length - 4;
-          return (
-            <div
-              key={idx}
-              onClick={() => {
-                setLightboxIndex(idx);
-                setActiveLightboxImage(img);
-              }}
-              className="w-full h-full min-h-[120px] max-h-[170px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-            >
-              <img
-                src={img}
-                alt={`Attachment ${idx + 1}`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-              />
-              {isFourth && extraCount > 0 && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-lg select-none">
-                  +{extraCount}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
+  // Tombstoned: lists holding their own copy (search, saved) must not show a deleted post
+  if (isDeleted) return null;
 
   return (
     <article
@@ -371,14 +209,16 @@ export function PostCard({
 
       {/* Left Column: Avatar & vertical Thread Line */}
       <div className="flex flex-col items-center self-stretch shrink-0">
-        <Link href={`/@${post.user.username}`}>
-          <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
-            <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
-            <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-              {post.user.displayName?.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
+        <UserHoverCard userId={post.user.id}>
+          <Link href={`/@${post.user.username}`}>
+            <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
+              <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
+              <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
+                {post.user.displayName?.charAt(0).toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </UserHoverCard>
         {/* Thread connector line running through */}
         <div className="w-[1.5px] grow bg-zinc-200 dark:bg-zinc-900 my-2 rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
       </div>
@@ -386,98 +226,52 @@ export function PostCard({
       {/* Right Column: User details, content, actions */}
       <div className="flex-1 flex flex-col gap-2 min-w-0">
 
+        {live.isPinned && !live.parentId && variant !== "compact" && (
+          <div className="flex items-center gap-1 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+            <Pin className="size-3.5" aria-hidden="true" />
+            {t("card.pinned")}
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-            <Link href={`/@${post.user.username}`} className="flex items-center gap-1.5 min-w-0">
-              <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
-                {post.user.displayName}
-              </span>
-              {post.user.isVerified && (
-                <ShieldCheck className="size-4 text-blue-500 shrink-0 fill-blue-500/10" />
-              )}
-              <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
-                @{post.user.username}
-              </span>
-            </Link>
+            <UserHoverCard userId={post.user.id}>
+              <Link href={`/@${post.user.username}`} className="flex items-center gap-1.5 min-w-0">
+                <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
+                  {post.user.displayName}
+                </span>
+                {post.user.isVerified && (
+                  <ShieldCheck className="size-4 text-blue-500 shrink-0 fill-blue-500/10" />
+                )}
+                <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
+                  @{post.user.username}
+                </span>
+              </Link>
+            </UserHoverCard>
 
-            {/* Small premium Follow Button in Header */}
-            <button
-              onClick={handleFollowToggle}
-              className={`ml-1.5 text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${isFollowing
-                ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450"
-                : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-                }`}
-            >
-              {isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
-            </button>
+            {/* Follow bound to user-store: same state as the hover card, sidebar & search */}
+            {!isOwner && <FollowButton userId={post.user.id} className="ml-1.5" reserveSpace />}
 
             <span className="text-zinc-300 dark:text-zinc-850 text-xs select-none">•</span>
             <span className="text-zinc-400 dark:text-zinc-500 text-xs">
               {isDetail ? formatFullTime(post.createdAt) : formatTime(post.createdAt)}
             </span>
+            {live.isEdited && (
+              <span className="text-zinc-400 dark:text-zinc-500 text-xs">· {t("card.edited")}</span>
+            )}
           </div>
 
-          {/* Triple-dot Dropdown actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t("card.more")} className="size-8 rounded-full text-zinc-400 hover:text-black dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-900 active:scale-95 shrink-0">
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            
-            <DropdownMenuContent align="end" className="w-52 rounded-2xl border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 p-2 shadow-xl z-30">
-              {isSavedPage ? (
-                <DropdownMenuItem
-                  onClick={() => {
-                    if (onUnsave) {
-                      onUnsave(post.id);
-                    } else {
-                      toast.success(t("card.unbookmarkSuccess") || "Removed from saved posts!");
-                    }
-                  }}
-                  className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm text-red-600 focus:text-red-650"
-                >
-                  <Bookmark className="size-4 text-red-500 mr-2 fill-red-500/10" />
-                  {t("saved.unsave" as any) || "Unsave"}
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={() => toast.info(`Saved`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                  <Bookmark className="size-4 text-zinc-400 mr-2" />
-                  Save
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuItem onClick={() => toast.info(`Not interested`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <EyeOff className="size-4 text-zinc-400 mr-2" />
-                Not interested
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-
-              <DropdownMenuItem onClick={() => toast.info(`Muted @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <VolumeX className="size-4 text-zinc-400 mr-2" />
-                Mute @{post.user.username}
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => toast.info(`Blocked @${post.user.username}`)} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Ban className="size-4 text-zinc-400 mr-2" />
-                Block @{post.user.username}
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-
-              <DropdownMenuItem onClick={() => toast.success("Copied embed link to clipboard!")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900 text-sm">
-                <Link2 className="size-4 text-zinc-400 mr-2" />
-                Copy Embed Link
-              </DropdownMenuItem>
-
-              <DropdownMenuItem onClick={() => toast.error("Report submitted! Thank you.")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-red-50 dark:focus:bg-red-950/20 text-red-600 dark:text-red-400 text-sm font-semibold">
-                <Flag className="size-4 mr-2" />
-                Report Post
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Triple-dot actions (owner vs viewer) */}
+          {!live.isPending && (
+            <PostCardMenu
+              post={live}
+              owner={owner}
+              isSavedPage={isSavedPage}
+              onUnsave={onUnsave}
+              onEdit={() => setIsEditing(true)}
+            />
+          )}
         </div>
 
         {isDetail && replyToUsername && live.parentId && (
@@ -487,19 +281,31 @@ export function PostCard({
         )}
 
         {/* Content body — opens the thread (only text, so lightbox portal clicks never bubble into navigation) */}
-        <div
-          onClick={openThread}
-          className={`${isDetail ? "text-[17px]" : "text-sm cursor-pointer"} text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2`}
-        >
-          <RichContent content={live.content} highlightTokens={highlightTokens} />
-        </div>
+        {isEditing ? (
+          <PostInlineEditor
+            initialContent={live.content}
+            hasImages={images.length > 0}
+            disabled={owner?.pendingOp !== undefined}
+            onSave={saveEdit}
+            onCancel={() => setIsEditing(false)}
+          />
+        ) : (
+          <div
+            onClick={openThread}
+            className={`${isDetail ? "text-[17px]" : "text-sm cursor-pointer"} text-zinc-900 dark:text-zinc-200 leading-relaxed break-words pr-2`}
+          >
+            <RichContent content={live.content} highlightTokens={highlightTokens} />
+          </div>
+        )}
 
         {/* Dynamic Multi-image Grid rendering */}
-        {renderMediaGrid()}
+        <PostMediaGrid images={images} onOpen={setLightboxIndex} />
 
         {isDetail && (
           <div className="flex items-center gap-4 pt-3 mt-1 border-t border-zinc-200/60 dark:border-zinc-900/60 text-sm text-zinc-500 dark:text-zinc-400">
-            <span><strong className="text-black dark:text-white">{likesCount}</strong> {t("postDetail.likes")}</span>
+            {likesCount !== null && (
+              <span><strong className="text-black dark:text-white">{likesCount}</strong> {t("postDetail.likes")}</span>
+            )}
             <span><strong className="text-black dark:text-white">{live.commentsCount}</strong> {t("postDetail.replies")}</span>
           </div>
         )}
@@ -525,10 +331,15 @@ export function PostCard({
             >
               <Heart className={`size-4.5 ${isLiked ? "fill-current" : ""}`} />
             </button>
-            {likesCount > 0 && (
+            {likesCount !== null && likesCount > 0 && (
               <span className={`text-xs font-semibold ${isLiked ? "text-red-500 dark:text-red-450" : ""}`}>
                 {likesCount}
               </span>
+            )}
+            {likesHiddenForOthers && (
+              <EyeOff className="size-3.5" role="img" aria-label={t("card.likesHiddenHint")}>
+                <title>{t("card.likesHiddenHint")}</title>
+              </EyeOff>
             )}
           </div>
 
@@ -593,84 +404,12 @@ export function PostCard({
 
       </div>
 
-      {/* ==================== HIGH-FIDELITY MEDIA LIGHTBOX VIEWER ==================== */}
-      <Dialog
-        open={!!activeLightboxImage}
-        onOpenChange={(open) => {
-          if (!open) {
-            setActiveLightboxImage(null);
-            if (document.fullscreenElement) {
-              document.exitFullscreen().catch(() => { });
-            }
-          }
-        }}
-      >
-        <DialogContent
-          showCloseButton={false}
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-screen h-screen max-w-none sm:max-w-none max-h-none sm:max-h-none m-0 p-0 bg-black/95 border-none rounded-none outline-none flex flex-col items-center justify-center z-50"
-        >
-          {/* Top Toolbar Actions */}
-          <div className="absolute top-6 right-6 z-55 flex items-center gap-4">
-            {/* Fullscreen Button */}
-            <button
-              onClick={toggleFullscreen}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
-            >
-              {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
-            </button>
-
-            {/* Close Button */}
-            <button
-              onClick={() => {
-                setActiveLightboxImage(null);
-                if (document.fullscreenElement) {
-                  document.exitFullscreen().catch(() => { });
-                }
-              }}
-              className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
-            >
-              <X className="size-5" />
-            </button>
-          </div>
-
-          {/* Left navigation arrows for multi-image lightbox */}
-          {images.length > 1 && (
-            <button
-              onClick={handlePrevImage}
-              className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
-            >
-              <ChevronLeft className="size-6 stroke-[3px]" />
-            </button>
-          )}
-
-          {/* Main high-resolution image container */}
-          {activeLightboxImage && (
-            <img
-              src={activeLightboxImage}
-              alt="Full resolution viewer"
-              className="max-w-[90vw] max-h-[85vh] object-contain select-none transition-transform duration-300"
-            />
-          )}
-
-          {/* Right navigation arrows for multi-image lightbox */}
-          {images.length > 1 && (
-            <button
-              onClick={handleNextImage}
-              className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
-            >
-              <ChevronRight className="size-6 stroke-[3px]" />
-            </button>
-          )}
-
-          {/* Image pagination counter at the bottom */}
-          {images.length > 1 && (
-            <div className="absolute bottom-6 px-4 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold tracking-wider z-55">
-              {lightboxIndex + 1} / {images.length}
-            </div>
-          )}
-
-        </DialogContent>
-      </Dialog>
+      <PostLightbox
+        images={images}
+        index={lightboxIndex}
+        onIndexChange={setLightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+      />
 
     </article>
   );

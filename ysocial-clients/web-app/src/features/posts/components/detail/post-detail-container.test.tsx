@@ -9,6 +9,7 @@ const push = vi.fn();
 const back = vi.fn();
 const notFound = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push, back }),
   notFound: () => notFound(),
 }));

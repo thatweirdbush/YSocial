@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import PostDetailLoading from "./loading";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 vi.mock("@/components/layout/main-layout", () => ({

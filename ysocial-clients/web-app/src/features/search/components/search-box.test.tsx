@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GUEST_VIEWER_ID } from "@/features/auth/store/auth-store";
 import type { SearchSuggestions } from "../types";
 import { fetchSuggestions } from "../services/search-service";
 import { resetSearchStore, useSearchStore } from "../store/search-store";
@@ -8,6 +9,7 @@ import { SearchBox } from "./search-box";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
 }));
 
@@ -54,7 +56,7 @@ describe("SearchBox", () => {
     expect(mockedFetch).not.toHaveBeenCalled();
 
     await settleDebounce(1);
-    expect(mockedFetch).toHaveBeenCalledWith("nex");
+    expect(mockedFetch).toHaveBeenCalledWith("nex", GUEST_VIEWER_ID);
   });
 
   it("ignores a stale response", async () => {

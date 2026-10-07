@@ -2,13 +2,17 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MOCK_AUTHORS, MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
+import { GUEST_VIEWER_ID } from "@/features/auth/store/auth-store";
+import * as userService from "@/features/profile/services/user-service";
+import { getFollowedIds, resetUserStore } from "@/features/profile/store/user-store";
+import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
 import { PostCreatorDialog } from "./post-creator-dialog";
 import { PostFeed } from "./post-feed";
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push: vi.fn(), back: vi.fn() }),
 }));
 
@@ -32,9 +36,9 @@ describe("PostFeed", () => {
     render(<PostFeed />);
     await waitFor(() => expect(screen.getAllByRole("article").length).toBeGreaterThan(0), LOAD_TIMEOUT);
 
-    await userEvent.click(screen.getByRole("button", { name: "Đang theo dõi" }));
+    await userEvent.click(within(screen.getByRole("banner")).getByRole("button", { name: "Đang theo dõi" }));
 
-    const followedNames = MOCK_AUTHORS.filter((a) => MOCK_FOLLOWED_AUTHOR_IDS.includes(a.id)).map((a) => a.displayName);
+    const followedNames = SEED_AUTHORS.filter((a) => SEED_FOLLOWED_AUTHOR_IDS.includes(a.id)).map((a) => a.displayName);
     await waitFor(() => {
       const articles = screen.getAllByRole("article");
       expect(articles.length).toBeLessThan(service.FEED_PAGE_SIZE);
@@ -98,12 +102,26 @@ describe("PostFeed paging & refresh", () => {
     await screen.findAllByRole("article", {}, LOAD_TIMEOUT);
   });
 
+  it("retries a failed follow-graph load on the next page-1 load", async () => {
+    resetUserStore();
+    vi.spyOn(userService, "fetchFollowedIds").mockRejectedValueOnce(new Error("offline"));
+    const feedSpy = vi.spyOn(service, "fetchFeed");
+    render(<PostFeed />);
+    await screen.findAllByRole("article", {}, LOAD_TIMEOUT);
+
+    await userEvent.click(screen.getByRole("button", { name: "Làm mới" }));
+
+    await waitFor(() => expect(getFollowedIds(GUEST_VIEWER_ID).loaded).toBe(true), LOAD_TIMEOUT);
+    // Let the refresh settle: an in-flight fetch would write into the next test's (global) store
+    await act(() => feedSpy.mock.results[1].value);
+  });
+
   it("stops auto-loading after a next-page failure and offers a retry", async () => {
     globalThis.IntersectionObserver = AlwaysVisibleObserver as unknown as typeof IntersectionObserver;
     const realFetch = service.fetchFeed;
     let failNextPage = true;
-    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page) =>
-      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page),
+    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page, viewerId) =>
+      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page, viewerId),
     );
     const toastError = vi.spyOn(toast, "error");
     const nextPageCalls = () => spy.mock.calls.filter(([, page]) => page === 2).length;

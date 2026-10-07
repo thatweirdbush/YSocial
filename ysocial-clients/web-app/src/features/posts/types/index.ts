@@ -37,6 +37,49 @@ export interface PostItem {
   isEdited?: boolean;
   /** Client-only: optimistic copy still awaiting the server; rendered non-interactive. */
   isPending?: boolean;
+  /** Root posts only; at most 1 pinned post per author. */
+  isPinned?: boolean;
+  /** Owner-only setting: other viewers never see the like count. */
+  hideLikeCount?: boolean;
+}
+
+/** Owner-only mutations; at most 1 pending per post. */
+export type OwnerOp = "edit" | "delete" | "pin" | "hideLikeCount";
+
+/** New posts waiting above a feed tab. */
+export interface PendingFeed {
+  ids: string[];
+  /** Some pending posts for this tab were dropped by the buffer cap -> refetch instead of merge. */
+  overflow: boolean;
+}
+
+/** Posts pushed by the new-post stream, shared by both tabs; classified per tab at read time. */
+export interface IncomingBuffer {
+  /** Post ids, newest first. */
+  incoming: string[];
+  /** Ids already merged into (or covered by a page-1 load of) each tab. */
+  consumedIncoming: Record<FeedTab, Record<string, true>>;
+  /** Authors of entries dropped by the cap while still unconsumed for that tab. */
+  droppedAuthorIds: Record<FeedTab, string[]>;
+}
+
+/** Everything `removePost` changed, so a failed delete can be restored exactly. */
+export interface RemovalSnapshot {
+  /** Removed posts, root first. */
+  posts: PostItem[];
+  /** Index of the root in each feed it was in. */
+  feedIndex: Partial<Record<FeedTab, number>>;
+  /** Index in `incoming`, -1 when absent. */
+  incomingIndex: number;
+  /** Tabs that had consumed the root's incoming entry. */
+  consumedTabs: FeedTab[];
+  parentId?: string;
+  /** Index in `replyIds[parentId]`, -1 when absent. */
+  replyIndex: number;
+  /** Child id lists of the removed posts. */
+  replyIds: Record<string, string[]>;
+  parentDecremented: boolean;
+  wasPinned: boolean;
 }
 
 export type PostAudience = "anyone" | "followers" | "following" | "mention";

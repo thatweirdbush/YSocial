@@ -1,8 +1,10 @@
-import type { PostAuthor } from "../types";
+import type { PostAuthor } from "@/features/posts/types";
+
+// Shared mock seed: post authors = mock users (same ids). Lives outside features to avoid barrel import cycles.
 
 const avatar = (photo: string) => `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=100&q=80`;
 
-export const MOCK_AUTHORS: PostAuthor[] = [
+export const SEED_AUTHORS: PostAuthor[] = [
   { id: "author-01", displayName: "Antigravity Architect", username: "antigravity.core", avatarUrl: avatar("photo-1570295999919-56ceb5ecca61"), isVerified: true },
   { id: "author-02", displayName: "Elena Vance", username: "elena_v", avatarUrl: avatar("photo-1544005313-94ddf0286df2") },
   { id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev", avatarUrl: avatar("photo-1535713875002-d1d0cf377fde"), isVerified: true },
@@ -13,5 +15,5 @@ export const MOCK_AUTHORS: PostAuthor[] = [
   { id: "author-08", displayName: "Đặng Bảo Ngọc", username: "baongoc.writes", avatarUrl: avatar("photo-1534528741775-53994a69daeb") },
 ];
 
-/** Authors the current user follows (drives the "following" feed tab). */
-export const MOCK_FOLLOWED_AUTHOR_IDS: string[] = ["author-02", "author-03", "author-06"];
+/** Authors every viewer follows initially (seed of the viewer-scoped follow graph). */
+export const SEED_FOLLOWED_AUTHOR_IDS: readonly string[] = ["author-02", "author-03", "author-06"];

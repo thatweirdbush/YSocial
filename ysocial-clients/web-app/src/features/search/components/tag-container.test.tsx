@@ -9,6 +9,7 @@ import { TagContainer } from "./tag-container";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
   useRouter: () => ({ push: vi.fn(), replace, back: vi.fn() }),
 }));
 

@@ -1,8 +1,12 @@
-import { MOCK_FOLLOWED_AUTHOR_IDS } from "../mocks/mock-authors";
-import { MOCK_POSTS } from "../mocks/mock-posts";
 import { normalizeText, tokenize } from "@/lib/text";
+import { getFollowedAuthorIds } from "@/mocks/follow-graph";
+import { SEED_AUTHORS } from "@/mocks/seed-authors";
+import { MOCK_INCOMING_CONTENTS } from "../mocks/mock-incoming";
+import { MOCK_POSTS } from "../mocks/mock-posts";
 import type { CreatePostInput, FeedPage, FeedTab, HashtagStat, PostAuthor, PostItem, PostSearchSort, PostThread, TagPage, TagSort } from "../types";
+import { getPostFeedTabs } from "../utils/feed-tabs";
 import { byNewest, collectTagStats, hasTag, tagKey } from "../utils/hashtags";
+import { POST_CONTENT_MAX } from "../utils/post-content";
 
 // Mock data source for posts. Replace the bodies with real API calls when the backend is wired;
 // callers (containers + post-store) stay unchanged.
@@ -12,16 +16,35 @@ export const FEED_PAGE_SIZE = 10;
 /** Max results per search / tag query (no paging yet). */
 export const SEARCH_LIMIT = 50;
 
+/** Simulated push cadence: one tick every 45s ±10s, 1-2 posts per tick. */
+export const NEW_POST_INTERVAL_MS = 45_000;
+export const NEW_POST_JITTER_MS = 10_000;
+
 /** Dev-only: probability (0–1) that a call rejects, to exercise error UI by hand. */
 const MOCK_FAILURE_RATE = 0;
 
+/** Rejection for an owner-only mutation attempted by someone else (backend 403). */
+export class ForbiddenError extends Error {
+  constructor(message = "Forbidden") {
+    super(message);
+    this.name = "ForbiddenError";
+  }
+}
+
+type NewPostListener = (post: PostItem) => void;
+
 let db = new Map<string, PostItem>();
 let idCounter = 0;
+let listeners = new Set<NewPostListener>();
+let streamTimer: ReturnType<typeof setTimeout> | undefined;
 
-/** Test-only: restore the in-memory store from the seed dataset. */
+/** Test-only: restore seed data and stop the new-post stream (listeners, timer, id counter). */
 export function __resetMockDb(): void {
   db = new Map(MOCK_POSTS.map((post) => [post.id, structuredClone(post)]));
   idCounter = 0;
+  listeners = new Set();
+  clearTimeout(streamTimer);
+  streamTimer = undefined;
 }
 __resetMockDb();
 
@@ -68,10 +91,26 @@ function childrenOf(parentId: string): PostItem[] {
     .sort(byNewest);
 }
 
-function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string): PostItem {
+/** Existing post owned by `actorId`; ownership is the mock backend's rule, not just UI visibility. */
+function ownedPost(id: string, actorId: string): PostItem {
+  const post = db.get(id);
+  if (!post) throw new Error(`Post ${id} not found`);
+  if (post.user.id !== actorId) throw new ForbiddenError(`Post ${id} is not owned by ${actorId}`);
+  return post;
+}
+
+function descendantIds(id: string): string[] {
+  const ids: string[] = [];
+  for (const child of childrenOf(id)) ids.push(child.id, ...descendantIds(child.id));
+  return ids;
+}
+
+const pick = <T,>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)];
+
+function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string, prefix = "post-local"): PostItem {
   idCounter += 1;
   return {
-    id: `post-local-${Date.now()}-${idCounter}`,
+    id: `${prefix}-${Date.now()}-${idCounter}`,
     content: input.content,
     imageUrls: input.images.length > 0 ? [...input.images] : undefined,
     createdAt: new Date().toISOString(),
@@ -85,13 +124,11 @@ function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string
 }
 // #endregion
 
-export async function fetchFeed(tab: FeedTab, page: number): Promise<FeedPage> {
+export async function fetchFeed(tab: FeedTab, page: number, viewerId: string): Promise<FeedPage> {
   await simulateNetwork();
 
-  const roots = [...db.values()]
-    .filter((post) => post.parentId === undefined)
-    .filter((post) => tab === "forYou" || MOCK_FOLLOWED_AUTHOR_IDS.includes(post.user.id))
-    .sort(byNewest);
+  const followed = getFollowedAuthorIds(viewerId);
+  const roots = [...db.values()].filter((post) => getPostFeedTabs(post, followed).includes(tab)).sort(byNewest);
 
   const start = (page - 1) * FEED_PAGE_SIZE;
   const posts = roots.slice(start, start + FEED_PAGE_SIZE).map(copy);
@@ -217,3 +254,88 @@ export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
     .slice(0, limit)
     .map(([, stat]) => stat);
 }
+
+// #region Owner mutations
+export async function updatePostContent(id: string, content: string, actorId: string): Promise<PostItem> {
+  await simulateNetwork();
+
+  const post = ownedPost(id, actorId);
+  const next = content.trim();
+  const hasImages = (post.imageUrls?.length ?? 0) > 0 || post.imageUrl !== undefined;
+  if (next.length > POST_CONTENT_MAX || (next === "" && !hasImages)) throw new Error("Invalid post content");
+  post.content = next;
+  post.isEdited = true;
+  return copy(post);
+}
+
+/** Deletes the post and its whole reply tree; returns every removed id. */
+export async function deletePost(id: string, actorId: string): Promise<{ deletedIds: string[] }> {
+  await simulateNetwork();
+
+  const post = ownedPost(id, actorId);
+  const deletedIds = [id, ...descendantIds(id)];
+  for (const deletedId of deletedIds) db.delete(deletedId);
+  const parent = post.parentId ? db.get(post.parentId) : undefined;
+  if (parent) parent.commentsCount = Math.max(0, parent.commentsCount - 1);
+  return { deletedIds };
+}
+
+/** Root posts only; pinning unpins the author's previously pinned post. */
+export async function setPostPinned(id: string, pinned: boolean, actorId: string): Promise<PostItem> {
+  await simulateNetwork();
+
+  const post = ownedPost(id, actorId);
+  if (post.parentId !== undefined) throw new Error("Only root posts can be pinned");
+  if (pinned) {
+    for (const other of db.values()) {
+      if (other.isPinned && other.user.id === post.user.id) other.isPinned = false;
+    }
+  }
+  post.isPinned = pinned;
+  return copy(post);
+}
+
+export async function setHideLikeCount(id: string, hidden: boolean, actorId: string): Promise<PostItem> {
+  await simulateNetwork();
+
+  const post = ownedPost(id, actorId);
+  post.hideLikeCount = hidden;
+  return copy(post);
+}
+// #endregion
+
+// #region New-post stream (SignalR-shaped)
+function scheduleTick(): void {
+  const delay = NEW_POST_INTERVAL_MS + Math.round((Math.random() * 2 - 1) * NEW_POST_JITTER_MS);
+  streamTimer = setTimeout(() => {
+    const count = Math.random() < 0.5 ? 1 : 2;
+    for (let i = 0; i < count && listeners.size > 0; i += 1) {
+      const input: CreatePostInput = { content: pick(MOCK_INCOMING_CONTENTS), images: [], audience: "anyone" };
+      const post = buildPost(input, pick(SEED_AUTHORS), undefined, "post-live");
+      db.set(post.id, post);
+      for (const listener of listeners) listener(copy(post));
+    }
+    // A listener may have unsubscribed the last one inside its callback: never leave an orphan timer chain
+    if (listeners.size > 0) scheduleTick();
+    else streamTimer = undefined;
+  }, delay);
+}
+
+/**
+ * Pushes posts by other authors as they are "published". One shared timer runs while at least one
+ * listener is subscribed; the returned unsubscribe is idempotent. Swap for a SignalR `ReceiveNewPost` handler.
+ */
+export function subscribeToNewPosts(listener: NewPostListener): () => void {
+  const wrapped: NewPostListener = (post) => listener(post);
+  listeners.add(wrapped);
+  if (listeners.size === 1) scheduleTick();
+
+  return () => {
+    if (!listeners.delete(wrapped)) return;
+    if (listeners.size === 0) {
+      clearTimeout(streamTimer);
+      streamTimer = undefined;
+    }
+  };
+}
+// #endregion

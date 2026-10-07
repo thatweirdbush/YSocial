@@ -1,6 +1,6 @@
+import { SEED_AUTHORS } from "@/mocks/seed-authors";
 import type { HashtagStat, PostItem } from "../types";
 import { collectTagStats, tagKey } from "../utils/hashtags";
-import { MOCK_AUTHORS } from "./mock-authors";
 
 /**
  * Reference time for seed timestamps: module load time, so seeds always read as "x minutes ago"
@@ -86,7 +86,7 @@ const replyCounts = RAW_POSTS.reduce<Record<string, number>>((counts, raw) => {
 
 export const MOCK_POSTS: PostItem[] = RAW_POSTS.map(({ author, minutesAgo, liked, bookmarked, ...rest }) => ({
   ...rest,
-  user: MOCK_AUTHORS[author],
+  user: SEED_AUTHORS[author],
   createdAt: new Date(baseTime - minutesAgo * 60_000).toISOString(),
   commentsCount: replyCounts[rest.id] ?? 0,
   isLikedByCurrentUser: liked ?? false,

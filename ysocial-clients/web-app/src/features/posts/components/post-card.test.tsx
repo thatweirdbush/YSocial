@@ -1,14 +1,17 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/features/auth/store/auth-store";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
 import type { PostItem } from "../types";
 import { PostCard } from "./post-card";
 
 const push = vi.fn();
+const usePathname = vi.hoisted(() => vi.fn(() => "/"));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, back: vi.fn() }),
+  usePathname,
+  useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
 }));
 
 const post: PostItem = {
@@ -175,5 +178,96 @@ describe("PostCard rich content", () => {
     const { container } = render(<PostCard post={post} highlightTokens={["noi", "dung"]} />);
 
     expect(Array.from(container.querySelectorAll("mark")).map((mark) => mark.textContent)).toEqual(["Nội", "dung"]);
+  });
+});
+
+describe("PostCard media", () => {
+  const gallery = { ...post, imageUrls: ["/a.jpg", "/b.jpg", "/c.jpg"] };
+
+  it("opens the lightbox on the clicked image and pages forward", async () => {
+    render(<PostCard post={gallery} />);
+
+    await userEvent.click(screen.getByRole("img", { name: "Attachment 2" }));
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+
+    const buttons = within(screen.getByRole("dialog")).getAllByRole("button");
+    await userEvent.click(buttons[buttons.length - 1]);
+    expect(screen.getByText("3 / 3")).toBeInTheDocument();
+  });
+
+  it("renders a +N overlay beyond 4 images", () => {
+    render(<PostCard post={{ ...post, imageUrls: ["/1.jpg", "/2.jpg", "/3.jpg", "/4.jpg", "/5.jpg", "/6.jpg"] }} />);
+
+    expect(screen.getByText("+2")).toBeInTheDocument();
+  });
+});
+
+describe("PostCard owner state", () => {
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("never runs owner actions for another author's card", () => {
+    usePathname.mockClear();
+    render(<PostCard post={post} />);
+
+    expect(screen.getByRole("button", { name: "Thêm" })).toBeInTheDocument();
+    expect(usePathname).not.toHaveBeenCalled();
+  });
+
+  it("renders nothing for a deleted post", () => {
+    usePostStore.getState().actions.markDeleted(["post-001"]);
+
+    const { container } = render(<PostCard post={post} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("hides a hidden like count from other viewers", () => {
+    render(<PostCard post={{ ...post, hideLikeCount: true }} />);
+
+    expect(screen.queryByText("5")).toBeNull();
+  });
+
+  it("shows a hidden like count to the owner with a hint", () => {
+    useAuthStore.setState({ user: { id: "u1", email: "u1@ysocial.dev" } });
+
+    render(<PostCard post={{ ...post, hideLikeCount: true }} />);
+
+    expect(screen.getByText("5")).toBeInTheDocument();
+    expect(screen.getByTitle("Chỉ bạn thấy số lượt thích")).toBeInTheDocument();
+  });
+
+  it("hides the detail stats likes row from other viewers", () => {
+    render(<PostCard post={{ ...post, hideLikeCount: true }} variant="detail" />);
+
+    expect(screen.queryByText(/lượt thích/)).toBeNull();
+  });
+
+  it("labels edited posts", () => {
+    render(<PostCard post={{ ...post, isEdited: true }} />);
+
+    expect(screen.getByText(/Đã chỉnh sửa/)).toBeInTheDocument();
+  });
+
+  it("shows the pinned badge on feed & detail, not on compact replies", () => {
+    const { unmount } = render(<PostCard post={{ ...post, isPinned: true }} />);
+    expect(screen.getByText("Đã ghim")).toBeInTheDocument();
+    unmount();
+
+    render(<PostCard post={{ ...post, isPinned: true }} variant="compact" />);
+    expect(screen.queryByText("Đã ghim")).toBeNull();
+  });
+
+  it("swaps the content for the inline editor from the owner menu", async () => {
+    useAuthStore.setState({ user: { id: "u1", email: "u1@ysocial.dev" } });
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thêm" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Chỉnh sửa" }));
+
+    expect(screen.getByRole("textbox", { name: "Nội dung bài viết" })).toHaveValue("Nội dung bài viết");
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("textbox")).toBeNull();
   });
 });
