@@ -59,7 +59,11 @@ updated: 2026-10-06
 - [x] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, Follow button - on name/avatar in `PostCard`
 
 ### Phase 2 - Profile & Social graph (P1)
-- [ ] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Reposts / Saved (self)
+> Split:
+> - **2A Profile Core:** F0.6 + 2.1 + 2.2 + 2.6 - unblocks rest; Reposts tab moved to 6.1; QR via `qrcode.react`
+> - **2B Relationship Controls:** 2.3 + 2.4 + 2.5 - shared relation model in `user-store`/`follow-graph` + content filtering in `post-store` selectors; build manager lists as reusable components, 4.1 mounts them in Settings
+> - **2C Profile Switcher:** 2.7 - touches `auth-store` & every viewer-scoped store; may run after Phase 4
+- [ ] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Saved (self); Reposts -> 6.1
 - [ ] **2.2 Followers / Following pages** `/@username/followers|following` (replace/alongside dialog), search within list
 - [ ] **2.3 Private account & Follow requests:** Pending state (match BE spec), request approval screen
 - [ ] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
@@ -85,7 +89,7 @@ updated: 2026-10-06
 - [ ] **5.4 Share post via DM** from `PostCard` Share button
 
 ### Phase 6 - Advanced engagement (P2)
-- [ ] **6.1 Repost & Quote post** (quote embed card)
+- [ ] **6.1 Repost & Quote post** (quote embed card) + profile Reposts tab (moved from 2.1)
 - [ ] **6.2 Polls** in composer + vote UI (% results, expiry)
 - [ ] **6.3 Advanced composer:** `@mention` & `#hashtag` autocomplete, circular char counter, multi-post thread ("Add to thread"), link preview card
 - [ ] **6.4 Drafts page** `/drafts` (store exists) - edit/delete/repost
