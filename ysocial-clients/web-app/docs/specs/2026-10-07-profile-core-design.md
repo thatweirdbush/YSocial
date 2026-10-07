@@ -1,7 +1,7 @@
 # Profile Core - Design Spec
 
 - **Date:** 2026-10-07
-- **Status:** design approved in chat 2026-10-07; written spec rev 2 (review round 1 applied), awaiting approval
+- **Status:** approved; written spec rev 2 (review round 1 applied)
 - **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 2 sub-project **2A**: F0.6 (profile on mocks) + 2.1 (profile tabs) + 2.2 (followers/following) + 2.6 (share profile); also closes F0.4 for `/@username`, 7.7 for `/@username`, and the auth-store SSR hydration bug found during 2A
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks. After 2A, `features/profile` has ZERO `apiClient` imports. NO server-side fake DB (see D7 limitation).
 
@@ -16,7 +16,7 @@
 
 | # | Decision | Choice |
 |---|---|---|
-| D1 | Followers/following UX | Keep `FollowersDialog` (no `/@username/followers` routes). Deviation from roadmap 2.2 "route/alongside" accepted 2026-10-07 |
+| D1 | Followers/following UX | Keep `FollowersDialog` (no `/@username/followers` routes). Deviation from roadmap 2.2 "route/alongside" accepted |
 | D2 | Viewer in mock DB | Mock authenticated viewer is a real user in `user-service` (seed demo account + runtime-registered users upserted). Own profile = `viewerId !== null && viewerId === user.id` |
 | D3 | Saved tab source | `post-service.fetchSavedPosts(actorId, page)` = posts with `isBookmarkedByCurrentUser`. Separate from `fetchUserPosts(userId, tab)` because Saved belongs to the viewer, not the viewed profile. `/saved` collections untouched (F0.2) |
 | D4 | Tab list ownership | Profile-local controller (D19). `post-store` owns ONLY canonical posts; NO profile state added |
@@ -40,7 +40,7 @@
 ## 3. Global Constraints
 
 - Next.js 16 App Router (Cache Components disabled), React 19, TypeScript strict, Tailwind v4, Zustand 5, shadcn/Radix (`radix-ui` umbrella), Lucide.
-- **Dependency exception:** `qrcode.react@^4.2.0` (ISC, 0 runtime deps, React `^19` peer, built-in types, `QRCodeSVG` + `QRCodeCanvas`, `imageSettings.excavate` / `crossOrigin`). Chosen over `react-qr-code` (2 deps, no logo), `qr-code-styling` (no React binding, heavier), `qrcode` (Node-oriented deps). Install requires user approval at plan execution. NO other new deps.
+- **Dependency exception:** `qrcode.react@^4.2.0` (ISC, 0 runtime deps, React `^19` peer, built-in types, `QRCodeSVG` + `QRCodeCanvas`, `imageSettings.excavate` / `crossOrigin`). Chosen over `react-qr-code` (2 deps, no logo), `qr-code-styling` (no React binding, heavier), `qrcode` (Node-oriented deps). Approved.
 - Files/dirs `kebab-case`; components `PascalCase`; vars/functions `camelCase`; CRLF line endings.
 - Domain types in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`; D17 boundary.
 - Strings via D20, keys in `vi.json` & `en.json`, NO `as any` / `any` in new or touched profile files.
@@ -105,7 +105,7 @@ Client  Providers
 
 - `db` seeded from `MOCK_USERS` (8 authors + demo + fans). Stored `UserProfileBase` has NO counts; `project(user, actorId)` adds `followersCount = HIDDEN_FOLLOWERS[id] + getFollowerCount(id)`, `followingCount = HIDDEN_FOLLOWING[id] + getFollowingCount(id)`, `isFollowing`. `HIDDEN_*` in `profile/mocks` (= current EXTRAS counts; 0 for demo, fans, runtime users).
 - ALL params renamed `viewerId` -> `actorId` (D9); callers updated.
-- `getMockUserByUsername(username)` lives in `profile/mocks/mock-users.ts` (sync, pure, server-safe, case-insensitive), used by `resolveProfileRoute`.
+- `getSeedUserByUsername(username)` lives in `profile/mocks/mock-users.ts` (sync, pure, server-safe, case-insensitive), used by `resolveProfileRoute`. Reads ONLY the frozen `MOCK_USERS` seed, NEVER the mutable `db` or runtime users (D7).
 
 | Function | Behavior |
 |---|---|
@@ -139,13 +139,13 @@ Client  Providers
   - `commitFollow(actorId, id)`: `toggleFollow` -> `setFollow` -> success: `refreshUsers([id, actorId], actorId)` ONLY if the actor's `version` is unchanged since (newer toggle wins); failure: revert via `toggleFollow` + toast. `FollowButton` & `FollowersDialog` call this.
   - `ensureUserByUsername(username, actorId)`: cache hit via `idByUsername` + known follow state, else `fetchUserByUsername`; in-flight dedupe per `actorId:username`.
   - `refreshUsers(ids, actorId)`: refetch & upsert (bypasses cache); unknown ids ignored.
-  - `ensureViewerUser(sessionUser, actorId)`: `upsertViewerUser` -> `upsertUsers`; once per session id.
+  - `ensureViewerUser(viewerInput, actorId)`: `upsertViewerUser` -> `upsertUsers`; ONE shared promise per user id (failed promise evicted). `ProfileContainer` awaits this same promise when `username` is the signed-in user's, instead of `ensureUserByUsername` -> no race with `ViewerSync` on hard refresh, no false desync.
 - Selector: `useUserByUsername(username): UserProfile | undefined`.
 
 ### 4.6 Profile tab controller (`features/profile/hooks`) - D19
 
 - **`use-profile-tab-posts.ts`:**
-  - `useProfileTabPostsController(userId, actorId)` -> controller: `useReducer` state `Record<ProfileTab, { ids; parents; status: "idle" | "loading" | "ready" | "error"; nextPage? }>` + `activate(tab)`, `loadMore(tab)`, `retry(tab)`.
+  - `useProfileTabPostsController(userId, actorId)` -> controller: `useReducer` state `Record<ProfileTab, { ids; parents; status: "idle" | "loading" | "ready" | "error"; nextPage? }>` + `activate(tab)`, `loadMore(tab)`, `retry(tab)`. `scopeKey = userId:actorId`; a change resets all tabs and invalidates in-flight requests (Saved is actor-owned; like/bookmark flags actor-scoped) - covers login/logout while staying on the same profile.
   - `ProfileTabPostsProvider` (context) + `useProfileTabPosts(tab)` -> `{ ids, parents, status, hasMore, loadMore, retry }`; calls `activate(tab)` on mount -> fetch on first activation only.
   - Fetch results: `upsertPosts(posts)`; `parents` kept in controller state (references, not posts). Stale responses ignored via per-tab request token; `key={username}` on container resets everything.
   - Deleted ids filtered at render through `useIsDeleted` (tombstone).
