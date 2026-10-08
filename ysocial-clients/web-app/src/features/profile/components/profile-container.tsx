@@ -3,6 +3,7 @@
 import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { toMockSession, useActorId, useAuthHydrated, useAuthStore, useAuthUser, useViewerId } from "@/features/auth";
@@ -11,12 +12,14 @@ import { useUIActions } from "@/lib/store/ui-store";
 import { ProfileTabPostsProvider, useProfileTabPostsController } from "../hooks/use-profile-tab-posts";
 import { ensureUserByUsername, ensureViewerUser, useUserByUsername } from "../store/user-store";
 import type { FollowListKind, ProfileTab, UserProfile } from "../types";
+import { copyProfileLink } from "../utils/share";
 import { toViewerUserInput } from "../utils/viewer-user";
 import { FollowersDialog } from "./followers-dialog";
 import { ProfileHeader } from "./profile-header";
 import { ProfileSkeleton } from "./profile-skeleton";
 import { ProfileTabPanel } from "./profile-tab-panel";
 import { ProfileTabs } from "./profile-tabs";
+import { ShareProfileDialog } from "./share-profile-dialog";
 
 interface ProfileContainerProps {
   username: string;
@@ -89,7 +92,9 @@ interface ProfileViewProps {
 }
 
 function ProfileView({ user, isOwn, actorId }: ProfileViewProps) {
+  const { t } = useTranslation();
   const { openComposer } = useUIActions();
+  const [shareOpen, setShareOpen] = useState(false);
   const controller = useProfileTabPostsController(user.id, actorId);
   const [activeTab, setActiveTab] = useState<ProfileTab>("threads");
   const [followList, setFollowList] = useState<{ open: boolean; kind: FollowListKind }>({ open: false, kind: "followers" });
@@ -97,10 +102,23 @@ function ProfileView({ user, isOwn, actorId }: ProfileViewProps) {
   // Saved belongs to the signed-in owner: losing ownership (logout) must not leave it selected
   const tab: ProfileTab = activeTab === "saved" && !isOwn ? "threads" : activeTab;
 
+  const handleShare = (action: "copy" | "qr") => {
+    if (action === "qr") {
+      setShareOpen(true);
+      return;
+    }
+    void copyProfileLink(user.username).then((ok) => (ok ? toast.success(t("share.copied")) : toast.error(t("share.copyFailed"))));
+  };
+
   return (
     <ProfileTabPostsProvider value={controller}>
       <div className="flex min-h-screen w-full flex-col">
-        <ProfileHeader user={user} isOwn={isOwn} onOpenFollowers={(kind) => setFollowList({ open: true, kind })} />
+        <ProfileHeader
+          user={user}
+          isOwn={isOwn}
+          onOpenFollowers={(kind) => setFollowList({ open: true, kind })}
+          onShare={handleShare}
+        />
         <ProfileTabs active={tab} onChange={setActiveTab} showSaved={isOwn} />
         <div className="flex flex-1 flex-col bg-white dark:bg-black">
           <ProfileTabPanel tab={tab} userId={user.id} username={user.username} isOwn={isOwn} onCreatePost={openComposer} />
@@ -112,6 +130,7 @@ function ProfileView({ user, isOwn, actorId }: ProfileViewProps) {
           initialKind={followList.kind}
           username={user.username}
         />
+        <ShareProfileDialog open={shareOpen} onOpenChange={setShareOpen} user={user} />
       </div>
     </ProfileTabPostsProvider>
   );
