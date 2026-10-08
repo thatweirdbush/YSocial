@@ -6,8 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
-import { setFollow } from "../services/user-service";
-import { useFollowState, useUser, useUserActions } from "../store/user-store";
+import { commitFollow, useFollowState, useUser } from "../store/user-store";
 
 interface FollowButtonProps {
   userId: string;
@@ -24,7 +23,6 @@ export function FollowButton({ userId, className, reserveSpace = false }: Follow
   const actorId = useActorId();
   const user = useUser(userId);
   const isFollowing = useFollowState(userId);
-  const { toggleFollow } = useUserActions();
 
   // Unknown follow state (e.g. right after an account switch) -> never render a guessed "Follow"
   if (!user || isFollowing === undefined) {
@@ -41,8 +39,9 @@ export function FollowButton({ userId, className, reserveSpace = false }: Follow
     e.preventDefault();
     e.stopPropagation();
     const next = !isFollowing;
-    toggleFollow(actorId, userId);
-    void setFollow(userId, next, actorId);
+    void commitFollow(actorId, userId).then((ok) => {
+      if (!ok) toast.error(t("card.followError"));
+    });
     if (next) toast.success(t("card.followSuccess", { username: user.username }));
     else toast.info(t("card.unfollowSuccess", { username: user.username }));
   };

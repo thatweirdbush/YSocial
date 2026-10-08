@@ -78,6 +78,7 @@
     "more": "Thêm",
     "followSuccess": "Đã theo dõi @{username}",
     "unfollowSuccess": "Đã bỏ theo dõi @{username}",
+    "followError": "Không thể cập nhật theo dõi, thử lại nhé",
     "edit": "Chỉnh sửa",
     "editLabel": "Nội dung bài viết",
     "editSave": "Lưu",

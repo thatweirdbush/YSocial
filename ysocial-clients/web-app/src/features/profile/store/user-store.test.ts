@@ -3,7 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import * as service from "../services/user-service";
 import type { UserProfile } from "../types";
-import { ensureFollowGraph, ensureUser, getFollowedIds, resetUserStore, useFollowedIds, useFollowState, useUser, useUserStore } from "./user-store";
+import {
+  commitFollow,
+  ensureFollowGraph,
+  ensureUser,
+  ensureUserByUsername,
+  ensureViewerUser,
+  getFollowedIds,
+  resetUserStore,
+  useFollowedIds,
+  useFollowState,
+  useUser,
+  useUserByUsername,
+  useUserStore,
+} from "./user-store";
 
 const user: UserProfile = {
   id: "u1",
@@ -15,7 +28,7 @@ const user: UserProfile = {
 };
 
 const actions = () => useUserStore.getState().actions;
-const isFollowing = (viewerId: string, id: string) => useUserStore.getState().follows[viewerId]?.ids[id] === true;
+const isFollowing = (actorId: string, id: string) => useUserStore.getState().follows[actorId]?.ids[id] === true;
 const signInAs = (id: string) => useAuthStore.setState({ user: { id, email: `${id}@ysocial.dev` } });
 
 beforeEach(() => {
@@ -183,5 +196,143 @@ describe("useFollowedIds", () => {
     const { result } = renderHook(() => useFollowedIds());
 
     expect(result.current).toEqual({ ids: new Set(["u1"]), loaded: false });
+  });
+});
+
+describe("username index & patch", () => {
+  it("indexes users by lowercase username", () => {
+    actions().upsertUsers([{ ...user, id: "u2", username: "AnQuoc.Dev" }], "v1");
+    expect(useUserStore.getState().idByUsername["anquoc.dev"]).toBe("u2");
+  });
+
+  it("useUserByUsername resolves case-insensitively", () => {
+    const { result } = renderHook(() => useUserByUsername("MinhThu"));
+    expect(result.current).toMatchObject({ id: "u1", isFollowing: false });
+  });
+
+  it("patchUser merges shared base fields everywhere", () => {
+    actions().patchUser("u1", { displayName: "X", bio: "new bio" });
+    const { result } = renderHook(() => useUser("u1"));
+    expect(result.current).toMatchObject({ displayName: "X", bio: "new bio", username: "minhthu" });
+  });
+
+  it("toggleFollow also adjusts the actor's following count when the actor is cached", () => {
+    actions().upsertUsers([{ ...user, id: "v1", username: "viewer", followingCount: 4 }], "v1");
+    const listener = vi.fn();
+    const unsubscribe = useUserStore.subscribe(listener);
+
+    actions().toggleFollow("v1", "u1");
+    unsubscribe();
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(useUserStore.getState().users.v1.followingCount).toBe(5);
+    expect(useUserStore.getState().users.u1.followersCount).toBe(1);
+
+    actions().toggleFollow("v1", "u1");
+    expect(useUserStore.getState().users.v1.followingCount).toBe(4);
+  });
+});
+
+describe("commitFollow", () => {
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (reason?: unknown) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+
+  it("refetches target and actor from the service after a successful write", async () => {
+    const order: string[] = [];
+    vi.spyOn(service, "setFollow").mockImplementation(async () => {
+      order.push("setFollow");
+    });
+    const fetchSpy = vi.spyOn(service, "fetchUser").mockImplementation(async (id) => {
+      order.push(`fetch:${id}`);
+      return { ...user, id, username: id, followersCount: 99, isFollowing: true };
+    });
+
+    await expect(commitFollow("v1", "u1")).resolves.toBe(true);
+
+    expect(order[0]).toBe("setFollow");
+    expect(fetchSpy.mock.calls.map(([id]) => id).sort()).toEqual(["u1", "v1"]);
+    expect(useUserStore.getState().users.u1.followersCount).toBe(99);
+  });
+
+  it("skips the stale refetch when a newer toggle happened (last click wins)", async () => {
+    const first = deferred<void>();
+    const second = deferred<void>();
+    vi.spyOn(service, "setFollow").mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const fetchSpy = vi.spyOn(service, "fetchUser").mockImplementation(async (id) => ({ ...user, id, isFollowing: false }));
+
+    const a = commitFollow("v1", "u1");
+    const b = commitFollow("v1", "u1");
+    first.resolve();
+    await a;
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    second.resolve();
+    await b;
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(isFollowing("v1", "u1")).toBe(false);
+  });
+
+  it("reverts the projection and resolves false when the write fails", async () => {
+    vi.spyOn(service, "setFollow").mockRejectedValue(new Error("boom"));
+
+    await expect(commitFollow("v1", "u1")).resolves.toBe(false);
+
+    expect(isFollowing("v1", "u1")).toBe(false);
+    expect(useUserStore.getState().users.u1.followersCount).toBe(0);
+  });
+});
+
+describe("ensureUserByUsername", () => {
+  it("returns the cached user without fetching", async () => {
+    const spy = vi.spyOn(service, "fetchUserByUsername");
+    await expect(ensureUserByUsername("MinhThu", "v1")).resolves.toMatchObject({ id: "u1" });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("dedupes concurrent lookups and upserts the result", async () => {
+    const spy = vi.spyOn(service, "fetchUserByUsername").mockResolvedValue({ ...user, id: "u9", username: "fresh", isFollowing: true });
+
+    const [a, b] = await Promise.all([ensureUserByUsername("fresh", "v1"), ensureUserByUsername("Fresh", "v1")]);
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(a).toEqual(b);
+    expect(useUserStore.getState().idByUsername.fresh).toBe("u9");
+  });
+
+  it("resolves null for an unknown username", async () => {
+    vi.spyOn(service, "fetchUserByUsername").mockResolvedValue(null);
+    await expect(ensureUserByUsername("nobody", "v1")).resolves.toBeNull();
+  });
+});
+
+describe("ensureViewerUser", () => {
+  const input = { id: "2", username: "new.user", displayName: "New" };
+  const profile: UserProfile = { ...user, id: "2", username: "new.user", displayName: "New" };
+
+  it("shares one promise per user id across concurrent and later callers", async () => {
+    const spy = vi.spyOn(service, "upsertViewerUser").mockResolvedValue(profile);
+
+    const [a, b] = await Promise.all([ensureViewerUser(input, "2"), ensureViewerUser(input, "2")]);
+    const c = await ensureViewerUser(input, "2");
+
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(a).toBe(b);
+    expect(c).toBe(a);
+    expect(useUserStore.getState().idByUsername["new.user"]).toBe("2");
+  });
+
+  it("evicts a rejected promise so the next call retries", async () => {
+    const spy = vi.spyOn(service, "upsertViewerUser").mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce(profile);
+
+    await expect(ensureViewerUser(input, "2")).rejects.toThrow("boom");
+    await expect(ensureViewerUser(input, "2")).resolves.toMatchObject({ id: "2" });
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });

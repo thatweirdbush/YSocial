@@ -78,6 +78,7 @@
     "more": "More",
     "followSuccess": "Followed @{username}",
     "unfollowSuccess": "Unfollowed @{username}",
+    "followError": "Couldn't update follow, try again",
     "edit": "Edit",
     "editLabel": "Post content",
     "editSave": "Save",
