@@ -22,7 +22,7 @@ export function ProfileContainer({ username, initialProfile }: ProfileContainerP
   const { t } = useTranslation();
   const authUser = useAuthUser();
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("threads");
 
   // Followers Dialog states
   const [followersOpen, setFollowersOpen] = useState(false);
@@ -101,10 +101,10 @@ export function ProfileContainer({ username, initialProfile }: ProfileContainerP
   };
 
   // Determine which loading skeleton and feed list to show
-  const isLoading = activeTab === "posts" ? postsLoading : activeTab === "saved" ? savedLoading : false;
+  const isLoading = activeTab === "threads" ? postsLoading : activeTab === "saved" ? savedLoading : false;
   
   // Extract list arrays safely
-  const rawPostsList = activeTab === "posts" ? postsData : activeTab === "saved" ? savedData : [];
+  const rawPostsList = activeTab === "threads" ? postsData : activeTab === "saved" ? savedData : [];
   let postsList = Array.isArray(rawPostsList) ? rawPostsList : (rawPostsList?.items || []);
 
   // 3. Dynamic Development mock posts generator

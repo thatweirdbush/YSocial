@@ -13,7 +13,7 @@ export function ProfileTabs({ activeTab, onTabChange, showSavedTab }: ProfileTab
   const { t } = useTranslation();
 
   const tabs: Array<{ id: ProfileTab; label: string }> = [
-    { id: "posts", label: "Bài viết" },
+    { id: "threads", label: "Bài viết" },
     { id: "replies", label: "Trả lời" },
   ];
 
