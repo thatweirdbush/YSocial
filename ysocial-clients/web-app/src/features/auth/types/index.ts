@@ -21,6 +21,12 @@ export interface AuthUser {
   bio?: string;
   username?: string;
 }
+
+/** Identity mirrored into the mock session cookie (no mutable profile data). */
+export interface MockSessionIdentity {
+  id: string;
+  username: string;
+}
 // #endregion
 
 // #region Form schemas & values

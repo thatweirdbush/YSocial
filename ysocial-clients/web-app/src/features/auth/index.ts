@@ -3,3 +3,4 @@ export { RegisterForm } from "./components/register-form";
 export { AuthLayoutShell } from "./components/auth-layout-shell";
 export * from "./types";
 export * from "./store/auth-store";
+export * from "./utils/mock-session";
