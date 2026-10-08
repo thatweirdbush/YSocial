@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
 import type { PostItem } from "../types";
@@ -27,8 +28,32 @@ const post: PostItem = {
 
 beforeEach(() => {
   resetPostStore();
+  resetUserStore();
   push.mockClear();
   vi.restoreAllMocks();
+});
+
+describe("PostCard author overlay", () => {
+  const authorPost: PostItem = { ...post, user: { id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev" } };
+
+  it("follows the user-store copy of the author after a profile edit", () => {
+    useUserStore.getState().actions.upsertUsers(
+      [{ id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev", followersCount: 0, followingCount: 0, isFollowing: false }],
+      "me",
+    );
+    render(<PostCard post={authorPost} />);
+    expect(screen.getByText("Trần Anh Quốc")).toBeInTheDocument();
+
+    act(() => useUserStore.getState().actions.patchUser("author-03", { displayName: "Quốc Mới" }));
+
+    expect(screen.getByText("Quốc Mới")).toBeInTheDocument();
+    expect(screen.queryByText("Trần Anh Quốc")).toBeNull();
+  });
+
+  it("falls back to the post snapshot while the author is not cached", () => {
+    render(<PostCard post={authorPost} />);
+    expect(screen.getByText("Trần Anh Quốc")).toBeInTheDocument();
+  });
 });
 
 describe("PostCard store sync", () => {

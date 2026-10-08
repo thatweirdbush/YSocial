@@ -4,7 +4,7 @@ import { AlertCircle, SearchX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import { usePostActions } from "@/features/posts";
 import { useUserActions } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
@@ -36,7 +36,7 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const { upsertPosts } = usePostActions();
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const { upsertUsers } = useUserActions();
   const { setResult, addRecent } = useSearchActions();
 
@@ -61,11 +61,11 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
     if (!hasQuery) return;
     let active = true;
 
-    fetchSearch(query, viewerId)
+    fetchSearch(query, actorId)
       .then(({ users, posts, latestPosts, tags }) => {
         if (!active) return;
         upsertPosts([...posts, ...latestPosts]);
-        upsertUsers(users, viewerId);
+        upsertUsers(users, actorId);
         setResult({
           query,
           userIds: users.map((user) => user.id),
@@ -80,7 +80,7 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
     return () => {
       active = false;
     };
-  }, [query, hasQuery, attempt, viewerId, upsertPosts, upsertUsers, setResult, addRecent]);
+  }, [query, hasQuery, attempt, actorId, upsertPosts, upsertUsers, setResult, addRecent]);
 
   const tokens = useMemo(() => tokenize(query.replace(/^[#@]/, "")), [query]);
   const tabs = useMemo(() => SEARCH_TABS.map((value) => ({ value, label: t(TAB_LABEL_KEYS[value]) })), [t]);

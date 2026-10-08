@@ -10,7 +10,9 @@ export type ToggleCloseFriendRequest = Schemas["ToggleCloseFriendRequest"];
 // #endregion
 
 // #region Domain models
-export type ProfileTab = "posts" | "replies" | "saved";
+export type ProfileTab = "threads" | "replies" | "media" | "saved";
+
+export type FollowListKind = "followers" | "following";
 
 export interface UserProfile {
   id: string;
@@ -29,6 +31,32 @@ export interface UserProfile {
 /** Profile data shared by every viewer; `isFollowing` lives in the viewer-scoped follow projection. */
 export type UserProfileBase = Omit<UserProfile, "isFollowing">;
 
+/** Mock DB row: shared profile data without counts (counts derive from the follow graph, spec D6). */
+export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCount">;
+
+export interface FollowListQuery {
+  query?: string;
+  page?: number;
+}
+
+export interface FollowListPage {
+  users: UserProfile[];
+  nextPage?: number;
+}
+
+export interface ProfilePatch {
+  displayName: string;
+  bio?: string;
+  avatarUrl?: string;
+}
+
+export type ViewerUserInput = Pick<UserProfileBase, "id" | "username" | "displayName"> &
+  Partial<Pick<UserProfileBase, "bio" | "avatarUrl">>;
+
+export const PROFILE_DISPLAY_NAME_MIN = 2;
+export const PROFILE_DISPLAY_NAME_MAX = 50;
+export const PROFILE_BIO_MAX = 160;
+
 /** One viewer's follow projection in `user-store`. */
 export interface ViewerFollows {
   ids: Record<string, true>;
@@ -40,11 +68,4 @@ export interface ViewerFollows {
   version: number;
 }
 
-export interface FollowerUser {
-  id: string;
-  displayName: string;
-  username: string;
-  avatarUrl?: string;
-  isFollowing: boolean;
-}
 // #endregion

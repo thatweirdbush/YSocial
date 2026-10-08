@@ -1,4 +1,4 @@
-import { SEED_AUTHORS } from "@/mocks/seed-authors";
+import { SEED_AUTHORS, SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import type { HashtagStat, PostItem } from "../types";
 import { collectTagStats, tagKey } from "../utils/hashtags";
 
@@ -11,7 +11,8 @@ export const MOCK_BASE_DATE = new Date().toISOString();
 const image = (photo: string) => `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=800&q=80`;
 
 type RawPost = Omit<PostItem, "user" | "createdAt" | "commentsCount" | "isLikedByCurrentUser" | "isBookmarkedByCurrentUser"> & {
-  author: number;
+  /** Index into `SEED_AUTHORS`, or "demo" for the mock-login account. */
+  author: number | "demo";
   minutesAgo: number;
   liked?: boolean;
   bookmarked?: boolean;
@@ -46,6 +47,18 @@ const RAW_POSTS: RawPost[] = [
     content: "Một tuần trekking, 0 thông báo, 100% bình yên. Giờ quay lại feed thôi 🏔️ #dalat" },
   // #endregion
 
+  // #region Demo account (mock login) content
+  { id: "post-demo-01", author: "demo", minutesAgo: 90, likesCount: 18, isPinned: true,
+    content: "Bài ghim: chào mừng bạn đến trang cá nhân của mình trên YSocial! 👋" },
+  { id: "post-demo-02", author: "demo", minutesAgo: 1_300, likesCount: 35,
+    imageUrls: [image("photo-1519681393784-d120267933ba"), image("photo-1470071459604-3b5ec3a7fe05"), image("photo-1441974231531-c6227db76b6e")],
+    content: "Album chuyến đi cuối tuần: núi, sương và một chút cà phê. 🏔️" },
+  { id: "post-demo-03", author: "demo", minutesAgo: 3_000, likesCount: 22, imageUrl: image("photo-1498050108023-c5249f4df085"),
+    content: "Góc làm việc hôm nay. Ít đồ, nhiều tập trung." },
+  { id: "post-demo-04", author: "demo", minutesAgo: 4_000, likesCount: 9,
+    content: "Đang thử mọi thứ trên YSocial, giao diện tối giản mà dễ chịu thật sự. #YSocial" },
+  // #endregion
+
   // #region Replies — post-001 thread (one reply with 3 children for "view more")
   { id: "reply-001-01", parentId: "post-001", author: 2, minutesAgo: 9, likesCount: 14, content: "Giao diện nhìn sang thật sự! Hiệu ứng Like rất đã tay." },
   { id: "reply-001-02", parentId: "post-001", author: 3, minutesAgo: 8, likesCount: 22, liked: true, content: "Cho mình hỏi palette màu chính là zinc hay slate vậy?" },
@@ -74,6 +87,8 @@ const RAW_POSTS: RawPost[] = [
   { id: "reply-010-01", parentId: "post-010", author: 6, minutesAgo: 1_400, likesCount: 0, content: "Bàn phím gì vậy bạn?" },
   { id: "reply-012-01", parentId: "post-012", author: 3, minutesAgo: 2_800, likesCount: 9, content: "Ghen tị ghê, cung nào vậy?" },
   { id: "reply-012-02", parentId: "post-012", author: 2, minutesAgo: 2_700, likesCount: 4, content: "Detox mạng xã hội trên mạng xã hội, thật là meta 😄" },
+  { id: "reply-demo-01", parentId: "post-003", author: "demo", minutesAgo: 160, likesCount: 3, content: "Đồng ý, vừa đủ mới là điều khó nhất." },
+  { id: "reply-demo-02", parentId: "post-006", author: "demo", minutesAgo: 380, likesCount: 5, content: "Nhìn là muốn xách balo lên đường ngay." },
   // #endregion
 ];
 
@@ -86,7 +101,7 @@ const replyCounts = RAW_POSTS.reduce<Record<string, number>>((counts, raw) => {
 
 export const MOCK_POSTS: PostItem[] = RAW_POSTS.map(({ author, minutesAgo, liked, bookmarked, ...rest }) => ({
   ...rest,
-  user: SEED_AUTHORS[author],
+  user: author === "demo" ? SEED_DEMO_ACCOUNT : SEED_AUTHORS[author],
   createdAt: new Date(baseTime - minutesAgo * 60_000).toISOString(),
   commentsCount: replyCounts[rest.id] ?? 0,
   isLikedByCurrentUser: liked ?? false,

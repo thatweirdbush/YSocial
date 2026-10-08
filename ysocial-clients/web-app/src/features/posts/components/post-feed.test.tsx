@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GUEST_VIEWER_ID } from "@/features/auth/store/auth-store";
+import { GUEST_ACTOR_ID } from "@/features/auth/store/auth-store";
 import * as userService from "@/features/profile/services/user-service";
 import { getFollowedIds, resetUserStore } from "@/features/profile/store/user-store";
 import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
@@ -111,7 +111,7 @@ describe("PostFeed paging & refresh", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Làm mới" }));
 
-    await waitFor(() => expect(getFollowedIds(GUEST_VIEWER_ID).loaded).toBe(true), LOAD_TIMEOUT);
+    await waitFor(() => expect(getFollowedIds(GUEST_ACTOR_ID).loaded).toBe(true), LOAD_TIMEOUT);
     // Let the refresh settle: an in-flight fetch would write into the next test's (global) store
     await act(() => feedSpy.mock.results[1].value);
   });
@@ -120,8 +120,8 @@ describe("PostFeed paging & refresh", () => {
     globalThis.IntersectionObserver = AlwaysVisibleObserver as unknown as typeof IntersectionObserver;
     const realFetch = service.fetchFeed;
     let failNextPage = true;
-    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page, viewerId) =>
-      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page, viewerId),
+    const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page, actorId) =>
+      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page, actorId),
     );
     const toastError = vi.spyOn(toast, "error");
     const nextPageCalls = () => spy.mock.calls.filter(([, page]) => page === 2).length;
@@ -135,7 +135,7 @@ describe("PostFeed paging & refresh", () => {
     failNextPage = false;
     await userEvent.click(retry);
 
-    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(12), LOAD_TIMEOUT);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(16), LOAD_TIMEOUT);
     expect(nextPageCalls()).toBe(2);
   });
 });

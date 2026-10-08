@@ -30,7 +30,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "@/hooks/use-translation";
 import { LAYOUT } from "@/lib/constants/layout";
-import { useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
+import { useComposerOpen, useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
 import { useAuthUser, useAuthActions } from "@/features/auth/store/auth-store";
 import { RightSidebar } from "./right-sidebar";
 import { PostCreatorDialog } from "@/features/posts";
@@ -42,19 +42,19 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
 
   const locale = useLocale();
   const isCollapsed = useIsCollapsed();
-  const { setLocale, toggleSidebar } = useUIActions();
+  const isCreateOpen = useComposerOpen();
+  const { setLocale, toggleSidebar, openComposer, setComposerOpen } = useUIActions();
 
   const user = useAuthUser();
   const { clearAuth } = useAuthActions();
 
-  // Dynamically map navigation profile link to the authenticated user's username
-  const profileHref = user?.username ? `/@${user.username}` : "/@ysocial_member";
+  // Profile nav points at the signed-in user's profile; guests go to login
+  const profileHref = user ? `/@${(user.username ?? user.email.split("@")[0]).toLowerCase()}` : "/login";
 
   // Navigation config mapping to translation keys
   const navItems = [
@@ -125,7 +125,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            onClick={() => setIsCreateOpen(true)}
+                            onClick={openComposer}
                             className={`flex items-center gap-4 py-2.5 px-3.5 rounded-xl transition-all duration-300 active:scale-95 text-zinc-650 dark:text-zinc-400 hover:text-black dark:hover:text-zinc-100 hover:bg-zinc-100/30 dark:hover:bg-zinc-900/20 cursor-pointer ${
                               isCollapsed ? "justify-center" : "justify-center xl:justify-start"
                             } w-full`}
@@ -279,7 +279,7 @@ export function MainLayout({ children }: MainLayoutProps) {
                 <button
                   key={item.href}
                   type="button"
-                  onClick={() => setIsCreateOpen(true)}
+                  onClick={openComposer}
                   className="p-3 rounded-full active:scale-90 transition-all text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
                 >
                   <Icon className="h-6 w-6" />
@@ -307,7 +307,7 @@ export function MainLayout({ children }: MainLayoutProps) {
         </nav>
 
         {/* Global Post Creator Dialog trigger */}
-        <PostCreatorDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+        <PostCreatorDialog open={isCreateOpen} onOpenChange={setComposerOpen} />
 
       </div>
     </TooltipProvider>

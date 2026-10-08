@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import { ensureUser } from "@/features/profile";
 import { subscribeToNewPosts } from "../services/post-service";
 import { usePostActions } from "../store/post-store";
@@ -9,7 +9,7 @@ import { usePostActions } from "../store/post-store";
  * Each author is loaded into `user-store` so the "following" pill can classify the post.
  */
 export function useNewPostsStream(): void {
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const { bufferIncoming } = usePostActions();
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useNewPostsStream(): void {
       if (document.visibilityState === "visible") {
         unsubscribe ??= subscribeToNewPosts((post) => {
           bufferIncoming(post);
-          ensureUser(post.user.id, viewerId).catch(() => undefined);
+          ensureUser(post.user.id, actorId).catch(() => undefined);
         });
       } else {
         unsubscribe?.();
@@ -33,5 +33,5 @@ export function useNewPostsStream(): void {
       document.removeEventListener("visibilitychange", sync);
       unsubscribe?.();
     };
-  }, [viewerId, bufferIncoming]);
+  }, [actorId, bufferIncoming]);
 }

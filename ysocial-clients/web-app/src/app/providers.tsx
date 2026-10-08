@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuthStore } from "@/features/auth";
+import { ViewerSync } from "@/features/profile";
 import { useSearchStore } from "@/features/search";
 import { useUIStore } from "@/lib/store/ui-store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Apply persisted client state right after hydration; layout effect re-renders before the next paint
   useLayoutEffect(() => {
+    useAuthStore.getState().actions.hydrate();
     useUIStore.getState().actions.hydrateLocale();
     void useSearchStore.persist.rehydrate();
   }, []);
@@ -31,6 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <ViewerSync />
         {children}
         <Toaster position="top-center" richColors />
       </ThemeProvider>

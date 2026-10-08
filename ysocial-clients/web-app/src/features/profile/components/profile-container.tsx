@@ -1,216 +1,137 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/shared/empty-state";
+import { Button } from "@/components/ui/button";
+import { toMockSession, useActorId, useAuthHydrated, useAuthStore, useAuthUser, useViewerId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
-import { useAuthUser } from "@/features/auth/store/auth-store";
-import { PostCard, PostSkeletonList } from "@/features/posts";
-import { SafeHydration } from "@/components/shared/safe-hydration";
-import { apiClient } from "@/lib/api-client";
-import { ProfileHeader } from "./profile-header";
-import { ProfileTabs } from "./profile-tabs";
+import { useUIActions } from "@/lib/store/ui-store";
+import { ProfileTabPostsProvider, useProfileTabPostsController } from "../hooks/use-profile-tab-posts";
+import { ensureUserByUsername, ensureViewerUser, useUserByUsername } from "../store/user-store";
+import type { FollowListKind, ProfileTab, UserProfile } from "../types";
+import { copyProfileLink } from "../utils/share";
+import { toViewerUserInput } from "../utils/viewer-user";
 import { FollowersDialog } from "./followers-dialog";
-import type { ProfileTab, UserProfile } from "../types";
+import { ProfileHeader } from "./profile-header";
+import { ProfileSkeleton } from "./profile-skeleton";
+import { ProfileTabPanel } from "./profile-tab-panel";
+import { ProfileTabs } from "./profile-tabs";
+import { ShareProfileDialog } from "./share-profile-dialog";
 
 interface ProfileContainerProps {
   username: string;
-  initialProfile: UserProfile;
 }
 
-export function ProfileContainer({ username, initialProfile }: ProfileContainerProps) {
+/**
+ * `/@username` client view on mocks. Route-level not-found is the server's job (`page.tsx`); the only "missing"
+ * state here is a cookie/localStorage desync. Identity-dependent UI waits for auth hydration (never a not-found flash).
+ */
+export function ProfileContainer({ username }: ProfileContainerProps) {
+  const hydrated = useAuthHydrated();
+  return hydrated ? <ProfileLookup username={username} /> : <ProfileSkeleton />;
+}
+
+function ProfileLookup({ username }: ProfileContainerProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const authUser = useAuthUser();
-  const [profile, setProfile] = useState<UserProfile>(initialProfile);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  const viewerId = useViewerId();
+  const actorId = useActorId();
+  const user = useUserByUsername(username);
 
-  // Followers Dialog states
-  const [followersOpen, setFollowersOpen] = useState(false);
-  const [followersTab, setFollowersTab] = useState<"followers" | "following">("followers");
+  const wanted = username.toLowerCase();
+  const sessionUsername = authUser ? toMockSession(authUser).username : null;
+  const lookupKey = `${actorId}:${wanted}`;
+  const [missingKey, setMissingKey] = useState<string | null>(null);
 
-  // Sync profile local state if initialProfile changes
   useEffect(() => {
-    setProfile(initialProfile);
-  }, [initialProfile]);
-
-  const isOwnProfile = authUser
-    ? authUser.id === profile.id
-    : (profile.username === "ysocial_member" || profile.username === "ysocial_user");
-
-  // 1. Fetch user posts dynamically
-  const { data: postsData, isLoading: postsLoading } = useQuery({
-    queryKey: ["user-posts", profile.id],
-    queryFn: async () => {
-      // Query posts by user ID as structured in swagger /api/posts/user/{userId}
-      return apiClient.get(`/api/posts/user/${profile.id}`, {
-        params: { page: 1, pageSize: 15 },
+    let cancelled = false;
+    const signedIn = useAuthStore.getState().user;
+    // The signed-in user's own profile shares the ViewerSync promise, so a hard refresh never races it
+    const request =
+      signedIn && toMockSession(signedIn).username === wanted
+        ? ensureViewerUser(toViewerUserInput(signedIn), actorId)
+        : ensureUserByUsername(wanted, actorId);
+    request
+      .then((found) => {
+        if (!cancelled) setMissingKey(found ? null : lookupKey);
+      })
+      .catch(() => {
+        if (!cancelled) setMissingKey(lookupKey);
       });
-    },
-    enabled: !!profile.id,
-  });
+    return () => {
+      cancelled = true;
+    };
+  }, [wanted, actorId, lookupKey, viewerId, sessionUsername]);
 
-  // 2. Fetch saved items dynamically (visible for self only)
-  const { data: savedData, isLoading: savedLoading } = useQuery({
-    queryKey: ["user-saved", profile.id],
-    queryFn: async () => {
-      // Query saved posts as structured in swagger /api/saveditems/posts
-      return apiClient.get("/api/saveditems/posts");
-    },
-    enabled: isOwnProfile && activeTab === "saved",
-  });
+  if (user) return <ProfileView user={user} isOwn={viewerId !== null && viewerId === user.id} actorId={actorId} />;
 
-  const handleProfileUpdate = (updatedProfile: UserProfile) => {
-    setProfile(updatedProfile);
-  };
-
-  const handleFollowToggle = async () => {
-    const isCurrentlyFollowing = profile.isFollowing;
-    const nextState = !isCurrentlyFollowing;
-
-    // Optimistic UI update
-    setProfile((prev) => ({
-      ...prev,
-      isFollowing: nextState,
-      followersCount: prev.followersCount + (nextState ? 1 : -1),
-    }));
-
-    try {
-      if (nextState) {
-        // call follow POST endpoint as structured in swagger /api/users/{targetId}/relations/follow
-        await apiClient.post(`/api/users/${profile.id}/relations/follow`);
-        toast.success(`Following @${profile.username}`);
-      } else {
-        // call follow DELETE endpoint as structured in swagger /api/users/{targetId}/relations/follow
-        await apiClient.delete(`/api/users/${profile.id}/relations/follow`);
-        toast.info(`Unfollowed @${profile.username}`);
-      }
-    } catch (err: any) {
-      // Rollback optimistic state on failure
-      setProfile((prev) => ({
-        ...prev,
-        isFollowing: isCurrentlyFollowing,
-        followersCount: prev.followersCount + (isCurrentlyFollowing ? 1 : -1),
-      }));
-      toast.error(err?.detail || err?.title || "Không thể thực hiện tác vụ. Vui lòng thử lại!");
-    }
-  };
-
-  const handleOpenFollowers = (tab: "followers" | "following") => {
-    setFollowersTab(tab);
-    setFollowersOpen(true);
-  };
-
-  // Determine which loading skeleton and feed list to show
-  const isLoading = activeTab === "posts" ? postsLoading : activeTab === "saved" ? savedLoading : false;
-  
-  // Extract list arrays safely
-  const rawPostsList = activeTab === "posts" ? postsData : activeTab === "saved" ? savedData : [];
-  let postsList = Array.isArray(rawPostsList) ? rawPostsList : (rawPostsList?.items || []);
-
-  // 3. Dynamic Development mock posts generator
-  if (process.env.NODE_ENV === "development" && postsList.length === 0) {
-    const isMe = profile.username === "ysocial_member" || profile.username === "ysocial_user";
-    postsList = [
-      {
-        id: `post-${profile.id}-1`,
-        content: isMe 
-          ? "🎯 Vừa hoàn thành cấu trúc Dynamic User Profile cho YSocial! Mọi người thấy giao diện mới này thế nào? Đã tách biệt SSR/CSR, bảo mật chống XSS cho Bio parser và đặc biệt là chống Cumulative Layout Shift (CLS) tuyệt đối bằng bounding boxes skeletons. Hàng hiệu luôn nhé! 🔥"
-          : profile.username === "anquoc.dev"
-          ? "💻 Sáng nay cà phê và tối ưu lại toàn bộ Right Sidebar cho YSocial Front-end Client. Việc cô lập state tìm kiếm giúp giảm hơn 80% số lần re-render không cần thiết. Coding is art!"
-          : "🌸 Hôm nay trời đẹp quá, dạo một vòng hồ Tây chụp vài tấm ảnh lung linh. YSocial giao diện Zinc Minimalist nhìn nghiện thật sự!",
-        imageUrls: profile.username === "hamy_cute" 
-          ? ["https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&q=80"]
-          : undefined,
-        createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 minutes ago
-        likesCount: profile.username === "anquoc.dev" ? 42 : 12,
-        commentsCount: profile.username === "anquoc.dev" ? 8 : 2,
-        isLikedByCurrentUser: true,
-        isBookmarkedByCurrentUser: false,
-        user: {
-          id: profile.id,
-          displayName: profile.displayName,
-          username: profile.username,
-          avatarUrl: profile.avatarUrl,
-          isVerified: profile.isVerified,
+  if (missingKey === lookupKey) {
+    return (
+      <EmptyState
+        icon={RefreshCw}
+        title={t("profile.desyncTitle")}
+        action={
+          <Button type="button" onClick={() => router.refresh()} className="min-h-11 rounded-full px-5">
+            {t("profile.desyncAction")}
+          </Button>
         }
-      },
-      {
-        id: `post-${profile.id}-2`,
-        content: isMe
-          ? "Bảo mật luôn là ưu tiên hàng đầu! Vừa viết xong regex băm URL trong Bio, chỉ cho phép giao thức http và https hoạt động để chặn đứng các cuộc tấn công XSS thông qua script injection javascript: hoặc data: 🛡️"
-          : profile.username === "anquoc.dev"
-          ? "☕️ Coffee time & Code review. Một ngày làm việc hiệu suất cùng đội ngũ YSocial."
-          : "Hôm nay đọc được một cuốn sách rất hay về thiết kế tối giản (Minimalist Design). Càng lược bỏ những chi tiết thừa, sản phẩm càng trở nên sang trọng và tinh tế.",
-        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
-        likesCount: profile.username === "anquoc.dev" ? 88 : 24,
-        commentsCount: profile.username === "anquoc.dev" ? 15 : 4,
-        isLikedByCurrentUser: false,
-        isBookmarkedByCurrentUser: true,
-        user: {
-          id: profile.id,
-          displayName: profile.displayName,
-          username: profile.username,
-          avatarUrl: profile.avatarUrl,
-          isVerified: profile.isVerified,
-        }
-      }
-    ];
+      />
+    );
   }
+  return <ProfileSkeleton />;
+}
+
+interface ProfileViewProps {
+  user: UserProfile;
+  isOwn: boolean;
+  actorId: string;
+}
+
+function ProfileView({ user, isOwn, actorId }: ProfileViewProps) {
+  const { t } = useTranslation();
+  const { openComposer } = useUIActions();
+  const [shareOpen, setShareOpen] = useState(false);
+  const controller = useProfileTabPostsController(user.id, actorId);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("threads");
+  const [followList, setFollowList] = useState<{ open: boolean; kind: FollowListKind }>({ open: false, kind: "followers" });
+
+  // Saved belongs to the signed-in owner: losing ownership (logout) must not leave it selected
+  const tab: ProfileTab = activeTab === "saved" && !isOwn ? "threads" : activeTab;
+
+  const handleShare = (action: "copy" | "qr") => {
+    if (action === "qr") {
+      setShareOpen(true);
+      return;
+    }
+    void copyProfileLink(user.username).then((ok) => (ok ? toast.success(t("share.copied")) : toast.error(t("share.copyFailed"))));
+  };
 
   return (
-    <div className="flex flex-col w-full min-h-screen">
-      {/* Profile Header Block */}
-      <ProfileHeader
-        profile={profile}
-        isOwnProfile={isOwnProfile}
-        onUpdate={handleProfileUpdate}
-        onFollowToggle={handleFollowToggle}
-        onOpenFollowers={handleOpenFollowers}
-      />
-
-      {/* Sticky Navigation Tabs */}
-      <ProfileTabs
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        showSavedTab={isOwnProfile}
-      />
-
-      {/* Feeds Rendering Area */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-black">
-        <SafeHydration fallback={<PostSkeletonList count={3} />}>
-          {isLoading ? (
-            <PostSkeletonList count={3} />
-          ) : activeTab === "replies" ? (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-400 dark:text-zinc-600 px-4">
-              <span className="text-sm font-semibold tracking-tight">Chưa có câu trả lời nào</span>
-            </div>
-          ) : postsList.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-zinc-400 dark:text-zinc-600 px-4">
-              <span className="text-sm font-semibold tracking-tight">
-                {activeTab === "saved" ? "Chưa lưu bài viết nào" : "Chưa đăng bài viết nào"}
-              </span>
-            </div>
-          ) : (
-            <div className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-900/60">
-              {postsList.map((post: any) => (
-                <PostCard 
-                  key={post.id} 
-                  post={post}
-                />
-              ))}
-            </div>
-          )}
-        </SafeHydration>
+    <ProfileTabPostsProvider value={controller}>
+      <div className="flex min-h-screen w-full flex-col">
+        <ProfileHeader
+          user={user}
+          isOwn={isOwn}
+          onOpenFollowers={(kind) => setFollowList({ open: true, kind })}
+          onShare={handleShare}
+        />
+        <ProfileTabs active={tab} onChange={setActiveTab} showSaved={isOwn} />
+        <div className="flex flex-1 flex-col bg-white dark:bg-black">
+          <ProfileTabPanel tab={tab} userId={user.id} username={user.username} isOwn={isOwn} onCreatePost={openComposer} />
+        </div>
+        <FollowersDialog
+          open={followList.open}
+          onOpenChange={(open) => setFollowList((current) => ({ ...current, open }))}
+          userId={user.id}
+          initialKind={followList.kind}
+          username={user.username}
+        />
+        <ShareProfileDialog open={shareOpen} onOpenChange={setShareOpen} user={user} />
       </div>
-
-      {/* Followers Dialog */}
-      <FollowersDialog
-        open={followersOpen}
-        onOpenChange={setFollowersOpen}
-        userId={profile.id}
-        initialTab={followersTab}
-        username={profile.username}
-      />
-    </div>
+    </ProfileTabPostsProvider>
   );
 }

@@ -24,14 +24,14 @@ updated: 2026-10-06
 | `/search`, `/tags/[tag]` | `search` - explore landing, 4 result tabs, combobox suggestions, recent searches, tag page | Done |
 | dialog/inline | `posts` - `PostCreatorCore/Dialog/Feed`, `post-draft-store` (localStorage), audience picker, discard dialog | Done |
 | `/login`, `/register` | `auth` - multi-step login, forgot/reset OTP, `auth-store` | Done |
-| `/@username` | `profile` - header, tabs, edit dialog, followers dialog, bio parser | Warning: SSR `fetch` + `apiClient` to real BE -> **breaks without BE**; Replies tab = placeholder (F0.6) |
+| `/@username` | `profile` - header, 4 tabs, edit, followers dialog, share + QR, server-resolved route (see `features/profile.md`) | Done (2A) |
 | `/notifications` | `notifications` - like/follow/reply list, inline mock `INITIAL_NOTIFICATIONS` | Done (basic) |
 | `/saved` | `saved` - collections, manage mode, drag sort, bulk unsave; items = shared post mocks | Done |
 | Layout | `main-layout` (sidebar collapse, mobile bottom nav, dropdown), right sidebar (`SearchBox`, live trending, follow suggestions via `user-store`) | Done |
 
 **Technical gaps found:**
 1. [x] Nav `/search` 404, Comment button without handler, no `/posts/[id]` -> fixed by 1.1 & 1.2
-2. [-] Like/bookmark/follow out of sync -> feed/detail/search/tag/saved share `post-store`/`user-store`; `PostCard` Follow bound to viewer-scoped `user-store` (1.6 done); **profile still on real BE** (F0.6)
+2. [x] Like/bookmark/follow out of sync -> feed/detail/search/tag/saved share `post-store`/`user-store`; `PostCard` Follow bound to viewer-scoped `user-store` (1.6 done); profile on mocks (F0.6 done)
 3. [-] Route shells -> done `/posts/[id]`, `/search`, `/tags/[tag]`; missing global `not-found`, `/`, `/notifications`, `/saved`, `/@username` (F0.4)
 4. [x] Need test runner -> Vitest + RTL + jsdom, `test` & `typecheck` scripts (F0.1)
 5. [-] `t("..." as any)` -> `post-card.tsx` cleaned & `saved` domain added to `TranslationKey`; still 21 in `saved-list.tsx`, plus `notification-list.tsx`, `saved-command-bar.tsx` (7.6)
@@ -45,9 +45,9 @@ updated: 2026-10-06
 - [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, scripts `test` & `typecheck` (devDependencies install needs approval)
 - [-] **F0.2 Mock data layer:** *(posts + users + `src/mocks/` seed authors & follow graph done - notifications/saved collections/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
 - [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` -> like/bookmark/reply synced everywhere, O(1) toggle, no list re-render
-- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, `/search`, `/tags/[tag]`; global not-found, `/`, `/notifications`, `/saved`, `/@username` pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
+- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, `/search`, `/tags/[tag]`, `/@username` (no `loading.tsx`: it blocks the real 404); global not-found, `/`, `/notifications`, `/saved` pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
 - [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): Lucide icon + Gen Z message + CTA - standard for all lists
-- [ ] **F0.6 Profile on mocks** (drop real-BE SSR fetch, keep `generateMetadata`) *(deferred, do with Phase 2)*
+- [x] **F0.6 Profile on mocks** (drop real-BE SSR fetch, keep `generateMetadata`)
 
 ### Phase 1 - Core content loop (P0)
 > Closed 2026-10-06, incl. final-review follow-ups (see `features/feed-post-interaction.md` I8-I15). Next: Phase 2 (with F0.6)
@@ -59,12 +59,16 @@ updated: 2026-10-06
 - [x] **1.6 User hover card** (Radix HoverCard): avatar, bio, follower count, Follow button - on name/avatar in `PostCard`
 
 ### Phase 2 - Profile & Social graph (P1)
-- [ ] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Reposts / Saved (self)
-- [ ] **2.2 Followers / Following pages** `/@username/followers|following` (replace/alongside dialog), search within list
+> Split:
+> - **2A Profile Core (DONE 2026-10-08):** F0.6 + 2.1 + 2.2 + 2.6 - unblocks rest; Reposts tab moved to 6.1; QR via `qrcode.react`
+> - **2B Relationship Controls:** 2.3 + 2.4 + 2.5 - shared relation model in `user-store`/`follow-graph` + content filtering in `post-store` selectors; build manager lists as reusable components, 4.1 mounts them in Settings
+> - **2C Profile Switcher:** 2.7 - touches `auth-store` & every viewer-scoped store; may run after Phase 4
+- [x] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Saved (self); Reposts -> 6.1
+- [x] **2.2 Followers / Following** dialog with search & paging *(routes `/@username/followers|following` dropped, spec D1)*
 - [ ] **2.3 Private account & Follow requests:** Pending state (match BE spec), request approval screen
 - [ ] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
 - [ ] **2.5 Block / Mute / Restrict:** from `PostCard` menu (currently toast only) -> actually hide content in store, management list in Settings
-- [ ] **2.6 Share profile:** copy link + QR code dialog
+- [x] **2.6 Share profile:** copy link + QR code dialog
 - [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown
 
 ### Phase 3 - Notifications & Activity (P1)
@@ -85,7 +89,7 @@ updated: 2026-10-06
 - [ ] **5.4 Share post via DM** from `PostCard` Share button
 
 ### Phase 6 - Advanced engagement (P2)
-- [ ] **6.1 Repost & Quote post** (quote embed card)
+- [ ] **6.1 Repost & Quote post** (quote embed card) + profile Reposts tab (moved from 2.1)
 - [ ] **6.2 Polls** in composer + vote UI (% results, expiry)
 - [ ] **6.3 Advanced composer:** `@mention` & `#hashtag` autocomplete, circular char counter, multi-post thread ("Add to thread"), link preview card
 - [ ] **6.4 Drafts page** `/drafts` (store exists) - edit/delete/repost
@@ -100,7 +104,7 @@ updated: 2026-10-06
 - [ ] **7.4 Micro-animations:** like "pop & sparkle", share -> ✓, `prefers-reduced-motion`
 - [ ] **7.5 A11y pass:** focus ring, icon button `aria-label`, touch target >= 44px, contrast 4.5:1 in both themes
 - [ ] **7.6 i18n cleanup:** typed keys, remove all `as any`, full vi/en for every new feature
-- [-] **7.7 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`; `/@username` metadata exists but page depends on BE)*
+- [-] **7.7 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`, `/@username`)*
 
 **Out of scope:** real API/SignalR, Communities/Lists, Analytics, Scheduled posts, PWA
 

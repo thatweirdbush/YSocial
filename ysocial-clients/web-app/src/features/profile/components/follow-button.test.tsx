@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
@@ -6,7 +6,7 @@ import * as service from "../services/user-service";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import { FollowButton } from "./follow-button";
 
-const toast = vi.hoisted(() => ({ success: vi.fn(), info: vi.fn() }));
+const toast = vi.hoisted(() => ({ success: vi.fn(), info: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
 beforeEach(() => {
@@ -57,6 +57,16 @@ describe("FollowButton", () => {
     expect(placeholder).toHaveAttribute("aria-hidden", "true");
     expect(placeholder).toHaveClass("invisible");
     expect(screen.queryByRole("button")).toBeNull();
+  });
+
+  it("reverts and shows the translated error toast when the write fails", async () => {
+    vi.spyOn(service, "setFollow").mockRejectedValue(new Error("boom"));
+    render(<FollowButton userId="u1" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Theo dõi" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Không thể cập nhật theo dõi, thử lại nhé"));
+    expect(useUserStore.getState().follows.v1.ids.u1).toBeUndefined();
   });
 
   it("shows translated toasts", async () => {

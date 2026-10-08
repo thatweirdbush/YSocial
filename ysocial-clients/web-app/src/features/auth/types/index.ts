@@ -1,5 +1,8 @@
 import type { components } from "@/lib/api/generated";
 import { z } from "zod";
+import { SEED_AUTHORS, SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
+import { SEED_FANS } from "@/mocks/seed-fans";
+import { USERNAME_PATTERN } from "../utils/mock-session";
 
 // #region Backend DTOs
 type Schemas = components["schemas"];
@@ -21,9 +24,18 @@ export interface AuthUser {
   bio?: string;
   username?: string;
 }
+
+/** Identity mirrored into the mock session cookie (no mutable profile data). */
+export interface MockSessionIdentity {
+  id: string;
+  username: string;
+}
 // #endregion
 
 // #region Form schemas & values
+/** Seed usernames a new mock account must not take (the server resolves them to the seed user first). */
+const RESERVED_USERNAMES = new Set([...SEED_AUTHORS, SEED_DEMO_ACCOUNT, ...SEED_FANS].map((author) => author.username));
+
 export const getIdentitySchema = (t: (key: any) => string) =>
   z.object({
     identity: z
@@ -76,7 +88,10 @@ export const getRegisterSchema = (t: (key: any) => string) =>
       username: z
         .string()
         .min(1, { message: t("auth.errorUsernameRequired") })
-        .min(3, { message: t("auth.errorUsernameLength") }),
+        .min(3, { message: t("auth.errorUsernameLength") })
+        // Must survive the mock session cookie (`parseMockSession`), else the own profile 404s
+        .regex(USERNAME_PATTERN, { message: t("auth.errorUsernamePattern") })
+        .refine((value) => !RESERVED_USERNAMES.has(value), { message: t("auth.errorUsernameTaken") }),
       password: z
         .string()
         .min(1, { message: t("auth.errorPasswordRequired") })

@@ -15,5 +15,28 @@ export const SEED_AUTHORS: PostAuthor[] = [
   { id: "author-08", displayName: "Đặng Bảo Ngọc", username: "baongoc.writes", avatarUrl: avatar("photo-1534528741775-53994a69daeb") },
 ];
 
+/** Mock-login account (spec D10). A real mock user, but NOT part of `SEED_AUTHORS` so author pools & index-based mock posts stay unchanged. */
+export const SEED_DEMO_ACCOUNT: PostAuthor = {
+  id: "1",
+  displayName: "YSocial Member",
+  username: "ysocial_member",
+  isVerified: true,
+  avatarUrl: avatar("photo-1527980965255-d3b416303d12"),
+};
+
 /** Authors every viewer follows initially (seed of the viewer-scoped follow graph). */
 export const SEED_FOLLOWED_AUTHOR_IDS: readonly string[] = ["author-02", "author-03", "author-06"];
+
+/** Who each seed user follows (base users follow each other; demo & legacy guest actor follow the viewer default). */
+export const SEED_FOLLOWING: Readonly<Record<string, readonly string[]>> = {
+  "author-01": ["author-02", "author-03", "author-06"],
+  "author-02": ["author-01", "author-04"],
+  "author-03": ["author-01", "author-02", "author-05"],
+  "author-04": ["author-02", "author-06"],
+  "author-05": ["author-01", "author-03"],
+  "author-06": ["author-01", "author-08"],
+  "author-07": ["author-01", "author-02", "author-03"],
+  "author-08": ["author-04", "author-06"],
+  "1": SEED_FOLLOWED_AUTHOR_IDS,
+  me: SEED_FOLLOWED_AUTHOR_IDS,
+};

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import { fetchSuggestedUsers, FollowButton, useUser, useUserActions } from "@/features/profile";
 import { useCachedResource } from "@/hooks/use-cached-resource";
 import { useTranslation } from "@/hooks/use-translation";
@@ -49,12 +49,12 @@ function FollowSuggestionSkeleton() {
 
 export function FollowSuggestions() {
   const { t } = useTranslation();
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const { upsertUsers } = useUserActions();
   // Ids are kept after following, so the list does not reshuffle under the cursor; cached per viewer
-  const { data: ids, failed } = useCachedResource(`suggested-users:3:${viewerId}`, async () => {
-    const users = await fetchSuggestedUsers(SUGGESTION_COUNT, viewerId);
-    upsertUsers(users, viewerId);
+  const { data: ids, failed } = useCachedResource(`suggested-users:3:${actorId}`, async () => {
+    const users = await fetchSuggestedUsers(SUGGESTION_COUNT, actorId);
+    upsertUsers(users, actorId);
     return users.map((user) => user.id);
   });
 

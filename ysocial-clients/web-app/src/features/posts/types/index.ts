@@ -91,6 +91,29 @@ export interface FeedPage {
   nextPage?: number;
 }
 
+/** Profile post tabs backed by `fetchUserPosts`; Saved is viewer-owned (`fetchSavedPosts`). */
+export type UserPostsTab = "threads" | "replies" | "media";
+
+/** Parent of a reply, kept even when the parent was tombstoned (a deletion marker, never a renderable post). */
+export interface ParentReference {
+  id: string;
+  /** Present only when the parent is still available. */
+  author?: PostAuthor;
+  deleted: boolean;
+}
+
+export interface UserPostsPage {
+  posts: PostItem[];
+  /** Replies tab only. */
+  parents: ParentReference[];
+  nextPage?: number;
+}
+
+export interface SavedPostsPage {
+  posts: PostItem[];
+  nextPage?: number;
+}
+
 export interface PostThread {
   post: PostItem;
   parent?: PostItem;

@@ -33,12 +33,12 @@ async function matchingTags(query: string, limit: number) {
   return tags.filter((stat) => normalizeText(stat.tag).includes(bare)).slice(0, limit);
 }
 
-export async function fetchSearch(query: string, viewerId: string): Promise<SearchResponse> {
+export async function fetchSearch(query: string, actorId: string): Promise<SearchResponse> {
   if (!bareQuery(query)) return EMPTY_RESPONSE;
 
   // Each tab's order comes from the service (real API: a sort param), never re-sorted on the client
   const [users, posts, latestPosts, tags] = await Promise.all([
-    searchUsers(query, viewerId),
+    searchUsers(query, actorId),
     searchPosts(query, SEARCH_LIMIT, "relevance"),
     searchPosts(query, SEARCH_LIMIT, "latest"),
     matchingTags(query, SEARCH_LIMIT),
@@ -46,11 +46,11 @@ export async function fetchSearch(query: string, viewerId: string): Promise<Sear
   return { users, posts, latestPosts, tags };
 }
 
-export async function fetchSuggestions(query: string, viewerId: string): Promise<SearchSuggestions> {
+export async function fetchSuggestions(query: string, actorId: string): Promise<SearchSuggestions> {
   if (!bareQuery(query)) return { users: [], tags: [] };
 
   const [users, tags] = await Promise.all([
-    searchUsers(query, viewerId, SUGGESTION_LIMIT),
+    searchUsers(query, actorId, SUGGESTION_LIMIT),
     matchingTags(query, SUGGESTION_LIMIT),
   ]);
   return { users, tags };

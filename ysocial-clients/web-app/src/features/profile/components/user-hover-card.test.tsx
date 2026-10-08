@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Link from "next/link";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GUEST_VIEWER_ID, useAuthStore } from "@/features/auth/store/auth-store";
+import { GUEST_ACTOR_ID, useAuthStore } from "@/features/auth/store/auth-store";
 import { PostCard } from "@/features/posts";
 import type { PostItem } from "@/features/posts/types";
 import * as service from "../services/user-service";
@@ -102,7 +102,7 @@ describe("UserHoverCard", () => {
     useAuthStore.setState({ user: null });
     const spy = vi.spyOn(service, "fetchUser");
     render(
-      <UserHoverCard userId={GUEST_VIEWER_ID}>
+      <UserHoverCard userId={GUEST_ACTOR_ID}>
         <Link href="/@me_ysocial">Me</Link>
       </UserHoverCard>,
     );
