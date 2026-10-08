@@ -133,7 +133,30 @@
     "mediaAlt": "Ảnh trong bài viết của @{username}",
     "mediaMulti": "Bài viết có nhiều ảnh",
     "tabError": "Không tải được nội dung",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "tabThreads": "Thread",
+    "tabReplies": "Trả lời",
+    "tabMedia": "File phương tiện",
+    "tabSaved": "Đã lưu",
+    "followersCount": "{n} người theo dõi",
+    "followingCount": "{n} đang theo dõi",
+    "editProfile": "Chỉnh sửa trang cá nhân",
+    "editSave": "Lưu",
+    "editSaving": "Đang lưu...",
+    "editCancel": "Hủy",
+    "editDisplayName": "Tên hiển thị",
+    "editBio": "Tiểu sử",
+    "editBioPlaceholder": "Viết đôi điều về bản thân bạn...",
+    "editAvatarUrl": "Ảnh đại diện (URL)",
+    "errorDisplayNameMin": "Tên hiển thị phải từ {n} ký tự",
+    "errorDisplayNameMax": "Tên hiển thị tối đa {n} ký tự",
+    "errorBioMax": "Tiểu sử tối đa {n} ký tự",
+    "errorAvatarUrl": "Đường dẫn ảnh không hợp lệ",
+    "editSuccess": "Đã cập nhật trang cá nhân",
+    "editError": "Không lưu được, thử lại nhé",
+    "shareProfile": "Chia sẻ trang cá nhân",
+    "desyncTitle": "Phiên đăng nhập đã thay đổi",
+    "desyncAction": "Tải lại"
   },
   "notifications": {
     "title": "Thông báo",
@@ -296,5 +319,14 @@
     "following": "đang theo dõi",
     "loadError": "Không tải được hồ sơ",
     "retry": "Thử lại"
+  },
+  "share": {
+    "copyLink": "Sao chép liên kết",
+    "showQr": "Mã QR",
+    "copied": "Đã sao chép liên kết",
+    "copyFailed": "Không sao chép được, hãy copy thủ công",
+    "qrTitle": "Mã QR của @{username}",
+    "downloadPng": "Tải PNG",
+    "downloadFailed": "Không tải được ảnh QR"
   }
 }

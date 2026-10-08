@@ -1,122 +1,113 @@
 "use client";
 
-import React, { useState } from "react";
-import { BadgeCheck, MessageSquare } from "lucide-react";
+import { BadgeCheck, Link2, QrCode, Share2 } from "lucide-react";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/use-translation";
+import type { FollowListKind, UserProfile } from "../types";
 import { parseBio } from "../utils/bio-parser";
 import { EditProfileDialog } from "./edit-profile-dialog";
-import { UserProfile } from "../types";
+import { FollowButton } from "./follow-button";
 
 interface ProfileHeaderProps {
-  profile: UserProfile;
-  isOwnProfile: boolean;
-  onUpdate: (updatedProfile: UserProfile) => void;
-  onFollowToggle: () => void;
-  onOpenFollowers: (tab: "followers" | "following") => void;
+  user: UserProfile;
+  isOwn: boolean;
+  onOpenFollowers: (kind: FollowListKind) => void;
+  /** Share menu is rendered only when provided. */
+  onShare?: (action: "copy" | "qr") => void;
 }
 
-export function ProfileHeader({
-  profile,
-  isOwnProfile,
-  onUpdate,
-  onFollowToggle,
-  onOpenFollowers,
-}: ProfileHeaderProps) {
-  const { t } = useTranslation();
+export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare }: ProfileHeaderProps) {
+  const { t, locale } = useTranslation();
+  const [editOpen, setEditOpen] = useState(false);
+  const formatCount = (n: number) => new Intl.NumberFormat(locale).format(n);
 
   return (
-    <div className="flex flex-col gap-5 py-6 px-4 md:px-6">
-      {/* 1. Main visual block: Left details vs Right avatar (Threads Style) */}
+    <div className="flex flex-col gap-5 px-4 py-6 md:px-6">
+      {/* Identity (left) and avatar (right), Threads style */}
       <div className="flex items-start justify-between gap-6">
-        <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 truncate">
-              {profile.displayName}
-            </h1>
-            {profile.isVerified && (
-              <BadgeCheck className="h-5 w-5 text-blue-500 fill-blue-500 shrink-0" />
-            )}
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h1 className="truncate text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{user.displayName}</h1>
+            {user.isVerified && <BadgeCheck className="size-5 shrink-0 fill-blue-500 text-blue-500" aria-hidden="true" />}
           </div>
-          <span className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">
-            @{profile.username}
-          </span>
+          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">@{user.username}</span>
         </div>
 
-        {/* Large Avatar */}
-        <Avatar className="h-20 w-20 sm:h-24 sm:w-24 border-2 border-zinc-150 dark:border-zinc-850 shadow-sm shrink-0">
-          <AvatarImage src={profile.avatarUrl} />
-          <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xl font-bold">
-            {profile.displayName.charAt(0)}
-          </AvatarFallback>
+        <Avatar className="size-20 shrink-0 border-2 border-zinc-150 shadow-sm sm:size-24 dark:border-zinc-850">
+          <AvatarImage src={user.avatarUrl} alt={user.displayName} />
+          <AvatarFallback className="bg-zinc-200 text-xl font-bold dark:bg-zinc-800">{user.displayName.charAt(0)}</AvatarFallback>
         </Avatar>
       </div>
 
-      {/* 2. Secure URLparsed biography */}
-      {profile.bio && (
-        <p className="text-zinc-850 dark:text-zinc-200 text-sm leading-relaxed whitespace-pre-wrap">
-          {parseBio(profile.bio)}
-        </p>
+      {user.bio && (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-850 dark:text-zinc-200">{parseBio(user.bio)}</p>
       )}
 
-      {/* 3. Minimialist follow metrics counter */}
-      <div className="flex items-center gap-4 text-sm text-zinc-500 dark:text-zinc-450">
-        <span
+      <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+        <button
+          type="button"
           onClick={() => onOpenFollowers("followers")}
-          className="hover:underline hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
+          className="min-h-11 cursor-pointer rounded-md px-1 outline-none transition-colors hover:text-zinc-900 hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 motion-reduce:transition-none dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
         >
-          <strong className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {profile.followersCount}
-          </strong>{" "}
-          followers
+          {t("profile.followersCount", { n: formatCount(user.followersCount) })}
+        </button>
+        <span className="select-none text-zinc-300 dark:text-zinc-700" aria-hidden="true">
+          •
         </span>
-        <span className="text-zinc-300 dark:text-zinc-850 select-none">•</span>
-        <span
+        <button
+          type="button"
           onClick={() => onOpenFollowers("following")}
-          className="hover:underline hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer transition-colors"
+          className="min-h-11 cursor-pointer rounded-md px-1 outline-none transition-colors hover:text-zinc-900 hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 motion-reduce:transition-none dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
         >
-          <strong className="font-semibold text-zinc-900 dark:text-zinc-100">
-            {profile.followingCount}
-          </strong>{" "}
-          following
-        </span>
+          {t("profile.followingCount", { n: formatCount(user.followingCount) })}
+        </button>
       </div>
 
-      {/* 4. Contextual action CTA block */}
-      <div className="flex items-center gap-3 mt-1.5 shrink-0">
-        {isOwnProfile ? (
-          <EditProfileDialog profile={profile} onUpdate={onUpdate}>
-            <Button
-              variant="outline"
-              className="flex-1 sm:flex-initial rounded-2xl px-6 py-2.5 text-xs font-bold border-zinc-250 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors shadow-sm"
-            >
-              Chỉnh sửa trang cá nhân
-            </Button>
-          </EditProfileDialog>
+      <div className="flex shrink-0 items-center gap-3">
+        {isOwn ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setEditOpen(true)}
+            className="min-h-11 flex-1 rounded-full border-zinc-250 px-6 text-xs font-bold shadow-sm transition-colors hover:bg-zinc-100 sm:flex-initial dark:border-zinc-800 dark:hover:bg-zinc-900"
+          >
+            {t("profile.editProfile")}
+          </Button>
         ) : (
-          <>
-            <Button
-              onClick={onFollowToggle}
-              variant={profile.isFollowing ? "outline" : "default"}
-              className={`flex-1 sm:flex-initial text-xs font-bold tracking-tight transition-all duration-300 px-6 py-2.5 rounded-2xl border ${
-                profile.isFollowing
-                  ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450 hover:bg-zinc-200 dark:hover:bg-zinc-850 hover:text-zinc-700 dark:hover:text-zinc-350"
-                  : "bg-zinc-950 dark:bg-zinc-50 text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 shadow-md hover:shadow-lg"
-              }`}
-            >
-              {profile.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-2xl h-10 w-10 border-zinc-250 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 shrink-0 shadow-sm"
-            >
-              <MessageSquare className="h-4 w-4" />
-            </Button>
-          </>
+          <FollowButton userId={user.id} reserveSpace className="min-h-11 flex-1 px-6 text-xs sm:flex-initial" />
+        )}
+
+        {onShare && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={t("profile.shareProfile")}
+                className="size-11 shrink-0 rounded-full border-zinc-250 shadow-sm hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-900"
+              >
+                <Share2 className="size-4" aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 rounded-2xl p-2">
+              <DropdownMenuItem onSelect={() => onShare("copy")} className="min-h-11 cursor-pointer gap-2 rounded-xl">
+                <Link2 className="size-4 text-zinc-400" aria-hidden="true" />
+                {t("share.copyLink")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => onShare("qr")} className="min-h-11 cursor-pointer gap-2 rounded-xl">
+                <QrCode className="size-4 text-zinc-400" aria-hidden="true" />
+                {t("share.showQr")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
+
+      {isOwn && <EditProfileDialog open={editOpen} onOpenChange={setEditOpen} user={user} />}
     </div>
   );
 }

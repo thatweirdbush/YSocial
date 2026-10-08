@@ -133,7 +133,30 @@
     "mediaAlt": "Image from @{username}'s post",
     "mediaMulti": "Post with multiple images",
     "tabError": "Couldn't load this tab",
-    "retry": "Try again"
+    "retry": "Try again",
+    "tabThreads": "Threads",
+    "tabReplies": "Replies",
+    "tabMedia": "Media",
+    "tabSaved": "Saved",
+    "followersCount": "{n} followers",
+    "followingCount": "{n} following",
+    "editProfile": "Edit profile",
+    "editSave": "Save",
+    "editSaving": "Saving...",
+    "editCancel": "Cancel",
+    "editDisplayName": "Display name",
+    "editBio": "Bio",
+    "editBioPlaceholder": "Write a little about yourself...",
+    "editAvatarUrl": "Avatar URL",
+    "errorDisplayNameMin": "Display name needs at least {n} characters",
+    "errorDisplayNameMax": "Display name is at most {n} characters",
+    "errorBioMax": "Bio is at most {n} characters",
+    "errorAvatarUrl": "Invalid image URL",
+    "editSuccess": "Profile updated",
+    "editError": "Couldn't save, try again",
+    "shareProfile": "Share profile",
+    "desyncTitle": "Your session changed",
+    "desyncAction": "Reload"
   },
   "notifications": {
     "title": "Notifications",
@@ -296,5 +319,14 @@
     "following": "following",
     "loadError": "Couldn't load profile",
     "retry": "Retry"
+  },
+  "share": {
+    "copyLink": "Copy link",
+    "showQr": "QR code",
+    "copied": "Link copied",
+    "copyFailed": "Couldn't copy, copy it manually",
+    "qrTitle": "@{username}'s QR code",
+    "downloadPng": "Download PNG",
+    "downloadFailed": "Couldn't download the QR image"
   }
 }
