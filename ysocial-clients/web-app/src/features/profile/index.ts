@@ -1,6 +1,5 @@
 export { FollowButton } from "./components/follow-button";
 export { ProfileContainer } from "./components/profile-container";
-export { ProfileSkeleton } from "./components/profile-skeleton";
 export { ViewerSync } from "./components/viewer-sync";
 export { UserHoverCard } from "./components/user-hover-card";
 export { fetchFollowedIds, fetchSuggestedUsers, fetchUser, searchUsers, setFollow } from "./services/user-service";
