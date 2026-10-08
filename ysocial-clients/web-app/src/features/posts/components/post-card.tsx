@@ -13,7 +13,7 @@ import {
   Pin,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ensureUser, FollowButton, UserHoverCard } from "@/features/profile";
+import { ensureUser, FollowButton, useUser, UserHoverCard } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -71,6 +71,8 @@ function PostCardView({
 
   // Shared store copy wins so every card of this post stays in sync; fall back to the prop until cached.
   const live = usePost(post.id) ?? post;
+  // Author fields come from `user-store` so profile edits show everywhere; the post snapshot is the fallback
+  const author = useUser(post.user.id) ?? post.user;
   const isDeleted = useIsDeleted(post.id);
   const viewerId = useCurrentAuthor().id;
   const isOwner = owner !== undefined;
@@ -212,9 +214,9 @@ function PostCardView({
         <UserHoverCard userId={post.user.id}>
           <Link href={`/@${post.user.username}`}>
             <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
-              <AvatarImage src={post.user.avatarUrl} alt={post.user.displayName} />
+              <AvatarImage src={author.avatarUrl} alt={author.displayName} />
               <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                {post.user.displayName?.charAt(0).toUpperCase() || "U"}
+                {author.displayName?.charAt(0).toUpperCase() || "U"}
               </AvatarFallback>
             </Avatar>
           </Link>
@@ -239,13 +241,13 @@ function PostCardView({
             <UserHoverCard userId={post.user.id}>
               <Link href={`/@${post.user.username}`} className="flex items-center gap-1.5 min-w-0">
                 <span className="font-bold text-sm text-black dark:text-zinc-100 truncate hover:underline cursor-pointer">
-                  {post.user.displayName}
+                  {author.displayName}
                 </span>
-                {post.user.isVerified && (
+                {author.isVerified && (
                   <ShieldCheck className="size-4 text-blue-500 shrink-0 fill-blue-500/10" />
                 )}
                 <span className="text-zinc-400 dark:text-zinc-500 text-xs truncate">
-                  @{post.user.username}
+                  @{author.username}
                 </span>
               </Link>
             </UserHoverCard>

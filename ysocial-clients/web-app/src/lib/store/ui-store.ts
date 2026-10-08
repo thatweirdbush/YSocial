@@ -10,12 +10,16 @@ export const DEFAULT_LOCALE: LocaleType = "vi";
 interface UIState {
   locale: LocaleType;
   isCollapsed: boolean;
+  /** Global post composer dialog (rendered once by `MainLayout`). */
+  composerOpen: boolean;
   actions: {
     setLocale: (locale: LocaleType) => void;
     /** Applies the persisted / browser locale. Call once after mount on the client. */
     hydrateLocale: () => void;
     setIsCollapsed: (collapsed: boolean) => void;
     toggleSidebar: () => void;
+    openComposer: () => void;
+    setComposerOpen: (open: boolean) => void;
   };
 }
 
@@ -35,6 +39,7 @@ const resolveClientLocale = (): LocaleType => {
 export const useUIStore = create<UIState>((set) => ({
   locale: DEFAULT_LOCALE,
   isCollapsed: false,
+  composerOpen: false,
   actions: {
     setLocale: (locale) => {
       try {
@@ -47,12 +52,15 @@ export const useUIStore = create<UIState>((set) => ({
     hydrateLocale: () => set({ locale: resolveClientLocale() }),
     setIsCollapsed: (isCollapsed) => set({ isCollapsed }),
     toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
+    openComposer: () => set({ composerOpen: true }),
+    setComposerOpen: (composerOpen) => set({ composerOpen }),
   },
 }));
 
 // Selectors for clean and efficient re-rendering
 export const useLocale = () => useUIStore((state) => state.locale);
 export const useIsCollapsed = () => useUIStore((state) => state.isCollapsed);
+export const useComposerOpen = () => useUIStore((state) => state.composerOpen);
 export const useUIActions = () => useUIStore((state) => state.actions);
 export const useUIState = () => useUIStore((state) => ({
   locale: state.locale,
