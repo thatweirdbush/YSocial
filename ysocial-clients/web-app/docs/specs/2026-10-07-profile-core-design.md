@@ -1,7 +1,7 @@
 # Profile Core - Design Spec
 
 - **Date:** 2026-10-07
-- **Status:** approved; written spec rev 2 (review round 1 applied)
+- **Status:** implemented 2026-10-08 (as-built: `.context/features/profile.md`); deviation: NO `loading.tsx` on `/@username` (it streams the shell first, `notFound()` then answers HTTP 200); `not-found.tsx` is a client component using `useTranslation`
 - **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 2 sub-project **2A**: F0.6 (profile on mocks) + 2.1 (profile tabs) + 2.2 (followers/following) + 2.6 (share profile); also closes F0.4 for `/@username`, 7.7 for `/@username`, and the auth-store SSR hydration bug found during 2A
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks. After 2A, `features/profile` has ZERO `apiClient` imports. NO server-side fake DB (see D7 limitation).
 
@@ -155,7 +155,7 @@ Client  Providers
 
 - **`page.tsx`** (Server Component, thin; the ONLY Next request boundary): `await params`, `await cookies()`, `parseMockSession`, `resolveProfileRoute(username, session)` (`features/profile/utils/resolve-profile-route.ts`, pure: decode, strip leading `@`, lowercase compare) -> `{ kind: "seed"; user } | { kind: "session"; identity } | null`; `null` -> `notFound()`. Renders `<MainLayout><ProfileContainer key={username} username={username} /></MainLayout>`. NO `fetch`, NO `BASE_URL`, NO dev fallback branch.
 - **`generateMetadata`:** same resolution. Seed -> title `Name (@username) • YSocial`, description = bio or default, OG `type: "profile"`, image = avatar. Session (runtime) user -> title `@username • YSocial`, default description, no image (server has no profile data, D8). Not found -> not-found title. Strings via `translate(DEFAULT_LOCALE, ...)` (D20).
-- **`loading.tsx`:** `<ProfileSkeleton />` (header block + tabs bar + `PostSkeletonList count={3}` - existing import edge), dimensions match real header (anti-CLS).
+- **`loading.tsx`:** NOT shipped (it streams the shell first, so `notFound()` would answer HTTP 200). `<ProfileSkeleton />` serves the client hydration gate only.
 - **`not-found.tsx`:** `EmptyState` (`UserX`) "Người dùng không tồn tại" + CTA Home.
 - **`error.tsx`:** `EmptyState` + Retry (`reset()`).
 - **Desync edge:** server resolved a session user but the client cannot (cookie present, localStorage wiped) -> `hydrate()` clears the cookie; container shows an inline `EmptyState` + `router.refresh()` CTA, which then lands on the route 404. This inline state is client UI for this desync ONLY, NOT route-level not-found.
