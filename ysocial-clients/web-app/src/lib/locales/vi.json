@@ -120,7 +120,20 @@
     "emptyFollowing": "Chưa đang theo dõi ai",
     "unfollowConfirmTitle": "Bỏ theo dõi @{username}?",
     "unfollowConfirmCancel": "Hủy",
-    "unfollowConfirmAction": "Bỏ theo dõi"
+    "unfollowConfirmAction": "Bỏ theo dõi",
+    "emptyThreadsOwn": "Bạn chưa đăng thread nào",
+    "emptyThreadsOwnCta": "Đăng thread đầu tiên",
+    "emptyThreads": "@{username} chưa đăng thread nào",
+    "emptyReplies": "Chưa có câu trả lời nào",
+    "emptyMedia": "Chưa có ảnh nào",
+    "emptySaved": "Chưa lưu bài viết nào",
+    "emptySavedHint": "Bấm biểu tượng dấu trang để lưu bài viết",
+    "replyingTo": "Trả lời @{username}",
+    "parentDeleted": "Bài viết gốc đã bị xóa",
+    "mediaAlt": "Ảnh trong bài viết của @{username}",
+    "mediaMulti": "Bài viết có nhiều ảnh",
+    "tabError": "Không tải được nội dung",
+    "retry": "Thử lại"
   },
   "notifications": {
     "title": "Thông báo",

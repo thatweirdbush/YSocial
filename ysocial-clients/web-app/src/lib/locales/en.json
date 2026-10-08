@@ -120,7 +120,20 @@
     "emptyFollowing": "Not following anyone yet.",
     "unfollowConfirmTitle": "Unfollow @{username}?",
     "unfollowConfirmCancel": "Cancel",
-    "unfollowConfirmAction": "Unfollow"
+    "unfollowConfirmAction": "Unfollow",
+    "emptyThreadsOwn": "You haven't posted yet",
+    "emptyThreadsOwnCta": "Post your first thread",
+    "emptyThreads": "@{username} hasn't posted yet",
+    "emptyReplies": "No replies yet",
+    "emptyMedia": "No media yet",
+    "emptySaved": "Nothing saved yet",
+    "emptySavedHint": "Tap the bookmark icon to save posts",
+    "replyingTo": "Replying to @{username}",
+    "parentDeleted": "The original post was deleted",
+    "mediaAlt": "Image from @{username}'s post",
+    "mediaMulti": "Post with multiple images",
+    "tabError": "Couldn't load this tab",
+    "retry": "Try again"
   },
   "notifications": {
     "title": "Notifications",
