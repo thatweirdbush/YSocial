@@ -1,3 +1,4 @@
+import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
 import { getFollowedAuthorIds } from "@/mocks/follow-graph";
 import { SEED_AUTHORS } from "@/mocks/seed-authors";
@@ -23,13 +24,7 @@ export const NEW_POST_JITTER_MS = 10_000;
 /** Dev-only: probability (0–1) that a call rejects, to exercise error UI by hand. */
 const MOCK_FAILURE_RATE = 0;
 
-/** Rejection for an owner-only mutation attempted by someone else (backend 403). */
-export class ForbiddenError extends Error {
-  constructor(message = "Forbidden") {
-    super(message);
-    this.name = "ForbiddenError";
-  }
-}
+export { ForbiddenError };
 
 type NewPostListener = (post: PostItem) => void;
 
