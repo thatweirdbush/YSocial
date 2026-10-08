@@ -1,18 +1,30 @@
 ---
 module: Frontend Configuration & Coding Rules
-stack: Next.js 15 App Router / React / Tailwind / TanStack Query / Zustand
-updated: 2026-10-02
+stack: Next.js 16 App Router / React 19 / Tailwind 4 / TanStack Query / Zustand
+updated: 2026-10-08
 ---
 
 # FRONTEND CODING STANDARDS
 
-## Frontend "Web Wizard & Designer" Pack (`./.context/.awesome-skills/`)
-- `frontend-design`: **[ESSENTIAL]** agent acts as designer-engineer. Forces clear, high-craft, non-generic aesthetic stance (Luxury Minimal); NO default "AI UI" templates
-- `nextjs-best-practices` & `tailwind-patterns`: Next.js 15+ App Router patterns (Server vs Client Components separation)
-- `react-best-practices` & `react-patterns`: optimize state lifecycle, prevent unnecessary re-renders, modular custom hooks
-- `seo-audit`: metadata, OpenGraph & semantic HTML for public routes
-- `ui-ux-pro-max`: **[CRITICAL]** minimalist design language (Threads/X-inspired, Zinc tone, subtle borders, high-end negative space)
-- `scroll-experience`: CLS prevention, Skeleton shimmers
+## Design Language (project-owned, fixed)
+- **Direction:** Luxury Minimal, Threads/X-inspired. Direction is decided: skills MUST NOT re-pick tone/style
+- **Palette:** Zinc neutrals, 1 accent, tokens via CSS variables ONLY, light & dark parity
+- **Surfaces:** subtle borders over shadows, high-end negative space, NO decorative gradients/grain/glass
+- **Motion:** sparse & purposeful; hover MUST NOT shift layout (NO `hover:scale-*`)
+- **Icons & primitives:** see Forbidden Patterns
+
+## Skills (symlink `./.context/.awesome-skills/`)
+- `frontend-design`: **[ESSENTIAL]** designer-engineer stance, NO default "AI UI" templates. Aesthetic comes from Design Language above
+  - **Small task** (bug fix, tweak, single component): SKIP tone selection, DFII scoring & 4-part output. KEEP Verification only: primary action, widths, keyboard/focus, contrast, loading/error states, remaining gaps
+  - **Full flow** ONLY for new page or major visual refresh
+  - IGNORE: break-the-grid/asymmetry, noise/gradient mesh, Framer Motion
+- `tailwind-patterns`: Tailwind v4 CSS-first (`@theme`, design tokens, container queries). IGNORE: Inter/Outfit fonts, Bento/asymmetric layouts, `hover:scale-*`, `animate-bounce`/`animate-ping`
+- `react-best-practices`: **[ON-DEMAND]** read `SKILL.md` only, open `rules/<name>.md` when task matches (`bundle-barrel-imports`, `rerender-*`, `rendering-hydration-no-flicker`). NEVER load `AGENTS.md` except full perf audit. IGNORE `client-swr-dedup`
+- `ui-ux-pro-max`: **[ON-DEMAND]** lookup & pre-delivery review, NOT design source. Run from repo root: `python .context/.awesome-skills/ui-ux-pro-max/scripts/search.py "<query>" <flag>`
+  - **ALLOWED:** `--domain web` (a11y, focus, forms), `--domain ux "<topic>"`, `--stack shadcn "<component>"`
+  - **NEVER:** `--design-system`, `--domain style|color|typography|landing|product|chart`, `--stack nextjs|react`, `ui-reasoning.csv`
+  - **shadcn rows:** verify vs `src/components/ui` (`shadcn` v4). Skip Form/Select/Command/Table/Accordion/Chart/Blocks (components absent)
+  - **Overrides:** submit buttons & list virtualization, see Micro-UX
 
 ## Strict Coding Conventions
 
@@ -23,7 +35,7 @@ updated: 2026-10-02
 | Components | `PascalCase` | `PostCard` |
 | Variables & functions | `camelCase` | `isLiked` |
 
-### 2. UI & Feature Architecture (Next.js 15 Feature-Driven)
+### 2. UI & Feature Architecture (Next.js 16 Feature-Driven)
 - `src/app/`: file-based routes ONLY. Pages MUST be ultra-thin wrappers importing containers from `features/`. Page metadata/SEO config MUST be declared directly in `page.tsx`
 - `src/components/ui/`: flat, read-only Shadcn UI primitives. NO nested folders
 - `src/components/layout/`: global app shell wrappers (`MainLayout.tsx`)
@@ -98,10 +110,19 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 
 ### 5. Micro-UX
 - **Rendering:** Hybrid architecture. Strict SSR/SSG with proper OpenGraph metadata for public routes (e.g. `app/[@username]/page.tsx`). Dashboards & private feeds MUST use CSR
+- **SEO:**
+  - Metadata declared per public route in `page.tsx`: unique `title` & `description`, OpenGraph, canonical. `generateMetadata` for dynamic routes
+  - Private routes (`login`, `register`, `notifications`, `saved`, settings): `robots: { index: false }`
+  - Unknown resource: real 404 via `notFound()`, NEVER soft 404. NO `loading.tsx` on routes that resolve 404 (streaming commits 200 first), see `features/profile.md`
+  - 1 `h1` per page, ordered `h2`/`h3`; meaningful `alt`; `next/image` for content images
+  - `robots.ts` & `sitemap.ts`: add when real BE exists, canonical indexable URLs ONLY
+- **Motion:** animate `transform`/`opacity` ONLY. MUST respect `prefers-reduced-motion`. NEVER bind raw `scroll` listeners (use `IntersectionObserver` / rAF)
 - **CLS prevention:** Skeletons MUST match target Post card dimensions. Shimmer effects; NO raw circular loading spinners on content feeds
 - **Micro-animations:** Like button "pop & sparkle"; Share icon rotates to checkmark
 - **Empty states:** Vector illustration + Gen Z status message + contextual CTA
 - **Scroll performance:** perfect Scroll Restoration MUST be active on Feed navigation. Back from post detail view MUST retain exact previous scroll container position
+  - **Virtualization:** NEVER on feeds (breaks exact scroll restoration). Overrides `ui-ux-pro-max` `web-interface #16`
+- **Submit buttons:** keep ENABLED, show inline spinner during request, ignore re-submit while pending. Overrides "disable during async" in `ui-ux-pro-max`
 - **Offline resiliency:** Clean global offline banner alert. Config TanStack Query to auto retry failed requests once internet restored
 
 ## Prefered Patterns
@@ -112,3 +133,4 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 - NO inline CSS
 - NO unapproved animation/icon libraries; ONLY Lucide & Radix Primitives (Vega Preset)
 - NEVER update code outside `ysocial-clients/web-app/`
+- NEVER `dangerouslySetInnerHTML` for user content (posts, bio, comments); linkify via React nodes

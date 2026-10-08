@@ -6,31 +6,32 @@ updated: 2026-10-02
 # GLOBAL AGENTIC RULES & WORKFLOWS
 
 ## 1. Environment & Paths
-- Awesome Skills: `./.context/.awesome-skills/`
-- Superpowers Skills: `./.context/.superpowers-skills/`
-- BE API origin: `https://localhost:49895`
-- FE dev origin: `http://localhost:3000`
+- Skills (symlink):
+   - Awesome: `./.context/.awesome-skills/`
+   - Superpowers: `./.context/.superpowers-skills/`
+- Origin:
+   - BE API: `https://localhost:49895`
+   - FE dev: `http://localhost:3000`
 
-## 2. Superpowers Workflow Profiles - Mandatory (`./.context/.superpowers-skills/`)
+## 2. Workflow Skills - Mandatory (`./.context/.superpowers-skills/`)
 MUST check & activate these core skills before ANY task.
 
-### Basic Workflow Sequence
+### Basic Workflow
 - `brainstorming`: refine ideas via Socratic design questions, present in sections, save to `docs/specs/`
 - `using-git-worktrees`: create isolated workspace on new branch, verify clean test baseline
 - `writing-plans`: break work into 2-5 min bite-sized tasks with file paths inside Plan Mode
-- `subagent-driven-development` / `executing-plans`: execute tasks in batches or dispatch fresh subagents
+- `executing-plans`: inline plan execution: 1 context, 1 final review
 - `test-driven-development`: enforce RED-GREEN-REFACTOR. Write failing test first. Delete untested code
 - `requesting-code-review`: review progress vs plan. Critical issues block progress
-- `finishing-a-development-branch`: verify tests, present PR options, clean up worktree
-
-### Required Debugging & Meta Skills
+- `receiving-code-review`: for reviewer, responding to review request
 - `verification-before-completion`: confirm fix via runtime/compiler evidence before declaring success
 
-## 3. Essentials Starter Pack - Always Active (`./.context/.awesome-skills/`)
-- `concise-planning`: structural planning before outputting code
+### Optional final
+- `finishing-a-development-branch`: verify tests, present PR options, clean up worktree
+
+## 3. Essentials (`./.context/.awesome-skills/`)
 - `lint-and-validate`: strict typing, zero compilation warnings
 - `systematic-debugging`: root-cause analysis workflow on errors
-- `kaizen`: continuous refactoring for simplicity & reusability
 
 ## 4. Documentation & Lifecycle (3-Tier File System)
 **Purpose:** preserve context across chat sessions, prevent memory drift. ALL work MUST follow:

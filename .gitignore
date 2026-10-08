@@ -497,5 +497,6 @@ $RECYCLE.BIN/
 
 # agents
 /.agents
+/.claude
 /.context/.awesome-skills
 /.context/.superpowers-skills
