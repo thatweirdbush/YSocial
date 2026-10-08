@@ -109,7 +109,7 @@ function ProfileView({ user, isOwn, actorId }: ProfileViewProps) {
           open={followList.open}
           onOpenChange={(open) => setFollowList((current) => ({ ...current, open }))}
           userId={user.id}
-          initialTab={followList.kind}
+          initialKind={followList.kind}
           username={user.username}
         />
       </div>

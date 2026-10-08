@@ -17,7 +17,7 @@ export {
   useUserActions,
   useUserByUsername,
 } from "./store/user-store";
-export type { FollowerUser, UserProfile, UserProfileBase, ViewerFollows } from "./types";
+export type { FollowListKind, UserProfile, UserProfileBase, ViewerFollows } from "./types";
 export { parseBio } from "./utils/bio-parser";
 export { normalizeUsername, resolveProfileRoute } from "./utils/resolve-profile-route";
 export type { ProfileRouteResolution } from "./utils/resolve-profile-route";

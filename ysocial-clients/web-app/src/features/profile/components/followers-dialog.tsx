@@ -1,217 +1,221 @@
 "use client";
 
-import React, { useState } from "react";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SearchX, UserX } from "lucide-react";
+import Link from "next/link";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { EmptyState } from "@/components/shared/empty-state";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useActorId, useViewerId } from "@/features/auth";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useTranslation } from "@/hooks/use-translation";
-import { FollowerUser } from "../types";
+import { fetchFollowList } from "../services/user-service";
+import { useUser, useUserActions } from "../store/user-store";
+import type { FollowListKind } from "../types";
+import { FollowButton } from "./follow-button";
+
+export const FOLLOW_SEARCH_DEBOUNCE_MS = 250;
 
 interface FollowersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   userId: string;
-  initialTab?: "followers" | "following";
   username: string;
+  initialKind: FollowListKind;
 }
 
-export function FollowersDialog({
-  open,
-  onOpenChange,
+export function FollowersDialog({ open, onOpenChange, userId, username, initialKind }: FollowersDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="z-50 flex h-[560px] max-h-[85vh] w-[95vw] max-w-sm flex-col overflow-hidden rounded-3xl border-zinc-200/50 bg-white p-0 shadow-2xl dark:border-zinc-900 dark:bg-zinc-950 [&>button]:hidden">
+        {/* Mounted only while open: every open starts on the requested kind with a clean query */}
+        <FollowersDialogBody userId={userId} username={username} initialKind={initialKind} onClose={() => onOpenChange(false)} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface ListState {
+  /** `kind|query` the list belongs to; a different current key means the list is still loading. */
+  key: string;
+  ids: string[];
+  nextPage?: number;
+  status: "ready" | "error";
+  loadingMore: boolean;
+}
+
+function FollowersDialogBody({
   userId,
-  initialTab = "followers",
   username,
-}: FollowersDialogProps) {
-  const { t } = useTranslation();
+  initialKind,
+  onClose,
+}: Pick<FollowersDialogProps, "userId" | "username" | "initialKind"> & { onClose: () => void }) {
+  const { t, locale } = useTranslation();
+  const actorId = useActorId();
+  const { upsertUsers } = useUserActions();
+  const owner = useUser(userId);
 
-  // Premium mock lists inside dialog
-  const [followers, setFollowers] = useState<FollowerUser[]>([
-    { id: "2", displayName: "Nguyễn Hà My", username: "hamy_cute", avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80", isFollowing: true },
-    { id: "3", displayName: "Phan Văn Minh", username: "minh_pvc", avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80", isFollowing: false },
-  ]);
+  const [kind, setKind] = useState<FollowListKind>(initialKind);
+  const [queryInput, setQueryInput] = useState("");
+  const query = useDebouncedValue(queryInput.trim(), FOLLOW_SEARCH_DEBOUNCE_MS);
+  const key = `${kind}|${query}`;
 
-  const [following, setFollowing] = useState<FollowerUser[]>([
-    { id: "1", displayName: "Trần Anh Quốc", username: "anquoc.dev", avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80", isFollowing: true },
-    { id: "2", displayName: "Nguyễn Hà My", username: "hamy_cute", avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80", isFollowing: true },
-  ]);
+  const [list, setList] = useState<ListState | null>(null);
+  const token = useRef(0);
 
-  const [userToUnfollow, setUserToUnfollow] = useState<{ user: FollowerUser, listType: "followers" | "following" } | null>(null);
+  // First page whenever kind or (debounced) query changes; a newer request invalidates older ones
+  useEffect(() => {
+    const request = (token.current += 1);
+    fetchFollowList(userId, kind, { query, page: 1 }, actorId)
+      .then(({ users, nextPage }) => {
+        if (token.current !== request) return;
+        upsertUsers(users, actorId);
+        setList({ key, ids: users.map((user) => user.id), nextPage, status: "ready", loadingMore: false });
+      })
+      .catch(() => {
+        if (token.current === request) setList({ key, ids: [], status: "error", loadingMore: false });
+      });
+  }, [actorId, key, kind, query, upsertUsers, userId]);
 
-  const updateFollowState = (user: FollowerUser, listType: "followers" | "following", nextState: boolean) => {
-    const updater = (list: FollowerUser[]) =>
-      list.map((u) => (u.id === user.id ? { ...u, isFollowing: nextState } : u));
+  const current = list?.key === key ? list : null;
+  const nextPage = current?.nextPage;
+  const loadingMore = current?.loadingMore ?? false;
 
-    if (listType === "followers") {
-      setFollowers(updater);
-    } else {
-      setFollowing(updater);
-    }
-  };
+  const loadMore = useCallback(() => {
+    if (nextPage === undefined || loadingMore) return;
+    const request = (token.current += 1);
+    setList((state) => (state ? { ...state, loadingMore: true } : state));
+    fetchFollowList(userId, kind, { query, page: nextPage }, actorId)
+      .then(({ users, nextPage: following }) => {
+        if (token.current !== request) return;
+        upsertUsers(users, actorId);
+        setList((state) => {
+          if (!state || state.key !== key) return state;
+          const known = new Set(state.ids);
+          return {
+            ...state,
+            ids: [...state.ids, ...users.map((user) => user.id).filter((id) => !known.has(id))],
+            nextPage: following,
+            loadingMore: false,
+          };
+        });
+      })
+      .catch(() => {
+        if (token.current === request) setList((state) => (state ? { ...state, loadingMore: false } : state));
+      });
+  }, [actorId, key, kind, loadingMore, nextPage, query, upsertUsers, userId]);
 
-  const handleFollowToggle = (user: FollowerUser, listType: "followers" | "following") => {
-    if (user.isFollowing) {
-      // Trigger confirmation dialog instead of immediate unfollow
-      setUserToUnfollow({ user, listType });
-    } else {
-      // Follow immediately
-      updateFollowState(user, listType, true);
-      toast.success(`${t("card.following") || "Following"} @${user.username}`);
-    }
-  };
+  const sentinelRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    const target = sentinelRef.current;
+    if (!target || nextPage === undefined) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [loadMore, nextPage, current?.ids.length]);
 
-  const confirmUnfollow = () => {
-    if (userToUnfollow) {
-      updateFollowState(userToUnfollow.user, userToUnfollow.listType, false);
-      toast.info(`${t("card.unfollow") || "Unfollowed"} @${userToUnfollow.user.username}`);
-      setUserToUnfollow(null);
-    }
-  };
+  const formatCount = (n: number | undefined) => (n === undefined ? "" : new Intl.NumberFormat(locale).format(n));
+  const title = t(kind === "followers" ? "profile.followersTitle" : "profile.followingTitle");
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm w-[95vw] rounded-3xl p-0 border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 shadow-2xl z-50 flex flex-col h-[500px] [&>button]:hidden overflow-hidden">
-          <Tabs defaultValue={initialTab} className="flex-1 flex flex-col min-h-0 w-full">
-            <TabsList className="w-full h-auto! grid grid-cols-2 rounded-none bg-transparent shrink-0 px-0 mb-1">
-              <TabsTrigger
-                value="followers"
-                className="flex flex-col py-3.5 items-center justify-center gap-1 rounded-none border-t-0 border-x-0 border-b border-zinc-200/50 bg-transparent
-                           data-[state=active]:bg-transparent! data-[state=active]:shadow-none! data-[state=active]:border-black
-                         dark:data-[state=active]:border-white text-zinc-400 dark:text-zinc-500 font-medium
-                         hover:text-zinc-600 dark:hover:text-zinc-300 data-[state=active]:text-zinc-900
-                         dark:data-[state=active]:text-zinc-100 data-[state=active]:font-bold transition-colors"
-              >
-                <span className="text-sm leading-none">{t("profile.followersTitle") || "Followers"}</span>
-                <span className="text-xs leading-none mt-0.5">{followers.length}</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="following"
-                className="flex flex-col py-3.5 items-center justify-center gap-1 rounded-none border-t-0 border-x-0 border-b border-zinc-200/50 bg-transparent
-                           data-[state=active]:bg-transparent! data-[state=active]:shadow-none! data-[state=active]:border-black
-                         dark:data-[state=active]:border-white text-zinc-400 dark:text-zinc-500 font-medium
-                         hover:text-zinc-600 dark:hover:text-zinc-300 data-[state=active]:text-zinc-900
-                         dark:data-[state=active]:text-zinc-100 data-[state=active]:font-bold transition-colors"
-              >
-                <span className="text-sm leading-none">{t("profile.followingTitle") || "Following"}</span>
-                <span className="text-xs leading-none mt-0.5">{following.length}</span>
-              </TabsTrigger>
-            </TabsList>
+      <DialogTitle className="sr-only">{title}</DialogTitle>
+      <DialogDescription className="sr-only">@{username}</DialogDescription>
 
-            <TabsContent value="followers" className="flex-1 flex flex-col min-h-0 overflow-y-auto px-5 gap-4">
-              {followers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
-                  <span className="text-sm">{t("profile.emptyFollowers") || "No followers yet"}</span>
-                </div>
-              ) : (
-                followers.map((fUser) => (
-                  <div key={fUser.id} className="flex items-center justify-between gap-3 group border-b border-zinc-200/50 dark:border-zinc-900/50 pb-4 last:border-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="size-8.5 border border-zinc-300 dark:border-zinc-900 shrink-0">
-                        <AvatarImage src={fUser.avatarUrl} />
-                        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                          {fUser.displayName?.charAt(0) || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-sm truncate text-zinc-900 dark:text-zinc-50">
-                          {fUser.displayName}
-                        </span>
-                        <span className="text-zinc-400 text-xs truncate">@{fUser.username}</span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => handleFollowToggle(fUser, "followers")}
-                      size="sm"
-                      variant="outline"
-                      className={`text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${fUser.isFollowing
-                        ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450 hover:bg-zinc-200 dark:hover:bg-zinc-850"
-                        : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-                        }`}
-                    >
-                      {fUser.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
-                    </Button>
-                  </div>
-                ))
-              )}
-            </TabsContent>
+      <Tabs value={kind} onValueChange={(value) => setKind(value as FollowListKind)} className="shrink-0">
+        <TabsList className="mb-1 grid h-auto! w-full grid-cols-2 rounded-none bg-transparent px-0">
+          {(["followers", "following"] as const).map((value) => (
+            <TabsTrigger
+              key={value}
+              value={value}
+              className="flex min-h-11 flex-col items-center justify-center gap-1 rounded-none border-x-0 border-b border-t-0 border-zinc-200/50 bg-transparent py-3.5 font-medium text-zinc-400 transition-colors hover:text-zinc-600 motion-reduce:transition-none data-[state=active]:border-black data-[state=active]:bg-transparent! data-[state=active]:font-bold data-[state=active]:text-zinc-900 data-[state=active]:shadow-none! dark:text-zinc-500 dark:hover:text-zinc-300 dark:data-[state=active]:border-white dark:data-[state=active]:text-zinc-100"
+            >
+              <span className="text-sm leading-none">{t(value === "followers" ? "profile.followersTitle" : "profile.followingTitle")}</span>
+              <span className="mt-0.5 text-xs leading-none">{formatCount(value === "followers" ? owner?.followersCount : owner?.followingCount)}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
-            <TabsContent value="following" className="flex-1 flex flex-col min-h-0 overflow-y-auto px-5 gap-4">
-              {following.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 text-zinc-400">
-                  <span className="text-sm">{t("profile.emptyFollowing") || "Not following anyone"}</span>
-                </div>
-              ) : (
-                following.map((fUser) => (
-                  <div key={fUser.id} className="flex items-center justify-between gap-3 group border-b border-zinc-100/70 dark:border-zinc-900/50 pb-4 last:border-0">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar className="size-8.5 border border-zinc-300 dark:border-zinc-900 shrink-0">
-                        <AvatarImage src={fUser.avatarUrl} />
-                        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                          {fUser.displayName?.charAt(0) || "U"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-semibold text-sm truncate text-zinc-900 dark:text-zinc-50">
-                          {fUser.displayName}
-                        </span>
-                        <span className="text-zinc-400 text-xs truncate">@{fUser.username}</span>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => handleFollowToggle(fUser, "following")}
-                      size="sm"
-                      variant="outline"
-                      className={`text-[11px] font-bold tracking-tight transition-all duration-300 px-3 py-0.5 rounded-full border ${fUser.isFollowing
-                        ? "bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-450 hover:bg-zinc-200 dark:hover:bg-zinc-850"
-                        : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
-                        }`}
-                    >
-                      {fUser.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
-                    </Button>
-                  </div>
-                ))
-              )}
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+      <div className="shrink-0 px-5 pb-3">
+        <Input
+          type="search"
+          value={queryInput}
+          onChange={(event) => setQueryInput(event.target.value)}
+          placeholder={t("profile.followSearchPlaceholder")}
+          aria-label={t("profile.followSearchPlaceholder")}
+          className="min-h-11 rounded-xl border-zinc-200/70 focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-zinc-900 dark:bg-black"
+        />
+      </div>
 
-      {/* Unfollow Confirmation Modal */}
-      <Dialog open={userToUnfollow !== null} onOpenChange={(isOpen) => !isOpen && setUserToUnfollow(null)}>
-        <DialogContent 
-          className="w-[320px] p-6 rounded-3xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-900 text-center flex flex-col items-center gap-4 z-[100] [&>button]:hidden"
-        >
-          <DialogHeader className="flex flex-col items-center gap-3 w-full">
-            {userToUnfollow && (
-              <Avatar className="size-18 border border-zinc-100 dark:border-zinc-900 shadow-sm mx-auto">
-                <AvatarImage src={userToUnfollow.user.avatarUrl} />
-                <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xl font-bold">
-                  {userToUnfollow.user.displayName?.charAt(0) || "U"}
-                </AvatarFallback>
-              </Avatar>
+      <ScrollArea className="min-h-0 flex-1">
+        {!current ? (
+          <RowsSkeleton />
+        ) : current.ids.length === 0 ? (
+          <EmptyState
+            icon={query ? SearchX : UserX}
+            title={query ? t("profile.followNoMatch", { query }) : t(kind === "followers" ? "profile.emptyFollowers" : "profile.emptyFollowing")}
+          />
+        ) : (
+          <ul className="flex flex-col px-5 pb-4">
+            {current.ids.map((id) => (
+              <FollowRow key={id} id={id} onNavigate={onClose} />
+            ))}
+            {nextPage !== undefined && (
+              <li ref={sentinelRef} aria-hidden="true" className="h-8">
+                {loadingMore && <Skeleton className="h-8 w-full rounded-xl" />}
+              </li>
             )}
-            <DialogTitle className="text-md font-semibold text-zinc-900 dark:text-zinc-50 leading-tight mx-auto">
-              {userToUnfollow ? (t("profile.unfollowConfirmTitle")?.replace("{username}", userToUnfollow.user.username) || `Unfollow @${userToUnfollow.user.username}?`) : "Unfollow?"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="w-full flex flex-row sm:flex-row sm:space-x-0 gap-2 mt-2">
-            <Button variant="outline" onClick={() => setUserToUnfollow(null)} className="w-full flex-1 rounded-2xl font-bold mt-0 bg-transparent border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none sm:mt-0">
-              {t("profile.unfollowConfirmCancel") || "Cancel"}
-            </Button>
-            <Button onClick={confirmUnfollow} className="w-full flex-1 rounded-2xl font-bold bg-red-500 hover:bg-red-600 text-white border-none shadow-none">
-              {t("profile.unfollowConfirmAction") || "Unfollow"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </ul>
+        )}
+      </ScrollArea>
     </>
+  );
+}
+
+function FollowRow({ id, onNavigate }: { id: string; onNavigate: () => void }) {
+  const user = useUser(id);
+  const viewerId = useViewerId();
+  if (!user) return null;
+
+  return (
+    <li className="flex items-center justify-between gap-3 border-b border-zinc-200/50 py-3 last:border-0 dark:border-zinc-900/50">
+      <Link href={`/@${user.username}`} onClick={onNavigate} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-100">
+        <Avatar className="size-9 shrink-0 border border-zinc-300 dark:border-zinc-900">
+          <AvatarImage src={user.avatarUrl} alt="" />
+          <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">{user.displayName.charAt(0).toUpperCase() || "U"}</AvatarFallback>
+        </Avatar>
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">{user.displayName}</span>
+          <span className="truncate text-xs text-zinc-400">@{user.username}</span>
+        </span>
+      </Link>
+      {user.id !== viewerId && <FollowButton userId={user.id} confirmUnfollow />}
+    </li>
+  );
+}
+
+function RowsSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 px-5 py-3" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div key={index} className="flex items-center gap-3">
+          <Skeleton className="size-9 rounded-full" />
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }

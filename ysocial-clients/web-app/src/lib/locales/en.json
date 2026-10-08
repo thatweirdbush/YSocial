@@ -164,7 +164,9 @@
     "notFoundDescription": "The link may be broken or the account was removed.",
     "notFoundMeta": "User not found • YSocial",
     "backHome": "Back to Home",
-    "loadError": "Couldn't load this profile"
+    "loadError": "Couldn't load this profile",
+    "followSearchPlaceholder": "Search",
+    "followNoMatch": "No one matches \"{query}\""
   },
   "notifications": {
     "title": "Notifications",

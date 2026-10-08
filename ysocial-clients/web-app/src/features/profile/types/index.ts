@@ -68,11 +68,4 @@ export interface ViewerFollows {
   version: number;
 }
 
-export interface FollowerUser {
-  id: string;
-  displayName: string;
-  username: string;
-  avatarUrl?: string;
-  isFollowing: boolean;
-}
 // #endregion

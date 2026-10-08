@@ -164,7 +164,9 @@
     "notFoundDescription": "Liên kết có thể đã hỏng hoặc tài khoản đã bị xóa.",
     "notFoundMeta": "Không tìm thấy người dùng • YSocial",
     "backHome": "Về trang chủ",
-    "loadError": "Không tải được trang cá nhân"
+    "loadError": "Không tải được trang cá nhân",
+    "followSearchPlaceholder": "Tìm kiếm",
+    "followNoMatch": "Không tìm thấy ai khớp với \"{query}\""
   },
   "notifications": {
     "title": "Thông báo",
