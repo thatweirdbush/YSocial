@@ -26,3 +26,17 @@ export const SEED_DEMO_ACCOUNT: PostAuthor = {
 
 /** Authors every viewer follows initially (seed of the viewer-scoped follow graph). */
 export const SEED_FOLLOWED_AUTHOR_IDS: readonly string[] = ["author-02", "author-03", "author-06"];
+
+/** Who each seed user follows (base users follow each other; demo & legacy guest actor follow the viewer default). */
+export const SEED_FOLLOWING: Readonly<Record<string, readonly string[]>> = {
+  "author-01": ["author-02", "author-03", "author-06"],
+  "author-02": ["author-01", "author-04"],
+  "author-03": ["author-01", "author-02", "author-05"],
+  "author-04": ["author-02", "author-06"],
+  "author-05": ["author-01", "author-03"],
+  "author-06": ["author-01", "author-08"],
+  "author-07": ["author-01", "author-02", "author-03"],
+  "author-08": ["author-04", "author-06"],
+  "1": SEED_FOLLOWED_AUTHOR_IDS,
+  me: SEED_FOLLOWED_AUTHOR_IDS,
+};
