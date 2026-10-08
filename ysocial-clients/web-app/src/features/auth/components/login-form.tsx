@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuthActions } from "@/features/auth/store/auth-store";
+import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import { Button } from "@/components/ui/button";
 import {
   getIdentitySchema,
@@ -246,11 +247,13 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
 
     // Update tokens and user details inzustand store
     setTokens("mock_access_token", "mock_refresh_token");
+    // Mock login always signs in the seed demo account (spec D10); the typed identity is only validated by the form.
     updateUser({
-      id: "1",
-      email: identity.includes("@") ? identity : "member@ysocial.dev",
-      displayName: "YSocial Member",
-      username: identity.includes("@") ? identity.split("@")[0] : identity,
+      id: SEED_DEMO_ACCOUNT.id,
+      email: "member@ysocial.dev",
+      displayName: SEED_DEMO_ACCOUNT.displayName,
+      username: SEED_DEMO_ACCOUNT.username,
+      avatarUrl: SEED_DEMO_ACCOUNT.avatarUrl,
       bio: "Joined YSocial Premium Social Ecosystem",
     });
 

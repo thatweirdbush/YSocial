@@ -3,7 +3,7 @@
 import React from "react";
 import { toast } from "sonner";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
 import { setFollow } from "../services/user-service";
@@ -21,7 +21,7 @@ const BASE = "relative shrink-0 rounded-full border px-3 py-0.5 text-[11px] font
 /** Follow toggle bound to `user-store`; persists to the user service. */
 export function FollowButton({ userId, className, reserveSpace = false }: FollowButtonProps) {
   const { t } = useTranslation();
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const user = useUser(userId);
   const isFollowing = useFollowState(userId);
   const { toggleFollow } = useUserActions();
@@ -41,8 +41,8 @@ export function FollowButton({ userId, className, reserveSpace = false }: Follow
     e.preventDefault();
     e.stopPropagation();
     const next = !isFollowing;
-    toggleFollow(viewerId, userId);
-    void setFollow(userId, next, viewerId);
+    toggleFollow(actorId, userId);
+    void setFollow(userId, next, actorId);
     if (next) toast.success(t("card.followSuccess", { username: user.username }));
     else toast.info(t("card.unfollowSuccess", { username: user.username }));
   };

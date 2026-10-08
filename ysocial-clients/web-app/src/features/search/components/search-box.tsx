@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { HighlightText } from "@/components/shared/highlight-text";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import type { HashtagStat } from "@/features/posts/types";
 import type { UserProfile } from "@/features/profile/types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -56,7 +56,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
   const [activeIndex, setActiveIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState<SuggestionState>(EMPTY_SUGGESTIONS);
 
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const debounced = useDebouncedValue(value, SUGGEST_DEBOUNCE_MS);
   const hasQuery = bareQuery(value) !== "";
 
@@ -66,14 +66,14 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
     const query = debounced.trim();
     if (!bareQuery(query)) return;
 
-    fetchSuggestions(query, viewerId)
+    fetchSuggestions(query, actorId)
       .then((result) => {
         if (requestId === requestRef.current) setSuggestions({ ...result, query: normalizeText(query) });
       })
       .catch(() => {
         // Suggestions are best-effort; the query row still submits
       });
-  }, [debounced, viewerId]);
+  }, [debounced, actorId]);
 
   const options = useMemo<SearchOption[]>(() => {
     if (!hasQuery) return recent.map((query) => ({ kind: "recent", query }));

@@ -1,7 +1,7 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GUEST_VIEWER_ID } from "@/features/auth/store/auth-store";
+import { GUEST_ACTOR_ID } from "@/features/auth/store/auth-store";
 import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
 import { useUIStore } from "@/lib/store/ui-store";
 import { INCOMING_CAP, resetPostStore, usePostStore } from "../store/post-store";
@@ -22,7 +22,7 @@ const makePost = (id: string, authorId: string): PostItem => ({
 
 const actions = () => usePostStore.getState().actions;
 const loadFollowGraph = (ids: string[]) =>
-  useUserStore.getState().actions.setFollowedIds(GUEST_VIEWER_ID, ids, useUserStore.getState().follows[GUEST_VIEWER_ID]?.version ?? 0);
+  useUserStore.getState().actions.setFollowedIds(GUEST_ACTOR_ID, ids, useUserStore.getState().follows[GUEST_ACTOR_ID]?.version ?? 0);
 
 beforeEach(() => {
   resetPostStore();
@@ -129,8 +129,8 @@ describe("NewPostsPill", () => {
     expect(screen.getByRole("button", { name: /1 bài mới/ })).toBeInTheDocument();
 
     act(() => {
-      useUserStore.getState().actions.upsertUsers([{ ...makePost("x", "a1").user, followersCount: 0, followingCount: 0, isFollowing: false }], GUEST_VIEWER_ID);
-      useUserStore.getState().actions.toggleFollow(GUEST_VIEWER_ID, "a1");
+      useUserStore.getState().actions.upsertUsers([{ ...makePost("x", "a1").user, followersCount: 0, followingCount: 0, isFollowing: false }], GUEST_ACTOR_ID);
+      useUserStore.getState().actions.toggleFollow(GUEST_ACTOR_ID, "a1");
     });
     expect(screen.getByRole("button", { name: /2 bài mới/ })).toBeInTheDocument();
   });

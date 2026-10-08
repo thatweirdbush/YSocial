@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { ensureUser, useFollowState, useUser } from "../store/user-store";
 import { parseBio } from "../utils/bio-parser";
@@ -43,7 +43,7 @@ function HoverCardSkeleton() {
 /** Author preview on hover (desktop): live from `user-store`, fetched once when not cached. */
 export function UserHoverCard({ userId, children }: UserHoverCardProps) {
   const { t, locale } = useTranslation();
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const user = useUser(userId);
   const isFollowing = useFollowState(userId);
   // Data always comes from the store; local state tracks only the request
@@ -51,7 +51,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
 
   const load = () => {
     setStatus("loading");
-    ensureUser(userId, viewerId)
+    ensureUser(userId, actorId)
       .then((loaded) => setStatus(loaded ? "idle" : "error"))
       .catch(() => setStatus("error"));
   };
@@ -62,7 +62,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
   };
 
   // No self-preview: the viewer is not a mock user, so loading their card could only fail
-  if (userId === viewerId) return children;
+  if (userId === actorId) return children;
 
   const compact = COMPACT_FORMATS[locale];
 

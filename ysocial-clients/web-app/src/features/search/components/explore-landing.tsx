@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchTrendingTags } from "@/features/posts";
-import { useViewerId } from "@/features/auth";
+import { useActorId } from "@/features/auth";
 import { fetchSuggestedUsers, useUserActions } from "@/features/profile";
 import { useCachedResource } from "@/hooks/use-cached-resource";
 import { useTranslation } from "@/hooks/use-translation";
@@ -88,12 +88,12 @@ function TagRowSkeleton() {
 /** `/search` without a query: recent searches, trending hashtags, who to follow. */
 export function ExploreLanding() {
   const { t } = useTranslation();
-  const viewerId = useViewerId();
+  const actorId = useActorId();
   const { upsertUsers } = useUserActions();
   const trending = useCachedResource("trending-tags:6", () => fetchTrendingTags(TRENDING_COUNT));
-  const suggested = useCachedResource(`suggested-users:5:${viewerId}`, async () => {
-    const users = await fetchSuggestedUsers(SUGGESTED_COUNT, viewerId);
-    upsertUsers(users, viewerId);
+  const suggested = useCachedResource(`suggested-users:5:${actorId}`, async () => {
+    const users = await fetchSuggestedUsers(SUGGESTED_COUNT, actorId);
+    upsertUsers(users, actorId);
     return users.map((user) => user.id);
   });
   const tags = trending.failed ? [] : trending.data;
