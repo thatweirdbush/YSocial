@@ -6,9 +6,17 @@ const roots = MOCK_POSTS.filter((p) => p.parentId === undefined);
 const childrenOf = (id: string) => MOCK_POSTS.filter((p) => p.parentId === id);
 
 describe("mock dataset", () => {
-  it("has 12 root posts with ids post-001..post-012", () => {
-    const expected = Array.from({ length: 12 }, (_, i) => `post-${String(i + 1).padStart(3, "0")}`);
-    expect(roots.map((p) => p.id).sort()).toEqual(expected);
+  it("has 12 base root posts (post-001..post-012) plus 4 demo-account roots", () => {
+    const base = Array.from({ length: 12 }, (_, i) => `post-${String(i + 1).padStart(3, "0")}`);
+    const demo = Array.from({ length: 4 }, (_, i) => `post-demo-${String(i + 1).padStart(2, "0")}`);
+    expect(roots.map((p) => p.id).sort()).toEqual([...base, ...demo].sort());
+  });
+
+  it("gives the demo account one pinned root, one multi-image root and two replies", () => {
+    const demoPosts = MOCK_POSTS.filter((p) => p.user.id === "1");
+    expect(demoPosts.filter((p) => p.isPinned)).toHaveLength(1);
+    expect(demoPosts.filter((p) => (p.imageUrls?.length ?? 0) > 1)).toHaveLength(1);
+    expect(demoPosts.filter((p) => p.parentId !== undefined)).toHaveLength(2);
   });
 
   it("links every reply to an existing post", () => {

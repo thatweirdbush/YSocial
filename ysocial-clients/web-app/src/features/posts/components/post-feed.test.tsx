@@ -135,7 +135,7 @@ describe("PostFeed paging & refresh", () => {
     failNextPage = false;
     await userEvent.click(retry);
 
-    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(12), LOAD_TIMEOUT);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(16), LOAD_TIMEOUT);
     expect(nextPageCalls()).toBe(2);
   });
 });

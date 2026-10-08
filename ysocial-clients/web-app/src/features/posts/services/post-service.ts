@@ -4,7 +4,22 @@ import { getFollowedAuthorIds } from "@/mocks/follow-graph";
 import { SEED_AUTHORS } from "@/mocks/seed-authors";
 import { MOCK_INCOMING_CONTENTS } from "../mocks/mock-incoming";
 import { MOCK_POSTS } from "../mocks/mock-posts";
-import type { CreatePostInput, FeedPage, FeedTab, HashtagStat, PostAuthor, PostItem, PostSearchSort, PostThread, TagPage, TagSort } from "../types";
+import type {
+  CreatePostInput,
+  FeedPage,
+  FeedTab,
+  HashtagStat,
+  ParentReference,
+  PostAuthor,
+  PostItem,
+  PostSearchSort,
+  PostThread,
+  SavedPostsPage,
+  TagPage,
+  TagSort,
+  UserPostsPage,
+  UserPostsTab,
+} from "../types";
 import { getPostFeedTabs } from "../utils/feed-tabs";
 import { byNewest, collectTagStats, hasTag, tagKey } from "../utils/hashtags";
 import { POST_CONTENT_MAX } from "../utils/post-content";
@@ -13,6 +28,9 @@ import { POST_CONTENT_MAX } from "../utils/post-content";
 // callers (containers + post-store) stay unchanged.
 
 export const FEED_PAGE_SIZE = 10;
+
+/** Page size of every profile tab (threads / replies / media / saved). */
+export const PROFILE_PAGE_SIZE = 10;
 
 /** Max results per search / tag query (no paging yet). */
 export const SEARCH_LIMIT = 50;
@@ -42,6 +60,11 @@ export function __resetMockDb(): void {
   streamTimer = undefined;
 }
 __resetMockDb();
+
+/** Test-only: removes exactly one post (no subtree), to simulate a parent that was soft-deleted server-side. */
+export function __removePostOnly(id: string): void {
+  db.delete(id);
+}
 
 // #region Helpers
 function mockDelay(): Promise<void> {
@@ -129,6 +152,63 @@ export async function fetchFeed(tab: FeedTab, page: number, viewerId: string): P
   const posts = roots.slice(start, start + FEED_PAGE_SIZE).map(copy);
   const nextPage = start + FEED_PAGE_SIZE < roots.length ? page + 1 : undefined;
   return { posts, nextPage };
+}
+
+const hasImages = (post: PostItem): boolean => post.imageUrl !== undefined || (post.imageUrls?.length ?? 0) > 0;
+
+function pageOf<T>(items: T[], page: number): { items: T[]; nextPage?: number } {
+  const start = (page - 1) * PROFILE_PAGE_SIZE;
+  return { items: items.slice(start, start + PROFILE_PAGE_SIZE), nextPage: start + PROFILE_PAGE_SIZE < items.length ? page + 1 : undefined };
+}
+
+/**
+ * One author's posts per profile tab, newest first. `threads`: roots, the pinned one first (so it is never
+ * repeated on later pages); `replies`: replies plus their parent references; `media`: roots with images.
+ */
+export async function fetchUserPosts(userId: string, tab: UserPostsTab, page: number): Promise<UserPostsPage> {
+  await simulateNetwork();
+
+  const own = [...db.values()].filter((post) => post.user.id === userId).sort(byNewest);
+  let list: PostItem[];
+  switch (tab) {
+    case "threads": {
+      const threads = own.filter((post) => post.parentId === undefined);
+      const pinned = threads.find((post) => post.isPinned);
+      list = pinned ? [pinned, ...threads.filter((post) => post !== pinned)] : threads;
+      break;
+    }
+    case "replies":
+      list = own.filter((post) => post.parentId !== undefined);
+      break;
+    case "media":
+      list = own.filter((post) => post.parentId === undefined && hasImages(post));
+      break;
+  }
+
+  const { items, nextPage } = pageOf(list, page);
+  const parents: ParentReference[] = [];
+  if (tab === "replies") {
+    for (const reply of items) {
+      const parentId = reply.parentId as string;
+      if (parents.some((parent) => parent.id === parentId)) continue;
+      const parent = db.get(parentId);
+      parents.push(parent ? { id: parentId, author: { ...parent.user }, deleted: false } : { id: parentId, deleted: true });
+    }
+  }
+  return { posts: items.map(copy), parents, nextPage };
+}
+
+/**
+ * Posts the viewer bookmarked (roots and replies), newest first. `actorId` is reserved for per-viewer bookmarks:
+ * the flag is currently global on the post (tracked debt).
+ */
+export async function fetchSavedPosts(actorId: string, page: number): Promise<SavedPostsPage> {
+  void actorId;
+  await simulateNetwork();
+
+  const saved = [...db.values()].filter((post) => post.isBookmarkedByCurrentUser).sort(byNewest);
+  const { items, nextPage } = pageOf(saved, page);
+  return { posts: items.map(copy), nextPage };
 }
 
 export async function fetchPostThread(id: string): Promise<PostThread | null> {

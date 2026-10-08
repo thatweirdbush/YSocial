@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
+import { SEED_AUTHORS, SEED_DEMO_ACCOUNT, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import type { CreatePostInput } from "../types";
 import { POST_CONTENT_MAX } from "../utils/post-content";
 import { __resetFollowGraph, setFollowed } from "@/mocks/follow-graph";
 import {
+  __removePostOnly,
   __resetMockDb,
   createPost,
   createReply,
@@ -13,8 +14,11 @@ import {
   fetchPostThread,
   ForbiddenError,
   NEW_POST_INTERVAL_MS,
+  fetchSavedPosts,
   fetchTrendingTags,
+  fetchUserPosts,
   FEED_PAGE_SIZE,
+  PROFILE_PAGE_SIZE,
   SEARCH_LIMIT,
   searchPosts,
   setPostBookmark,
@@ -33,6 +37,7 @@ async function settle<T>(promise: Promise<T>): Promise<T> {
 
 const VIEWER = "v1";
 const author = SEED_AUTHORS[4];
+const SEED_DEMO_AUTHOR = SEED_DEMO_ACCOUNT;
 const input = (content: string): CreatePostInput => ({ content, images: [], audience: "anyone" });
 
 beforeEach(() => {
@@ -61,7 +66,7 @@ describe("fetchFeed", () => {
   it("ends pagination on the last page", async () => {
     const page = await settle(fetchFeed("forYou", 2, VIEWER));
 
-    expect(page.posts).toHaveLength(2);
+    expect(page.posts).toHaveLength(6);
     expect(page.nextPage).toBeUndefined();
   });
 
@@ -349,6 +354,101 @@ describe("owner mutations", () => {
     await settle(setHideLikeCount("post-001", true, "author-01"));
 
     expect((await settle(fetchPostThread("post-001")))!.post.hideLikeCount).toBe(true);
+  });
+});
+
+describe("fetchUserPosts", () => {
+  const DEMO = "1";
+
+  it("threads: only the author's roots, pinned post first, then newest first", async () => {
+    const { posts, parents, nextPage } = await settle(fetchUserPosts(DEMO, "threads", 1));
+
+    expect(posts.map((post) => post.id)).toEqual(["post-demo-01", "post-demo-02", "post-demo-03", "post-demo-04"]);
+    expect(posts.every((post) => post.user.id === DEMO && post.parentId === undefined)).toBe(true);
+    expect(parents).toEqual([]);
+    expect(nextPage).toBeUndefined();
+  });
+
+  it("threads: a newly pinned older post leads page 1 and is not repeated", async () => {
+    await settle(setPostPinned("post-demo-04", true, DEMO));
+
+    const first = await settle(fetchUserPosts(DEMO, "threads", 1));
+    expect(first.posts.map((post) => post.id)).toEqual(["post-demo-04", "post-demo-01", "post-demo-02", "post-demo-03"]);
+    expect(new Set(first.posts.map((post) => post.id)).size).toBe(first.posts.length);
+  });
+
+  it("threads: pages by PROFILE_PAGE_SIZE and excludes the pinned post from later pages", async () => {
+    for (let n = 0; n < PROFILE_PAGE_SIZE; n += 1) {
+      await settle(createPost(input(`extra ${n}`), SEED_DEMO_AUTHOR));
+    }
+    await settle(setPostPinned("post-demo-04", true, DEMO));
+
+    const first = await settle(fetchUserPosts(DEMO, "threads", 1));
+    const second = await settle(fetchUserPosts(DEMO, "threads", 2));
+
+    expect(first.posts).toHaveLength(PROFILE_PAGE_SIZE);
+    expect(first.posts[0].id).toBe("post-demo-04");
+    expect(first.nextPage).toBe(2);
+    expect(second.posts.some((post) => post.id === "post-demo-04")).toBe(false);
+    expect(second.nextPage).toBeUndefined();
+  });
+
+  it("replies: only the author's replies with their parent references", async () => {
+    const { posts, parents } = await settle(fetchUserPosts(DEMO, "replies", 1));
+
+    expect(posts.map((post) => post.id)).toEqual(["reply-demo-01", "reply-demo-02"]);
+    expect(parents).toEqual([
+      expect.objectContaining({ id: "post-003", deleted: false, author: expect.objectContaining({ username: "anquoc.dev" }) }),
+      expect.objectContaining({ id: "post-006", deleted: false, author: expect.objectContaining({ username: "giahan.photo" }) }),
+    ]);
+  });
+
+  it("replies: a removed parent becomes a deleted marker, never a renderable post", async () => {
+    __removePostOnly("post-003");
+
+    const { posts, parents } = await settle(fetchUserPosts(DEMO, "replies", 1));
+
+    expect(posts.map((post) => post.id)).toContain("reply-demo-01");
+    const marker = parents.find((parent) => parent.id === "post-003");
+    expect(marker).toEqual({ id: "post-003", deleted: true });
+    expect(posts.some((post) => post.id === "post-003")).toBe(false);
+  });
+
+  it("media: only root posts that carry images", async () => {
+    const { posts } = await settle(fetchUserPosts(DEMO, "media", 1));
+    expect(posts.map((post) => post.id)).toEqual(["post-demo-02", "post-demo-03"]);
+  });
+
+  it("excludes tombstoned (deleted) posts", async () => {
+    await settle(deletePost("post-demo-02", DEMO));
+    const { posts } = await settle(fetchUserPosts(DEMO, "threads", 1));
+    expect(posts.some((post) => post.id === "post-demo-02")).toBe(false);
+  });
+});
+
+describe("fetchSavedPosts", () => {
+  it("returns only bookmarked posts, newest first, including bookmarked replies", async () => {
+    await settle(setPostBookmark("reply-demo-01", true));
+    const { posts, nextPage } = await settle(fetchSavedPosts("me", 1));
+
+    expect(posts.every((post) => post.isBookmarkedByCurrentUser)).toBe(true);
+    expect(posts.map((post) => post.id)).toContain("reply-demo-01");
+    const times = posts.map((post) => Date.parse(post.createdAt));
+    expect(times).toEqual([...times].sort((a, b) => b - a));
+    expect(nextPage).toBeUndefined();
+  });
+
+  it("pages by PROFILE_PAGE_SIZE", async () => {
+    const ids = ["post-001", "post-002", "post-003", "post-004", "post-005", "post-006", "post-007", "post-008", "post-009", "post-010", "post-011", "post-012"];
+    for (const id of ids) await settle(setPostBookmark(id, true));
+
+    const first = await settle(fetchSavedPosts("me", 1));
+    const second = await settle(fetchSavedPosts("me", 2));
+
+    expect(first.posts).toHaveLength(PROFILE_PAGE_SIZE);
+    expect(first.nextPage).toBe(2);
+    expect(second.posts.length).toBeGreaterThan(0);
+    expect(second.nextPage).toBeUndefined();
   });
 });
 

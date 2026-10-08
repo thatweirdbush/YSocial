@@ -1,8 +1,8 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FeedTab, PostItem } from "../types";
 import { getPendingFeed } from "../utils/pending-feed";
-import { INCOMING_CAP, resetPostStore, useIsDeleted, useOwnerOp, usePostStore, useReplyIds } from "./post-store";
+import { INCOMING_CAP, resetPostStore, useIsDeleted, useOwnerOp, usePinnedPostId, usePostStore, useReplyIds } from "./post-store";
 
 const makePost = (id: string, overrides: Partial<PostItem> = {}): PostItem => ({
   id,
@@ -493,6 +493,29 @@ describe("patchPostIf", () => {
     actions().patchPostIf("p", { content: "B" }, { content: "A" });
 
     expect(state()).toBe(before);
+  });
+});
+
+describe("usePinnedPostId", () => {
+  const demo = { id: "1", displayName: "YSocial Member", username: "ysocial_member" };
+
+  it("follows the author's pinned post as it is cached and re-pinned", () => {
+    actions().upsertPosts([
+      makePost("post-demo-01", { user: demo, isPinned: true }),
+      makePost("post-demo-04", { user: demo }),
+    ]);
+    const { result } = renderHook(() => usePinnedPostId("1"));
+    expect(result.current).toBe("post-demo-01");
+
+    act(() => {
+      actions().setPinned("post-demo-04", true);
+    });
+    expect(result.current).toBe("post-demo-04");
+  });
+
+  it("is undefined for an author without a pin", () => {
+    const { result } = renderHook(() => usePinnedPostId("nobody"));
+    expect(result.current).toBeUndefined();
   });
 });
 

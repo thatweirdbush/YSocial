@@ -510,6 +510,8 @@ export const useIncomingBuffer = (): IncomingBuffer =>
       droppedAuthorIds: state.droppedAuthorIds,
     })),
   );
+/** Id of the author's pinned root post among cached posts (live reorder after pin/unpin). */
+export const usePinnedPostId = (authorId: string): string | undefined => usePostStore((state) => state.pinnedIdByAuthor[authorId]);
 export const useIsDeleted = (id: string) => usePostStore((state) => state.deletedIds[id] === true);
 export const useOwnerOp = (id: string): OwnerOp | undefined => usePostStore((state) => state.ownerOpById[id]);
 export const usePostActions = () => usePostStore((state) => state.actions);
