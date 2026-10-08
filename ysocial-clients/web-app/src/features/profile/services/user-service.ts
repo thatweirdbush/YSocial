@@ -182,7 +182,8 @@ export async function updateProfile(id: string, patch: ProfilePatch, actorId: st
  * seed ids. Touches the graph node immediately so follow counts never jump later.
  */
 export async function upsertViewerUser(input: ViewerUserInput, actorId: string): Promise<UserProfile> {
-  if (!isSeedUserId(input.id) && !db.has(input.id)) {
+  // Register always issues the same id: a different account reusing it replaces the row; the same account keeps its edits
+  if (!isSeedUserId(input.id) && db.get(input.id)?.username !== input.username) {
     db.set(input.id, {
       id: input.id,
       username: input.username,

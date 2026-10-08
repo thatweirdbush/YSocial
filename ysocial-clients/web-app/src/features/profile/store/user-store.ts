@@ -188,14 +188,16 @@ export async function refreshUsers(ids: string[], actorId: string): Promise<void
  * `ProfileContainer` never race on a hard refresh; a failed promise is evicted so a retry can run.
  */
 export function ensureViewerUser(input: ViewerUserInput, actorId: string): Promise<UserProfile | null> {
-  let request = viewerRequests.get(input.id);
+  // Keyed by id AND username: the mock register reuses one id for every new account
+  const requestKey = `${input.id}:${input.username}`;
+  let request = viewerRequests.get(requestKey);
   if (!request) {
     request = upsertViewerUser(input, actorId).then((user) => {
       useUserStore.getState().actions.upsertUsers([user], actorId);
       return user;
     });
-    request.catch(() => viewerRequests.delete(input.id));
-    viewerRequests.set(input.id, request);
+    request.catch(() => viewerRequests.delete(requestKey));
+    viewerRequests.set(requestKey, request);
   }
   return request;
 }

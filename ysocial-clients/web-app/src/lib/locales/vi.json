@@ -233,7 +233,9 @@
     "toastLoginSuccess": "Chào mừng bạn đã quay lại YSocial!",
     "toastRegisterSuccess": "Đăng ký tài khoản thành công! Chào mừng tới YSocial.",
     "toastOtpSent": "Mã OTP đã được gửi đi thành công!",
-    "toastResetSuccess": "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại."
+    "toastResetSuccess": "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.",
+    "errorUsernamePattern": "Tên tài khoản chỉ gồm chữ thường, số, dấu chấm hoặc gạch dưới (tối đa 30 ký tự).",
+    "errorUsernameTaken": "Tên tài khoản này đã được sử dụng."
   },
   "saved": {
     "title": "Mục đã lưu",

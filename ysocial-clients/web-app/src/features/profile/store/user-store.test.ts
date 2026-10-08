@@ -328,6 +328,18 @@ describe("ensureViewerUser", () => {
     expect(useUserStore.getState().idByUsername["new.user"]).toBe("2");
   });
 
+  it("does not hand a second account (same id, other username) the first account's promise", async () => {
+    const bob: UserProfile = { ...profile, username: "bob", displayName: "Bob" };
+    const spy = vi.spyOn(service, "upsertViewerUser").mockResolvedValueOnce(profile).mockResolvedValueOnce(bob);
+
+    await ensureViewerUser(input, "2");
+    const second = await ensureViewerUser({ ...input, username: "bob", displayName: "Bob" }, "2");
+
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(second).toMatchObject({ username: "bob" });
+    expect(useUserStore.getState().idByUsername.bob).toBe("2");
+  });
+
   it("evicts a rejected promise so the next call retries", async () => {
     const spy = vi.spyOn(service, "upsertViewerUser").mockRejectedValueOnce(new Error("boom")).mockResolvedValueOnce(profile);
 

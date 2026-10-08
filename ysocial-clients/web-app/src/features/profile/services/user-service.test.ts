@@ -241,6 +241,17 @@ describe("upsertViewerUser", () => {
     expect(getFollowingCount("2")).toBe(SEED_FOLLOWED_AUTHOR_IDS.length);
   });
 
+  it("replaces a runtime row when a different account reuses the id, but keeps edits for the same account", async () => {
+    await settle(upsertViewerUser({ id: "2", username: "alice", displayName: "Alice" }, "2"));
+    await settle(updateProfile("2", { displayName: "Alice Edited" }, "2"));
+    await settle(upsertViewerUser({ id: "2", username: "alice", displayName: "Alice" }, "2"));
+    expect(await settle(fetchUser("2", "2"))).toMatchObject({ displayName: "Alice Edited" });
+
+    await settle(upsertViewerUser({ id: "2", username: "bob", displayName: "Bob" }, "2"));
+    expect(await settle(fetchUserByUsername("bob", "2"))).toMatchObject({ id: "2", displayName: "Bob" });
+    expect(await settle(fetchUserByUsername("alice", "2"))).toBeNull();
+  });
+
   it("is a no-op for seed ids", async () => {
     await settle(upsertViewerUser({ id: "author-01", username: "hijack", displayName: "Hijack" }, "author-01"));
     expect(await settle(fetchUser("author-01", "v1"))).toMatchObject({ displayName: "Antigravity Architect" });
