@@ -156,7 +156,15 @@
     "editError": "Couldn't save, try again",
     "shareProfile": "Share profile",
     "desyncTitle": "Your session changed",
-    "desyncAction": "Reload"
+    "desyncAction": "Reload",
+    "metaTitle": "{name} (@{username}) • YSocial",
+    "metaTitleRuntime": "@{username} • YSocial",
+    "metaDescription": "See posts, replies and media from @{username} on YSocial.",
+    "notFoundTitle": "This account doesn't exist",
+    "notFoundDescription": "The link may be broken or the account was removed.",
+    "notFoundMeta": "User not found • YSocial",
+    "backHome": "Back to Home",
+    "loadError": "Couldn't load this profile"
   },
   "notifications": {
     "title": "Notifications",

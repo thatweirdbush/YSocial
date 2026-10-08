@@ -156,7 +156,15 @@
     "editError": "Không lưu được, thử lại nhé",
     "shareProfile": "Chia sẻ trang cá nhân",
     "desyncTitle": "Phiên đăng nhập đã thay đổi",
-    "desyncAction": "Tải lại"
+    "desyncAction": "Tải lại",
+    "metaTitle": "{name} (@{username}) • YSocial",
+    "metaTitleRuntime": "@{username} • YSocial",
+    "metaDescription": "Xem bài viết, câu trả lời và nội dung của @{username} trên YSocial.",
+    "notFoundTitle": "Người dùng không tồn tại",
+    "notFoundDescription": "Liên kết có thể đã hỏng hoặc tài khoản đã bị xóa.",
+    "notFoundMeta": "Không tìm thấy người dùng • YSocial",
+    "backHome": "Về trang chủ",
+    "loadError": "Không tải được trang cá nhân"
   },
   "notifications": {
     "title": "Thông báo",

@@ -1,5 +1,6 @@
 export { FollowButton } from "./components/follow-button";
 export { ProfileContainer } from "./components/profile-container";
+export { ProfileSkeleton } from "./components/profile-skeleton";
 export { ViewerSync } from "./components/viewer-sync";
 export { UserHoverCard } from "./components/user-hover-card";
 export { fetchFollowedIds, fetchSuggestedUsers, fetchUser, searchUsers, setFollow } from "./services/user-service";
@@ -18,3 +19,5 @@ export {
 } from "./store/user-store";
 export type { FollowerUser, UserProfile, UserProfileBase, ViewerFollows } from "./types";
 export { parseBio } from "./utils/bio-parser";
+export { normalizeUsername, resolveProfileRoute } from "./utils/resolve-profile-route";
+export type { ProfileRouteResolution } from "./utils/resolve-profile-route";
