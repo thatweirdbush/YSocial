@@ -361,11 +361,14 @@ export async function fetchPostsByTag(tag: string, sort: TagSort, actorId: strin
   };
 }
 
-/** Most used tags over root posts: count desc, then normalized tag asc. */
+/**
+ * Most used tags over root posts a signed-out visitor can see (trending is global, so private authors' and close
+ * friends posts never feed it): count desc, then normalized tag asc.
+ */
 export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
   await simulateNetwork();
 
-  return [...collectTagStats(db.values())]
+  return [...collectTagStats([...db.values()].filter((post) => canViewPost(null, post)))]
     .sort(([keyA, a], [keyB, b]) => b.postsCount - a.postsCount || keyA.localeCompare(keyB))
     .slice(0, limit)
     .map(([, stat]) => stat);

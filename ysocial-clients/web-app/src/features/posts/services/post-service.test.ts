@@ -256,12 +256,26 @@ describe("fetchPostsByTag", () => {
 });
 
 describe("fetchTrendingTags", () => {
-  it("counts root posts per tag, count desc then tag asc", async () => {
-    expect(await settle(fetchTrendingTags(3))).toEqual([
+  it("counts public root posts per tag, count desc then tag asc", async () => {
+    // post-007 (#NextJS) is by a private author, so NextJS counts 2 instead of 3 and ties with ĐàLạt & Design
+    expect(await settle(fetchTrendingTags(4))).toEqual([
       { tag: "Minimalism", postsCount: 3 },
-      { tag: "NextJS", postsCount: 3 },
       { tag: "ĐàLạt", postsCount: 2 },
+      { tag: "Design", postsCount: 2 },
+      { tag: "NextJS", postsCount: 2 },
     ]);
+  });
+
+  it("never counts private authors or close friends posts, so a tag always leads to visible posts", async () => {
+    await settle(createPost({ ...input("secret #hiddentag"), visibility: "closeFriends" }, SEED_AUTHORS[1]));
+    await settle(createPost(input("open #opentag"), SEED_AUTHORS[1]));
+
+    const tags = (await settle(fetchTrendingTags(50))).map((stat) => stat.tag);
+
+    expect(tags).toContain("opentag");
+    expect(tags).not.toContain("hiddentag");
+    expect(tags).not.toContain("VietCode");
+    expect(tags).not.toContain("Zustand");
   });
 });
 
