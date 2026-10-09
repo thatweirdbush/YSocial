@@ -41,7 +41,7 @@ const profile = (overrides: Partial<UserProfile> = {}): UserProfile =>
 
 const demoProfile = profile({ id: "1", displayName: "YSocial Member", username: "ysocial_member", bio: undefined });
 
-const emptyPage = { posts: [] as PostItem[], parents: [], nextPage: undefined };
+const emptyPage = { posts: [] as PostItem[], parents: [], nextPage: undefined, locked: false };
 
 const signedOut = () =>
   useAuthStore.setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, hydrated: true });

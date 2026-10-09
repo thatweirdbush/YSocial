@@ -31,7 +31,7 @@ describe("TagContainer", () => {
     render(<TagContainer tag="dalat" sort="latest" />);
     await waitForPage();
 
-    expect(spy).toHaveBeenCalledWith("dalat", "latest");
+    expect(spy).toHaveBeenCalledWith("dalat", "latest", "me");
     expect(screen.getByRole("heading", { name: "#ĐàLạt" })).toBeInTheDocument();
     expect(screen.getByText("2 bài viết")).toBeInTheDocument();
     const articles = screen.getAllByRole("article");

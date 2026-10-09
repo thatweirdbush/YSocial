@@ -27,7 +27,7 @@ const makePost = (id: string, overrides: Partial<PostItem> = {}): PostItem => ({
   ...overrides,
 });
 
-const page = (posts: PostItem[], nextPage?: number, parents: ParentReference[] = []): UserPostsPage => ({ posts, parents, nextPage });
+const page = (posts: PostItem[], nextPage?: number, parents: ParentReference[] = []): UserPostsPage => ({ posts, parents, nextPage, locked: false });
 
 interface HarnessProps {
   tab: ProfileTab;
@@ -139,7 +139,7 @@ describe("ProfileTabPanel threads", () => {
     act(() => intersectAll());
 
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
-    expect(spy).toHaveBeenCalledWith("u1", "threads", 2);
+    expect(spy).toHaveBeenCalledWith("u1", "threads", 2, "v1");
   });
 
   it("isolates a failing tab with an error state and a working retry", async () => {

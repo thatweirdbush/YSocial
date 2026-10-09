@@ -112,6 +112,8 @@ export interface UserPostsPage {
   /** Replies tab only. */
   parents: ParentReference[];
   nextPage?: number;
+  /** Private profile the viewer may not see: `posts` is empty. */
+  locked: boolean;
 }
 
 export interface SavedPostsPage {

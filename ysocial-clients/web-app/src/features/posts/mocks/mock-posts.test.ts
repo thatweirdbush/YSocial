@@ -6,10 +6,19 @@ const roots = MOCK_POSTS.filter((p) => p.parentId === undefined);
 const childrenOf = (id: string) => MOCK_POSTS.filter((p) => p.parentId === id);
 
 describe("mock dataset", () => {
-  it("has 12 base root posts (post-001..post-012) plus 4 demo-account roots", () => {
+  it("has 12 base root posts (post-001..post-012), 3 close friends roots and 4 demo-account roots", () => {
     const base = Array.from({ length: 12 }, (_, i) => `post-${String(i + 1).padStart(3, "0")}`);
+    const closeFriends = Array.from({ length: 3 }, (_, i) => `post-cf-${String(i + 1).padStart(2, "0")}`);
     const demo = Array.from({ length: 4 }, (_, i) => `post-demo-${String(i + 1).padStart(2, "0")}`);
-    expect(roots.map((p) => p.id).sort()).toEqual([...base, ...demo].sort());
+    expect(roots.map((p) => p.id).sort()).toEqual([...base, ...closeFriends, ...demo].sort());
+  });
+
+  it("marks exactly the close friends roots with the closeFriends visibility", () => {
+    expect(
+      MOCK_POSTS.filter((p) => p.visibility === "closeFriends")
+        .map((p) => p.id)
+        .sort(),
+    ).toEqual(["post-cf-01", "post-cf-02", "post-cf-03"]);
   });
 
   it("gives the demo account one pinned root, one multi-image root and two replies", () => {

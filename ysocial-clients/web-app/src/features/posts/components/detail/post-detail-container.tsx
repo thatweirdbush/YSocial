@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { fetchPostThread } from "../../services/post-service";
 import { usePostActions } from "../../store/post-store";
@@ -22,6 +23,7 @@ type LoadState =
 /** Thread page body. Mount with `key={postId}` so navigating between threads starts fresh. */
 export function PostDetailContainer({ postId }: { postId: string }) {
   const { t } = useTranslation();
+  const actorId = useActorId();
   const { upsertPosts, setReplies } = usePostActions();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -29,7 +31,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
   useEffect(() => {
     let cancelled = false;
 
-    fetchPostThread(postId)
+    fetchPostThread(postId, actorId)
       .then((thread) => {
         if (cancelled) return;
         if (!thread) {
@@ -62,7 +64,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [postId, attempt, upsertPosts, setReplies]);
+  }, [postId, actorId, attempt, upsertPosts, setReplies]);
 
   if (state.status === "missing") notFound();
 

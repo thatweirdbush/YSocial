@@ -39,8 +39,8 @@ export async function fetchSearch(query: string, actorId: string): Promise<Searc
   // Each tab's order comes from the service (real API: a sort param), never re-sorted on the client
   const [users, posts, latestPosts, tags] = await Promise.all([
     searchUsers(query, actorId),
-    searchPosts(query, SEARCH_LIMIT, "relevance"),
-    searchPosts(query, SEARCH_LIMIT, "latest"),
+    searchPosts(query, actorId, SEARCH_LIMIT, "relevance"),
+    searchPosts(query, actorId, SEARCH_LIMIT, "latest"),
     matchingTags(query, SEARCH_LIMIT),
   ]);
   return { users, posts, latestPosts, tags };

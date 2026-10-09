@@ -102,7 +102,7 @@ export function useProfileTabPostsController(userId: string, actorId: string): P
       dispatch({ type: "start", scopeKey, tab });
       try {
         const result: { posts: PostItem[]; parents?: ParentReference[]; nextPage?: number } =
-          tab === "saved" ? await fetchSavedPosts(actorId, page) : await fetchUserPosts(userId, tab, page);
+          tab === "saved" ? await fetchSavedPosts(actorId, page) : await fetchUserPosts(userId, tab, page, actorId);
         if (tokens.current[tab] !== token) return;
         upsertPosts(result.posts);
         dispatch({

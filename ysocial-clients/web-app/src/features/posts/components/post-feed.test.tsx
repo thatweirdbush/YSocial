@@ -120,8 +120,13 @@ describe("PostFeed paging & refresh", () => {
     globalThis.IntersectionObserver = AlwaysVisibleObserver as unknown as typeof IntersectionObserver;
     const realFetch = service.fetchFeed;
     let failNextPage = true;
+    // A guest sees only 10 seed roots (one real page): split them across 2 fake pages (5 + 5)
+    const half = async (tab: Parameters<typeof realFetch>[0], actorId: string, second: boolean) => {
+      const result = await realFetch(tab, 1, actorId);
+      return second ? { posts: result.posts.slice(5) } : { posts: result.posts.slice(0, 5), nextPage: 2 };
+    };
     const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page, actorId) =>
-      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page, actorId),
+      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : half(tab, actorId, page > 1),
     );
     const toastError = vi.spyOn(toast, "error");
     const nextPageCalls = () => spy.mock.calls.filter(([, page]) => page === 2).length;
@@ -135,7 +140,7 @@ describe("PostFeed paging & refresh", () => {
     failNextPage = false;
     await userEvent.click(retry);
 
-    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(16), LOAD_TIMEOUT);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(10), LOAD_TIMEOUT);
     expect(nextPageCalls()).toBe(2);
   });
 });

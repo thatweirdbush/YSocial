@@ -24,6 +24,7 @@ const page = (ids: string[], nextPage?: number, parents: ParentReference[] = [])
   posts: ids.map((id) => makePost(id)),
   parents,
   nextPage,
+  locked: false,
 });
 
 const deferred = <T,>() => {
@@ -70,7 +71,7 @@ describe("useProfileTabPosts", () => {
 
     await waitFor(() => expect(screen.getByTestId("panel-threads")).toHaveTextContent("a,b|ready"));
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith("u1", "threads", 1);
+    expect(spy).toHaveBeenCalledWith("u1", "threads", 1, "v1");
     expect(usePostStore.getState().posts.a).toBeDefined();
 
     rerender(<Harness userId="u1" actorId="v1" tabs={[]} />);

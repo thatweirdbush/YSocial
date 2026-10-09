@@ -15,6 +15,7 @@ export {
   fetchTrendingTags,
   fetchUserPosts,
   ForbiddenError,
+  isPostPubliclyVisible,
   PROFILE_PAGE_SIZE,
   searchPosts,
   SEARCH_LIMIT,
