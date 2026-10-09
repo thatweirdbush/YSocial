@@ -570,7 +570,8 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
       set((state) => {
         const current = state.excludedAuthors[authorId];
         if (!current?.[reason]) return state;
-        const { [reason]: _lifted, ...rest } = current;
+        const rest = { ...current };
+        delete rest[reason];
         const excludedAuthors = { ...state.excludedAuthors };
         if (Object.keys(rest).length === 0) delete excludedAuthors[authorId];
         else excludedAuthors[authorId] = rest;
