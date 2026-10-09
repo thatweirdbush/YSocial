@@ -200,4 +200,20 @@ describe("useProfileTabPosts", () => {
     await waitFor(() => expect(screen.getByTestId("panel-saved")).toHaveTextContent("saved-2|ready"));
     expect(screen.getByTestId("panel-saved")).not.toHaveTextContent("saved-1");
   });
+
+  it("exposes the locked flag the service reports for a private profile", async () => {
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue({ ...page([]), locked: true });
+    render(<Harness userId="u1" actorId="v1" tabs={["threads"]} />);
+
+    await waitFor(() => expect(probe.current?.locked).toBe(true));
+    expect(probe.current?.ids).toEqual([]);
+  });
+
+  it("is not locked for a readable profile", async () => {
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(page(["a"]));
+    render(<Harness userId="u1" actorId="v1" tabs={["threads"]} />);
+
+    await waitFor(() => expect(probe.current?.status).toBe("ready"));
+    expect(probe.current?.locked).toBe(false);
+  });
 });

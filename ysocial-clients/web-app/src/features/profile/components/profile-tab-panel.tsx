@@ -10,6 +10,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useProfileTabPosts } from "../hooks/use-profile-tab-posts";
 import type { ProfileTab } from "../types";
 import { orderWithPin } from "../utils/order-with-pin";
+import { ProfileLockedState } from "./profile-locked-state";
 import { ProfileMediaGrid } from "./profile-media-grid";
 import { ReplyContext } from "./reply-context";
 
@@ -24,7 +25,7 @@ interface ProfileTabPanelProps {
 
 export function ProfileTabPanel({ tab, userId, username, isOwn, onCreatePost }: ProfileTabPanelProps) {
   const { t } = useTranslation();
-  const { ids, parents, status, hasMore, loadMore, retry } = useProfileTabPosts(tab);
+  const { ids, parents, status, locked, hasMore, loadMore, retry } = useProfileTabPosts(tab);
   const pinnedId = usePinnedPostId(userId);
   const orderedIds = useMemo(() => (tab === "threads" ? orderWithPin(ids, pinnedId) : ids), [ids, pinnedId, tab]);
 
@@ -49,7 +50,9 @@ export function ProfileTabPanel({ tab, userId, username, isOwn, onCreatePost }: 
   );
 
   let body: React.ReactNode;
-  if (orderedIds.length === 0 && (status === "idle" || status === "loading")) {
+  if (locked) {
+    body = <ProfileLockedState variant="private" username={username} />;
+  } else if (orderedIds.length === 0 && (status === "idle" || status === "loading")) {
     body = <PostSkeletonList count={3} />;
   } else if (orderedIds.length === 0 && status === "error") {
     body = <EmptyState icon={AlertCircle} title={t("profile.tabError")} action={retryButton} />;

@@ -164,7 +164,8 @@
     "backHome": "Về trang chủ",
     "loadError": "Không tải được trang cá nhân",
     "followSearchPlaceholder": "Tìm kiếm",
-    "followNoMatch": "Không tìm thấy ai khớp với \"{query}\""
+    "followNoMatch": "Không tìm thấy ai khớp với \"{query}\"",
+    "privateBadge": "Tài khoản riêng tư"
   },
   "notifications": {
     "title": "Thông báo",
@@ -353,6 +354,15 @@
     "muteToast": "Đã ẩn @{username} khỏi bảng tin",
     "unmuteToast": "Đã bỏ ẩn @{username}",
     "unmute": "Bỏ ẩn @{username}",
-    "undo": "Hoàn tác"
+    "undo": "Hoàn tác",
+    "privateTitle": "Tài khoản này là riêng tư",
+    "privateDescription": "Theo dõi để xem bài viết của họ.",
+    "blockedTitle": "Bạn đã chặn @{username}",
+    "unavailableTitle": "Hồ sơ không khả dụng",
+    "unavailableDescription": "Bạn không thể xem hồ sơ này.",
+    "addCloseFriend": "Thêm vào bạn thân",
+    "removeCloseFriend": "Xoá khỏi bạn thân",
+    "closeFriendAddedToast": "Đã thêm @{username} vào bạn thân",
+    "closeFriendRemovedToast": "Đã xoá @{username} khỏi bạn thân"
   }
 }

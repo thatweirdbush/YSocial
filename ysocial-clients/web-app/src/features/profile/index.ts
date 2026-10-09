@@ -1,5 +1,7 @@
 export { BlockConfirmDialog } from "./components/block-confirm-dialog";
 export { FollowButton } from "./components/follow-button";
+export { ProfileHeaderMenu } from "./components/profile-header-menu";
+export { ProfileLockedState } from "./components/profile-locked-state";
 export { ProfileContainer } from "./components/profile-container";
 export { ViewerSync } from "./components/viewer-sync";
 export { UserHoverCard } from "./components/user-hover-card";

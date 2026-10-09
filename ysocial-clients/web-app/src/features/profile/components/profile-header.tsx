@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Link2, QrCode, Share2 } from "lucide-react";
+import { BadgeCheck, Link2, Lock, QrCode, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import type { FollowListKind, UserProfile } from "../types";
 import { parseBio } from "../utils/bio-parser";
 import { EditProfileDialog } from "./edit-profile-dialog";
 import { FollowButton } from "./follow-button";
+import { ProfileHeaderMenu } from "./profile-header-menu";
 
 interface ProfileHeaderProps {
   user: UserProfile;
@@ -17,9 +18,25 @@ interface ProfileHeaderProps {
   onOpenFollowers: (kind: FollowListKind) => void;
   /** Share menu is rendered only when provided. */
   onShare?: (action: "copy" | "qr") => void;
+  /** False for a locked private profile: the counts stay visible but the follow lists cannot be opened. */
+  canOpenLists?: boolean;
 }
 
-export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare }: ProfileHeaderProps) {
+/** A follower / following count: a button that opens the list, or plain text when the list is locked. */
+function CountLink({ enabled, onClick, children }: { enabled: boolean; onClick: () => void; children: React.ReactNode }) {
+  if (!enabled) return <span className="px-1">{children}</span>;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="min-h-11 cursor-pointer rounded-md px-1 outline-none transition-colors hover:text-zinc-900 hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 motion-reduce:transition-none dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
+    >
+      {children}
+    </button>
+  );
+}
+
+export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare, canOpenLists = true }: ProfileHeaderProps) {
   const { t, locale } = useTranslation();
   const [editOpen, setEditOpen] = useState(false);
   const formatCount = (n: number) => new Intl.NumberFormat(locale).format(n);
@@ -32,6 +49,9 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare }: Profile
           <div className="flex flex-wrap items-center gap-1.5">
             <h1 className="truncate text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{user.displayName}</h1>
             {user.isVerified && <BadgeCheck className="size-5 shrink-0 fill-blue-500 text-blue-500" aria-hidden="true" />}
+            {user.isPrivate && (
+              <Lock role="img" aria-label={t("profile.privateBadge")} className="size-4 shrink-0 text-zinc-500 dark:text-zinc-400" />
+            )}
           </div>
           <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">@{user.username}</span>
         </div>
@@ -47,23 +67,15 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare }: Profile
       )}
 
       <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-        <button
-          type="button"
-          onClick={() => onOpenFollowers("followers")}
-          className="min-h-11 cursor-pointer rounded-md px-1 outline-none transition-colors hover:text-zinc-900 hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 motion-reduce:transition-none dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
-        >
+        <CountLink enabled={canOpenLists} onClick={() => onOpenFollowers("followers")}>
           {t("profile.followersCount", { n: formatCount(user.followersCount) })}
-        </button>
+        </CountLink>
         <span className="select-none text-zinc-300 dark:text-zinc-700" aria-hidden="true">
           •
         </span>
-        <button
-          type="button"
-          onClick={() => onOpenFollowers("following")}
-          className="min-h-11 cursor-pointer rounded-md px-1 outline-none transition-colors hover:text-zinc-900 hover:underline focus-visible:ring-2 focus-visible:ring-zinc-950 motion-reduce:transition-none dark:hover:text-zinc-100 dark:focus-visible:ring-zinc-100"
-        >
+        <CountLink enabled={canOpenLists} onClick={() => onOpenFollowers("following")}>
           {t("profile.followingCount", { n: formatCount(user.followingCount) })}
-        </button>
+        </CountLink>
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
@@ -79,6 +91,8 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare }: Profile
         ) : (
           <FollowButton userId={user.id} reserveSpace className="min-h-11 flex-1 px-6 text-xs sm:flex-initial" />
         )}
+
+        {!isOwn && <ProfileHeaderMenu user={user} />}
 
         {onShare && (
           <DropdownMenu>

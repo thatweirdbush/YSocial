@@ -77,6 +77,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("ProfileTabPanel locked", () => {
+  it("shows the private state instead of an empty panel when the service reports the profile as locked", async () => {
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue({ ...page([]), locked: true });
+    render(<Harness tab="threads" />);
+
+    expect(await screen.findByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("article")).toHaveLength(0);
+  });
+});
+
 describe("ProfileTabPanel threads", () => {
   it("renders the pinned post first and reorders live when another post is pinned", async () => {
     vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(

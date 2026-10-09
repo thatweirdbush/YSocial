@@ -164,7 +164,8 @@
     "backHome": "Back to Home",
     "loadError": "Couldn't load this profile",
     "followSearchPlaceholder": "Search",
-    "followNoMatch": "No one matches \"{query}\""
+    "followNoMatch": "No one matches \"{query}\"",
+    "privateBadge": "Private account"
   },
   "notifications": {
     "title": "Notifications",
@@ -353,6 +354,15 @@
     "muteToast": "Muted @{username} from your feeds",
     "unmuteToast": "Unmuted @{username}",
     "unmute": "Unmute @{username}",
-    "undo": "Undo"
+    "undo": "Undo",
+    "privateTitle": "This account is private",
+    "privateDescription": "Follow to see their posts.",
+    "blockedTitle": "You blocked @{username}",
+    "unavailableTitle": "Profile unavailable",
+    "unavailableDescription": "You can't view this profile.",
+    "addCloseFriend": "Add to close friends",
+    "removeCloseFriend": "Remove from close friends",
+    "closeFriendAddedToast": "Added @{username} to close friends",
+    "closeFriendRemovedToast": "Removed @{username} from close friends"
   }
 }

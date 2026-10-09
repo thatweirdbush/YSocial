@@ -16,6 +16,8 @@ export interface ProfileTabState {
   parents: Record<string, ParentReference>;
   status: TabStatus;
   nextPage?: number;
+  /** Private profile the viewer may not see (reported by the service). */
+  locked: boolean;
 }
 
 type TabsState = Record<ProfileTab, ProfileTabState>;
@@ -36,10 +38,10 @@ export interface ProfileTabPostsController {
 
 type Action =
   | { type: "start"; scopeKey: string; tab: ProfileTab }
-  | { type: "success"; scopeKey: string; tab: ProfileTab; ids: string[]; parents: ParentReference[]; nextPage?: number; append: boolean }
+  | { type: "success"; scopeKey: string; tab: ProfileTab; ids: string[]; parents: ParentReference[]; nextPage?: number; locked: boolean; append: boolean }
   | { type: "failure"; scopeKey: string; tab: ProfileTab };
 
-const IDLE: ProfileTabState = { ids: [], parents: {}, status: "idle" };
+const IDLE: ProfileTabState = { ids: [], parents: {}, status: "idle", locked: false };
 const TABS: readonly ProfileTab[] = ["threads", "replies", "media", "saved"];
 
 const freshTabs = (): TabsState => ({ threads: IDLE, replies: IDLE, media: IDLE, saved: IDLE });
@@ -60,7 +62,7 @@ function reducer(state: ControllerState, action: Action): ControllerState {
       const ids = [...(action.append ? current.ids : []), ...action.ids.filter((id) => !known.has(id))];
       const parents = { ...(action.append ? current.parents : {}) };
       for (const parent of action.parents) parents[parent.id] = parent;
-      return { ...base, tabs: { ...base.tabs, [action.tab]: { ids, parents, status: "ready", nextPage: action.nextPage } } };
+      return { ...base, tabs: { ...base.tabs, [action.tab]: { ids, parents, status: "ready", nextPage: action.nextPage, locked: action.locked } } };
     }
   }
 }
@@ -101,7 +103,7 @@ export function useProfileTabPostsController(userId: string, actorId: string): P
       const token = (tokens.current[tab] += 1);
       dispatch({ type: "start", scopeKey, tab });
       try {
-        const result: { posts: PostItem[]; parents?: ParentReference[]; nextPage?: number } =
+        const result: { posts: PostItem[]; parents?: ParentReference[]; nextPage?: number; locked?: boolean } =
           tab === "saved" ? await fetchSavedPosts(actorId, page) : await fetchUserPosts(userId, tab, page, actorId);
         if (tokens.current[tab] !== token) return;
         upsertPosts(result.posts);
@@ -112,6 +114,7 @@ export function useProfileTabPostsController(userId: string, actorId: string): P
           ids: result.posts.map((post) => post.id),
           parents: result.parents ?? [],
           nextPage: result.nextPage,
+          locked: result.locked ?? false,
           append,
         });
       } catch {
@@ -164,6 +167,7 @@ export interface ProfileTabPosts {
   ids: string[];
   parents: Record<string, ParentReference>;
   status: TabStatus;
+  locked: boolean;
   hasMore: boolean;
   loadMore: () => void;
   retry: () => void;
@@ -184,6 +188,7 @@ export function useProfileTabPosts(tab: ProfileTab): ProfileTabPosts {
     ids: current.ids,
     parents: current.parents,
     status: current.status,
+    locked: current.locked,
     hasMore: current.status === "ready" && current.nextPage !== undefined,
     loadMore: useCallback(() => loadMore(tab), [loadMore, tab]),
     retry: useCallback(() => retry(tab), [retry, tab]),
