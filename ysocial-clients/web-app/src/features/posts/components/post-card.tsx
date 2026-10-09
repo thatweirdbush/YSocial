@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { setPostBookmark, setPostLike } from "../services/post-service";
 import { useCurrentAuthor } from "../hooks/use-current-author";
 import { useOwnerActions, type OwnerActions } from "../hooks/use-owner-actions";
-import { useIsDeleted, usePost, usePostActions, usePostAuthorId } from "../store/post-store";
+import { useIsAuthorBlocked, useIsDeleted, usePost, usePostActions, usePostAuthorId } from "../store/post-store";
 import type { PostItem } from "../types";
 import { getVisibleLikeCount } from "../utils/like-visibility";
 import { RichContent } from "../utils/rich-content";
@@ -47,6 +47,9 @@ interface PostCardProps {
 export function PostCard(props: PostCardProps) {
   const authorId = usePostAuthorId(props.post.id) ?? props.post.user.id;
   const isOwner = authorId === useCurrentAuthor().id;
+  const isBlocked = useIsAuthorBlocked(authorId);
+  // Fallback for lists that are not refilled after a block (search, tags, saved, profile tabs): spec D26
+  if (isBlocked) return null;
   return isOwner ? <OwnerPostCard {...props} /> : <PostCardView {...props} />;
 }
 

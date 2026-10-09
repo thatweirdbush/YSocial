@@ -45,6 +45,11 @@ export interface PostItem {
   visibility?: PostVisibility;
 }
 
+/** Why the viewer no longer sees an author's posts in lists: `blocked` covers both directions of a block. */
+export type ExclusionReason = "muted" | "blocked";
+
+export type ExcludedAuthors = Record<string, Partial<Record<ExclusionReason, true>>>;
+
 /** Owner-only mutations; at most 1 pending per post. */
 export type OwnerOp = "edit" | "delete" | "pin" | "hideLikeCount";
 

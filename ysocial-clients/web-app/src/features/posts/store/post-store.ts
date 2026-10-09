@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { useShallow } from "zustand/react/shallow";
-import type { FeedTab, IncomingBuffer, OwnerOp, PostItem, RemovalSnapshot } from "../types";
+import type { ExcludedAuthors, ExclusionReason, FeedTab, IncomingBuffer, OwnerOp, PostItem, RemovalSnapshot } from "../types";
 
 // Normalized client cache of posts. Every screen reads the same entity via usePost(id),
 // so like/bookmark/reply changes are reflected everywhere in O(1).
@@ -27,6 +27,8 @@ interface PostStoreData extends IncomingBuffer {
   pinnedIdByAuthor: Record<string, string>;
   /** At most 1 pending owner mutation per post. */
   ownerOpById: Record<string, OwnerOp>;
+  /** Authors hidden from this viewer's lists, with every active reason (spec D20). */
+  excludedAuthors: ExcludedAuthors;
 }
 
 interface PostStoreActions {
@@ -64,6 +66,14 @@ interface PostStoreActions {
   setHideLikeCount: (id: string, hidden: boolean) => void;
   /** Field-scoped rollback: applies `patch` only while every `expected` field is unchanged (empty -> always). */
   patchPostIf: (id: string, expected: Partial<PostItem>, patch: Partial<PostItem>) => void;
+  /** Adds `reason` for the author and removes their posts from both feeds & the buffer (replies too when blocked). */
+  excludeAuthor: (authorId: string, reason: ExclusionReason) => void;
+  /** Lifts ONLY `reason`; removed ids are never restored (the next page-1 load brings them back). */
+  includeAuthor: (authorId: string, reason: ExclusionReason) => void;
+  /** Replaces the whole exclusion map (relation sets load) and purges what it excludes. */
+  setExcludedAuthors: (excluded: ExcludedAuthors) => void;
+  /** Viewer switch: clears feeds, paging, buffer & exclusions; cached posts stay (spec D25). */
+  resetViewerFeeds: () => void;
 }
 
 interface PostStoreState extends PostStoreData {
@@ -83,7 +93,17 @@ const initialData = (): PostStoreData => ({
   deletedIds: {},
   pinnedIdByAuthor: {},
   ownerOpById: {},
+  excludedAuthors: {},
 });
+
+/** The part of the initial state that depends on who the viewer is. */
+const viewerFeedData = (): Pick<
+  PostStoreData,
+  "feedIds" | "feedMeta" | "incoming" | "consumedIncoming" | "droppedAuthorIds" | "excludedAuthors"
+> => {
+  const { feedIds, feedMeta, incoming, consumedIncoming, droppedAuthorIds, excludedAuthors } = initialData();
+  return { feedIds, feedMeta, incoming, consumedIncoming, droppedAuthorIds, excludedAuthors };
+};
 
 // #region Helpers
 /** Returns updated posts map, or null when the post is unknown and no seed is given. */
@@ -189,6 +209,52 @@ function purge(state: PostStoreData, ids: ReadonlySet<string>): Partial<PostStor
   };
 }
 
+const isExcluded = (excluded: ExcludedAuthors, authorId: string | undefined): boolean =>
+  authorId !== undefined && excluded[authorId] !== undefined;
+
+const isBlockedAuthor = (excluded: ExcludedAuthors, authorId: string | undefined): boolean =>
+  authorId !== undefined && excluded[authorId]?.blocked === true;
+
+/**
+ * Removes excluded authors' posts from both feeds and the buffer, and blocked authors' replies from reply lists.
+ * Returns only the changed slices; cached posts stay (profile, thread & search still need them).
+ */
+function dropExcluded(state: PostStoreData, excluded: ExcludedAuthors): Partial<PostStoreData> {
+  const authorOf = (id: string) => state.posts[id]?.user.id;
+
+  const feedIds = { ...state.feedIds };
+  for (const tab of FEED_TABS) {
+    if (state.feedIds[tab].some((id) => isExcluded(excluded, authorOf(id)))) {
+      feedIds[tab] = state.feedIds[tab].filter((id) => !isExcluded(excluded, authorOf(id)));
+    }
+  }
+
+  const removedIncoming = new Set(state.incoming.filter((id) => isExcluded(excluded, authorOf(id))));
+  const incoming = removedIncoming.size > 0 ? state.incoming.filter((id) => !removedIncoming.has(id)) : state.incoming;
+
+  const replyIds: Record<string, string[]> = {};
+  for (const [parentId, children] of Object.entries(state.replyIds)) {
+    replyIds[parentId] = children.some((id) => isBlockedAuthor(excluded, authorOf(id)))
+      ? children.filter((id) => !isBlockedAuthor(excluded, authorOf(id)))
+      : children;
+  }
+
+  const droppedAuthorIds = { ...state.droppedAuthorIds };
+  for (const tab of FEED_TABS) {
+    if (state.droppedAuthorIds[tab].some((id) => isExcluded(excluded, id))) {
+      droppedAuthorIds[tab] = state.droppedAuthorIds[tab].filter((id) => !isExcluded(excluded, id));
+    }
+  }
+
+  return {
+    feedIds,
+    incoming,
+    replyIds,
+    droppedAuthorIds,
+    consumedIncoming: removedIncoming.size > 0 ? withoutConsumed(state.consumedIncoming, removedIncoming) : state.consumedIncoming,
+  };
+}
+
 /** Inserts `id` at `index` (clamped) unless already present. */
 function insertAt(list: string[], id: string, index: number): string[] {
   if (index < 0 || list.includes(id)) return list;
@@ -211,7 +277,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
 
     setFeedPage: (tab, ids, append, nextPage) =>
       set((state) => {
-        const alive = ids.filter((id) => !state.deletedIds[id]);
+        const alive = ids.filter((id) => !state.deletedIds[id] && !isExcluded(state.excludedAuthors, state.posts[id]?.user.id));
         let nextIds = alive;
         if (append) {
           const cached = new Set(state.feedIds[tab]);
@@ -230,7 +296,12 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
       }),
 
     setReplies: (parentId, ids) =>
-      set((state) => ({ replyIds: { ...state.replyIds, [parentId]: ids.filter((id) => !state.deletedIds[id]) } })),
+      set((state) => ({
+        replyIds: {
+          ...state.replyIds,
+          [parentId]: ids.filter((id) => !state.deletedIds[id] && !isBlockedAuthor(state.excludedAuthors, state.posts[id]?.user.id)),
+        },
+      })),
 
     toggleLike: (id, seed) =>
       set((state) => {
@@ -299,7 +370,7 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
 
     bufferIncoming: (post) =>
       set((state) => {
-        if (state.deletedIds[post.id] || state.incoming.includes(post.id)) return state;
+        if (state.deletedIds[post.id] || state.incoming.includes(post.id) || isExcluded(state.excludedAuthors, post.user.id)) return state;
         const inFeeds = FEED_TABS.filter((tab) => state.feedIds[tab].includes(post.id));
         if (inFeeds.length === FEED_TABS.length) return state;
 
@@ -488,6 +559,27 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
         const matches = (Object.keys(expected) as (keyof PostItem)[]).every((key) => Object.is(post[key], expected[key]));
         return matches ? { posts: { ...state.posts, [id]: { ...post, ...patch } } } : state;
       }),
+
+    excludeAuthor: (authorId, reason) =>
+      set((state) => {
+        const excludedAuthors = { ...state.excludedAuthors, [authorId]: { ...state.excludedAuthors[authorId], [reason]: true as const } };
+        return { excludedAuthors, ...dropExcluded(state, excludedAuthors) };
+      }),
+
+    includeAuthor: (authorId, reason) =>
+      set((state) => {
+        const current = state.excludedAuthors[authorId];
+        if (!current?.[reason]) return state;
+        const { [reason]: _lifted, ...rest } = current;
+        const excludedAuthors = { ...state.excludedAuthors };
+        if (Object.keys(rest).length === 0) delete excludedAuthors[authorId];
+        else excludedAuthors[authorId] = rest;
+        return { excludedAuthors };
+      }),
+
+    setExcludedAuthors: (excludedAuthors) => set((state) => ({ excludedAuthors, ...dropExcluded(state, excludedAuthors) })),
+
+    resetViewerFeeds: () => set(viewerFeedData()),
   },
 }));
 
@@ -514,5 +606,7 @@ export const useIncomingBuffer = (): IncomingBuffer =>
 export const usePinnedPostId = (authorId: string): string | undefined => usePostStore((state) => state.pinnedIdByAuthor[authorId]);
 export const useIsDeleted = (id: string) => usePostStore((state) => state.deletedIds[id] === true);
 export const useOwnerOp = (id: string): OwnerOp | undefined => usePostStore((state) => state.ownerOpById[id]);
+/** The viewer blocked the author or the author blocked the viewer (cards render nothing). */
+export const useIsAuthorBlocked = (authorId: string): boolean => usePostStore((state) => state.excludedAuthors[authorId]?.blocked === true);
 export const usePostActions = () => usePostStore((state) => state.actions);
 // #endregion

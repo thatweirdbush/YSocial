@@ -20,5 +20,5 @@ export {
   searchPosts,
   SEARCH_LIMIT,
 } from "./services/post-service";
-export { useIsDeleted, usePinnedPostId, usePost, usePostActions } from "./store/post-store";
+export { useIsAuthorBlocked, useIsDeleted, usePinnedPostId, usePost, usePostActions } from "./store/post-store";
 export { byNewest as byNewestPost } from "./utils/hashtags";

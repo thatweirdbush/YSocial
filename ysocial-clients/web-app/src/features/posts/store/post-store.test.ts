@@ -2,7 +2,16 @@ import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { FeedTab, PostItem } from "../types";
 import { getPendingFeed } from "../utils/pending-feed";
-import { INCOMING_CAP, resetPostStore, useIsDeleted, useOwnerOp, usePinnedPostId, usePostStore, useReplyIds } from "./post-store";
+import {
+  INCOMING_CAP,
+  resetPostStore,
+  useIsAuthorBlocked,
+  useIsDeleted,
+  useOwnerOp,
+  usePinnedPostId,
+  usePostStore,
+  useReplyIds,
+} from "./post-store";
 
 const makePost = (id: string, overrides: Partial<PostItem> = {}): PostItem => ({
   id,
@@ -601,6 +610,146 @@ describe("pin index", () => {
     actions().markDeleted(["B"]);
 
     expect(pinIndex()).toEqual({ u1: "A" });
+  });
+});
+// #endregion
+
+// #region Author exclusion
+describe("author exclusion", () => {
+  const byAuthor = (id: string, authorId: string, overrides: Partial<PostItem> = {}) =>
+    makePost(id, { user: { id: authorId, displayName: authorId, username: authorId }, ...overrides });
+
+  function seedFeeds() {
+    const posts = [byAuthor("a1", "a"), byAuthor("b1", "b"), byAuthor("a2", "a")];
+    actions().upsertPosts(posts);
+    actions().setFeedPage("forYou", ["a1", "b1", "a2"], false);
+    actions().setFeedPage("following", ["a1", "b1"], false);
+    actions().bufferIncoming(byAuthor("na", "a"));
+    actions().bufferIncoming(byAuthor("nb", "b"));
+  }
+
+  it("muting removes the author from both feeds and the incoming buffer but keeps replies", () => {
+    seedFeeds();
+    actions().upsertPosts([byAuthor("r1", "a", { parentId: "b1" })]);
+    actions().setReplies("b1", ["r1"]);
+
+    actions().excludeAuthor("a", "muted");
+
+    expect(state().feedIds.forYou).toEqual(["b1"]);
+    expect(state().feedIds.following).toEqual(["b1"]);
+    expect(state().incoming).toEqual(["nb"]);
+    expect(state().replyIds.b1).toEqual(["r1"]);
+    expect(state().excludedAuthors).toEqual({ a: { muted: true } });
+    expect(state().posts.a1).toBeDefined();
+  });
+
+  it("blocking also removes the author's replies", () => {
+    seedFeeds();
+    actions().upsertPosts([byAuthor("r1", "a", { parentId: "b1" }), byAuthor("r2", "b", { parentId: "b1" })]);
+    actions().setReplies("b1", ["r1", "r2"]);
+
+    actions().excludeAuthor("a", "blocked");
+
+    expect(state().replyIds.b1).toEqual(["r2"]);
+    expect(state().feedIds.forYou).toEqual(["b1"]);
+  });
+
+  it("keeps an author excluded when only one of two overlapping reasons is lifted", () => {
+    seedFeeds();
+    actions().excludeAuthor("a", "muted");
+    actions().excludeAuthor("a", "blocked");
+
+    actions().includeAuthor("a", "blocked");
+
+    expect(state().excludedAuthors).toEqual({ a: { muted: true } });
+    actions().bufferIncoming(byAuthor("na2", "a"));
+    expect(state().incoming).not.toContain("na2");
+  });
+
+  it("drops the entry once every reason is lifted and never restores removed ids", () => {
+    seedFeeds();
+    actions().excludeAuthor("a", "blocked");
+
+    actions().includeAuthor("a", "blocked");
+
+    expect(state().excludedAuthors).toEqual({});
+    expect(state().feedIds.forYou).toEqual(["b1"]);
+    expect(state().incoming).toEqual(["nb"]);
+  });
+
+  it("clears the author's consumed and dropped markers", () => {
+    seedFeeds();
+    actions().consumeIncoming("forYou", ["na"]);
+
+    actions().excludeAuthor("a", "muted");
+
+    expect(state().consumedIncoming.forYou).toEqual({});
+  });
+
+  it("skips excluded authors in the buffer and in feed pages", () => {
+    actions().excludeAuthor("a", "muted");
+    actions().upsertPosts([byAuthor("a1", "a"), byAuthor("b1", "b")]);
+
+    actions().bufferIncoming(byAuthor("na", "a"));
+    actions().setFeedPage("forYou", ["a1", "b1"], false);
+
+    expect(state().incoming).toEqual([]);
+    expect(state().feedIds.forYou).toEqual(["b1"]);
+  });
+
+  it("skips blocked authors in reply lists but not muted ones", () => {
+    actions().upsertPosts([byAuthor("rm", "m", { parentId: "p" }), byAuthor("rb", "x", { parentId: "p" })]);
+    actions().excludeAuthor("m", "muted");
+    actions().excludeAuthor("x", "blocked");
+
+    actions().setReplies("p", ["rm", "rb"]);
+
+    expect(state().replyIds.p).toEqual(["rm"]);
+  });
+
+  it("skips a post by an author who blocked the viewer once the exclusion map is set", () => {
+    actions().setExcludedAuthors({ a: { blocked: true } });
+
+    actions().bufferIncoming(byAuthor("na", "a"));
+
+    expect(state().incoming).toEqual([]);
+  });
+
+  it("setExcludedAuthors replaces the map and purges what it now excludes", () => {
+    seedFeeds();
+    usePostStore.setState({ excludedAuthors: { b: { muted: true } } });
+
+    actions().setExcludedAuthors({ a: { blocked: true } });
+
+    expect(state().excludedAuthors).toEqual({ a: { blocked: true } });
+    expect(state().feedIds.forYou).toEqual(["b1"]);
+    expect(state().incoming).toEqual(["nb"]);
+  });
+
+  it("resetViewerFeeds clears the viewer-dependent state but keeps cached posts", () => {
+    seedFeeds();
+    actions().excludeAuthor("a", "muted");
+
+    actions().resetViewerFeeds();
+
+    expect(state().feedIds).toEqual({ forYou: [], following: [] });
+    expect(state().feedMeta.forYou.loaded).toBe(false);
+    expect(state().incoming).toEqual([]);
+    expect(state().consumedIncoming).toEqual({ forYou: {}, following: {} });
+    expect(state().droppedAuthorIds).toEqual({ forYou: [], following: [] });
+    expect(state().excludedAuthors).toEqual({});
+    expect(state().posts.b1).toBeDefined();
+  });
+
+  it("useIsAuthorBlocked reflects only the blocked reason", () => {
+    const { result } = renderHook(() => useIsAuthorBlocked("a"));
+    expect(result.current).toBe(false);
+
+    act(() => actions().excludeAuthor("a", "muted"));
+    expect(result.current).toBe(false);
+
+    act(() => actions().excludeAuthor("a", "blocked"));
+    expect(result.current).toBe(true);
   });
 });
 // #endregion

@@ -297,3 +297,23 @@ describe("PostCard owner state", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 });
+
+describe("PostCard blocked author", () => {
+  it("renders nothing for a blocked author (fallback guard for lists that are not refilled)", () => {
+    const { container, rerender } = render(<PostCard post={post} />);
+    expect(screen.getByText("Nội dung bài viết")).toBeInTheDocument();
+
+    act(() => usePostStore.getState().actions.excludeAuthor("u1", "blocked"));
+    rerender(<PostCard post={post} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("still renders a muted author", () => {
+    usePostStore.getState().actions.excludeAuthor("u1", "muted");
+
+    render(<PostCard post={post} />);
+
+    expect(screen.getByText("Nội dung bài viết")).toBeInTheDocument();
+  });
+});
