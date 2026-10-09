@@ -92,12 +92,18 @@ export function invalidateViewerProjection(actorId: string): void {
   actions().clearViewer(actorId);
 }
 
-/** Refetches the pending request count; dropped when a mutation started meanwhile (its own refetch wins). */
-export async function refreshRequestCount(actorId: string): Promise<void> {
+/**
+ * Refetches the pending request count; dropped when a mutation started meanwhile (its own refetch wins). An
+ * `external` refetch (not caused by the request list itself) that changes the count makes the list reload.
+ */
+export async function refreshRequestCount(actorId: string, { external = false }: { external?: boolean } = {}): Promise<void> {
   if (isGuest(actorId)) return;
   const sequence = getMutationSeq(actorId);
   const count = await fetchFollowRequestCount(actorId);
-  if (getMutationSeq(actorId) === sequence) actions().setRequestCount(actorId, count);
+  if (getMutationSeq(actorId) !== sequence) return;
+  const previous = getViewerRelations(actorId)?.requestCount;
+  actions().setRequestCount(actorId, count);
+  if (external && previous !== count) actions().bumpRequestsVersion(actorId);
 }
 
 /** Test-only: forget every viewer slot and the in-flight loads. */
@@ -156,7 +162,7 @@ export async function commitBlock(actorId: string, id: string, on: boolean): Pro
 
   if (isCurrentOp(actorId, id, opVersion)) {
     const current = () => isCurrentOp(actorId, id, opVersion);
-    await Promise.all([refreshUsers([id, actorId], actorId, current), refreshRequestCount(actorId)]);
+    await Promise.all([refreshUsers([id, actorId], actorId, current), refreshRequestCount(actorId, { external: true })]);
   }
   return true;
 }
@@ -216,7 +222,10 @@ export async function commitPrivacy(actorId: string, on: boolean): Promise<{ ok:
   };
   const opVersion = beginOp(actorId, "self");
   actions().setPrivate(actorId, on);
-  if (!on) actions().setRequestCount(actorId, 0);
+  if (!on) {
+    actions().setRequestCount(actorId, 0);
+    if (before.requestCount !== 0) actions().bumpRequestsVersion(actorId);
+  }
 
   let acceptedCount: number;
   try {
@@ -229,7 +238,7 @@ export async function commitPrivacy(actorId: string, on: boolean): Promise<{ ok:
   }
 
   if (isCurrentOp(actorId, "self", opVersion)) {
-    await Promise.all([refreshUsers([actorId], actorId, () => isCurrentOp(actorId, "self", opVersion)), refreshRequestCount(actorId)]);
+    await Promise.all([refreshUsers([actorId], actorId, () => isCurrentOp(actorId, "self", opVersion)), refreshRequestCount(actorId, { external: true })]);
   }
   return { ok: true, acceptedCount };
 }
@@ -271,6 +280,10 @@ export const useIsBlockedBy = (id: string): boolean => useSlot((slot) => slot?.b
 export const useIsMuted = (id: string): boolean => useSlot((slot) => slot?.muted[id] === true);
 export const useIsPrivateAccount = (): boolean => useSlot((slot) => slot?.isPrivate === true);
 export const useFollowRequestCount = (): number => useSlot((slot) => slot?.requestCount ?? 0);
+/** Changes when the requests changed from outside the request list: the list reloads its first page. */
+export const useFollowRequestsVersion = (): number => useSlot((slot) => slot?.requestsVersion ?? 0);
+/** Close friends the viewer marked (loaded sets plus optimistic changes). */
+export const useCloseFriendCount = (): number => useSlot((slot) => (slot ? Object.keys(slot.closeFriends).length : 0));
 /** False until the viewer's complete sets loaded: UI that depends on block state must wait for it. */
 export const useRelationsLoaded = (): boolean => useSlot((slot) => slot?.loaded === true);
 

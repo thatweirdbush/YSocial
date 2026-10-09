@@ -17,6 +17,8 @@ export interface ViewerRelations {
   /** Undefined until the sets loaded. */
   isPrivate?: boolean;
   requestCount?: number;
+  /** Bumped when the requests change from outside the request list (it reloads its first page on a bump). */
+  requestsVersion?: number;
   /** True once the complete sets were loaded from the service. */
   loaded: boolean;
 }
@@ -29,6 +31,7 @@ interface RelationStoreActions {
   setFlag: (actorId: string, field: RelationFlagField, id: string, on: boolean) => void;
   setPrivate: (actorId: string, value: boolean) => void;
   setRequestCount: (actorId: string, count: number) => void;
+  bumpRequestsVersion: (actorId: string) => void;
   /** Drops the viewer's slot (account switch, spec D25). */
   clearViewer: (actorId: string) => void;
 }
@@ -81,6 +84,12 @@ export const useRelationStore = create<RelationStoreState>((set) => ({
       set((state) => {
         const slot = state.byViewer[actorId] ?? emptySlot();
         return slot.requestCount === count ? state : { byViewer: { ...state.byViewer, [actorId]: { ...slot, requestCount: count } } };
+      }),
+
+    bumpRequestsVersion: (actorId) =>
+      set((state) => {
+        const slot = state.byViewer[actorId] ?? emptySlot();
+        return { byViewer: { ...state.byViewer, [actorId]: { ...slot, requestsVersion: (slot.requestsVersion ?? 0) + 1 } } };
       }),
 
     clearViewer: (actorId) =>

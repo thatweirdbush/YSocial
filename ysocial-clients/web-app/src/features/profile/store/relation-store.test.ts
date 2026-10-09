@@ -20,7 +20,9 @@ import {
   invalidateViewerProjection,
   refreshRequestCount,
   resetRelationStore,
+  useCloseFriendCount,
   useFollowRequestCount,
+  useFollowRequestsVersion,
   useIsBlocked,
   useIsBlockedBy,
   useIsMuted,
@@ -569,3 +571,69 @@ describe("blocked-by from the graph", () => {
     expect(excluded()["author-01"]).toEqual({ blocked: true });
   });
 });
+
+describe("follow requests version (outside changes only)", () => {
+  const version = () => relations("1")?.requestsVersion ?? 0;
+
+  async function loadSets() {
+    const load = ensureRelationSets("1");
+    await vi.runAllTimersAsync();
+    await load;
+  }
+
+  it("is bumped when the privacy toggle empties the requests and when a requester gets blocked", async () => {
+    await loadSets();
+    const start = version();
+
+    const blocking = commitBlock("1", "author-02", true);
+    await vi.runAllTimersAsync();
+    await blocking;
+    expect(version()).toBeGreaterThan(start);
+
+    const afterBlock = version();
+    const publishing = commitPrivacy("1", false);
+    expect(version()).toBeGreaterThan(afterBlock);
+    await vi.runAllTimersAsync();
+    await publishing;
+  });
+
+  it("is NOT bumped by responding to a request from the list itself", async () => {
+    await loadSets();
+    const start = version();
+
+    const responding = commitRespondRequest("1", "author-02", "accept");
+    await vi.runAllTimersAsync();
+    await responding;
+
+    expect(version()).toBe(start);
+    expect(relations("1").requestCount).toBe(3);
+  });
+
+  it("is not bumped by blocking a user without a pending request", async () => {
+    await loadSets();
+    const start = version();
+
+    const blocking = commitBlock("1", "author-04", true);
+    await vi.runAllTimersAsync();
+    await blocking;
+
+    expect(version()).toBe(start);
+  });
+
+  it("exposes the version and the close friend count through selectors", async () => {
+    await loadSets();
+    const { result } = renderHook(() => ({ version: useFollowRequestsVersion(), closeFriends: useCloseFriendCount() }));
+
+    expect(result.current.closeFriends).toBe(1);
+    const before = result.current.version;
+
+    await act(async () => {
+      const blocking = commitBlock("1", "author-02", true);
+      await vi.runAllTimersAsync();
+      await blocking;
+    });
+
+    expect(result.current.version).toBeGreaterThan(before);
+  });
+});
+

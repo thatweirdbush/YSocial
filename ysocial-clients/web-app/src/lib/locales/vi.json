@@ -371,6 +371,16 @@
     "blockedEmptyDescription": "Những tài khoản bạn chặn sẽ xuất hiện ở đây.",
     "mutedEmptyTitle": "Chưa ẩn ai",
     "mutedEmptyDescription": "Tài khoản bạn ẩn khỏi bảng tin sẽ xuất hiện ở đây.",
-    "unmuteAction": "Bỏ ẩn"
+    "unmuteAction": "Bỏ ẩn",
+    "requestsTitle": "Yêu cầu theo dõi",
+    "confirm": "Xác nhận",
+    "delete": "Xoá",
+    "requestsEmptyTitle": "Không có yêu cầu nào",
+    "requestsEmptyDescription": "Khi có người muốn theo dõi bạn, yêu cầu sẽ hiện ở đây.",
+    "closeFriendsCount": "{n} bạn thân",
+    "closeFriendsEmptyTitle": "Chưa có ai để thêm",
+    "closeFriendsEmptyDescription": "Hãy theo dõi vài người rồi thêm họ vào bạn thân.",
+    "add": "Thêm",
+    "remove": "Xoá"
   }
 }

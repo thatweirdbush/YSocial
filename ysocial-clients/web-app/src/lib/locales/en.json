@@ -371,6 +371,16 @@
     "blockedEmptyDescription": "Accounts you block will show up here.",
     "mutedEmptyTitle": "No muted accounts",
     "mutedEmptyDescription": "Accounts you mute from your feeds will show up here.",
-    "unmuteAction": "Unmute"
+    "unmuteAction": "Unmute",
+    "requestsTitle": "Follow requests",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "requestsEmptyTitle": "No follow requests",
+    "requestsEmptyDescription": "When someone asks to follow you, it will show up here.",
+    "closeFriendsCount": "{n} close friends",
+    "closeFriendsEmptyTitle": "No one to add yet",
+    "closeFriendsEmptyDescription": "Follow some people, then add them to your close friends.",
+    "add": "Add",
+    "remove": "Remove"
   }
 }

@@ -1,5 +1,7 @@
 export { BlockConfirmDialog } from "./components/block-confirm-dialog";
 export { BlockedUserList } from "./components/blocked-user-list";
+export { CloseFriendsList } from "./components/close-friends-list";
+export { FollowRequestList } from "./components/follow-request-list";
 export { FollowButton } from "./components/follow-button";
 export { MutedUserList } from "./components/muted-user-list";
 export { ProfileHeaderMenu } from "./components/profile-header-menu";
@@ -25,7 +27,9 @@ export {
   ensureRelationSets,
   invalidateViewerProjection,
   refreshRequestCount,
+  useCloseFriendCount,
   useFollowRequestCount,
+  useFollowRequestsVersion,
   useIsBlocked,
   useIsBlockedBy,
   useIsMuted,
