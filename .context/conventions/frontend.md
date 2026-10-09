@@ -8,7 +8,7 @@ updated: 2026-10-08
 
 ## Design Language (project-owned, fixed)
 - **Direction:** Luxury Minimal, Threads/X-inspired. Direction is decided: skills MUST NOT re-pick tone/style
-- **Palette:** Zinc neutrals, 1 accent, tokens via CSS variables ONLY, light & dark parity
+- **Palette:** Zinc neutrals, 1 accent, tokens via CSS variables ONLY, light & dark parity. Semantic exception: emerald = close friends (ring + label + chip)
 - **Surfaces:** subtle borders over shadows, high-end negative space, NO decorative gradients/grain/glass
 - **Motion:** sparse & purposeful; hover MUST NOT shift layout (NO `hover:scale-*`)
 - **Icons & primitives:** see Forbidden Patterns

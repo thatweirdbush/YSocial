@@ -18,12 +18,12 @@ NewPostsPill <- usePendingFeed(tab) = getPendingFeed(buffered posts, IncomingBuf
 
 PostCard -> OwnerPostCard (owner only, 1 useOwnerActions) -> PostCardMenu + PostInlineEditor
   useOwnerActions: beginOwnerOp -> optimistic store -> service(actorId) -> apply service copy | markDeleted | field rollback -> endOwnerOp
-UserHoverCard / PostCard header -> useUser(id) + useFollowState(id) (undefined = unknown) + FollowButton -> toggleFollow(viewerId, id) + setFollow(id, f, viewerId)
+UserHoverCard / PostCard header -> useUser(id) + useFollowState(id) (undefined = unknown) + FollowButton -> commitFollow(viewerId, id, follow|unfollow) (see `relationship-controls.md`)
 ```
 
 ## Files
 - `src/mocks/seed-authors.ts` - `SEED_AUTHORS`, `SEED_FOLLOWED_AUTHOR_IDS` (shared by posts & profile mocks; replaces `posts/mocks/mock-authors.ts`)
-- `src/mocks/follow-graph.ts` - mock backend follow table `Map<viewerId, Set<authorId>>`, lazily seeded per viewer, self-follow ignored. ONLY follow truth for mock services
+- `src/mocks/relation-graph.ts` (replaced `follow-graph.ts`) - mock backend relation table, lazily seeded per viewer, self-edge ignored. ONLY follow truth for mock services
 - `features/auth/store/auth-store.ts` - `GUEST_VIEWER_ID = "me"`, `useViewerId()` (user id or guest)
 - `posts/utils/` - `feed-tabs.ts` `getPostFeedTabs`, `pending-feed.ts` `getPendingFeed`, `like-visibility.ts` `getVisibleLikeCount`, `scroll.ts` `scrollFeedToTop` (single scroll owner), `post-content.ts` `POST_CONTENT_MAX = 500` (editor + mock service)
 - `posts/services/post-service.ts` - `fetchFeed(tab, page, viewerId)`, `updatePostContent` (validates length / empty-without-images) / `deletePost` (returns `deletedIds` of whole tree) / `setPostPinned` (root only, 1 per author) / `setHideLikeCount` (all take `actorId`, reject `ForbiddenError`; edit/pin/hide return the post copy), `subscribeToNewPosts` (ref-counted `setTimeout` chain, 45s ±10s, 1-2 posts, ids `post-live-*`), `__resetMockDb` resets db + id counter + listeners + timer
@@ -31,7 +31,7 @@ UserHoverCard / PostCard header -> useUser(id) + useFollowState(id) (undefined =
 - `posts/hooks/` - `use-owner-actions.ts` (`useOwnerActions`, `isInViewedSubtree`), `use-new-posts-stream.ts`, `use-pending-feed.ts`
 - `posts/components/` - `post-card.tsx` (`PostCard` -> `OwnerPostCard` | `PostCardView`), `new-posts-pill.tsx`, `post-card-menu.tsx` (`owner?: OwnerActions`), `post-inline-editor.tsx`, `post-media-grid.tsx`, `post-lightbox.tsx` (split from `post-card.tsx`)
 - `profile/services/user-service.ts` - all fns take `viewerId`; `fetchUser`, `fetchFollowedIds` new; `isFollowing` derived per viewer, `followersCount` global
-- `profile/store/user-store.ts` - `users: Record<id, UserProfileBase>` (shared) + `follows: Record<viewerId, ViewerFollows {ids, known, loaded, version}>`; `useUser(id)` projects `isFollowing` for `useViewerId()`; `useFollowState(id)` (`boolean | undefined`); `ensureUser`, `ensureFollowGraph`, `getFollowedIds`, `useFollowedIds`
+- `profile/store/user-store.ts` - `users: Record<id, UserProfileBase>` (shared) + `follows: Record<viewerId, ViewerFollows {status, known, loaded, version}>`; `useUser(id)` projects `followStatus`/`isFollowing` + relation flags; `useFollowState(id)` (`FollowStatus | undefined`); `ensureUser`, `ensureFollowGraph`, `getFollowedIds`, `useFollowedIds`
 - `profile/components/user-hover-card.tsx` + `components/ui/hover-card.tsx` (shadcn over `radix-ui`); `follow-button.tsx` (`reserveSpace`)
 - i18n: `feed.newPosts*`, `card.*` (owner menu, edited, pinned, hidden likes, delete dialog, forbidden, viewer menu), `hoverCard.*`; `saved.*` added to `TranslationKey` (cleanup, keys pre-existed)
 

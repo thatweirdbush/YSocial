@@ -60,14 +60,14 @@ updated: 2026-10-06
 
 ### Phase 2 - Profile & Social graph (P1)
 > Split:
-> - **2A Profile Core (DONE 2026-10-08):** F0.6 + 2.1 + 2.2 + 2.6 - unblocks rest; Reposts tab moved to 6.1; QR via `qrcode.react`
-> - **2B Relationship Controls:** 2.3 + 2.4 + 2.5 - shared relation model in `user-store`/`follow-graph` + content filtering in `post-store` selectors; build manager lists as reusable components, 4.1 mounts them in Settings
+> - **2A Profile Core (DONE 2026-10-08, see `features/profile.md`):** F0.6 + 2.1 + 2.2 + 2.6 - unblocks rest; Reposts tab moved to 6.1; QR via `qrcode.react`
+> - **2B Relationship Controls (DONE 2026-10-09, see `features/relationship-controls.md`):** 2.3 + 2.4 + 2.5 - `relation-graph` + visibility enforced in mock services (not `post-store` selectors), manager lists mounted in minimal `/settings` (4.1 extends it); Restrict deferred (BE has no concept)
 > - **2C Profile Switcher:** 2.7 - touches `auth-store` & every viewer-scoped store; may run after Phase 4
 - [x] **2.1 Full profile tabs:** Threads / Replies / Media (grid) / Saved (self); Reposts -> 6.1
 - [x] **2.2 Followers / Following** dialog with search & paging *(routes `/@username/followers|following` dropped, spec D1)*
-- [ ] **2.3 Private account & Follow requests:** Pending state (match BE spec), request approval screen
-- [ ] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
-- [ ] **2.5 Block / Mute / Restrict:** from `PostCard` menu (currently toast only) -> actually hide content in store, management list in Settings
+- [x] **2.3 Private account & Follow requests:** Pending state (match BE spec), request approval screen
+- [x] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
+- [x] **2.5 Block / Mute** (Restrict deferred): `PostCard` menu & profile hide content for real, lists in `/settings/blocked|muted`
 - [x] **2.6 Share profile:** copy link + QR code dialog
 - [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown
 

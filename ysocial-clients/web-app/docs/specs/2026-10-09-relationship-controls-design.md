@@ -1,7 +1,7 @@
 # Relationship Controls - Design Spec
 
 - **Date:** 2026-10-09
-- **Status:** approved design, pending written-spec review (rev 3: review fixes D5, D9, D18, D20, D22, D24-D27)
+- **Status:** implemented 2026-10-09 (as-built: `.context/features/relationship-controls.md`; rev 3 + review fix pass: pending kept on follow graph load, viewer-scoped search caches, dormant close friend flags)
 - **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 2 sub-project **2B**: 2.3 (private account & follow requests) + 2.4 (close friends) + 2.5 (block / mute). Restrict deferred (D1)
 - **Scope rule:** FE ONLY, mock data. NO BE/API/DB calls. Mock services mirror BE domain shapes (`UserRelation`, `UserBlock`, `PrivacySettings`) so swapping to real API touches services only
 

@@ -57,11 +57,11 @@
 - Produces (`seed-authors.ts`): `SEED_FOLLOWING["author-03"]` gains `"1"`; `SEED_CLOSE_FRIENDS: Readonly<Record<string, readonly string[]>> = { "author-03": ["1"], "1": ["author-03"] }`
 - Seed pending lives in `relation-graph.ts` (needs fans, avoids `seed-authors <-> seed-fans` cycle): `SEED_PENDING` (target -> requesters) = `{ "1": ["author-02", "author-08", ...SEED_FAN_FOLLOWS["author-01"].slice(0, 2)], "author-05": ["1"] }`
 
-- [ ] **Step 1: Failing tests** (`relation-graph.test.ts`): ported follow-graph cases (counts, self ignored, lazy viewer default) + `requestFollow(a, b, false)` -> `"accepted"`, follower count +1; `requestFollow(a, b, true)` -> `"pending"`, follower count unchanged, `getRequestIds(b)` contains `a`; repeated `requestFollow` idempotent (no count change); `removeFollow` from pending clears request; `setCloseFriend` on pending throws; `setCloseFriend(a,b,true)` then `removeFollow(a,b)` -> `getCloseFriendIds(a)` excludes `b`, `getEdge(a,b).isCloseFriend === true`; re-`requestFollow(a,b,false)` -> `getCloseFriendIds(a)` includes `b`; `acceptAllRequests(b)` with 3 pending -> returns 3, follower count +3, `getRequestIds(b)` empty; seed: `getFollowStatus("1","author-05") === "pending"`, `getCloseFriendIds("author-03")` = `["1"]`
-- [ ] **Step 2:** `npm run test -- relation-graph` -> FAIL (module missing)
-- [ ] **Step 3:** Implement with internal `writeEdge(observer, target, patch: Partial<RelationEdge>)` as ONLY mutation (updates `edges`, `followers`, `requests`; self no-op). Seed: `SEED_FOLLOWING` + fans accepted, `SEED_PENDING` pending, `SEED_CLOSE_FRIENDS` flags. Repoint `user-service` & `post-service` imports (`getFollowedAuthorIds` -> `getFollowedIds`, `setFollowed(a,b,true)` -> `requestFollow(a,b,false)` / `removeFollow` until Task 4)
-- [ ] **Step 4:** `npm run test` all PASS (update seed-count assertions changed by `author-03 -> 1`); `npm run typecheck` 0
-- [ ] **Step 5:** Commit `feat(mocks): relation graph with follow status, close friends & mute`
+- [x] **Step 1: Failing tests** (`relation-graph.test.ts`): ported follow-graph cases (counts, self ignored, lazy viewer default) + `requestFollow(a, b, false)` -> `"accepted"`, follower count +1; `requestFollow(a, b, true)` -> `"pending"`, follower count unchanged, `getRequestIds(b)` contains `a`; repeated `requestFollow` idempotent (no count change); `removeFollow` from pending clears request; `setCloseFriend` on pending throws; `setCloseFriend(a,b,true)` then `removeFollow(a,b)` -> `getCloseFriendIds(a)` excludes `b`, `getEdge(a,b).isCloseFriend === true`; re-`requestFollow(a,b,false)` -> `getCloseFriendIds(a)` includes `b`; `acceptAllRequests(b)` with 3 pending -> returns 3, follower count +3, `getRequestIds(b)` empty; seed: `getFollowStatus("1","author-05") === "pending"`, `getCloseFriendIds("author-03")` = `["1"]`
+- [x] **Step 2:** `npm run test -- relation-graph` -> FAIL (module missing)
+- [x] **Step 3:** Implement with internal `writeEdge(observer, target, patch: Partial<RelationEdge>)` as ONLY mutation (updates `edges`, `followers`, `requests`; self no-op). Seed: `SEED_FOLLOWING` + fans accepted, `SEED_PENDING` pending, `SEED_CLOSE_FRIENDS` flags. Repoint `user-service` & `post-service` imports (`getFollowedAuthorIds` -> `getFollowedIds`, `setFollowed(a,b,true)` -> `requestFollow(a,b,false)` / `removeFollow` until Task 4)
+- [x] **Step 4:** `npm run test` all PASS (update seed-count assertions changed by `author-03 -> 1`); `npm run typecheck` 0
+- [x] **Step 5:** Commit `feat(mocks): relation graph with follow status, close friends & mute`
 
 ### Task 2: `privacy` & `block-graph` mocks
 
@@ -72,11 +72,11 @@
 - Consumes: Task 1 `acceptAllRequests`, `removeFollow`
 - Produces: `isPrivate(id): boolean`, `setPrivate(id, value): number` (returns accepted count when turning public, else 0), `SEED_PRIVATE_IDS = ["1", "author-05", "author-07"]`, `__resetPrivacy()`; `setBlocked(blocker, blocked, on): void`, `isBlocked(a, b)`, `isEitherBlocked(a, b)`, `getBlockedIds(id): string[]` (newest first), `__resetBlockGraph()`
 
-- [ ] **Step 1: Failing tests:** `isPrivate("author-07")` true, `isPrivate("author-01")` false; `setPrivate("1", false)` returns 4 & `getRequestIds("1")` empty; `setBlocked("1","author-03",true)` -> `getFollowStatus` both directions `"none"`, `getEdge("1","author-03").isCloseFriend` still true, `isEitherBlocked("author-03","1")` true; block clears pending both ways (`"1"` blocks `"author-02"` -> `getRequestIds("1")` excludes `author-02`); mute flag kept after block; `setBlocked("1","1",true)` no-op; unblock -> follow stays `"none"`
-- [ ] **Step 2:** `npm run test -- privacy block-graph` -> FAIL
-- [ ] **Step 3:** Implement (block: `removeFollow` both directions, set membership)
-- [ ] **Step 4:** tests PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(mocks): privacy settings & block graph`
+- [x] **Step 1: Failing tests:** `isPrivate("author-07")` true, `isPrivate("author-01")` false; `setPrivate("1", false)` returns 4 & `getRequestIds("1")` empty; `setBlocked("1","author-03",true)` -> `getFollowStatus` both directions `"none"`, `getEdge("1","author-03").isCloseFriend` still true, `isEitherBlocked("author-03","1")` true; block clears pending both ways (`"1"` blocks `"author-02"` -> `getRequestIds("1")` excludes `author-02`); mute flag kept after block; `setBlocked("1","1",true)` no-op; unblock -> follow stays `"none"`
+- [x] **Step 2:** `npm run test -- privacy block-graph` -> FAIL
+- [x] **Step 3:** Implement (block: `removeFollow` both directions, set membership)
+- [x] **Step 4:** tests PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(mocks): privacy settings & block graph`
 
 ### Task 3: `visibility` rules
 
@@ -88,11 +88,11 @@
 - Consumes: Tasks 1-2. `src/mocks` cannot value-import `@/features/auth`: define exported `GUEST_ACTOR = "me"` in `visibility.ts`; test asserts `GUEST_ACTOR === GUEST_ACTOR_ID` (test files may import features)
 - Produces: `type PostVisibility = "public" | "closeFriends"` (posts/types); `asViewer(actorId: string): string | null`; `canDiscoverUser(viewer: string | null, userId: string): boolean`; `canViewProfile(viewer, userId): boolean`; `isMarkedBy(authorId, viewer): boolean`; `canViewPost(viewer, post: Pick<PostItem, "user" | "visibility">): boolean`; `isMutedBy(viewer, authorId): boolean`
 
-- [ ] **Step 1: Failing table test** (`it.each`) rows: guest + public post -> true; guest + private author -> false; guest + CF post -> false; `"1"` + `author-07` post -> false; `"1"` + `author-03` CF post -> true; `"1"` + `author-02` CF post -> false; author self CF -> true; after `removeFollow("author-03","1")` CF post -> false (dormant); `"1"` blocked `author-01` -> `canViewPost` false & `canDiscoverUser` false; `author-01` blocked `"1"` -> same; `canDiscoverUser("1","author-07")` true (private discoverable); `asViewer("me") === null`; `GUEST_ACTOR === GUEST_ACTOR_ID`
-- [ ] **Step 2:** `npm run test -- visibility` -> FAIL
-- [ ] **Step 3:** Implement per spec §4.1
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(mocks): visibility rules for users & posts`
+- [x] **Step 1: Failing table test** (`it.each`) rows: guest + public post -> true; guest + private author -> false; guest + CF post -> false; `"1"` + `author-07` post -> false; `"1"` + `author-03` CF post -> true; `"1"` + `author-02` CF post -> false; author self CF -> true; after `removeFollow("author-03","1")` CF post -> false (dormant); `"1"` blocked `author-01` -> `canViewPost` false & `canDiscoverUser` false; `author-01` blocked `"1"` -> same; `canDiscoverUser("1","author-07")` true (private discoverable); `asViewer("me") === null`; `GUEST_ACTOR === GUEST_ACTOR_ID`
+- [x] **Step 2:** `npm run test -- visibility` -> FAIL
+- [x] **Step 3:** Implement per spec §4.1
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(mocks): visibility rules for users & posts`
 
 ### Task 4: `user-service` follow commands, projection & discovery
 
@@ -103,11 +103,11 @@
 - Produces (types): `FollowStatus` re-declared in `profile/types` as `"none" | "pending" | "accepted"` (same literal union as mocks); `UserProfile` adds `isPrivate: boolean`, `followStatus: FollowStatus`, `viewerMarkedCloseFriend: boolean`, `isMuted: boolean`, `isBlocked: boolean`, `isBlockedBy: boolean`; `UserProfileBase = Omit<UserProfile, ViewerField>` where `type ViewerField = "isFollowing" | "followStatus" | "viewerMarkedCloseFriend" | "isMuted" | "isBlocked" | "isBlockedBy"`; `class CannotBlockYourselfError extends Error` in `@/lib/errors`
 - Produces (fns): `followUser(id, actorId): Promise<FollowStatus>`, `unfollowUser(id, actorId): Promise<void>` (replace `setFollow`, barrel updated); `searchUsers` / `fetchSuggestedUsers` / `fetchFollowList` filter listed users by `canDiscoverUser`; `fetchFollowList` returns `{ users: [] }` unless `canDiscoverUser(viewer, userId) && canViewProfile(viewer, userId)` (D27); `projectUser(user, actorId): UserProfile` exported for profile-internal use
 
-- [ ] **Step 1: Failing tests:** `followUser("author-07","1")` -> `"pending"`, `fetchUser("author-07","1").followersCount` unchanged; `followUser("author-01","1")` -> `"accepted"`; `followUser` by `"me"` -> rejects `ForbiddenError` (public & private target); follow when either blocked -> `ForbiddenError`; `unfollowUser("author-05","1")` clears pending; projection: `fetchUser("author-03","1")` has `viewerMarkedCloseFriend` true, `isPrivate` false; `searchUsers("huy","1")` includes `author-07`; after `setBlocked("1","author-07",true)` -> excluded from `searchUsers`, `fetchSuggestedUsers`, `fetchFollowList("author-01","followers")`; `fetchFollowList("author-01", ...)` empty when `"1"` blocked `author-01` AND when `author-01` blocked `"1"` (public profile, D27); `fetchUser` of blocked still returns with `isBlocked` true (profile needs blocked state)
-- [ ] **Step 2:** `npm run test -- user-service` -> FAIL
-- [ ] **Step 3:** Implement; writes apply graph synchronously BEFORE `mockDelay()`. Fix compile fallout in callers of `setFollow` minimally (store rewired in Task 7: temporary adapter in `user-store` calling `followUser` / `unfollowUser` by current flag)
-- [ ] **Step 4:** `npm run test` PASS (update tests that followed as guest `"me"` to use `"1"`), typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): follow/unfollow commands with pending status & discovery rules`
+- [x] **Step 1: Failing tests:** `followUser("author-07","1")` -> `"pending"`, `fetchUser("author-07","1").followersCount` unchanged; `followUser("author-01","1")` -> `"accepted"`; `followUser` by `"me"` -> rejects `ForbiddenError` (public & private target); follow when either blocked -> `ForbiddenError`; `unfollowUser("author-05","1")` clears pending; projection: `fetchUser("author-03","1")` has `viewerMarkedCloseFriend` true, `isPrivate` false; `searchUsers("huy","1")` includes `author-07`; after `setBlocked("1","author-07",true)` -> excluded from `searchUsers`, `fetchSuggestedUsers`, `fetchFollowList("author-01","followers")`; `fetchFollowList("author-01", ...)` empty when `"1"` blocked `author-01` AND when `author-01` blocked `"1"` (public profile, D27); `fetchUser` of blocked still returns with `isBlocked` true (profile needs blocked state)
+- [x] **Step 2:** `npm run test -- user-service` -> FAIL
+- [x] **Step 3:** Implement; writes apply graph synchronously BEFORE `mockDelay()`. Fix compile fallout in callers of `setFollow` minimally (store rewired in Task 7: temporary adapter in `user-store` calling `followUser` / `unfollowUser` by current flag)
+- [x] **Step 4:** `npm run test` PASS (update tests that followed as guest `"me"` to use `"1"`), typecheck 0
+- [x] **Step 5:** Commit `feat(profile): follow/unfollow commands with pending status & discovery rules`
 
 ### Task 5: `relation-service`
 
@@ -120,11 +120,11 @@
 - Produces (types): `type RequestDecision = "accept" | "decline"`; `interface RelationSets { blocked: string[]; blockedBy: string[]; muted: string[]; closeFriends: string[]; isPrivate: boolean; requestCount: number }`; `interface RelationListQuery { query?: string; page?: number }`; `RELATION_PAGE_SIZE = 20`; list result reuses `FollowListPage`
 - Produces (fns, all `actorId` last): `setBlocked(id, on, actorId): Promise<void>` (self -> `CannotBlockYourselfError`), `setMuted(id, on, actorId): Promise<void>`, `setCloseFriend(id, on, actorId): Promise<void>`, `setPrivateAccount(on, actorId): Promise<{ acceptedCount: number }>`, `fetchFollowRequests(q, actorId)`, `fetchFollowRequestCount(actorId): Promise<number>`, `respondFollowRequest(requesterId, decision, actorId): Promise<void>`, `fetchBlockedUsers(q, actorId)`, `fetchMutedUsers(q, actorId)`, `fetchCloseFriendCandidates(q, actorId)`, `fetchRelationSets(actorId): Promise<RelationSets>`
 
-- [ ] **Step 1: Failing tests:** every write by `"me"` rejects `ForbiddenError`; `setBlocked("1","1",true,"1")` rejects `CannotBlockYourselfError`; `fetchRelationSets("1")` = `{ blocked: [], blockedBy: [], muted: [], closeFriends: ["author-03"], isPrivate: true, requestCount: 4 }`; after `setBlocked("author-01","1",true)` (graph) -> `blockedBy: ["author-01"]`; `respondFollowRequest("author-02","accept","1")` -> `getFollowStatus("author-02","1") === "accepted"`, count 3; `decline` -> `"none"`; `respondFollowRequest` for non-requester rejects; `setPrivateAccount(false,"1")` -> `{ acceptedCount: 4 }`; `setCloseFriend("author-07",true,"1")` rejects (not accepted); `fetchCloseFriendCandidates({},"1")` lists accepted followees with flag projected; `fetchFollowRequests({ query: "elena" },"1")` filters; paging returns `nextPage` at 20
-- [ ] **Step 2:** `npm run test -- relation-service` -> FAIL
-- [ ] **Step 3:** Implement; projection via Task 4 `projectUser`
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): relation service for block, mute, close friends, privacy & requests`
+- [x] **Step 1: Failing tests:** every write by `"me"` rejects `ForbiddenError`; `setBlocked("1","1",true,"1")` rejects `CannotBlockYourselfError`; `fetchRelationSets("1")` = `{ blocked: [], blockedBy: [], muted: [], closeFriends: ["author-03"], isPrivate: true, requestCount: 4 }`; after `setBlocked("author-01","1",true)` (graph) -> `blockedBy: ["author-01"]`; `respondFollowRequest("author-02","accept","1")` -> `getFollowStatus("author-02","1") === "accepted"`, count 3; `decline` -> `"none"`; `respondFollowRequest` for non-requester rejects; `setPrivateAccount(false,"1")` -> `{ acceptedCount: 4 }`; `setCloseFriend("author-07",true,"1")` rejects (not accepted); `fetchCloseFriendCandidates({},"1")` lists accepted followees with flag projected; `fetchFollowRequests({ query: "elena" },"1")` filters; paging returns `nextPage` at 20
+- [x] **Step 2:** `npm run test -- relation-service` -> FAIL
+- [x] **Step 3:** Implement; projection via Task 4 `projectUser`
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(profile): relation service for block, mute, close friends, privacy & requests`
 
 ### Task 6: `post-service` visibility filtering
 
@@ -136,11 +136,11 @@
 - Produces: `fetchUserPosts(userId, tab, page, actorId)`, `searchPosts(query, actorId, limit?, sort?)`, `fetchPostsByTag(tag, sort, actorId)`, `fetchPostThread(id, actorId)`; `fetchFeed` & `fetchSavedPosts` filter; `createPost` stores `input.visibility` when `"closeFriends"`; `isPostPubliclyVisible(post: PostItem): boolean` (= `canViewPost(null, post)`, exported via posts barrel for metadata)
 - Seeds (`mock-posts.ts`, `RawPost.visibility?`): 2 new CF roots by `author-03` (index 2) `post-cf-01`, `post-cf-02`; 1 CF root by `author-02` (index 1) `post-cf-03`
 
-- [ ] **Step 1: Failing tests:** `fetchFeed("forYou",1,"1")` excludes `author-07` & `post-cf-03`, includes `post-cf-01`; feed returns exactly `FEED_PAGE_SIZE` posts on page 1 while more visible exist; guest feed excludes all CF & private; muted author excluded from both feeds but present in `fetchUserPosts`; `fetchUserPosts("author-07","threads",1,"1")` -> `{ posts: [], locked: true }`; own private profile not locked; `fetchPostThread("post-cf-03","1")` -> `null`; thread replies by blocked author filtered; `searchPosts` & `fetchPostsByTag` exclude invisible; stream generates only public posts by non-private authors (spy `listener` over 20 ticks); `createPost({ ..., visibility: "closeFriends" })` -> stored & invisible to non-marked viewer; `isPostPubliclyVisible(post-cf-01)` false
-- [ ] **Step 2:** `npm run test -- post-service` -> FAIL
-- [ ] **Step 3:** Implement: filter BEFORE `pageOf`/slice; stream picks from `SEED_AUTHORS.filter((a) => !isPrivate(a.id))`. Update callers to pass `actorId` (`useActorId()` / existing param). `posts/[id]/page.tsx` `generateMetadata`: `!isPostPubliclyVisible(post)` -> same generic metadata as unknown post
-- [ ] **Step 4:** `npm run test` PASS (fix count/order assertions shifted by private seeds), typecheck 0
-- [ ] **Step 5:** Commit `feat(posts): enforce visibility in post queries & metadata`
+- [x] **Step 1: Failing tests:** `fetchFeed("forYou",1,"1")` excludes `author-07` & `post-cf-03`, includes `post-cf-01`; feed returns exactly `FEED_PAGE_SIZE` posts on page 1 while more visible exist; guest feed excludes all CF & private; muted author excluded from both feeds but present in `fetchUserPosts`; `fetchUserPosts("author-07","threads",1,"1")` -> `{ posts: [], locked: true }`; own private profile not locked; `fetchPostThread("post-cf-03","1")` -> `null`; thread replies by blocked author filtered; `searchPosts` & `fetchPostsByTag` exclude invisible; stream generates only public posts by non-private authors (spy `listener` over 20 ticks); `createPost({ ..., visibility: "closeFriends" })` -> stored & invisible to non-marked viewer; `isPostPubliclyVisible(post-cf-01)` false
+- [x] **Step 2:** `npm run test -- post-service` -> FAIL
+- [x] **Step 3:** Implement: filter BEFORE `pageOf`/slice; stream picks from `SEED_AUTHORS.filter((a) => !isPrivate(a.id))`. Update callers to pass `actorId` (`useActorId()` / existing param). `posts/[id]/page.tsx` `generateMetadata`: `!isPostPubliclyVisible(post)` -> same generic metadata as unknown post
+- [x] **Step 4:** `npm run test` PASS (fix count/order assertions shifted by private seeds), typecheck 0
+- [x] **Step 5:** Commit `feat(posts): enforce visibility in post queries & metadata`
 
 ### Task 7: `user-store` follow status + `FollowButton` states
 
@@ -152,11 +152,11 @@
 - Produces: `ViewerFollows { status: Record<string, "pending" | "accepted">; known; loaded; version }`; action `setFollowStatus(actorId, id, next: FollowStatus)` (replaces `toggleFollow`); action `clearViewerFollows(actorId)` (drops that viewer's projection: `status`, `known`, `loaded`; bumps `version` so in-flight graph loads are discarded); `useFollowState(id): FollowStatus | undefined`; `useFollowedIds` accepted only; `commitFollow(actorId, id, next: "follow" | "unfollow"): Promise<boolean>`
 - `FollowButton` labels: `card.follow`, `relations.requested`, `card.following`; Unblock branch added in Task 9
 
-- [ ] **Step 1: Failing tests:** `setFollowStatus(a,"author-07","pending")` -> followers count unchanged; `none -> accepted` +1, `accepted -> pending` -1 (never double); `commitFollow(a,"author-07","follow")` optimistic `"pending"`, service `"pending"` kept; `commitFollow(a,id,"unfollow")` optimistic `"none"`; stale reconcile ignored: follow then unfollow before first resolves -> final `"none"` & counts equal graph; `useFollowedIds` excludes pending; FollowButton: renders "Requested" for pending, click -> `unfollow` without confirm dialog; guest click -> `router.push("/login")`, no service call; `clearViewerFollows(a)` -> `useFollowState` undefined & in-flight `ensureFollowGraph(a)` result discarded
-- [ ] **Step 2:** `npm run test -- user-store follow-button` -> FAIL
-- [ ] **Step 3:** Implement; optimistic `follow` status = `users[id].isPrivate ? "pending" : "accepted"`; remove Task 4 adapter
-- [ ] **Step 4:** `npm run test` PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): pending follow status in user store & follow button`
+- [x] **Step 1: Failing tests:** `setFollowStatus(a,"author-07","pending")` -> followers count unchanged; `none -> accepted` +1, `accepted -> pending` -1 (never double); `commitFollow(a,"author-07","follow")` optimistic `"pending"`, service `"pending"` kept; `commitFollow(a,id,"unfollow")` optimistic `"none"`; stale reconcile ignored: follow then unfollow before first resolves -> final `"none"` & counts equal graph; `useFollowedIds` excludes pending; FollowButton: renders "Requested" for pending, click -> `unfollow` without confirm dialog; guest click -> `router.push("/login")`, no service call; `clearViewerFollows(a)` -> `useFollowState` undefined & in-flight `ensureFollowGraph(a)` result discarded
+- [x] **Step 2:** `npm run test -- user-store follow-button` -> FAIL
+- [x] **Step 3:** Implement; optimistic `follow` status = `users[id].isPrivate ? "pending" : "accepted"`; remove Task 4 adapter
+- [x] **Step 4:** `npm run test` PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(profile): pending follow status in user store & follow button`
 
 ### Task 8: `post-store` author exclusion
 
@@ -166,11 +166,11 @@
 **Interfaces:**
 - Produces: `type ExclusionReason = "muted" | "blocked"`; state `excludedAuthors: Record<string, Partial<Record<ExclusionReason, true>>>`; actions `excludeAuthor(id, reason)`, `includeAuthor(id, reason)`, `setExcludedAuthors(map)`, `resetViewerFeeds()`; selector `useIsAuthorBlocked(id)`; all exported via posts barrel
 
-- [ ] **Step 1: Failing tests:** `excludeAuthor(a,"muted")` removes a's ids from both `feedIds` & `incoming`, keeps replies; `excludeAuthor(a,"blocked")` also removes from `replyIds`; mute + block then `includeAuthor(a,"blocked")` -> still excluded (muted); `bufferIncoming` & `setFeedPage` skip excluded; `resetViewerFeeds` clears feed state & exclusions, keeps `posts`; `PostCard` renders null for blocked author; `getPendingFeed` skips excluded authors; blockedBy author (`excludeAuthor(a,"blocked")` set from `blockedBy`) skipped by buffer: stream post arriving after exclusion never enters `incoming`
-- [ ] **Step 2:** `npm run test -- post-store post-card pending-feed` -> FAIL
-- [ ] **Step 3:** Implement
-- [ ] **Step 4:** `npm run test` PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(posts): author exclusion with per-reason tracking`
+- [x] **Step 1: Failing tests:** `excludeAuthor(a,"muted")` removes a's ids from both `feedIds` & `incoming`, keeps replies; `excludeAuthor(a,"blocked")` also removes from `replyIds`; mute + block then `includeAuthor(a,"blocked")` -> still excluded (muted); `bufferIncoming` & `setFeedPage` skip excluded; `resetViewerFeeds` clears feed state & exclusions, keeps `posts`; `PostCard` renders null for blocked author; `getPendingFeed` skips excluded authors; blockedBy author (`excludeAuthor(a,"blocked")` set from `blockedBy`) skipped by buffer: stream post arriving after exclusion never enters `incoming`
+- [x] **Step 2:** `npm run test -- post-store post-card pending-feed` -> FAIL
+- [x] **Step 3:** Implement
+- [x] **Step 4:** `npm run test` PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(posts): author exclusion with per-reason tracking`
 
 ### Task 9: `relation-store`, commit helpers & viewer switch
 
@@ -182,11 +182,11 @@
 - Consumes: Task 5 services, Task 7 `setFollowStatus`, Task 8 `excludeAuthor` / `includeAuthor` / `setExcludedAuthors` / `resetViewerFeeds` via posts barrel
 - Produces: `interface ViewerRelations { blocked: Record<string, true>; blockedBy: Record<string, true>; muted: Record<string, true>; closeFriends: Record<string, true>; isPrivate?: boolean; requestCount?: number; loaded: boolean; opVersion: Record<string, number>; mutationSeq: number }` (op key = target id, `"self"` for privacy, requester id for respond); `useRelationStore`, `resetRelationStore()`; module `viewerGeneration` + `bumpViewerGeneration(): number`; `ensureRelationSets(actorId, opts?: { force?: boolean }): Promise<void>` (discard result IF `mutationSeq` changed since start; apply to `post-store` `setExcludedAuthors` (blocked + blockedBy as `blocked`, muted as `muted`) ONLY IF generation unchanged); `invalidateViewerProjection(actorId): void` (`clearViewerFollows` + drop relation slot); `commitBlock(actorId, id, on): Promise<boolean>`, `commitMute(actorId, id, on): Promise<boolean>`, `commitCloseFriend(actorId, id, on): Promise<boolean>`, `commitPrivacy(actorId, on): Promise<{ ok: boolean; acceptedCount: number }>`, `commitRespondRequest(actorId, requesterId, decision): Promise<boolean>`, `refreshRequestCount(actorId): Promise<void>`; selectors `useIsBlocked(id)`, `useIsMuted(id)`, `useViewerMarkedCloseFriend(id)`, `useIsPrivateAccount()`, `useFollowRequestCount()`, `useRelationsLoaded()`; `ViewerSync` on actor change: `bumpViewerGeneration()`, `resetViewerFeeds()`, `invalidateViewerProjection(actorId)`, then `ensureRelationSets(actorId, { force: true })` (D25)
 
-- [ ] **Step 1: Failing tests:** `ensureRelationSets("1")` loads sets + `requestCount` 4; `commitBlock("1","author-03",true)` -> blocked set, user-store status `"none"` both cache entries, post-store `excludedAuthors["author-03"].blocked`; failed block while unrelated mute (other target) in flight -> block rolled back in all 3 stores (field-scoped: only fields still holding optimistic value), mute kept; same-target newer op (unblock) during block in flight -> block reconcile skipped; `ensureRelationSets` started before a mutation -> result discarded; A -> B -> A with A's first load in flight -> first result not applied to `post-store`; projection invalidated on switch: `"2"` requests private `"1"` (pending cached for `"2"`), switch to `"1"`, `commitRespondRequest("1","2","accept")`, switch back -> `"2"` `useFollowState("1") === "accepted"` after reload; blockedBy -> `excludedAuthors.blocked`; `commitRespondRequest(accept)` -> `requestCount` 3; `commitPrivacy(false)` -> `acceptedCount` 4, `requestCount` 0, own user refetched; block of pending requester refreshes count; guest helpers resolve false without service call; FollowButton blocked target shows Unblock; ViewerSync: actor `"1"` -> `"2"` while `"1"` sets in flight -> `"1"` result not applied to `post-store`, feeds reset once per switch
-- [ ] **Step 2:** `npm run test -- relation-store viewer-sync follow-button` -> FAIL
-- [ ] **Step 3:** Implement per D18: every commit bumps `opVersion[key]` + `mutationSeq`; reconcile only IF key version unchanged; failure -> field-scoped rollback (compare current value with op's optimistic value, never version)
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): relation store, optimistic relation commits & viewer switch`
+- [x] **Step 1: Failing tests:** `ensureRelationSets("1")` loads sets + `requestCount` 4; `commitBlock("1","author-03",true)` -> blocked set, user-store status `"none"` both cache entries, post-store `excludedAuthors["author-03"].blocked`; failed block while unrelated mute (other target) in flight -> block rolled back in all 3 stores (field-scoped: only fields still holding optimistic value), mute kept; same-target newer op (unblock) during block in flight -> block reconcile skipped; `ensureRelationSets` started before a mutation -> result discarded; A -> B -> A with A's first load in flight -> first result not applied to `post-store`; projection invalidated on switch: `"2"` requests private `"1"` (pending cached for `"2"`), switch to `"1"`, `commitRespondRequest("1","2","accept")`, switch back -> `"2"` `useFollowState("1") === "accepted"` after reload; blockedBy -> `excludedAuthors.blocked`; `commitRespondRequest(accept)` -> `requestCount` 3; `commitPrivacy(false)` -> `acceptedCount` 4, `requestCount` 0, own user refetched; block of pending requester refreshes count; guest helpers resolve false without service call; FollowButton blocked target shows Unblock; ViewerSync: actor `"1"` -> `"2"` while `"1"` sets in flight -> `"1"` result not applied to `post-store`, feeds reset once per switch
+- [x] **Step 2:** `npm run test -- relation-store viewer-sync follow-button` -> FAIL
+- [x] **Step 3:** Implement per D18: every commit bumps `opVersion[key]` + `mutationSeq`; reconcile only IF key version unchanged; failure -> field-scoped rollback (compare current value with op's optimistic value, never version)
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(profile): relation store, optimistic relation commits & viewer switch`
 
 ### Task 10: Block / mute from `PostCardMenu`
 
@@ -199,11 +199,11 @@
 - Produces: `BlockConfirmDialog({ open, onOpenChange, username, onConfirm })`
 - i18n: `relations.blockTitle` ("Chặn @{username}?" / "Block @{username}?"), `relations.blockDescription`, `relations.blockConfirm`, `relations.unblock`, `relations.blockedToast`, `relations.unblockedToast`, `relations.muteToast`, `relations.unmuteToast`, `relations.unmute`, `relations.undo`, `relations.actionError`
 
-- [ ] **Step 1: Failing tests:** viewer menu shows Mute & Block for signed-in, hidden for guest; Mute -> `commitMute(actor,id,true)` + toast with Undo action calling `commitMute(...,false)`; muted author menu shows Unmute; Block opens dialog, Cancel no call, Confirm -> `commitBlock(actor,id,true)`; failure -> error toast; detail page: blocking root author refetches thread (`useIsBlocked(rootAuthorId)` change) -> not-found state (D26)
-- [ ] **Step 2:** `npm run test -- post-card-menu block-confirm-dialog` -> FAIL
-- [ ] **Step 3:** Implement (replace current `card.muteToast` / `card.blockToast` placeholders; remove now-unused keys)
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(posts): block & mute from post menu`
+- [x] **Step 1: Failing tests:** viewer menu shows Mute & Block for signed-in, hidden for guest; Mute -> `commitMute(actor,id,true)` + toast with Undo action calling `commitMute(...,false)`; muted author menu shows Unmute; Block opens dialog, Cancel no call, Confirm -> `commitBlock(actor,id,true)`; failure -> error toast; detail page: blocking root author refetches thread (`useIsBlocked(rootAuthorId)` change) -> not-found state (D26)
+- [x] **Step 2:** `npm run test -- post-card-menu block-confirm-dialog` -> FAIL
+- [x] **Step 3:** Implement (replace current `card.muteToast` / `card.blockToast` placeholders; remove now-unused keys)
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(posts): block & mute from post menu`
 
 ### Task 11: Profile states & header menu
 
@@ -216,11 +216,11 @@
 - Produces: `ProfileLockedState({ variant: "private" | "blocked" | "unavailable", username, onUnblock? })`; `ProfileHeaderMenu({ user })`
 - i18n: `relations.privateTitle`, `relations.privateDescription`, `relations.blockedTitle`, `relations.unavailableTitle`, `relations.unavailableDescription`, `relations.addCloseFriend`, `relations.removeCloseFriend`, `relations.mute`, `relations.block`, `profile.privateBadge` (lock `aria-label`)
 
-- [ ] **Step 1: Failing tests:** `/@huyvo` as `"1"` -> locked private state, Follow button, counts visible, counts not clickable; `isBlocked` -> blocked variant with Unblock calling `commitBlock(...,false)`, no tabs; `isBlockedBy` -> unavailable variant, no follow button; own private profile shows lock icon with `aria-label`; header menu hidden on own profile & for guest; close-friend item only when `followStatus === "accepted"`; accept of follow (status -> accepted) unlocks tabs after refetch
-- [ ] **Step 2:** `npm run test -- profile` -> FAIL
-- [ ] **Step 3:** Implement; `ProfileView` picks state: blocked > blockedBy > locked > tabs
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): private, blocked & unavailable profile states with header menu`
+- [x] **Step 1: Failing tests:** `/@huyvo` as `"1"` -> locked private state, Follow button, counts visible, counts not clickable; `isBlocked` -> blocked variant with Unblock calling `commitBlock(...,false)`, no tabs; `isBlockedBy` -> unavailable variant, no follow button; own private profile shows lock icon with `aria-label`; header menu hidden on own profile & for guest; close-friend item only when `followStatus === "accepted"`; accept of follow (status -> accepted) unlocks tabs after refetch
+- [x] **Step 2:** `npm run test -- profile` -> FAIL
+- [x] **Step 3:** Implement; `ProfileView` picks state: blocked > blockedBy > locked > tabs
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(profile): private, blocked & unavailable profile states with header menu`
 
 ### Task 12: `RelationUserList` + blocked / muted lists
 
@@ -232,11 +232,11 @@
 - Produces: `RelationUserList({ fetchPage: (q: RelationListQuery) => Promise<FollowListPage>, renderAction: (user: UserProfile) => ReactNode, emptyTitle: TranslationKey, emptyDescription: TranslationKey, searchLabel: TranslationKey, reloadKey?: number })` (debounce 300ms, "load more" button, skeleton 6 rows, error + retry, request-token guard); `BlockedUserList()`, `MutedUserList()` (row removed optimistically on Unblock / Unmute)
 - i18n: `relations.searchPlaceholder`, `relations.loadMore`, `relations.blockedEmptyTitle`, `relations.blockedEmptyDescription`, `relations.mutedEmptyTitle`, `relations.mutedEmptyDescription`, `relations.retry`
 
-- [ ] **Step 1: Failing tests:** empty state; search debounced (1 call after typing 3 chars within 300ms); load more appends page 2; error then Retry refetches; stale response from previous query ignored; Unblock row -> `commitBlock(...,false)` & row gone; Unmute similar
-- [ ] **Step 2:** `npm run test -- relation-user-list blocked-user-list muted-user-list` -> FAIL
-- [ ] **Step 3:** Implement
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): reusable relation user list with blocked & muted lists`
+- [x] **Step 1: Failing tests:** empty state; search debounced (1 call after typing 3 chars within 300ms); load more appends page 2; error then Retry refetches; stale response from previous query ignored; Unblock row -> `commitBlock(...,false)` & row gone; Unmute similar
+- [x] **Step 2:** `npm run test -- relation-user-list blocked-user-list muted-user-list` -> FAIL
+- [x] **Step 3:** Implement
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(profile): reusable relation user list with blocked & muted lists`
 
 ### Task 13: Follow requests & close-friends lists
 
@@ -249,11 +249,11 @@
 - Produces: `FollowRequestList()` (Confirm / Delete per row; reloads page 1 when `useFollowRequestCount()` changes from outside), `CloseFriendsList()` (toggle per row `aria-pressed`, header count "N bạn thân")
 - i18n: `relations.requestsTitle`, `relations.confirm`, `relations.delete`, `relations.requestsEmptyTitle`, `relations.requestsEmptyDescription`, `relations.closeFriendsCount`, `relations.closeFriendsEmptyTitle`, `relations.closeFriendsEmptyDescription`, `relations.add`, `relations.remove`
 
-- [ ] **Step 1: Failing tests:** demo lists 4 requests; Confirm -> `commitRespondRequest(...,"accept")`, row gone, count 3; Delete -> `"decline"`; close friends lists accepted followees with `author-03` pressed; toggle calls `commitCloseFriend`; count header updates
-- [ ] **Step 2:** FAIL
-- [ ] **Step 3:** Implement
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(profile): follow request & close friends lists`
+- [x] **Step 1: Failing tests:** demo lists 4 requests; Confirm -> `commitRespondRequest(...,"accept")`, row gone, count 3; Delete -> `"decline"`; close friends lists accepted followees with `author-03` pressed; toggle calls `commitCloseFriend`; count header updates
+- [x] **Step 2:** FAIL
+- [x] **Step 3:** Implement
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(profile): follow request & close friends lists`
 
 ### Task 14: `/settings` shell & privacy page
 
@@ -266,11 +266,11 @@
 - Produces: `SETTINGS_SECTIONS = [{ href: "/settings/privacy", key: "settings.privacy", icon: Lock }, { "/settings/blocked", "settings.blocked", Ban }, { "/settings/muted", "settings.muted", VolumeX }, { "/settings/close-friends", "settings.closeFriends", Star }]`; `MainLayout({ children, aside })` (`aside` replaces `RightSidebar` on `lg+`)
 - i18n: `settings.title`, `settings.privacy`, `settings.blocked`, `settings.muted`, `settings.closeFriends`, `settings.back`, `settings.privateAccount`, `settings.privateAccountDescription`, `settings.goPublicTitle`, `settings.goPublicDescription` ("{count} yêu cầu sẽ được tự động chấp nhận"), `settings.goPublicConfirm`, `settings.guestTitle`, `settings.guestCta`, `nav.settings`; metadata titles per page, `robots: { index: false }`
 
-- [ ] **Step 1: Failing tests:** `SettingsIndex` renders 4 links; section layout renders `SettingsNav` with `aria-current="page"` on active; `/settings` index page renders exactly 4 settings links (`getAllByRole("link")` filtered by `/settings/` href = 4) & no `SettingsNav`; root `app/settings/layout.tsx` renders NO navigation (metadata + guest gate only); `PrivacySettings`: switch reflects `isPrivate`; turning public with 4 requests opens dialog showing 4, confirm -> `commitPrivacy(false)`; turning private no dialog; guest -> guest gate with login link; `MainLayout` with `aside` renders aside instead of right sidebar
-- [ ] **Step 2:** FAIL
-- [ ] **Step 3:** Implement; privacy page renders `<PrivacySettings/>` + `<section id="requests"><FollowRequestList/></section>`
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(settings): settings shell with privacy, blocked, muted & close friends`
+- [x] **Step 1: Failing tests:** `SettingsIndex` renders 4 links; section layout renders `SettingsNav` with `aria-current="page"` on active; `/settings` index page renders exactly 4 settings links (`getAllByRole("link")` filtered by `/settings/` href = 4) & no `SettingsNav`; root `app/settings/layout.tsx` renders NO navigation (metadata + guest gate only); `PrivacySettings`: switch reflects `isPrivate`; turning public with 4 requests opens dialog showing 4, confirm -> `commitPrivacy(false)`; turning private no dialog; guest -> guest gate with login link; `MainLayout` with `aside` renders aside instead of right sidebar
+- [x] **Step 2:** FAIL
+- [x] **Step 3:** Implement; privacy page renders `<PrivacySettings/>` + `<section id="requests"><FollowRequestList/></section>`
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(settings): settings shell with privacy, blocked, muted & close friends`
 
 ### Task 15: Follow requests banner in notifications
 
@@ -283,11 +283,11 @@
 - Produces: `FollowRequestsBanner()` link to `/settings/privacy#requests`; returns null when count 0 / guest / not loaded
 - i18n: `notifications.followRequests` ("{count} yêu cầu theo dõi" / "{count} follow requests"), `notifications.followRequestsHint`
 
-- [ ] **Step 1: Failing tests:** demo -> banner with count 4 & 3 avatars & correct href; count 0 -> null; guest -> null
-- [ ] **Step 2:** FAIL
-- [ ] **Step 3:** Implement; mount above `NotificationList`
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(notifications): follow requests banner`
+- [x] **Step 1: Failing tests:** demo -> banner with count 4 & 3 avatars & correct href; count 0 -> null; guest -> null
+- [x] **Step 2:** FAIL
+- [x] **Step 3:** Implement; mount above `NotificationList`
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(notifications): follow requests banner`
 
 ### Task 16: Close-friends posting & badge
 
@@ -299,11 +299,11 @@
 - Produces: `onPostSubmitted(content, images, audience, visibility: PostVisibility)`; composer state `visibility` (reset to `"public"` after submit & on draft load); chip `aria-pressed`, hidden for guest & reply mode
 - i18n: `creator.closeFriends`, `creator.closeFriendsHint`, `card.closeFriends`
 
-- [ ] **Step 1: Failing tests:** toggle chip -> submit passes `"closeFriends"`; reply mode has no chip; guest no chip; `PostCard` with `visibility: "closeFriends"` renders avatar ring class `ring-emerald-500` + label `card.closeFriends`; public post no label
-- [ ] **Step 2:** FAIL
-- [ ] **Step 3:** Implement (Lucide `Star`)
-- [ ] **Step 4:** PASS, typecheck 0
-- [ ] **Step 5:** Commit `feat(posts): close friends posting & badge`
+- [x] **Step 1: Failing tests:** toggle chip -> submit passes `"closeFriends"`; reply mode has no chip; guest no chip; `PostCard` with `visibility: "closeFriends"` renders avatar ring class `ring-emerald-500` + label `card.closeFriends`; public post no label
+- [x] **Step 2:** FAIL
+- [x] **Step 3:** Implement (Lucide `Star`)
+- [x] **Step 4:** PASS, typecheck 0
+- [x] **Step 5:** Commit `feat(posts): close friends posting & badge`
 
 ### Task 17: Verification & close-out
 
@@ -311,11 +311,11 @@
 - Create: `.context/features/relationship-controls.md`
 - Modify: `.context/features/frontend-roadmap.md` (2.3/2.4/2.5 `[x]`, Restrict deferred note, 2B done), `.context/features/profile.md` & `feed-post-interaction.md` (follow-graph -> relation-graph refs), `.context/conventions/frontend.md` (emerald semantic exception), `.context/INDEX.md`, this plan (`[x]`), spec status
 
-- [ ] **Step 1:** `npm run test` all PASS; `npm run typecheck` 0; `npx eslint src` per file/rule <= Appendix A
-- [ ] **Step 2:** Browser pane (`preview_start`): spec §10 flows; 375 / 768 / 1440, light & dark, keyboard focus on lists & dialogs; screenshots as proof
-- [ ] **Step 3:** Deferred minor triage (agentic rules §4.3), resolve "Resolve now" items, re-run Step 1
-- [ ] **Step 4:** Update docs listed above per `01-doc-standards.md`
-- [ ] **Step 5:** Commit `docs(relations): close out phase 2B`
+- [x] **Step 1:** `npm run test` all PASS; `npm run typecheck` 0; `npx eslint src` per file/rule <= Appendix A
+- [x] **Step 2:** Browser pane (`preview_start`): spec §10 flows; 375 / 768 / 1440, light & dark, keyboard focus on lists & dialogs; screenshots as proof
+- [x] **Step 3:** Deferred minor triage (agentic rules §4.3), resolve "Resolve now" items, re-run Step 1
+- [x] **Step 4:** Update docs listed above per `01-doc-standards.md`
+- [x] **Step 5:** Commit `docs(relations): close out phase 2B`
 
 ---
 

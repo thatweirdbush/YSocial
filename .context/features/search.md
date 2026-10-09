@@ -20,16 +20,16 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 - `src/lib/text.ts` - `foldText` (NFD, strip marks, đ->d, lowercase), `normalizeText` (+ collapse spaces), `tokenize`, `extractHashtags`, `HASHTAG_PATTERN` (start or after whitespace, `\p{M}` for NFD input) / `MENTION_PATTERN` (trailing `.` excluded)
 - `posts/utils/hashtags.ts` - `tagKey`, `collectTagStats` (display casing = most frequent form, tie -> newest-first first seen), `hasTag`, `byNewest` (barrel: `byNewestPost`)
 - `posts/services/post-service.ts` - `searchPosts(q)` roots only, every token required, score = content occurrences + 2 × author-name hits, order score -> likes -> newest; `#x` query = exact tag. `fetchPostsByTag(tag, sort)`, `fetchTrendingTags(n)` (count desc, key asc). `SEARCH_LIMIT = 50`. `getMockTagStat` (seed, sync) for metadata
-- `profile/mocks/mock-users.ts` - `MOCK_USERS` = `SEED_AUTHORS` (`src/mocks/seed-authors.ts`) + bio/counts; follow flags come from viewer-scoped `src/mocks/follow-graph.ts` (see `feed-post-interaction.md`)
-- `profile/services/user-service.ts` - `searchUsers` (name/username/bio, username-prefix first, then followers), `fetchSuggestedUsers` (not followed), `setFollow` (idempotent, persisted before latency). **Swap point for real API**
-- `profile/store/user-store.ts` - shared `users` + viewer-scoped `follows` projection (see `feed-post-interaction.md`); `toggleFollow(viewerId, id)` (±followersCount, floor 0)
+- `profile/mocks/mock-users.ts` - `MOCK_USERS` = `SEED_AUTHORS` (`src/mocks/seed-authors.ts`) + bio/counts; follow flags come from viewer-scoped `src/mocks/relation-graph.ts` (see `feed-post-interaction.md`)
+- `profile/services/user-service.ts` - `searchUsers` (name/username/bio, username-prefix first, then followers), `fetchSuggestedUsers` (not followed), `followUser` / `unfollowUser` (idempotent, persisted before latency). **Swap point for real API**
+- `profile/store/user-store.ts` - shared `users` + viewer-scoped `follows` projection (see `feed-post-interaction.md`); `setFollowStatus(viewerId, id, status)` (±followersCount on crossing accepted, floor 0)
 - `search/services/search-service.ts` - `fetchSearch`, `fetchSuggestions` (<= 4 users / tags), `resolveDefaultTab` (`#` -> tags, `@` -> users), `isSearchTab`, `buildSearchHref`
 - `search/store/search-store.ts` - `recent` (persist key `ysocial_recent_searches`, `partialize`, `skipHydration`, max 10, normalized dedupe), `result` (last search, ids + `latestPostIds`), `tagPages[tagPageKey(tag, sort)]`; rehydrated in `Providers` `useLayoutEffect`
 
 ## UI
 - Routes: `app/search/{page,loading,error}.tsx` (page reads `searchParams` server-side, `key={query}`, `robots noindex` when q), `app/tags/[tag]/{page,loading,error}.tsx` (`decodeTagParam` null -> `notFound()`, `key={tag}`)
 - `search/components/`: `SearchBox` (ARIA combobox, debounce 250ms, request counter drops stale responses, ↑↓ Enter Esc, option `mousedown` keeps focus), `SearchContainer`, `SearchPanel` (per-tab empty states), `UserResultRow`, `TagResultRow`, `ExploreLanding`, `TagContainer`, `TabBar` (shared), `SearchShell` + `SearchBoxPlaceholder` (shared by `loading.tsx`), `SearchSkeleton`
-- `profile/components/follow-button.tsx` - `FollowButton userId` (store + `setFollow`, `aria-pressed`, 44px hit area via `after:`)
+- `profile/components/follow-button.tsx` - `FollowButton userId` (store + `followUser`, `aria-pressed`, 44px hit area via `after:`)
 - `posts/utils/rich-content.tsx` - `RichContent` links + highlight in text segments only; `PostCard highlightTokens`
 - `components/shared/highlight-text.tsx` - `HighlightText` diacritics-insensitive `<mark>` via per-char fold spans, `indexOf` only (regex chars literal)
 - Sidebar: `SearchWidget` = `SearchBox variant="sidebar"` (hidden on `/search`), `TrendingWidget` & `FollowSuggestions` from services with skeletons
@@ -38,7 +38,7 @@ PostCard / UserResultRow / FollowButton <- usePost(id) / useUser(id)
 ## Design decisions (NEVER revert without reason)
 1. **Search runs in services over the in-memory DB**, not over store cache -> unloaded & session-created posts found, persisted likes kept
 2. **User data lives in `features/profile`** (not a new `users` feature) - profile already owns `UserProfile`
-3. **Follow persisted in service** (`setFollow`), same lesson as likes: store-only toggles get clobbered on refetch
+3. **Follow persisted in service** (`followUser`), same lesson as likes: store-only toggles get clobbered on refetch
 4. **Page passes `query`/`tab` as props from `searchParams`** -> NO `useSearchParams` (Suspense / CSR bailout)
 5. **Tab / sort = local state + `router.replace(..., { scroll: false })`**; containers keyed by query / tag only -> instant switch, no remount flash
 6. **Stale-while-revalidate everywhere**: result cache in `search-store` (last search + tag pages per key) renders at once on Back, refetch always runs & replaces it silently; refetch failure keeps cached view. Sidebar/explore widgets use `hooks/use-cached-resource.ts` (module cache, cleared in `vitest.setup.ts`) because each page renders its own `MainLayout` -> sidebar remounts on every navigation
