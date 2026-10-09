@@ -20,7 +20,8 @@ export type TranslationKey =
   | `saved.${keyof typeof vi.saved}`
   | `hoverCard.${keyof typeof vi.hoverCard}`
   | `share.${keyof typeof vi.share}`
-  | `relations.${keyof typeof vi.relations}`;
+  | `relations.${keyof typeof vi.relations}`
+  | `settings.${keyof typeof vi.settings}`;
 
 /** Pure, server-safe lookup. Unknown keys / non-string leaves resolve to the key itself. */
 export function translate(

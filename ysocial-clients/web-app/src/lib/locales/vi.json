@@ -7,7 +7,8 @@
     "saved": "Đã lưu",
     "profile": "Trang cá nhân",
     "switchProfile": "Chuyển tài khoản",
-    "logout": "Đăng xuất"
+    "logout": "Đăng xuất",
+    "settings": "Cài đặt"
   },
   "feed": {
     "forYou": "Cho bạn",
@@ -382,5 +383,21 @@
     "closeFriendsEmptyDescription": "Hãy theo dõi vài người rồi thêm họ vào bạn thân.",
     "add": "Thêm",
     "remove": "Xoá"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "privacy": "Quyền riêng tư",
+    "blocked": "Đã chặn",
+    "muted": "Đã ẩn",
+    "closeFriends": "Bạn thân",
+    "back": "Quay lại",
+    "privateAccount": "Tài khoản riêng tư",
+    "privateAccountDescription": "Chỉ người theo dõi được bạn chấp thuận mới xem được bài viết của bạn.",
+    "goPublicTitle": "Chuyển sang công khai?",
+    "goPublicDescription": "Bài viết của bạn sẽ hiển thị công khai.",
+    "goPublicRequests": "{count} yêu cầu theo dõi sẽ được tự động chấp nhận.",
+    "goPublicConfirm": "Chuyển sang công khai",
+    "guestTitle": "Đăng nhập để mở cài đặt",
+    "guestCta": "Đăng nhập"
   }
 }

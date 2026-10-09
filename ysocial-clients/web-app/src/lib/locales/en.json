@@ -7,7 +7,8 @@
     "saved": "Saved",
     "profile": "Profile",
     "switchProfile": "Switch accounts",
-    "logout": "Log out"
+    "logout": "Log out",
+    "settings": "Settings"
   },
   "feed": {
     "forYou": "For you",
@@ -382,5 +383,21 @@
     "closeFriendsEmptyDescription": "Follow some people, then add them to your close friends.",
     "add": "Add",
     "remove": "Remove"
+  },
+  "settings": {
+    "title": "Settings",
+    "privacy": "Privacy",
+    "blocked": "Blocked",
+    "muted": "Muted",
+    "closeFriends": "Close friends",
+    "back": "Back",
+    "privateAccount": "Private account",
+    "privateAccountDescription": "Only followers you approve can see your posts.",
+    "goPublicTitle": "Switch to public?",
+    "goPublicDescription": "Your posts will be visible to everyone.",
+    "goPublicRequests": "{count} follow requests will be accepted automatically.",
+    "goPublicConfirm": "Go public",
+    "guestTitle": "Sign in to open settings",
+    "guestCta": "Sign in"
   }
 }
