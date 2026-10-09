@@ -1,7 +1,7 @@
 # Relationship Controls - Design Spec
 
 - **Date:** 2026-10-09
-- **Status:** approved design, pending written-spec review (rev 2: review fixes D5, D9, D18, D22, D24-D26)
+- **Status:** approved design, pending written-spec review (rev 3: review fixes D5, D9, D18, D20, D22, D24-D27)
 - **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 2 sub-project **2B**: 2.3 (private account & follow requests) + 2.4 (close friends) + 2.5 (block / mute). Restrict deferred (D1)
 - **Scope rule:** FE ONLY, mock data. NO BE/API/DB calls. Mock services mirror BE domain shapes (`UserRelation`, `UserBlock`, `PrivacySettings`) so swapping to real API touches services only
 
@@ -34,14 +34,15 @@
 | D15 | Private -> public | Auto-accepts every pending request. O(k) for k requests; each edge update through single write point (D17), indexes stay consistent. Confirm dialog shows k. Client refetches request count + own user after success |
 | D16 | Code placement | Relation service & store live in `features/profile` (`services/relation-service.ts`, `store/relation-store.ts`): separate `relations` feature would create `relations <-> profile` cycle (needs `user-store`). Settings UI = new `features/settings` (imports `@/features/profile` barrel). `notifications` imports `profile` barrel (banner). No new cycle |
 | D17 | Mock authority | `src/mocks/relation-graph.ts` = sole relation truth (replaces `follow-graph.ts`); `block-graph.ts`, `privacy.ts` beside it. Every edge mutation through 1 internal `writeEdge` keeping 3 indexes in sync. Zustand stores = viewer-scoped optimistic projection ONLY |
-| D18 | Mutation ordering contract | Mock graph writes are synchronous & atomic (applied in call, before `mockDelay`), incl. bidirectional block & bulk accept, so graph order = call order. NO per-pair queue (YAGNI). Client: `relation-store` keeps 1 `version` per viewer, bumped by EVERY relation op (follow, block, mute, close friend, privacy, respond); reconciliation (refetch / rollback) applies ONLY IF version unchanged since op start. Rollback reverts only own optimistic field when still holding optimistic value. Real-API ordering = §11 debt |
+| D18 | Mutation ordering contract | Mock graph writes synchronous & atomic (applied in call, before `mockDelay`), incl. bidirectional block & bulk accept, so graph order = call order. NO per-pair queue (YAGNI). Client guards: (a) **per-target op version** `opVersion[actorId][key]` (key = target id; `"self"` for privacy; requester id for respond); follow / block / mute / close friend on same target conflict, different targets never interfere; block bumps target key, covering both directions of that pair; reconcile (refetch / apply service result) ONLY IF key version unchanged since op start. (b) **Field-scoped rollback** on failure: revert a field ONLY IF it still holds this op's optimistic value, independent of versions. (c) **Stale-read guard:** `mutationSeq[actorId]` bumped by every op; `ensureRelationSets` records it at request start & discards result if changed. (d) **Viewer generation** (D25). Real-API ordering = §11 debt |
 | D19 | Request response API | `respondFollowRequest(requesterId, decision: "accept" \| "decline", actorId)`. Decline = requester edge set to `none` (no notification) |
-| D20 | Author exclusion in `post-store` | `excludedAuthors: Record<authorId, { muted?: true; blocked?: true }>`. `excludeAuthor(id, reason)` / `includeAuthor(id, reason)` touch ONLY given reason; entry deleted when empty. Feeds & incoming skip any excluded author; replies skip `blocked` only. Unblock/unmute never restores removed ids; next page-1 load brings them back |
+| D20 | Author exclusion in `post-store` | `excludedAuthors: Record<authorId, { muted?: true; blocked?: true }>`; `blocked` covers BOTH directions (viewer blocked author OR author blocked viewer, from `RelationSets.blocked` + `blockedBy`), so `PostCard` guard, stream buffer & pill share 1 source. `excludeAuthor(id, reason)` / `includeAuthor(id, reason)` touch ONLY given reason; entry deleted when empty. Feeds & incoming skip any excluded author; replies skip `blocked` only. Unblock/unmute never restores removed ids; next page-1 load brings them back |
 | D21 | Seed | §4.2. Demo `1` private with 4 pending requests (accepted trade-off: guest cannot see demo tabs) |
 | D22 | Settings layout | Route group `app/settings/(sections)/layout.tsx` renders `MainLayout aside={<SettingsNav/>}` (new optional prop; `lg+` replaces `RightSidebar`, center column keeps 600px) for 4 child routes. `/settings` index keeps default `RightSidebar` & renders nav list in center column -> menu never shown twice. Below `lg` child routes show Back header |
 | D23 | Close-friends badge | Avatar `ring-2 ring-emerald-500` + small "Close friends" label (Lucide `Star`). Emerald = semantic exception to "1 accent" rule (recorded in FE conventions on closure) |
-| D24 | Request count sync | `fetchRelationSets` returns `requestCount` (single load path via `ensureRelationSets`). After `respondFollowRequest`, block of user with pending request either way, or `setPrivate`: refetch count; open `FollowRequestList` reloads page 1 |
-| D25 | Viewer switch | `ensureRelationSets(actorId)` result applied to `post-store.setExcludedAuthors` ONLY IF `actorId` still active viewer (`getActorId()`). `ViewerSync` on actor change: reset viewer-dependent feed state (`feedIds`, `feedMeta`, `incoming`, `consumedIncoming`, `droppedAuthorIds`, `excludedAuthors`) then load new viewer's sets |
+| D24 | Request count sync | `fetchRelationSets` returns `requestCount` & `blockedBy` (single load path via `ensureRelationSets`). After `respondFollowRequest`, block of user with pending request either way, or `setPrivate`: refetch count; open `FollowRequestList` reloads page 1 |
+| D25 | Viewer switch | `viewerGeneration` bumped on every actor change. `ViewerSync` on change: (1) reset viewer-dependent feed state (`feedIds`, `feedMeta`, `incoming`, `consumedIncoming`, `droppedAuthorIds`, `excludedAuthors`); (2) `invalidateViewerProjection(actorId)` clears new viewer's `user-store` follow projection (`status`, `known`, `loaded`) & `relation-store` slot, because while another account was active, mutations (respond, bulk accept, block cleanup) may have changed this viewer's edges; (3) `ensureRelationSets(actorId, { force: true })`. Result applied to `post-store` ONLY IF generation unchanged since request start (covers A -> B -> A) & D18 (c). Mock = 1 session, so only an account switch changes another viewer's edges: invalidate-on-switch covers every cross-viewer case without per-pair tracking |
+| D27 | Follow-list access | `fetchFollowList` returns empty page unless `canDiscoverUser` AND `canViewProfile`. Block NOT folded into `canViewProfile`: `fetchUser` must still return blocked users so profile shows blocked state (D13) |
 | D26 | Lists after block | Feeds & stream: store exclusion (D20). Blocked user's profile & open thread detail: refetch (blocked state / not-found). Search, tag, saved & profile tab lists: hidden by `PostCard` null guard on blocked author (fallback), NO refill; short page until next mount. Reason: refetching every mounted list needs invalidation bus & resets scroll/paging |
 
 ## 3. Global Constraints
@@ -59,10 +60,11 @@
 UI (FollowButton / PostCardMenu / ProfileHeaderMenu / Settings lists / Banner)
   -> profile/store helpers: commitFollow(next) | commitBlock | commitMute | commitCloseFriend | commitPrivacy | respondRequest
        optimistic: user-store.setFollowStatus / relation-store / post-store.excludeAuthor   (1 set() per store)
-       relation-store.version[actorId] += 1
+       relation-store: opVersion[actorId][key] += 1, mutationSeq[actorId] += 1
   -> profile/services: user-service.followUser|unfollowUser, relation-service.*   (ForbiddenError for guest)
   -> src/mocks: relation-graph.writeEdge | block-graph | privacy   (sync atomic write, then mockDelay)
-  -> reconcile IF version unchanged: refreshUsers / refetch request count / reload open list
+  -> reconcile IF opVersion[key] unchanged: refreshUsers / refetch request count / reload open list
+  -> failure: field-scoped rollback (field still holds optimistic value)
 
 Reads: post-service.* & user-service.* -> visibility.ts (asViewer(actorId)) -> filter -> paginate
 ```
@@ -108,7 +110,7 @@ requests:  Map<targetId, Set<observerId>>   // pending only
 
 - `UserProfile` adds `isPrivate` (base, shared) + viewer projection `followStatus`, `viewerMarkedCloseFriend`, `isMuted`, `isBlocked` (viewer blocked), `isBlockedBy`. `isFollowing` kept = `followStatus === "accepted"`
 - `setFollow` replaced by `followUser(id, actorId): Promise<FollowStatus>` & `unfollowUser(id, actorId): Promise<void>`, delegating to graph (D17). Guest -> `ForbiddenError` (D9); blocked either way -> `ForbiddenError`
-- `searchUsers`, `fetchSuggestedUsers`, `fetchFollowList` filter `canDiscoverUser`. `fetchFollowList` on non-viewable profile -> empty page (UI never opens it, D14)
+- `searchUsers`, `fetchSuggestedUsers`, `fetchFollowList` filter listed users by `canDiscoverUser`. `fetchFollowList` of profile failing `canDiscoverUser` OR `canViewProfile` -> empty page (D27)
 - `fetchFollowedIds` returns accepted only
 
 ### 4.4 `relation-service` (profile, new)
@@ -123,7 +125,7 @@ requests:  Map<targetId, Set<observerId>>   // pending only
 | `fetchFollowRequestCount(actorId)` | refetch after D24 mutations |
 | `respondFollowRequest(requesterId, decision, actorId)` | D19 |
 | `fetchBlockedUsers` / `fetchMutedUsers` / `fetchCloseFriendCandidates` | `{ query, page }`; candidates = accepted followees, `viewerMarkedCloseFriend` projected |
-| `fetchRelationSets(actorId)` | `{ blocked, muted, closeFriends, isPrivate, requestCount }` |
+| `fetchRelationSets(actorId)` | `{ blocked, blockedBy, muted, closeFriends, isPrivate, requestCount }` |
 
 - All writes: guest -> `ForbiddenError`; sync graph write, then `mockDelay()`
 
@@ -140,19 +142,21 @@ requests:  Map<targetId, Set<observerId>>   // pending only
 ### 4.6 Stores
 
 - `user-store`:
+  - `clearViewerFollows(actorId)` (used by `invalidateViewerProjection`)
   - `ViewerFollows.ids` replaced by `status: Record<id, "pending" | "accepted">`; `known`/`loaded`/`version` kept (feed spec I11)
   - `setFollowStatus(actorId, id, next: FollowStatus)` replaces `toggleFollow`: explicit, counts ±1 only when crossing `accepted` boundary
   - `useFollowState(id): FollowStatus | undefined`; `useFollowedIds` accepted only
   - `commitFollow(actorId, id, next: "follow" | "unfollow")`: optimistic per D5, then service status applied IF version unchanged, then `refreshUsers`
 - `relation-store` (new):
-  - `byViewer: Record<actorId, { blocked, muted, closeFriends: Record<id, true>; isPrivate?: boolean; requestCount?: number; loaded; version }>`
+  - `byViewer: Record<actorId, { blocked, blockedBy, muted, closeFriends: Record<id, true>; isPrivate?: boolean; requestCount?: number; loaded; opVersion: Record<key, number>; mutationSeq: number }>`; module-level `viewerGeneration`
   - Selectors `useIsBlocked`, `useIsMuted`, `useViewerMarkedCloseFriend`, `useIsPrivateAccount`, `useFollowRequestCount`
-  - `ensureRelationSets(actorId)` deduped per actor; result applied to own slot always, to `post-store` only for active viewer (D25)
-  - Commit helpers: optimistic, bump `version` (D18), rollback/reconcile only IF version unchanged
+  - `ensureRelationSets(actorId, { force? })` deduped per actor; result discarded IF `mutationSeq` changed (D18 c); applied to `post-store` ONLY IF `viewerGeneration` unchanged (D25)
+  - Commit helpers: optimistic, bump `opVersion[key]` + `mutationSeq` (D18), reconcile only IF key version unchanged, field-scoped rollback on failure
+  - `invalidateViewerProjection(actorId)` (D25)
 - `post-store`:
   - `excludedAuthors` (D20); actions `excludeAuthor`, `includeAuthor`, `setExcludedAuthors(map)`, `resetViewerFeeds()` (D25)
   - `bufferIncoming` & `setFeedPage` skip excluded; selector `useIsAuthorBlocked(id)`
-- `commitBlock(actorId, id)` (1 call): relation-store blocked + user-store `setFollowStatus(none)` both directions in cache + post-store `excludeAuthor(blocked)`; reconcile `refreshUsers([id, actorId])` + request count (D24) IF version unchanged
+- `commitBlock(actorId, id)` (1 call): relation-store blocked + user-store `setFollowStatus(none)` both directions in cache + post-store `excludeAuthor(blocked)`; reconcile `refreshUsers([id, actorId])` + request count (D24) IF `opVersion[id]` unchanged; failure -> field-scoped rollback in all 3 stores
 
 ## 5. Routes
 
@@ -204,6 +208,10 @@ app/settings/
 - Private -> public with k requests: all accepted, counts +k, banner hidden
 - Thread root author blocked while detail open: detail refetches, shows not-found
 - Account switch: feeds reset, stale `ensureRelationSets` response not applied to `post-store` (D25)
+- `"2"` requests private `"1"`, switch to `"1"`, accept, switch back: `"2"` sees Following (projection invalidated on switch, D25)
+- Block A fails while mute B in flight: A rolled back (field-scoped), B unaffected (D18)
+- Author blocked viewer: cached posts hidden, later stream posts skipped (D20)
+- Direct `fetchFollowList` of profile blocked either way: empty (D27)
 - Guest: Follow -> `/login`; no block / mute / close-friend / privacy entry points; direct service call -> `ForbiddenError`
 - Self: no menu; service rejects self-block
 
@@ -212,9 +220,9 @@ app/settings/
 - `relation-graph.test.ts`: idempotent follow, unfollow from pending/accepted, accepted-only counts & indexes, close friend requires accepted, dormant flag & reactivation, `acceptAllRequests` k edges + counts
 - `block-graph.test.ts`: purge both directions incl. pending, flags kept, self no-op
 - `visibility.test.ts`: table test of D8 incl. guest (`asViewer`), dormant close friend NOT visible, blocked-by direction
-- Services: filter before pagination (full pages), `locked`, thread `null`, guest `ForbiddenError` for every mutation, self-block error, `respondFollowRequest` decisions, `fetchRelationSets.requestCount`
+- Services: filter before pagination (full pages), `locked`, thread `null`, guest `ForbiddenError` for every mutation, self-block error, `respondFollowRequest` decisions, `fetchRelationSets.requestCount` & `blockedBy`, `fetchFollowList` empty when blocked either way
 - `user-store.test.ts`: `setFollowStatus` counts only on accepted boundary, unfollow optimistic = none, pending projection, I11 invariants
-- `relation-store.test.ts`: optimistic + rollback, stale reconcile ignored after newer op (any kind), stale `ensureRelationSets` not applied after viewer switch
+- `relation-store.test.ts`: optimistic + field-scoped rollback, failed block rolled back despite unrelated mute, same-target newer op skips stale reconcile, stale `ensureRelationSets` discarded after mutation & after A -> B -> A, projection invalidated on switch (request accepted by other account), `blockedBy` -> `excludedAuthors.blocked`
 - `post-store.test.ts`: exclusion reasons overlap, buffer/feed skip, replies blocked only, `resetViewerFeeds`
 - Components: `FollowButton` states + guest redirect, `PostCardMenu` mute undo & block confirm, lists (empty / error / paging), banner, locked profile variants, composer toggle, settings index vs section layout (nav once)
 
