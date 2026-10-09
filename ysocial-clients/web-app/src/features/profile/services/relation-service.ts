@@ -4,7 +4,7 @@ import { getBlockedIds, getBlockerIds, setBlocked as writeBlocked } from "@/mock
 import { isPrivate, setPrivate } from "@/mocks/privacy";
 import {
   acceptRequest,
-  getCloseFriendIds,
+  getCloseFriendFlagIds,
   getFollowedIds,
   getMutedIds,
   getRequestIds,
@@ -146,7 +146,7 @@ export async function fetchRelationSets(actorId: string): Promise<RelationSets> 
     blocked: getBlockedIds(viewer),
     blockedBy: getBlockerIds(viewer),
     muted: getMutedIds(viewer),
-    closeFriends: getCloseFriendIds(viewer),
+    closeFriends: getCloseFriendFlagIds(viewer),
     isPrivate: isPrivate(viewer),
     requestCount: getRequestIds(viewer).length,
   };

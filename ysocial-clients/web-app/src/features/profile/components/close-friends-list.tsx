@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useActorId } from "@/features/auth";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { fetchCloseFriendCandidates } from "../services/relation-service";
 import { useRelationFlags } from "../store/relation-state";
 import { commitCloseFriend, useCloseFriendCount, useRelationsLoaded } from "../store/relation-store";
+import { ensureFollowGraph } from "../store/user-store";
 import type { RelationListQuery, UserProfile } from "../types";
 import { RelationUserList } from "./relation-user-list";
 
@@ -48,6 +49,11 @@ export function CloseFriendsList() {
   const { t } = useTranslation();
   const actorId = useActorId();
   const count = useCloseFriendCount();
+
+  // The count needs the accepted follow set (a flag only counts while the follow is accepted)
+  useEffect(() => {
+    ensureFollowGraph(actorId).catch(() => undefined);
+  }, [actorId]);
   const fetchPage = useCallback((query: RelationListQuery) => fetchCloseFriendCandidates(query, actorId), [actorId]);
 
   return (

@@ -608,15 +608,15 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const handleSaveToDrafts = useCallback(() => {
     const content = textareaRef.current?.value || "";
     if (!content.trim() && images.length === 0) return;
-    const savedId = saveDraft(content, images, audience, activeDraftId);
+    const savedId = saveDraft(content, images, audience, activeDraftId, visibility);
     setActiveDraftId(savedId);
     toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     setIsDraftsOpen(false);
-  }, [images, audience, activeDraftId, saveDraft, t]);
+  }, [images, audience, visibility, activeDraftId, saveDraft, t]);
 
   const handleSaveToDraftsAndClose = useCallback(() => {
     const content = textareaRef.current?.value || "";
-    saveDraft(content, images, audience, activeDraftId);
+    saveDraft(content, images, audience, activeDraftId, visibility);
 
     // Revoke preview URLs
     previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
@@ -631,7 +631,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     textareaRef.current?.blur();
     onCancel?.();
-  }, [images, audience, activeDraftId, saveDraft, reset, onCancel, t]);
+  }, [images, audience, visibility, activeDraftId, saveDraft, reset, onCancel, t]);
 
   const handleDiscardAndClose = useCallback(() => {
     if (activeDraftId) {
@@ -656,7 +656,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setValue("content", draft.content);
     setImages(draft.images);
     setAudience(draft.audience);
-    setVisibility("public");
+    setVisibility(draft.visibility ?? "public");
     setActiveDraftId(draft.id);
     setIsDraftsOpen(false);
   }, [setValue]);

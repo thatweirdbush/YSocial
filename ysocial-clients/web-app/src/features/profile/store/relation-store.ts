@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
 import { getPostActions } from "@/features/posts";
 import type { ExcludedAuthors } from "@/features/posts/types";
@@ -282,8 +283,13 @@ export const useIsPrivateAccount = (): boolean => useSlot((slot) => slot?.isPriv
 export const useFollowRequestCount = (): number => useSlot((slot) => slot?.requestCount ?? 0);
 /** Changes when the requests changed from outside the request list: the list reloads its first page. */
 export const useFollowRequestsVersion = (): number => useSlot((slot) => slot?.requestsVersion ?? 0);
-/** Close friends the viewer marked (loaded sets plus optimistic changes). */
-export const useCloseFriendCount = (): number => useSlot((slot) => (slot ? Object.keys(slot.closeFriends).length : 0));
+/** Effective close friends: flagged AND an accepted follow (a dormant flag never counts, spec D7). */
+export const useCloseFriendCount = (): number => {
+  const actorId = useActorId();
+  const flags = useRelationStore((state) => state.byViewer[actorId]?.closeFriends);
+  const status = useUserStore((state) => state.follows[actorId]?.status);
+  return useMemo(() => Object.keys(flags ?? {}).filter((id) => status?.[id] === "accepted").length, [flags, status]);
+};
 /** False until the viewer's complete sets loaded: UI that depends on block state must wait for it. */
 export const useRelationsLoaded = (): boolean => useSlot((slot) => slot?.loaded === true);
 

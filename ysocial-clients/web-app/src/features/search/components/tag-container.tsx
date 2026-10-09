@@ -45,7 +45,7 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
   const [attempt, setAttempt] = useState(0);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
-  const key = tagPageKey(tag, sort);
+  const key = tagPageKey(tag, sort, actorId);
   const page = useTagPage(key);
 
   useEffect(() => {

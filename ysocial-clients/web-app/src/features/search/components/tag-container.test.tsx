@@ -71,7 +71,7 @@ describe("TagContainer", () => {
     const spy = vi.spyOn(postService, "fetchPostsByTag");
     const post = getMockPostById("post-006")!;
     usePostStore.getState().actions.upsertPosts([post]);
-    useSearchStore.getState().actions.setTagPage(tagPageKey("dalat", "top"), { tag: "ĐàLạt", postsCount: 1, postIds: [post.id] });
+    useSearchStore.getState().actions.setTagPage(tagPageKey("dalat", "top", "me"), { tag: "ĐàLạt", postsCount: 1, postIds: [post.id] });
 
     render(<TagContainer tag="dalat" sort="top" />);
 
@@ -80,4 +80,15 @@ describe("TagContainer", () => {
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2), LOAD_TIMEOUT);
     expect(spy).toHaveBeenCalledTimes(1);
   });
+
+  it("never renders the cached tag page of another viewer", () => {
+    const post = getMockPostById("post-006")!;
+    usePostStore.getState().actions.upsertPosts([post]);
+    useSearchStore.getState().actions.setTagPage(tagPageKey("dalat", "top", "someone-else"), { tag: "ĐàLạt", postsCount: 1, postIds: [post.id] });
+
+    render(<TagContainer tag="dalat" sort="top" />);
+
+    expect(screen.queryByRole("article")).toBeNull();
+  });
 });
+

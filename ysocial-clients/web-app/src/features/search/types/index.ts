@@ -18,6 +18,8 @@ export interface SearchResponse {
 
 /** Cached search result: ids only, entities live in the normalized stores. */
 export interface SearchResult {
+  /** Viewer the result was fetched for: another viewer never reuses it. */
+  actorId: string;
   query: string;
   userIds: string[];
   /** Relevance order (Top tab). */

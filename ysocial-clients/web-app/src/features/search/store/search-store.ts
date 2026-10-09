@@ -99,7 +99,8 @@ export const useSearchStore = create<SearchStoreState>()(
   ),
 );
 
-export const tagPageKey = (tag: string, sort: TagSort) => `${normalizeText(tag)}:${sort}`;
+/** Viewer-scoped: tag pages hold only what that viewer may see. */
+export const tagPageKey = (tag: string, sort: TagSort, actorId: string) => `${actorId}|${normalizeText(tag)}:${sort}`;
 
 /** Test-only: clear data, keep actions. */
 export const resetSearchStore = () => useSearchStore.setState(initialData());

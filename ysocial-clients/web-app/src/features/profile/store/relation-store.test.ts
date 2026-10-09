@@ -622,6 +622,8 @@ describe("follow requests version (outside changes only)", () => {
 
   it("exposes the version and the close friend count through selectors", async () => {
     await loadSets();
+    seedUsers(cache("author-03"));
+    useUserStore.getState().actions.setFollowStatus("1", "author-03", "accepted");
     const { result } = renderHook(() => ({ version: useFollowRequestsVersion(), closeFriends: useCloseFriendCount() }));
 
     expect(result.current.closeFriends).toBe(1);
@@ -634,6 +636,29 @@ describe("follow requests version (outside changes only)", () => {
     });
 
     expect(result.current.version).toBeGreaterThan(before);
+  });
+});
+
+describe("close friend count", () => {
+  it("counts flagged ids that are accepted follows only: dormant flags do not count, re-follow reactivates", async () => {
+    const load = ensureRelationSets("1");
+    await vi.runAllTimersAsync();
+    await load;
+    seedUsers(cache("author-03"));
+    useUserStore.getState().actions.setFollowStatus("1", "author-03", "accepted");
+    const { result } = renderHook(() => useCloseFriendCount());
+    expect(result.current).toBe(1);
+
+    act(() => useUserStore.getState().actions.setFollowStatus("1", "author-03", "none"));
+    expect(result.current).toBe(0);
+
+    // A forced reload keeps the dormant flag (the service returns every flag), so a re-follow counts again
+    const reload = ensureRelationSets("1", { force: true });
+    await vi.runAllTimersAsync();
+    await reload;
+    act(() => useUserStore.getState().actions.setFollowStatus("1", "author-03", "accepted"));
+    expect(result.current).toBe(1);
+    expect(relations("1").closeFriends["author-03"]).toBe(true);
   });
 });
 

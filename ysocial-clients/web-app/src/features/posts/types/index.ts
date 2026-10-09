@@ -162,6 +162,8 @@ export interface PostDraft {
   content: string;
   images: string[];
   audience: PostAudience;
+  /** Absent in drafts saved before close friends existed = public. */
+  visibility?: PostVisibility;
   createdAt: number;
 }
 // #endregion

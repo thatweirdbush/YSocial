@@ -618,3 +618,25 @@ describe("ensureViewerUser", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("follow state after the follow graph loaded (pending is not in the accepted set)", () => {
+  it("reports unknown, not none, for an id the viewer never fetched", () => {
+    actions().setFollowedIds("v2", ["author-02"], 0);
+    const { result } = renderHook(() => useFollowState("u1"));
+
+    act(() => signInAs("v2"));
+
+    expect(result.current).toBeUndefined();
+  });
+
+  it("refetches a user that is not known for the viewer even though the graph is loaded, restoring pending", async () => {
+    actions().setFollowedIds("v2", ["author-02"], 0);
+    const spy = vi.spyOn(service, "fetchUser").mockResolvedValue(withStatus(user, "pending"));
+
+    await expect(ensureUser("u1", "v2")).resolves.toMatchObject({ followStatus: "pending" });
+
+    expect(spy).toHaveBeenCalledWith("u1", "v2");
+    expect(statusOf("v2", "u1")).toBe("pending");
+  });
+});
+

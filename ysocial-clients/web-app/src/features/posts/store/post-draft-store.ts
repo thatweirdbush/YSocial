@@ -1,10 +1,10 @@
 import { create } from "zustand";
-import type { PostAudience, PostDraft } from "../types";
+import type { PostAudience, PostDraft, PostVisibility } from "../types";
 
 interface DraftState {
   drafts: PostDraft[];
   actions: {
-    saveDraft: (content: string, images: string[], audience: PostAudience, id?: string) => string;
+    saveDraft: (content: string, images: string[], audience: PostAudience, id?: string, visibility?: PostVisibility) => string;
     deleteDraft: (id: string) => void;
     clearDrafts: () => void;
   };
@@ -26,7 +26,7 @@ export const useDraftStore = create<DraftState>((set) => {
   return {
     drafts: initialDrafts,
     actions: {
-      saveDraft: (content, images, audience, id) => {
+      saveDraft: (content, images, audience, id, visibility) => {
         let generatedId = id || Math.random().toString(36).substring(2, 9);
         set((state) => {
           const newDrafts = [...state.drafts];
@@ -38,6 +38,7 @@ export const useDraftStore = create<DraftState>((set) => {
               content,
               images,
               audience,
+              ...(visibility === "closeFriends" ? { visibility } : {}),
               createdAt: Date.now(),
             };
           } else {
@@ -46,6 +47,7 @@ export const useDraftStore = create<DraftState>((set) => {
               content,
               images,
               audience,
+              ...(visibility === "closeFriends" ? { visibility } : {}),
               createdAt: Date.now(),
             });
           }

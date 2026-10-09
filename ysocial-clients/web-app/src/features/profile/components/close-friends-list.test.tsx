@@ -49,7 +49,7 @@ describe("CloseFriendsList", () => {
 
     expect(await screen.findByText("Trần Anh Quốc", {}, WAIT)).toBeInTheDocument();
     expect(screen.getByText("Elena Vance")).toBeInTheDocument();
-    expect(screen.getByText("1 bạn thân")).toBeInTheDocument();
+    expect(await screen.findByText("1 bạn thân", {}, WAIT)).toBeInTheDocument();
     expect(within(row("Trần Anh Quốc")).getByRole("button", { name: "Xoá" })).toHaveAttribute("aria-pressed", "true");
     expect(within(row("Elena Vance")).getByRole("button", { name: "Thêm" })).toHaveAttribute("aria-pressed", "false");
   });
@@ -79,7 +79,7 @@ describe("CloseFriendsList", () => {
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Không thể cập nhật, thử lại nhé"));
     expect(within(row("Elena Vance")).getByRole("button", { name: "Thêm" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByText("1 bạn thân")).toBeInTheDocument();
+    expect(await screen.findByText("1 bạn thân", {}, WAIT)).toBeInTheDocument();
   });
 
   it("shows the empty state when the viewer follows nobody", async () => {

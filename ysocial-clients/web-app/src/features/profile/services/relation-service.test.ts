@@ -8,6 +8,7 @@ import {
   getFollowerCount,
   getFollowStatus,
   getRequestIds,
+  removeFollow,
   requestFollow,
   setMutedEdge,
 } from "@/mocks/relation-graph";
@@ -125,6 +126,13 @@ describe("privacy & requests", () => {
       isPrivate: true,
       requestCount: 4,
     });
+  });
+
+  it("keeps a dormant close friend flag in the sets so a re-follow reactivates it client side", async () => {
+    removeFollow("1", "author-03");
+
+    expect((await settle(fetchRelationSets("1"))).closeFriends).toEqual(["author-03"]);
+    expect((await settle(fetchCloseFriendCandidates({}, "1"))).users.map((user) => user.id)).not.toContain("author-03");
   });
 
   it("reports who blocked the viewer", async () => {

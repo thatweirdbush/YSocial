@@ -87,7 +87,18 @@ describe("PostCreatorCore close friends visibility", () => {
     expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("resets the chip to public when a draft is restored", async () => {
+  it("restores the visibility a draft was saved with", async () => {
+    useDraftStore.getState().actions.saveDraft("bản nháp bạn thân", [], "anyone", undefined, "closeFriends");
+    render(<PostCreatorCore />);
+
+    await userEvent.click(screen.getByTitle("Bản nháp"));
+    await userEvent.click(await screen.findByRole("button", { name: "Khôi phục" }));
+
+    expect(screen.getByRole("textbox")).toHaveValue("bản nháp bạn thân");
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("restores a draft without visibility as public, even if the chip was on", async () => {
     useDraftStore.getState().actions.saveDraft("bản nháp cũ", [], "anyone");
     render(<PostCreatorCore />);
     await userEvent.click(screen.getByRole("button", { name: CHIP }));
@@ -97,5 +108,16 @@ describe("PostCreatorCore close friends visibility", () => {
 
     expect(screen.getByRole("textbox")).toHaveValue("bản nháp cũ");
     expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("saves the current visibility into the draft", async () => {
+    render(<PostCreatorCore />);
+    await userEvent.click(screen.getByRole("button", { name: CHIP }));
+    await userEvent.type(screen.getByRole("textbox"), "nháp riêng");
+
+    await userEvent.click(screen.getByTitle("Bản nháp"));
+    await userEvent.click(await screen.findByRole("button", { name: "Lưu bản nháp" }));
+
+    expect(useDraftStore.getState().drafts[0]).toMatchObject({ content: "nháp riêng", visibility: "closeFriends" });
   });
 });

@@ -74,6 +74,7 @@ export interface RelationSets {
   /** Users who blocked the viewer. */
   blockedBy: string[];
   muted: string[];
+  /** Every flag the viewer set, dormant ones included; "effective" = flag AND an accepted follow (spec D7). */
   closeFriends: string[];
   isPrivate: boolean;
   requestCount: number;

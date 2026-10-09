@@ -52,10 +52,13 @@ interface UserStoreState extends UserStoreData {
 
 const EMPTY_FOLLOWS: ViewerFollows = Object.freeze({ status: {}, known: {}, loaded: false, version: 0 }) as ViewerFollows;
 
-/** Viewer's follow status for `id`; undefined while unknown (graph not loaded & never fetched for this viewer). */
+/**
+ * Viewer's follow status for `id`; undefined while unknown. The loaded graph is ACCEPTED-only, so an id missing from
+ * it may still be pending: "none" is only trusted for ids whose state was fetched or changed for this viewer.
+ */
 function followState(follows: ViewerFollows | undefined, id: string): FollowStatus | undefined {
-  if (!follows || !(follows.loaded || follows.known[id])) return undefined;
-  return follows.status[id] ?? "none";
+  if (!follows) return undefined;
+  return follows.status[id] ?? (follows.known[id] ? "none" : undefined);
 }
 
 const acceptedIds = (follows: ViewerFollows): string[] => Object.keys(follows.status).filter((id) => follows.status[id] === "accepted");

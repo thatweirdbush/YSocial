@@ -133,6 +133,13 @@ export function getCloseFriendIds(observerId: string): string[] {
   return ids;
 }
 
+/** Every close friend flag the observer set, dormant ones included (they reactivate on re-follow). */
+export function getCloseFriendFlagIds(observerId: string): string[] {
+  const ids: string[] = [];
+  for (const [targetId, edge] of edgesOf(observerId)) if (edge.isCloseFriend) ids.push(targetId);
+  return ids;
+}
+
 export function getMutedIds(observerId: string): string[] {
   const ids: string[] = [];
   for (const [targetId, edge] of edgesOf(observerId)) if (edge.isMuted) ids.push(targetId);
