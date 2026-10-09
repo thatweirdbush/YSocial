@@ -340,5 +340,10 @@
     "qrTitle": "Mã QR của @{username}",
     "downloadPng": "Tải PNG",
     "downloadFailed": "Không tải được ảnh QR"
+  },
+  "relations": {
+    "requested": "Đã yêu cầu",
+    "requestSentToast": "Đã gửi yêu cầu theo dõi @{username}",
+    "requestCanceledToast": "Đã hủy yêu cầu theo dõi @{username}"
   }
 }

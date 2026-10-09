@@ -196,13 +196,13 @@ describe("ProfileContainer tabs", () => {
 
 describe("ProfileContainer follow & edit", () => {
   it("follows from the header through the service", async () => {
-    signedOut();
+    signedInAsDemo();
     const follow = vi.spyOn(userService, "followUser").mockResolvedValue("accepted");
     render(<ProfileContainer username="anquoc.dev" />);
 
     await userEvent.click(await screen.findByRole("button", { name: "Theo dõi" }));
 
-    expect(follow).toHaveBeenCalledWith("author-03", "me");
+    expect(follow).toHaveBeenCalledWith("author-03", DEMO_AUTH.id);
   });
 
   it("edits the own profile through the service and updates the header from the store", async () => {

@@ -10,11 +10,12 @@ import {
   unfollowUser,
   upsertViewerUser,
 } from "../services/user-service";
-import type { ProfilePatch, UserProfile, UserProfileBase, ViewerFollows, ViewerUserInput } from "../types";
+import type { FollowStatus, ProfilePatch, UserProfile, UserProfileBase, ViewerFollows, ViewerUserInput } from "../types";
 import { toUserBase, withViewerDefaults } from "../utils/user-projection";
+import { beginOp, isCurrentOp } from "./op-ledger";
 
 // Normalized client cache of users. Profile data is shared by every viewer; follow flags live in a
-// per-viewer projection, so switching account never leaks `isFollowing`. Every screen reads the same
+// per-viewer projection, so switching account never leaks the follow status. Every screen reads the same
 // entity via useUser(id), so follow changes are reflected everywhere in O(1).
 
 interface UserStoreData {
@@ -25,16 +26,22 @@ interface UserStoreData {
 }
 
 interface UserStoreActions {
-  /** Shared data -> `users`; each `isFollowing` -> the viewer's projection (does not mark it loaded). */
+  /** Shared data -> `users`; each `followStatus` -> the viewer's projection (does not mark it loaded). */
   upsertUsers: (users: UserProfile[], actorId: string) => void;
   /**
-   * Optimistic projection only: flips the actor's follow, target `followersCount` +-1 and the actor's own
-   * `followingCount` +-1 when cached, in ONE update. Unknown id -> no-op. Reconciled by refetch (`commitFollow`).
+   * Optimistic projection only: sets the actor's status for `id` explicitly (never toggles). Target
+   * `followersCount` & the actor's own `followingCount` change by 1 ONLY when the status crosses `accepted`, in ONE
+   * update. Unknown id -> no-op. Reconciled by refetch (`commitFollow`).
    */
-  toggleFollow: (actorId: string, id: string) => void;
+  setFollowStatus: (actorId: string, id: string, next: FollowStatus) => void;
+  /** Drops the viewer's follow projection (status, known, loaded) and bumps its version (spec D25). */
+  clearViewerFollows: (actorId: string) => void;
   /** Merges edited profile fields into the shared user (header, hover cards & post authors follow). */
   patchUser: (id: string, patch: ProfilePatch) => void;
-  /** Replaces the viewer's follow set; ignored (returns false) when a toggle happened since `sinceVersion`. */
+  /**
+   * Replaces the viewer's ACCEPTED follow set (pending requests are kept); ignored (returns false) when a local
+   * status change happened since `sinceVersion`.
+   */
   setFollowedIds: (actorId: string, ids: string[], sinceVersion: number) => boolean;
 }
 
@@ -42,13 +49,15 @@ interface UserStoreState extends UserStoreData {
   actions: UserStoreActions;
 }
 
-const EMPTY_FOLLOWS: ViewerFollows = Object.freeze({ ids: {}, known: {}, loaded: false, version: 0 }) as ViewerFollows;
+const EMPTY_FOLLOWS: ViewerFollows = Object.freeze({ status: {}, known: {}, loaded: false, version: 0 }) as ViewerFollows;
 
-/** Viewer's follow flag for `id`; undefined while unknown (graph not loaded & never fetched for this viewer). */
-function followState(follows: ViewerFollows | undefined, id: string): boolean | undefined {
+/** Viewer's follow status for `id`; undefined while unknown (graph not loaded & never fetched for this viewer). */
+function followState(follows: ViewerFollows | undefined, id: string): FollowStatus | undefined {
   if (!follows || !(follows.loaded || follows.known[id])) return undefined;
-  return follows.ids[id] === true;
+  return follows.status[id] ?? "none";
 }
+
+const acceptedIds = (follows: ViewerFollows): string[] => Object.keys(follows.status).filter((id) => follows.status[id] === "accepted");
 
 const initialData = (): UserStoreData => ({ users: {}, follows: {}, idByUsername: {} });
 
@@ -60,41 +69,52 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         const next = { ...state.users };
         const idByUsername = { ...state.idByUsername };
         const current = state.follows[actorId] ?? EMPTY_FOLLOWS;
-        const ids = { ...current.ids };
+        const status = { ...current.status };
         const known = { ...current.known };
         for (const user of users) {
           const base = toUserBase(user);
           next[base.id] = base;
           idByUsername[base.username.toLowerCase()] = base.id;
           known[base.id] = true;
-          if (user.isFollowing) ids[base.id] = true;
-          else delete ids[base.id];
+          if (user.followStatus === "none") delete status[base.id];
+          else status[base.id] = user.followStatus;
         }
-        return { users: next, idByUsername, follows: { ...state.follows, [actorId]: { ...current, ids, known } } };
+        return { users: next, idByUsername, follows: { ...state.follows, [actorId]: { ...current, status, known } } };
       }),
 
-    toggleFollow: (actorId, id) =>
+    setFollowStatus: (actorId, id, next) =>
       set((state) => {
         const user = state.users[id];
         if (!user) return state;
         const current = state.follows[actorId] ?? EMPTY_FOLLOWS;
-        const following = !current.ids[id];
-        const ids = { ...current.ids };
-        if (following) ids[id] = true;
-        else delete ids[id];
-        const delta = following ? 1 : -1;
+        const previous = current.status[id] ?? "none";
+        const status = { ...current.status };
+        if (next === "none") delete status[id];
+        else status[id] = next;
+        // Counts move only when the status crosses the accepted boundary
+        const delta = Number(next === "accepted") - Number(previous === "accepted");
         const actor = state.users[actorId];
+        const users =
+          delta === 0
+            ? state.users
+            : {
+                ...state.users,
+                [id]: { ...user, followersCount: Math.max(0, user.followersCount + delta) },
+                ...(actor && actorId !== id ? { [actorId]: { ...actor, followingCount: Math.max(0, actor.followingCount + delta) } } : {}),
+              };
         return {
-          users: {
-            ...state.users,
-            [id]: { ...user, followersCount: Math.max(0, user.followersCount + delta) },
-            ...(actor && actorId !== id ? { [actorId]: { ...actor, followingCount: Math.max(0, actor.followingCount + delta) } } : {}),
-          },
+          users,
           follows: {
             ...state.follows,
-            [actorId]: { ...current, ids, known: { ...current.known, [id]: true }, version: current.version + 1 },
+            [actorId]: { ...current, status, known: { ...current.known, [id]: true }, version: current.version + 1 },
           },
         };
+      }),
+
+    clearViewerFollows: (actorId) =>
+      set((state) => {
+        const current = state.follows[actorId] ?? EMPTY_FOLLOWS;
+        return { follows: { ...state.follows, [actorId]: { status: {}, known: {}, loaded: false, version: current.version + 1 } } };
       }),
 
     patchUser: (id, patch) =>
@@ -106,9 +126,11 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
     setFollowedIds: (actorId, ids, sinceVersion) => {
       const current = get().follows[actorId] ?? EMPTY_FOLLOWS;
       if (current.version !== sinceVersion) return false;
-      const next: Record<string, true> = {};
-      for (const id of ids) next[id] = true;
-      set((state) => ({ follows: { ...state.follows, [actorId]: { ...current, ids: next, loaded: true } } }));
+      // The loaded set is accepted-only: pending requests are not in it and must survive
+      const status: Record<string, "pending" | "accepted"> = {};
+      for (const [id, value] of Object.entries(current.status)) if (value === "pending") status[id] = value;
+      for (const id of ids) status[id] = "accepted";
+      set((state) => ({ follows: { ...state.follows, [actorId]: { ...current, status, loaded: true } } }));
       return true;
     },
   },
@@ -132,8 +154,8 @@ export const resetUserStore = () => {
 function cachedFor(id: string, actorId: string): UserProfile | null {
   const { users, follows } = useUserStore.getState();
   const base = users[id];
-  const isFollowing = followState(follows[actorId], id);
-  return base && isFollowing !== undefined ? withViewerDefaults(base, isFollowing) : null;
+  const followStatus = followState(follows[actorId], id);
+  return base && followStatus !== undefined ? withViewerDefaults(base, followStatus) : null;
 }
 
 /**
@@ -209,28 +231,36 @@ export function ensureViewerUser(input: ViewerUserInput, actorId: string): Promi
   return request;
 }
 
-/**
- * Optimistic follow toggle + persistence + reconciliation. Resolves false (projection reverted) when the write
- * fails. The refetch from the follow graph applies only if no newer toggle happened meanwhile (last click wins).
- */
-export async function commitFollow(actorId: string, id: string): Promise<boolean> {
-  const { actions } = useUserStore.getState();
-  actions.toggleFollow(actorId, id);
-  const { version, ids } = useUserStore.getState().follows[actorId] ?? EMPTY_FOLLOWS;
-  const following = ids[id] === true;
+/** Non-hook twin of the `clearViewerFollows` action (spec D25: account switch). */
+export const clearViewerFollows = (actorId: string): void => useUserStore.getState().actions.clearViewerFollows(actorId);
 
+/**
+ * Optimistic follow / unfollow + persistence + reconciliation (spec D5, D18). The optimistic status is explicit:
+ * `unfollow` = none, `follow` = pending for a private target else accepted. Resolves false when the write fails,
+ * rolling back ONLY if the field still holds this op's optimistic value. The service status and the refetch apply
+ * only while no newer op started on the same target (last click wins; other targets never interfere).
+ */
+export async function commitFollow(actorId: string, id: string, next: "follow" | "unfollow"): Promise<boolean> {
+  const { actions } = useUserStore.getState();
+  const snapshot = useUserStore.getState();
+  const previous = snapshot.follows[actorId]?.status[id] ?? "none";
+  const optimistic: FollowStatus = next === "unfollow" ? "none" : snapshot.users[id]?.isPrivate ? "pending" : "accepted";
+  const opVersion = beginOp(actorId, id);
+  actions.setFollowStatus(actorId, id, optimistic);
+
+  let result: FollowStatus = "none";
   try {
-    if (following) await followUser(id, actorId);
+    if (next === "follow") result = await followUser(id, actorId);
     else await unfollowUser(id, actorId);
   } catch {
-    // A newer toggle already superseded this one; only revert our own optimistic flip
-    if (useUserStore.getState().follows[actorId]?.ids[id] === following) actions.toggleFollow(actorId, id);
+    if ((useUserStore.getState().follows[actorId]?.status[id] ?? "none") === optimistic) actions.setFollowStatus(actorId, id, previous);
     return false;
   }
 
-  if (useUserStore.getState().follows[actorId]?.version === version) {
-    // Re-checked again after the fetch: a toggle landing mid-flight must not be overwritten by a stale response
-    await refreshUsers([id, actorId], actorId, () => useUserStore.getState().follows[actorId]?.version === version);
+  if (isCurrentOp(actorId, id, opVersion)) {
+    if (result !== optimistic) actions.setFollowStatus(actorId, id, result);
+    // Re-checked after the fetch: a newer op landing mid-flight must not be overwritten by a stale response
+    await refreshUsers([id, actorId], actorId, () => isCurrentOp(actorId, id, opVersion));
   }
   return true;
 }
@@ -260,46 +290,46 @@ export function ensureFollowGraph(actorId: string): Promise<void> {
 /** Non-hook twin of `useFollowedIds` for event handlers. */
 export function getFollowedIds(actorId: string): { ids: ReadonlySet<string>; loaded: boolean } {
   const follows = useUserStore.getState().follows[actorId] ?? EMPTY_FOLLOWS;
-  return { ids: new Set(Object.keys(follows.ids)), loaded: follows.loaded };
+  return { ids: new Set(acceptedIds(follows)), loaded: follows.loaded };
 }
 
 // #region Selectors
 /** User as seen by the current viewer; stable reference while its data & follow flag are unchanged. */
 export const useUser = (id: string): UserProfile | undefined => {
   const actorId = useActorId();
-  const [base, isFollowing] = useUserStore(
-    useShallow((state) => [state.users[id], state.follows[actorId]?.ids[id] === true] as const),
+  const [base, followStatus] = useUserStore(
+    useShallow((state) => [state.users[id], state.follows[actorId]?.status[id] ?? "none"] as const),
   );
-  return useMemo(() => (base ? withViewerDefaults(base, isFollowing) : undefined), [base, isFollowing]);
+  return useMemo(() => (base ? withViewerDefaults(base, followStatus) : undefined), [base, followStatus]);
 };
 
 /** User by username (case-insensitive) as seen by the current viewer. */
 export const useUserByUsername = (username: string): UserProfile | undefined => {
   const actorId = useActorId();
   const lower = username.toLowerCase();
-  const [base, isFollowing] = useUserStore(
+  const [base, followStatus] = useUserStore(
     useShallow((state) => {
       const id = state.idByUsername[lower];
-      return [id ? state.users[id] : undefined, id ? state.follows[actorId]?.ids[id] === true : false] as const;
+      return [id ? state.users[id] : undefined, id ? (state.follows[actorId]?.status[id] ?? "none") : "none"] as const;
     }),
   );
-  return useMemo(() => (base ? withViewerDefaults(base, isFollowing) : undefined), [base, isFollowing]);
+  return useMemo(() => (base ? withViewerDefaults(base, followStatus) : undefined), [base, followStatus]);
 };
 
-/** Current viewer's follow flag for `id`; undefined while unknown (FollowButton must not guess). */
-export const useFollowState = (id: string): boolean | undefined => {
+/** Current viewer's follow status for `id`; undefined while unknown (FollowButton must not guess). */
+export const useFollowState = (id: string): FollowStatus | undefined => {
   const actorId = useActorId();
   return useUserStore((state) => followState(state.follows[actorId], id));
 };
 
-/** Complete follow set of the current viewer (`loaded` false until `ensureFollowGraph` resolves). */
+/** Complete ACCEPTED follow set of the current viewer (`loaded` false until `ensureFollowGraph` resolves). */
 export const useFollowedIds = (): { ids: ReadonlySet<string>; loaded: boolean } => {
   const actorId = useActorId();
   // useShallow keeps the tuple reference while loaded flag & ids are unchanged -> memo stays stable
   const snapshot = useUserStore(
     useShallow((state) => {
       const follows = state.follows[actorId] ?? EMPTY_FOLLOWS;
-      return [follows.loaded, ...Object.keys(follows.ids)] as [boolean, ...string[]];
+      return [follows.loaded, ...acceptedIds(follows)] as [boolean, ...string[]];
     }),
   );
   return useMemo(() => {

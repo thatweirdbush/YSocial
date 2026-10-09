@@ -98,14 +98,14 @@ export const PROFILE_DISPLAY_NAME_MIN = 2;
 export const PROFILE_DISPLAY_NAME_MAX = 50;
 export const PROFILE_BIO_MAX = 160;
 
-/** One viewer's follow projection in `user-store`. */
+/** One viewer's follow projection in `user-store`. Absent id = `none`. */
 export interface ViewerFollows {
-  ids: Record<string, true>;
-  /** Ids whose follow state was fetched or toggled for this viewer (trusted even before `loaded`). */
+  status: Record<string, "pending" | "accepted">;
+  /** Ids whose follow state was fetched or changed for this viewer (trusted even before `loaded`). */
   known: Record<string, true>;
   /** True once the complete follow set was loaded (not just ids seen in fetched profiles). */
   loaded: boolean;
-  /** Bumped by every local toggle; a follow-set load started before a toggle is discarded. */
+  /** Bumped by every local status change; a follow-set load started before a change is discarded. */
   version: number;
 }
 

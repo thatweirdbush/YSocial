@@ -11,6 +11,7 @@ export {
   unfollowUser,
 } from "./services/user-service";
 export {
+  clearViewerFollows,
   commitFollow,
   ensureFollowGraph,
   ensureUser,

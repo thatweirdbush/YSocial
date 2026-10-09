@@ -1,4 +1,4 @@
-import type { UserProfile, UserProfileBase } from "../types";
+import type { FollowStatus, UserProfile, UserProfileBase } from "../types";
 
 const VIEWER_FIELDS = [
   "isFollowing",
@@ -16,12 +16,12 @@ export function toUserBase(user: UserProfile): UserProfileBase {
   return base as UserProfileBase;
 }
 
-/** Full profile from shared data & the follow flag; other viewer fields default to "no relation". */
-export function withViewerDefaults(base: UserProfileBase, isFollowing: boolean): UserProfile {
+/** Full profile from shared data & the follow status; other viewer fields default to "no relation". */
+export function withViewerDefaults(base: UserProfileBase, followStatus: FollowStatus): UserProfile {
   return {
     ...base,
-    isFollowing,
-    followStatus: isFollowing ? "accepted" : "none",
+    isFollowing: followStatus === "accepted",
+    followStatus,
     viewerMarkedCloseFriend: false,
     isMuted: false,
     isBlocked: false,

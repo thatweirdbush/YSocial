@@ -131,7 +131,7 @@ describe("NewPostsPill", () => {
 
     act(() => {
       useUserStore.getState().actions.upsertUsers([makeUserProfile(makePost("x", "a1").user)], GUEST_ACTOR_ID);
-      useUserStore.getState().actions.toggleFollow(GUEST_ACTOR_ID, "a1");
+      useUserStore.getState().actions.setFollowStatus(GUEST_ACTOR_ID, "a1", "accepted");
     });
     expect(screen.getByRole("button", { name: /2 bài mới/ })).toBeInTheDocument();
   });

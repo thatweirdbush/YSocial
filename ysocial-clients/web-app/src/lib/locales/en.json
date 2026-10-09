@@ -340,5 +340,10 @@
     "qrTitle": "@{username}'s QR code",
     "downloadPng": "Download PNG",
     "downloadFailed": "Couldn't download the QR image"
+  },
+  "relations": {
+    "requested": "Requested",
+    "requestSentToast": "Follow request sent to @{username}",
+    "requestCanceledToast": "Canceled follow request to @{username}"
   }
 }

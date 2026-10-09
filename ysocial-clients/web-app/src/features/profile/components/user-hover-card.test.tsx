@@ -77,7 +77,7 @@ describe("UserHoverCard", () => {
 
   it("fetches the follow state for a user cached by another viewer", async () => {
     useUserStore.getState().actions.upsertUsers([author], "v0");
-    const spy = vi.spyOn(service, "fetchUser").mockResolvedValue({ ...author, isFollowing: true });
+    const spy = vi.spyOn(service, "fetchUser").mockResolvedValue({ ...author, isFollowing: true, followStatus: "accepted" });
     renderCard();
 
     await userEvent.hover(screen.getByRole("link", { name: author.displayName }));

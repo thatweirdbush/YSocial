@@ -4,18 +4,35 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import { makeUserProfile } from "../mocks/user-fixtures";
 import * as service from "../services/user-service";
+import { resetOpLedger } from "../store/op-ledger";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import { FollowButton } from "./follow-button";
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), info: vi.fn(), error: vi.fn() }));
 vi.mock("sonner", () => ({ toast }));
 
+const push = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+  useRouter: () => ({ push, replace: vi.fn(), back: vi.fn() }),
+}));
+
+const statusOf = (actorId: string, id: string) => useUserStore.getState().follows[actorId]?.status[id];
+
 beforeEach(() => {
   resetUserStore();
+  resetOpLedger();
   vi.restoreAllMocks();
+  push.mockClear();
+  toast.success.mockClear();
+  toast.info.mockClear();
+  toast.error.mockClear();
   useAuthStore.setState({ user: { id: "v1", email: "v1@ysocial.dev" } });
   useUserStore.getState().actions.upsertUsers(
-    [makeUserProfile({ id: "u1", displayName: "Minh Thư", username: "minhthu", followersCount: 10 })],
+    [
+      makeUserProfile({ id: "u1", displayName: "Minh Thư", username: "minhthu", followersCount: 10 }),
+      makeUserProfile({ id: "u2", displayName: "Kín Đáo", username: "kindao", isPrivate: true }),
+    ],
     "v1",
   );
 });
@@ -34,7 +51,7 @@ describe("FollowButton", () => {
 
     await userEvent.click(button);
 
-    expect(useUserStore.getState().follows.v1.ids.u1).toBe(true);
+    expect(statusOf("v1", "u1")).toBe("accepted");
     expect(useUserStore.getState().users.u1.followersCount).toBe(11);
     expect(screen.getByRole("button", { name: "Đang theo dõi" })).toHaveAttribute("aria-pressed", "true");
     expect(spy).toHaveBeenCalledWith("u1", "v1");
@@ -67,7 +84,7 @@ describe("FollowButton", () => {
     await userEvent.click(screen.getByRole("button", { name: "Theo dõi" }));
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Không thể cập nhật theo dõi, thử lại nhé"));
-    expect(useUserStore.getState().follows.v1.ids.u1).toBeUndefined();
+    expect(statusOf("v1", "u1")).toBeUndefined();
   });
 
   it("shows translated toasts", async () => {
@@ -80,5 +97,62 @@ describe("FollowButton", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Đang theo dõi" }));
     expect(toast.info).toHaveBeenCalledWith("Đã bỏ theo dõi @minhthu");
+  });
+});
+
+describe("FollowButton private accounts", () => {
+  it("renders Requested after following a private account and says the request was sent", async () => {
+    vi.spyOn(service, "followUser").mockResolvedValue("pending");
+    render(<FollowButton userId="u2" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Theo dõi" }));
+
+    expect(statusOf("v1", "u2")).toBe("pending");
+    expect(screen.getByRole("button", { name: "Đã yêu cầu" })).toHaveAttribute("aria-pressed", "false");
+    expect(toast.success).toHaveBeenCalledWith("Đã gửi yêu cầu theo dõi @kindao");
+  });
+
+  it("cancels a pending request on click without a confirm dialog", async () => {
+    useUserStore.getState().actions.setFollowStatus("v1", "u2", "pending");
+    const unfollow = vi.spyOn(service, "unfollowUser").mockResolvedValue();
+    render(<FollowButton userId="u2" confirmUnfollow />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Đã yêu cầu" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(unfollow).toHaveBeenCalledWith("u2", "v1");
+    expect(statusOf("v1", "u2")).toBeUndefined();
+    expect(screen.getByRole("button", { name: "Theo dõi" })).toBeInTheDocument();
+    expect(toast.info).toHaveBeenCalledWith("Đã hủy yêu cầu theo dõi @kindao");
+  });
+
+  it("still asks before unfollowing an accepted follow when confirmUnfollow is set", async () => {
+    useUserStore.getState().actions.setFollowStatus("v1", "u1", "accepted");
+    const unfollow = vi.spyOn(service, "unfollowUser").mockResolvedValue();
+    render(<FollowButton userId="u1" confirmUnfollow />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Đang theo dõi" }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(unfollow).not.toHaveBeenCalled();
+  });
+});
+
+describe("FollowButton guest", () => {
+  beforeEach(() => {
+    useAuthStore.setState({ user: null });
+    useUserStore.getState().actions.upsertUsers([makeUserProfile({ id: "u1", displayName: "Minh Thư", username: "minhthu" })], "me");
+  });
+
+  it("stays visible and sends the guest to the login page without calling the service", async () => {
+    const follow = vi.spyOn(service, "followUser").mockResolvedValue("accepted");
+    render(<FollowButton userId="u1" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Theo dõi" }));
+
+    expect(push).toHaveBeenCalledWith("/login");
+    expect(follow).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(statusOf("me", "u1")).toBeUndefined();
   });
 });
