@@ -363,6 +363,14 @@
     "addCloseFriend": "Thêm vào bạn thân",
     "removeCloseFriend": "Xoá khỏi bạn thân",
     "closeFriendAddedToast": "Đã thêm @{username} vào bạn thân",
-    "closeFriendRemovedToast": "Đã xoá @{username} khỏi bạn thân"
+    "closeFriendRemovedToast": "Đã xoá @{username} khỏi bạn thân",
+    "searchPlaceholder": "Tìm theo tên hoặc @username",
+    "loadMore": "Xem thêm",
+    "retry": "Thử lại",
+    "blockedEmptyTitle": "Chưa chặn ai",
+    "blockedEmptyDescription": "Những tài khoản bạn chặn sẽ xuất hiện ở đây.",
+    "mutedEmptyTitle": "Chưa ẩn ai",
+    "mutedEmptyDescription": "Tài khoản bạn ẩn khỏi bảng tin sẽ xuất hiện ở đây.",
+    "unmuteAction": "Bỏ ẩn"
   }
 }

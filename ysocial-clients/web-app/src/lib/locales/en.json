@@ -363,6 +363,14 @@
     "addCloseFriend": "Add to close friends",
     "removeCloseFriend": "Remove from close friends",
     "closeFriendAddedToast": "Added @{username} to close friends",
-    "closeFriendRemovedToast": "Removed @{username} from close friends"
+    "closeFriendRemovedToast": "Removed @{username} from close friends",
+    "searchPlaceholder": "Search by name or @username",
+    "loadMore": "Load more",
+    "retry": "Try again",
+    "blockedEmptyTitle": "No blocked accounts",
+    "blockedEmptyDescription": "Accounts you block will show up here.",
+    "mutedEmptyTitle": "No muted accounts",
+    "mutedEmptyDescription": "Accounts you mute from your feeds will show up here.",
+    "unmuteAction": "Unmute"
   }
 }
