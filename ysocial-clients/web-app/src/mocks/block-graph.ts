@@ -37,6 +37,13 @@ export function getBlockedIds(id: string): string[] {
   return [...(blocks.get(id) ?? [])].reverse();
 }
 
+/** Ids that blocked `id`. */
+export function getBlockerIds(id: string): string[] {
+  const ids: string[] = [];
+  for (const [blockerId, blocked] of blocks) if (blocked.has(id)) ids.push(blockerId);
+  return ids;
+}
+
 /** Test-only: clear every block. */
 export function __resetBlockGraph(): void {
   blocks = new Map();

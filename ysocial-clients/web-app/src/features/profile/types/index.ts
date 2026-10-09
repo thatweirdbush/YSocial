@@ -55,6 +55,26 @@ export type UserProfileBase = Omit<UserProfile, ViewerField>;
 /** Mock DB row: shared profile data without counts & privacy (both derive from the mock graphs, spec D6 & D17). */
 export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCount" | "isPrivate">;
 
+export type RequestDecision = "accept" | "decline";
+
+/** Viewer's relation sets loaded once per session (spec D24); drive optimistic projections. */
+export interface RelationSets {
+  blocked: string[];
+  /** Users who blocked the viewer. */
+  blockedBy: string[];
+  muted: string[];
+  closeFriends: string[];
+  isPrivate: boolean;
+  requestCount: number;
+}
+
+export interface RelationListQuery {
+  query?: string;
+  page?: number;
+}
+
+export const RELATION_PAGE_SIZE = 20;
+
 export interface FollowListQuery {
   query?: string;
   page?: number;

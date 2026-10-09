@@ -23,7 +23,30 @@ export {
   useUserActions,
   useUserByUsername,
 } from "./store/user-store";
-export type { FollowListKind, FollowStatus, UserProfile, UserProfileBase, ViewerFollows } from "./types";
+export {
+  fetchBlockedUsers,
+  fetchCloseFriendCandidates,
+  fetchFollowRequestCount,
+  fetchFollowRequests,
+  fetchMutedUsers,
+  fetchRelationSets,
+  respondFollowRequest,
+  setBlocked,
+  setCloseFriend,
+  setMuted,
+  setPrivateAccount,
+} from "./services/relation-service";
+export { RELATION_PAGE_SIZE } from "./types";
+export type {
+  FollowListKind,
+  FollowStatus,
+  RelationListQuery,
+  RelationSets,
+  RequestDecision,
+  UserProfile,
+  UserProfileBase,
+  ViewerFollows,
+} from "./types";
 export { parseBio } from "./utils/bio-parser";
 export { normalizeUsername, resolveProfileRoute } from "./utils/resolve-profile-route";
 export type { ProfileRouteResolution } from "./utils/resolve-profile-route";

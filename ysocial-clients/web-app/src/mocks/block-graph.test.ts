@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { __resetBlockGraph, getBlockedIds, isBlocked, isEitherBlocked, setBlocked } from "./block-graph";
+import { __resetBlockGraph, getBlockedIds, getBlockerIds, isBlocked, isEitherBlocked, setBlocked } from "./block-graph";
 import {
   __resetRelationGraph,
   getEdge,
@@ -78,6 +78,15 @@ describe("block-graph", () => {
     setBlocked("1", "author-02", true);
 
     expect(getBlockedIds("1")).toEqual(["author-02", "author-01"]);
+  });
+
+  it("lists who blocked an id", () => {
+    setBlocked("author-01", "1", true);
+    setBlocked("author-02", "1", true);
+    setBlocked("1", "author-03", true);
+
+    expect(getBlockerIds("1").sort()).toEqual(["author-01", "author-02"]);
+    expect(getBlockerIds("author-05")).toEqual([]);
   });
 
   it("restores an empty graph on reset", () => {

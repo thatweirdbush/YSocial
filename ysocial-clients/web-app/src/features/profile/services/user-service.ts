@@ -43,9 +43,15 @@ export function __resetMockUsers(): void {
 }
 __resetMockUsers();
 
-function mockDelay(): Promise<void> {
+/** Simulated network latency, shared with the relation service. */
+export function mockDelay(): Promise<void> {
   const ms = 300 + Math.random() * 300;
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Raw mock DB row (no viewer projection); used by the relation service to list users. */
+export function getStoredUser(id: string): StoredUser | undefined {
+  return db.get(id);
 }
 
 /** Copy with graph-derived counts (hidden baseline + relation count) and the actor's relation flags. */
