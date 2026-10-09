@@ -221,6 +221,23 @@ describe("ProfileContainer follow & edit", () => {
     expect(useUserStore.getState().users["1"].displayName).toBe("Tên Mới");
   });
 
+  it("upserts the service's returned projection, not the raw submitted patch", async () => {
+    signedInAsDemo();
+    // The service may normalize/trim server-side; its response differs from what the form submitted
+    vi.spyOn(userService, "updateProfile").mockResolvedValue({ ...demoProfile, displayName: "Tên Chuẩn Hoá", bio: "Bio từ server" });
+    render(<ProfileContainer username="ysocial_member" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Chỉnh sửa trang cá nhân" }));
+    const dialog = await screen.findByRole("dialog");
+    const name = within(dialog).getByLabelText("Tên hiển thị");
+    await userEvent.clear(name);
+    await userEvent.type(name, "Tên Nhập Vào");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Lưu" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Tên Chuẩn Hoá" })).toBeInTheDocument());
+    expect(useUserStore.getState().users["1"].bio).toBe("Bio từ server");
+  });
+
   it("validates the display name length before calling the service", async () => {
     signedInAsDemo();
     const update = vi.spyOn(userService, "updateProfile");

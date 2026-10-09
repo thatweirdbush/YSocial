@@ -359,3 +359,13 @@ Format: `rule severity x count` (E = error, W = warning)
 - All tasks done on `feature/profile-core`; rulings & final-review fixes (second register, register username shape) are in `.context/features/profile.md` (pitfall log)
 
 - **Deferred minors:** QRCodeCanvas re-key on retry, refetch version re-check before upsert `commitFollow`, edit dialog upsert of service projection, followers dialog error state, StrictMode double fetch
+
+## Deferred minors resolution (2026-10-09)
+
+All 5 resolved via TDD (RED test per fix, suite 56 files / 526 tests, `tsc` exit 0, eslint 55 E / 17 W, no file/rule increase vs Appendix A):
+
+- [x] **QRCodeCanvas re-key on retry** (`share-profile-dialog.tsx`): `key={withAvatar ? "qr-avatar" : "qr-plain"}` forces a fresh `<canvas>` on the no-avatar retry (a redraw into the same element keeps a tainted canvas tainted in a real browser)
+- [x] **`commitFollow` refetch version re-check** (`user-store.ts`): `refreshUsers` takes an optional `shouldApply()` guard, re-checked right before the upsert; `commitFollow` passes it so a toggle landing while the refetch is in flight is not overwritten by the stale response
+- [x] **Edit dialog upserts the service projection** (`edit-profile-dialog.tsx`): `onSubmit` now upserts `updateProfile`'s return value (`upsertUsers`) instead of the hand-built local patch, and syncs the auth store from that same return value. Deviates from Task 11 Step 4's `patchUser` call - `patchUser` action is still used elsewhere (`PostCard` live overlay, Task 8) and stays exported
+- [x] **Followers dialog error state** (`followers-dialog.tsx`): first-page failure now renders `tabError` + retry (was falling through to the generic empty state); a failed `loadMore` stops observing the sentinel and shows an inline retry row instead of letting a still-visible sentinel re-fire the request every re-render
+- [x] **StrictMode double fetch** (`use-profile-tab-posts.tsx`): `activate` gates on a `activatedScope` ref (per tab, keyed by `scopeKey`) set synchronously before the async fetch starts, since StrictMode's mount-cleanup-mount runs both invocations before the `start` dispatch commits a non-idle status. `followers-dialog.tsx`'s first-page effect has the same class of issue (one wasted StrictMode-only request, hidden by its token guard) - not in scope here, noted in `.context/features/profile.md` pitfall log for a future pass

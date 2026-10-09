@@ -109,12 +109,17 @@ describe("ShareProfileDialog", () => {
   });
 
   it("retries without the avatar when the canvas is tainted (SecurityError)", async () => {
+    const seenCanvases: HTMLCanvasElement[] = [];
     const toDataURL = vi
       .spyOn(HTMLCanvasElement.prototype, "toDataURL")
-      .mockImplementationOnce(() => {
+      .mockImplementationOnce(function (this: HTMLCanvasElement) {
+        seenCanvases.push(this);
         throw new DOMException("tainted", "SecurityError");
       })
-      .mockReturnValue("data:image/png;base64,BBB");
+      .mockImplementation(function (this: HTMLCanvasElement) {
+        seenCanvases.push(this);
+        return "data:image/png;base64,BBB";
+      });
     renderDialog();
 
     await act(async () => {
@@ -125,6 +130,8 @@ describe("ShareProfileDialog", () => {
     expect(toDataURL).toHaveBeenCalledTimes(2);
     expect(canvasProps.at(-1)?.imageSettings).toBeUndefined();
     expect(toast.error).not.toHaveBeenCalled();
+    // A tainted canvas stays tainted even once redrawn without the avatar: the retry must mount a fresh element
+    expect(seenCanvases[1]).not.toBe(seenCanvases[0]);
   });
 
   it("toasts when the export fails even without the avatar", async () => {

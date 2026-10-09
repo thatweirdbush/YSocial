@@ -1,10 +1,11 @@
 "use client";
 
-import { SearchX, UserX } from "lucide-react";
+import { AlertCircle, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,6 +47,8 @@ interface ListState {
   nextPage?: number;
   status: "ready" | "error";
   loadingMore: boolean;
+  /** A failed loadMore hides the sentinel (no auto re-trigger loop) until the inline retry is clicked. */
+  loadMoreError: boolean;
 }
 
 function FollowersDialogBody({
@@ -66,6 +69,7 @@ function FollowersDialogBody({
 
   const [list, setList] = useState<ListState | null>(null);
   const token = useRef(0);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // First page whenever kind or (debounced) query changes; a newer request invalidates older ones
   useEffect(() => {
@@ -74,21 +78,24 @@ function FollowersDialogBody({
       .then(({ users, nextPage }) => {
         if (token.current !== request) return;
         upsertUsers(users, actorId);
-        setList({ key, ids: users.map((user) => user.id), nextPage, status: "ready", loadingMore: false });
+        setList({ key, ids: users.map((user) => user.id), nextPage, status: "ready", loadingMore: false, loadMoreError: false });
       })
       .catch(() => {
-        if (token.current === request) setList({ key, ids: [], status: "error", loadingMore: false });
+        if (token.current === request) setList({ key, ids: [], status: "error", loadingMore: false, loadMoreError: false });
       });
-  }, [actorId, key, kind, query, upsertUsers, userId]);
+  }, [actorId, key, kind, query, upsertUsers, userId, reloadNonce]);
+
+  const retryFirstPage = useCallback(() => setReloadNonce((n) => n + 1), []);
 
   const current = list?.key === key ? list : null;
   const nextPage = current?.nextPage;
   const loadingMore = current?.loadingMore ?? false;
+  const loadMoreError = current?.loadMoreError ?? false;
 
   const loadMore = useCallback(() => {
     if (nextPage === undefined || loadingMore) return;
     const request = (token.current += 1);
-    setList((state) => (state ? { ...state, loadingMore: true } : state));
+    setList((state) => (state ? { ...state, loadingMore: true, loadMoreError: false } : state));
     fetchFollowList(userId, kind, { query, page: nextPage }, actorId)
       .then(({ users, nextPage: following }) => {
         if (token.current !== request) return;
@@ -101,18 +108,20 @@ function FollowersDialogBody({
             ids: [...state.ids, ...users.map((user) => user.id).filter((id) => !known.has(id))],
             nextPage: following,
             loadingMore: false,
+            loadMoreError: false,
           };
         });
       })
       .catch(() => {
-        if (token.current === request) setList((state) => (state ? { ...state, loadingMore: false } : state));
+        if (token.current === request) setList((state) => (state ? { ...state, loadingMore: false, loadMoreError: true } : state));
       });
   }, [actorId, key, kind, loadingMore, nextPage, query, upsertUsers, userId]);
 
   const sentinelRef = useRef<HTMLLIElement>(null);
   useEffect(() => {
+    // A failed loadMore stops observing: a still-visible sentinel would otherwise re-fire on every re-render
     const target = sentinelRef.current;
-    if (!target || nextPage === undefined) return;
+    if (!target || nextPage === undefined || loadMoreError) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) loadMore();
@@ -121,10 +130,16 @@ function FollowersDialogBody({
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [loadMore, nextPage, current?.ids.length]);
+  }, [loadMore, nextPage, current?.ids.length, loadMoreError]);
 
   const formatCount = (n: number | undefined) => (n === undefined ? "" : new Intl.NumberFormat(locale).format(n));
   const title = t(kind === "followers" ? "profile.followersTitle" : "profile.followingTitle");
+
+  const firstPageRetryButton = (
+    <Button type="button" variant="outline" onClick={retryFirstPage} className="min-h-11 rounded-full px-5">
+      {t("profile.retry")}
+    </Button>
+  );
 
   return (
     <>
@@ -160,6 +175,8 @@ function FollowersDialogBody({
       <ScrollArea className="min-h-0 flex-1">
         {!current ? (
           <RowsSkeleton />
+        ) : current.status === "error" && current.ids.length === 0 ? (
+          <EmptyState icon={AlertCircle} title={t("profile.tabError")} action={firstPageRetryButton} />
         ) : current.ids.length === 0 ? (
           <EmptyState
             icon={query ? SearchX : UserX}
@@ -170,9 +187,17 @@ function FollowersDialogBody({
             {current.ids.map((id) => (
               <FollowRow key={id} id={id} onNavigate={onClose} />
             ))}
-            {nextPage !== undefined && (
+            {nextPage !== undefined && !loadMoreError && (
               <li ref={sentinelRef} aria-hidden="true" className="h-8">
                 {loadingMore && <Skeleton className="h-8 w-full rounded-xl" />}
+              </li>
+            )}
+            {nextPage !== undefined && loadMoreError && (
+              <li className="flex items-center justify-center gap-3 py-4 text-sm text-zinc-500">
+                <span>{t("profile.tabError")}</span>
+                <Button type="button" variant="outline" onClick={loadMore} className="min-h-11 rounded-full px-5">
+                  {t("profile.retry")}
+                </Button>
               </li>
             )}
           </ul>

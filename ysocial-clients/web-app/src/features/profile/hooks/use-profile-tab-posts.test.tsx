@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { useEffect, type ReactNode } from "react";
+import { StrictMode, useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as postService from "@/features/posts/services/post-service";
@@ -76,6 +76,18 @@ describe("useProfileTabPosts", () => {
     rerender(<Harness userId="u1" actorId="v1" tabs={[]} />);
     rerender(<Harness userId="u1" actorId="v1" tabs={["threads"]} />);
     expect(screen.getByTestId("panel-threads")).toHaveTextContent("a,b|ready");
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches once under StrictMode's double-invoked effects", async () => {
+    const spy = vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(page(["a", "b"]));
+    render(
+      <StrictMode>
+        <Harness userId="u1" actorId="v1" tabs={["threads"]} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("panel-threads")).toHaveTextContent("a,b|ready"));
     expect(spy).toHaveBeenCalledTimes(1);
   });
 

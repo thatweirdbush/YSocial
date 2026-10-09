@@ -128,6 +128,8 @@ function ShareProfileBody({ user }: { user: UserProfile }) {
       </div>
 
       <QRCodeCanvas
+        // Keyed by withAvatar: a redraw into the same element keeps a tainted canvas tainted, the retry needs a fresh one
+        key={withAvatar ? "qr-avatar" : "qr-plain"}
         ref={canvasRef}
         value={url}
         size={QR_SIZE}

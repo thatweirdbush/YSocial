@@ -1,6 +1,6 @@
 ---
 module: Profile Core (FE, mock data) - roadmap F0.6 + 2.1 + 2.2 + 2.6 (Phase 2A)
-updated: 2026-10-08
+updated: 2026-10-09
 spec: ysocial-clients/web-app/docs/specs/2026-10-07-profile-core-design.md
 plan: ysocial-clients/web-app/docs/plans/2026-10-07-profile-core.md
 ---
@@ -26,6 +26,8 @@ FollowButton / FollowersDialog -> commitFollow -> toggleFollow (optimistic) -> s
 - **Mock login** always signs in `SEED_DEMO_ACCOUNT` (`1`, `@ysocial_member`). Register issues id `2` for every new account
 - **Tab state** lives in profile controller (context), keyed by `userId:actorId`; per-tab request tokens; scope change resets all tabs. `post-store` holds only posts + `usePinnedPostId`
 - **PostCard** author = `useUser(post.user.id) ?? post.user` (profile edits show everywhere)
+- **`commitFollow` reconciliation:** `refreshUsers(ids, actorId, shouldApply?)` re-checks `shouldApply()` right after the fetch, before the upsert - a toggle landing while the refetch is in flight is not overwritten by the stale response. 2 version checks total: pre-fetch (skip the refetch entirely) + post-fetch (skip the upsert)
+- **Edit dialog:** upserts `updateProfile`'s RETURNED projection (`upsertUsers`), never the local form patch - the service may normalize fields server-side
 - **Composer:** profile emits `onCreatePost`; container -> `ui-store.openComposer()`; `MainLayout` owns dialog (no `PostCreatorDialog` import in profile)
 - **Tech debt:** see spec §11 (profile<->posts cycle, guest gating, per-viewer bookmarks, shared mock store)
 
@@ -52,7 +54,13 @@ FollowButton / FollowersDialog -> commitFollow -> toggleFollow (optimistic) -> s
    - **Verification:** user-store, user-service, `register-schema.test.ts`
 3. **IntersectionObserver in preview pane** only fires when frame is produced (screenshot); infinite scroll looked broken during manual QA but was fine. Not an app bug
 4. **Hooks order for scope reset:** child passive effects run before parent effects, so scope bookkeeping (`latest` ref, tokens) uses `useLayoutEffect`; derived `IDLE_TABS` when `scopeKey` mismatches
+5. **StrictMode double fetch (`use-profile-tab-posts.tsx`)**
+   - **Symptom:** `fetchUserPosts`/`fetchSavedPosts` called twice for the same tab on first activation, dev only
+   - **Root Cause:** `activate()` gated purely on `latest.current.state[tab].status === "idle"`. React StrictMode runs mount -> cleanup -> mount before the `start` dispatch's re-render commits, so both invocations saw `idle` and both kicked a fetch
+   - **Fix & Decision:** added `activatedScope` ref (per tab, holds the `scopeKey` a fetch was already started for), set synchronously in `activate()` before the async call - a scope change naturally invalidates it since the key differs, no explicit reset needed. `followers-dialog.tsx`'s first-page effect has the same class of issue (hidden by its request-token guard, so only a wasted request, not a correctness bug) - deferred, not fixed
+   - **Verification:** `use-profile-tab-posts.test.tsx` renders the harness in `<StrictMode>`, asserts 1 call
 
-## Verification (2026-10-08)
-- `npm run test`: 56 files / 521 tests pass; `tsc` exit 0; `next build` OK; eslint 55 E / 17 W (baseline 62 / 25), no file/rule increase
-- Browser pane: register -> own profile -> reload OK without hydration warning; logout -> same runtime username 404; unknown 404; login demo -> 4 tabs, pinned first, media grid, saved; follow sync, dialog search & paging, QR PNG download with Unsplash avatar; 375 dark, 768 light. NOT visually checked: 1440, keyboard focus rings (class review only)
+## Verification (2026-10-09)
+- `npm run test`: 56 files / 526 tests pass (+5 vs 2026-10-08); `tsc` exit 0; eslint 55 E / 17 W (baseline 62 / 25), no file/rule increase
+- Browser pane: NOT re-run for this pass (fixes are reconciliation/error-state/StrictMode-timing; no new UI surface). Verified by tests only - **Em mới fix theo TDD, chưa chạy lại browser pane**
+- Browser pane (2026-10-08, still valid): register -> own profile -> reload OK without hydration warning; logout -> same runtime username 404; unknown 404; login demo -> 4 tabs, pinned first, media grid, saved; follow sync, dialog search & paging, QR PNG download with Unsplash avatar; 375 dark, 768 light. NOT visually checked: 1440, keyboard focus rings (class review only)

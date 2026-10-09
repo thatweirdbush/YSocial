@@ -183,6 +183,56 @@ describe("FollowersDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("shows an error state on first-page failure, with a retry that refetches", async () => {
+    const spy = vi
+      .spyOn(userService, "fetchFollowList")
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(pageOf(["u1"]));
+    renderDialog();
+
+    expect(await screen.findByText("Không tải được nội dung")).toBeInTheDocument();
+    expect(screen.queryByText("Chưa có người theo dõi nào")).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+
+    await waitFor(() => expect(rows()).toHaveLength(1));
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not loop-retry after a loadMore failure; offers an inline retry instead", async () => {
+    // Mimics a real IntersectionObserver: it fires as soon as it observes a still-visible sentinel
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        callback: ObserverCallback;
+        constructor(callback: ObserverCallback) {
+          this.callback = callback;
+        }
+        observe() {
+          this.callback([{ isIntersecting: true }]);
+        }
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+      },
+    );
+    const spy = vi
+      .spyOn(userService, "fetchFollowList")
+      .mockImplementation(async (_id, _kind, { page }) => (page === 1 ? pageOf(idsRange(1, 20), 2) : Promise.reject(new Error("boom"))));
+    renderDialog();
+
+    await waitFor(() => expect(rows()).toHaveLength(20));
+    await waitFor(() => expect(screen.getByText("Không tải được nội dung")).toBeInTheDocument());
+    // Give any runaway re-observe loop a chance to happen before asserting it didn't
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(spy.mock.calls.filter(([, , { page }]) => page === 2)).toHaveLength(1);
+  });
+
   it("asks for confirmation before unfollowing", async () => {
     vi.spyOn(userService, "fetchFollowList").mockResolvedValue({ users: [makeUser("u2", { isFollowing: true })] });
     const setFollow = vi.spyOn(userService, "setFollow").mockResolvedValue();
