@@ -2,6 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GUEST_ACTOR_ID } from "@/features/auth/store/auth-store";
+import { makeUserProfile } from "@/features/profile/mocks/user-fixtures";
 import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
 import { useUIStore } from "@/lib/store/ui-store";
 import { INCOMING_CAP, resetPostStore, usePostStore } from "../store/post-store";
@@ -129,7 +130,7 @@ describe("NewPostsPill", () => {
     expect(screen.getByRole("button", { name: /1 bài mới/ })).toBeInTheDocument();
 
     act(() => {
-      useUserStore.getState().actions.upsertUsers([{ ...makePost("x", "a1").user, followersCount: 0, followingCount: 0, isFollowing: false }], GUEST_ACTOR_ID);
+      useUserStore.getState().actions.upsertUsers([makeUserProfile(makePost("x", "a1").user)], GUEST_ACTOR_ID);
       useUserStore.getState().actions.toggleFollow(GUEST_ACTOR_ID, "a1");
     });
     expect(screen.getByRole("button", { name: /2 bài mới/ })).toBeInTheDocument();

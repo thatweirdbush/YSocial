@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { forwardRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import { makeUserProfile } from "../mocks/user-fixtures";
 import type { UserProfile } from "../types";
 import { ShareProfileDialog } from "./share-profile-dialog";
 
@@ -21,15 +21,14 @@ vi.mock("qrcode.react", () => ({
   }),
 }));
 
-const user: UserProfile = {
+const user: UserProfile = makeUserProfile({
   id: "author-03",
   displayName: "Trần Anh Quốc",
   username: "anquoc.dev",
   avatarUrl: "https://images.unsplash.com/avatar.jpg",
   followersCount: 1,
   followingCount: 1,
-  isFollowing: false,
-};
+});
 
 const URL_TEXT = "http://localhost:3000/@anquoc.dev";
 

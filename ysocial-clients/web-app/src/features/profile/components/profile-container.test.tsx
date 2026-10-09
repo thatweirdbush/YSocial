@@ -9,6 +9,7 @@ import { resetPostStore } from "@/features/posts/store/post-store";
 import type { PostItem } from "@/features/posts/types";
 import { useUIStore } from "@/lib/store/ui-store";
 import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
+import { makeUserProfile } from "../mocks/user-fixtures";
 import * as userService from "../services/user-service";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import type { UserProfile } from "../types";
@@ -27,16 +28,16 @@ const DEMO_AUTH = {
   displayName: SEED_DEMO_ACCOUNT.displayName,
 };
 
-const profile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
-  id: "author-03",
-  displayName: "Trần Anh Quốc",
-  username: "anquoc.dev",
-  bio: "Bio của Quốc",
-  followersCount: 100,
-  followingCount: 10,
-  isFollowing: false,
-  ...overrides,
-});
+const profile = (overrides: Partial<UserProfile> = {}): UserProfile =>
+  makeUserProfile({
+    id: "author-03",
+    displayName: "Trần Anh Quốc",
+    username: "anquoc.dev",
+    bio: "Bio của Quốc",
+    followersCount: 100,
+    followingCount: 10,
+    ...overrides,
+  });
 
 const demoProfile = profile({ id: "1", displayName: "YSocial Member", username: "ysocial_member", bio: undefined });
 
@@ -196,12 +197,12 @@ describe("ProfileContainer tabs", () => {
 describe("ProfileContainer follow & edit", () => {
   it("follows from the header through the service", async () => {
     signedOut();
-    const setFollow = vi.spyOn(userService, "setFollow").mockResolvedValue();
+    const follow = vi.spyOn(userService, "followUser").mockResolvedValue("accepted");
     render(<ProfileContainer username="anquoc.dev" />);
 
     await userEvent.click(await screen.findByRole("button", { name: "Theo dõi" }));
 
-    expect(setFollow).toHaveBeenCalledWith("author-03", true, "me");
+    expect(follow).toHaveBeenCalledWith("author-03", "me");
   });
 
   it("edits the own profile through the service and updates the header from the store", async () => {

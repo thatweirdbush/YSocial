@@ -1,8 +1,9 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { makeUserProfile } from "../mocks/user-fixtures";
 import * as service from "../services/user-service";
-import type { UserProfile } from "../types";
+import type { FollowStatus, UserProfile } from "../types";
 import {
   commitFollow,
   ensureFollowGraph,
@@ -18,14 +19,12 @@ import {
   useUserStore,
 } from "./user-store";
 
-const user: UserProfile = {
+const user: UserProfile = makeUserProfile({
   id: "u1",
   displayName: "Minh Thư",
   username: "minhthu",
-  followersCount: 0,
   followingCount: 3,
-  isFollowing: false,
-};
+});
 
 const actions = () => useUserStore.getState().actions;
 const isFollowing = (actorId: string, id: string) => useUserStore.getState().follows[actorId]?.ids[id] === true;
@@ -246,8 +245,9 @@ describe("commitFollow", () => {
 
   it("refetches target and actor from the service after a successful write", async () => {
     const order: string[] = [];
-    vi.spyOn(service, "setFollow").mockImplementation(async () => {
-      order.push("setFollow");
+    vi.spyOn(service, "followUser").mockImplementation(async () => {
+      order.push("followUser");
+      return "accepted";
     });
     const fetchSpy = vi.spyOn(service, "fetchUser").mockImplementation(async (id) => {
       order.push(`fetch:${id}`);
@@ -256,20 +256,21 @@ describe("commitFollow", () => {
 
     await expect(commitFollow("v1", "u1")).resolves.toBe(true);
 
-    expect(order[0]).toBe("setFollow");
+    expect(order[0]).toBe("followUser");
     expect(fetchSpy.mock.calls.map(([id]) => id).sort()).toEqual(["u1", "v1"]);
     expect(useUserStore.getState().users.u1.followersCount).toBe(99);
   });
 
   it("skips the stale refetch when a newer toggle happened (last click wins)", async () => {
-    const first = deferred<void>();
+    const first = deferred<FollowStatus>();
     const second = deferred<void>();
-    vi.spyOn(service, "setFollow").mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    vi.spyOn(service, "followUser").mockReturnValueOnce(first.promise);
+    vi.spyOn(service, "unfollowUser").mockReturnValueOnce(second.promise);
     const fetchSpy = vi.spyOn(service, "fetchUser").mockImplementation(async (id) => ({ ...user, id, isFollowing: false }));
 
     const a = commitFollow("v1", "u1");
     const b = commitFollow("v1", "u1");
-    first.resolve();
+    first.resolve("accepted");
     await a;
     expect(fetchSpy).not.toHaveBeenCalled();
 
@@ -280,7 +281,7 @@ describe("commitFollow", () => {
   });
 
   it("discards the refetch response when a newer toggle lands while the fetch is in flight", async () => {
-    vi.spyOn(service, "setFollow").mockResolvedValue(undefined);
+    vi.spyOn(service, "followUser").mockResolvedValue("accepted");
     const fetchDeferreds: ReturnType<typeof deferred<UserProfile>>[] = [];
     vi.spyOn(service, "fetchUser").mockImplementation(() => {
       const next = deferred<UserProfile>();
@@ -289,7 +290,7 @@ describe("commitFollow", () => {
     });
 
     const first = commitFollow("v1", "u1");
-    // Flush microtasks so setFollow resolves and the version-gated refetch starts (2 fetchUser calls: u1, v1)
+    // Flush microtasks so followUser resolves and the version-gated refetch starts (2 fetchUser calls: u1, v1)
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -309,7 +310,7 @@ describe("commitFollow", () => {
   });
 
   it("reverts the projection and resolves false when the write fails", async () => {
-    vi.spyOn(service, "setFollow").mockRejectedValue(new Error("boom"));
+    vi.spyOn(service, "followUser").mockRejectedValue(new Error("boom"));
 
     await expect(commitFollow("v1", "u1")).resolves.toBe(false);
 

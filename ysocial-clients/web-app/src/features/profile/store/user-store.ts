@@ -6,10 +6,12 @@ import {
   fetchFollowedIds,
   fetchUser,
   fetchUserByUsername,
-  setFollow,
+  followUser,
+  unfollowUser,
   upsertViewerUser,
 } from "../services/user-service";
 import type { ProfilePatch, UserProfile, UserProfileBase, ViewerFollows, ViewerUserInput } from "../types";
+import { toUserBase, withViewerDefaults } from "../utils/user-projection";
 
 // Normalized client cache of users. Profile data is shared by every viewer; follow flags live in a
 // per-viewer projection, so switching account never leaks `isFollowing`. Every screen reads the same
@@ -60,11 +62,12 @@ export const useUserStore = create<UserStoreState>((set, get) => ({
         const current = state.follows[actorId] ?? EMPTY_FOLLOWS;
         const ids = { ...current.ids };
         const known = { ...current.known };
-        for (const { isFollowing, ...base } of users) {
+        for (const user of users) {
+          const base = toUserBase(user);
           next[base.id] = base;
           idByUsername[base.username.toLowerCase()] = base.id;
           known[base.id] = true;
-          if (isFollowing) ids[base.id] = true;
+          if (user.isFollowing) ids[base.id] = true;
           else delete ids[base.id];
         }
         return { users: next, idByUsername, follows: { ...state.follows, [actorId]: { ...current, ids, known } } };
@@ -130,7 +133,7 @@ function cachedFor(id: string, actorId: string): UserProfile | null {
   const { users, follows } = useUserStore.getState();
   const base = users[id];
   const isFollowing = followState(follows[actorId], id);
-  return base && isFollowing !== undefined ? { ...base, isFollowing } : null;
+  return base && isFollowing !== undefined ? withViewerDefaults(base, isFollowing) : null;
 }
 
 /**
@@ -217,7 +220,8 @@ export async function commitFollow(actorId: string, id: string): Promise<boolean
   const following = ids[id] === true;
 
   try {
-    await setFollow(id, following, actorId);
+    if (following) await followUser(id, actorId);
+    else await unfollowUser(id, actorId);
   } catch {
     // A newer toggle already superseded this one; only revert our own optimistic flip
     if (useUserStore.getState().follows[actorId]?.ids[id] === following) actions.toggleFollow(actorId, id);
@@ -266,7 +270,7 @@ export const useUser = (id: string): UserProfile | undefined => {
   const [base, isFollowing] = useUserStore(
     useShallow((state) => [state.users[id], state.follows[actorId]?.ids[id] === true] as const),
   );
-  return useMemo(() => (base ? { ...base, isFollowing } : undefined), [base, isFollowing]);
+  return useMemo(() => (base ? withViewerDefaults(base, isFollowing) : undefined), [base, isFollowing]);
 };
 
 /** User by username (case-insensitive) as seen by the current viewer. */
@@ -279,7 +283,7 @@ export const useUserByUsername = (username: string): UserProfile | undefined => 
       return [id ? state.users[id] : undefined, id ? state.follows[actorId]?.ids[id] === true : false] as const;
     }),
   );
-  return useMemo(() => (base ? { ...base, isFollowing } : undefined), [base, isFollowing]);
+  return useMemo(() => (base ? withViewerDefaults(base, isFollowing) : undefined), [base, isFollowing]);
 };
 
 /** Current viewer's follow flag for `id`; undefined while unknown (FollowButton must not guess). */

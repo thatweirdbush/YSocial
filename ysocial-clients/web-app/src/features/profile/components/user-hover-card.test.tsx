@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GUEST_ACTOR_ID, useAuthStore } from "@/features/auth/store/auth-store";
 import { PostCard } from "@/features/posts";
 import type { PostItem } from "@/features/posts/types";
+import { makeUserProfile } from "../mocks/user-fixtures";
 import * as service from "../services/user-service";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import type { UserProfile } from "../types";
@@ -16,16 +17,15 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
-const author: UserProfile = {
+const author: UserProfile = makeUserProfile({
   id: "author-01",
   displayName: "Antigravity Architect",
   username: "antigravity.core",
   bio: "Kiến trúc sư phần mềm.",
   followersCount: 48_200,
   followingCount: 120,
-  isFollowing: false,
   isVerified: true,
-};
+});
 
 // Intl inserts a no-break space; Testing Library normalizes DOM whitespace to plain spaces
 const compact = (n: number) => new Intl.NumberFormat("vi-VN", { notation: "compact" }).format(n).replace(/\s/g, " ");
@@ -142,7 +142,7 @@ describe("PostCard follow sync", () => {
 
   it("follow in card -> PostCard header button + card count update", async () => {
     useUserStore.getState().actions.upsertUsers([author], "v1");
-    vi.spyOn(service, "setFollow").mockResolvedValue();
+    vi.spyOn(service, "followUser").mockResolvedValue("accepted");
     render(<PostCard post={post} />);
 
     await userEvent.hover(screen.getByText(author.displayName));

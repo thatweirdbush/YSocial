@@ -1,7 +1,18 @@
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
-import { getFollowedIds, getFollowerCount, getFollowerIds, getFollowingCount, removeFollow, requestFollow } from "@/mocks/relation-graph";
+import { isBlocked, isEitherBlocked } from "@/mocks/block-graph";
+import { isPrivate } from "@/mocks/privacy";
+import {
+  getEdge,
+  getFollowedIds,
+  getFollowerCount,
+  getFollowerIds,
+  getFollowingCount,
+  removeFollow,
+  requestFollow,
+} from "@/mocks/relation-graph";
 import { isFanId } from "@/mocks/seed-fans";
+import { asViewer, canDiscoverUser, canViewProfile } from "@/mocks/visibility";
 import { HIDDEN_FOLLOWERS, HIDDEN_FOLLOWING, isSeedUserId, MOCK_USERS } from "../mocks/mock-users";
 import {
   PROFILE_BIO_MAX,
@@ -10,6 +21,7 @@ import {
   type FollowListKind,
   type FollowListPage,
   type FollowListQuery,
+  type FollowStatus,
   type ProfilePatch,
   type StoredUser,
   type UserProfile,
@@ -36,13 +48,21 @@ function mockDelay(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Copy with graph-derived counts (hidden baseline + relation count) and the actor's follow flag. */
-function project(user: StoredUser, followed: ReadonlySet<string>): UserProfile {
+/** Copy with graph-derived counts (hidden baseline + relation count) and the actor's relation flags. */
+export function projectUser(user: StoredUser, actorId: string): UserProfile {
+  const viewer = asViewer(actorId);
+  const edge = getEdge(actorId, user.id);
   return {
     ...structuredClone(user),
     followersCount: (HIDDEN_FOLLOWERS[user.id] ?? 0) + getFollowerCount(user.id),
     followingCount: (HIDDEN_FOLLOWING[user.id] ?? 0) + getFollowingCount(user.id),
-    isFollowing: followed.has(user.id),
+    isPrivate: isPrivate(user.id),
+    isFollowing: edge.status === "accepted",
+    followStatus: edge.status,
+    viewerMarkedCloseFriend: edge.status === "accepted" && edge.isCloseFriend,
+    isMuted: edge.isMuted,
+    isBlocked: viewer !== null && isBlocked(viewer, user.id),
+    isBlockedBy: viewer !== null && isBlocked(user.id, viewer),
   };
 }
 
@@ -55,26 +75,27 @@ export async function searchUsers(query: string, actorId: string, limit = SEARCH
   const tokens = tokenize(query.trim().replace(/^@/, ""));
   if (tokens.length === 0) return [];
 
-  const followed = getFollowedIds(actorId);
+  const viewer = asViewer(actorId);
   const startsWithFirst = (user: UserProfile) => normalizeText(user.username).startsWith(tokens[0]);
   return [...db.values()]
     .filter((user) => {
       const haystack = normalizeText(`${user.displayName} ${user.username} ${user.bio ?? ""}`);
-      return tokens.every((token) => haystack.includes(token));
+      return canDiscoverUser(viewer, user.id) && tokens.every((token) => haystack.includes(token));
     })
-    .map((user) => project(user, followed))
+    .map((user) => projectUser(user, actorId))
     .sort((a, b) => Number(startsWithFirst(b)) - Number(startsWithFirst(a)) || byFollowers(a, b))
     .slice(0, limit);
 }
 
-/** Users the actor does not follow (never the actor, never fans), most followed first. */
+/** Users the actor does not follow (never the actor, fans or blocked users), most followed first. */
 export async function fetchSuggestedUsers(limit: number, actorId: string): Promise<UserProfile[]> {
   await mockDelay();
 
   const followed = getFollowedIds(actorId);
+  const viewer = asViewer(actorId);
   return [...db.values()]
-    .filter((user) => user.id !== actorId && !isFanId(user.id) && !followed.has(user.id))
-    .map((user) => project(user, followed))
+    .filter((user) => user.id !== actorId && !isFanId(user.id) && !followed.has(user.id) && canDiscoverUser(viewer, user.id))
+    .map((user) => projectUser(user, actorId))
     .sort(byFollowers)
     .slice(0, limit);
 }
@@ -83,7 +104,7 @@ export async function fetchUser(id: string, actorId: string): Promise<UserProfil
   await mockDelay();
 
   const user = db.get(id);
-  return user ? project(user, getFollowedIds(actorId)) : null;
+  return user ? projectUser(user, actorId) : null;
 }
 
 /** Case-insensitive username lookup. */
@@ -92,30 +113,44 @@ export async function fetchUserByUsername(username: string, actorId: string): Pr
 
   const wanted = username.toLowerCase();
   const user = [...db.values()].find((candidate) => candidate.username.toLowerCase() === wanted);
-  return user ? project(user, getFollowedIds(actorId)) : null;
+  return user ? projectUser(user, actorId) : null;
 }
 
-/** Complete set of authors the actor follows. */
+/** Complete set of authors the actor follows (accepted only). */
 export async function fetchFollowedIds(actorId: string): Promise<string[]> {
   await mockDelay();
   return [...getFollowedIds(actorId)];
 }
 
 /**
- * Persists follow state (idempotent set, applied before latency) so refetches don't clobber optimistic UI.
- * The follow flag is per actor; counts derive from the follow graph, nothing is stored on the user.
+ * Idempotent follow (mirrors BE `POST /relations/follow`): none -> pending (private target) / accepted (public);
+ * pending & accepted stay unchanged. Applied before latency so refetches don't clobber optimistic UI. Guest or a
+ * block either way -> `ForbiddenError`.
  */
-export async function setFollow(id: string, following: boolean, actorId: string): Promise<void> {
-  if (db.has(id)) {
-    if (following) requestFollow(actorId, id, false);
-    else removeFollow(actorId, id);
-  }
+export async function followUser(id: string, actorId: string): Promise<FollowStatus> {
+  const viewer = asViewer(actorId);
+  if (!viewer) throw new ForbiddenError("Sign in to follow");
+  if (isEitherBlocked(viewer, id)) throw new ForbiddenError(`Cannot follow ${id}`);
+
+  const status: FollowStatus = db.has(id) ? requestFollow(viewer, id, isPrivate(id)) : "none";
+  await mockDelay();
+  return status;
+}
+
+/** Idempotent unfollow / cancel request (mirrors BE `DELETE /relations/follow`): pending & accepted -> none. */
+export async function unfollowUser(id: string, actorId: string): Promise<void> {
+  const viewer = asViewer(actorId);
+  if (!viewer) throw new ForbiddenError("Sign in to unfollow");
+
+  if (db.has(id)) removeFollow(viewer, id);
   await mockDelay();
 }
 
 /**
  * One page of a user's followers / following. Only users present in the mock DB are listed (the legacy guest
- * actor is counted by the graph but never listed). Seed & runtime users first (most followed), then fans by id.
+ * actor is counted by the graph but never listed), minus users the viewer cannot discover. Empty page when the
+ * profile is blocked either way or locked (private & viewer not accepted). Seed & runtime users first (most
+ * followed), then fans by id.
  */
 export async function fetchFollowList(
   userId: string,
@@ -125,7 +160,9 @@ export async function fetchFollowList(
 ): Promise<FollowListPage> {
   await mockDelay();
 
-  const followed = getFollowedIds(actorId);
+  const viewer = asViewer(actorId);
+  if (!canDiscoverUser(viewer, userId) || !canViewProfile(viewer, userId)) return { users: [] };
+
   const ids = kind === "followers" ? getFollowerIds(userId) : getFollowedIds(userId);
   const tokens = tokenize(query.trim().replace(/^@/, ""));
 
@@ -135,11 +172,12 @@ export async function fetchFollowList(
       return user ? [user] : [];
     })
     .filter((user) => {
+      if (!canDiscoverUser(viewer, user.id)) return false;
       if (tokens.length === 0) return true;
       const haystack = normalizeText(`${user.displayName} ${user.username}`);
       return tokens.every((token) => haystack.includes(token));
     })
-    .map((user) => project(user, followed));
+    .map((user) => projectUser(user, actorId));
 
   const members = matches.filter((user) => !isFanId(user.id)).sort(byFollowers);
   const fans = matches.filter((user) => isFanId(user.id)).sort((a, b) => a.id.localeCompare(b.id));
@@ -177,7 +215,7 @@ export async function updateProfile(id: string, patch: ProfilePatch, actorId: st
   user.avatarUrl = patch.avatarUrl || undefined;
 
   await mockDelay();
-  return project(user, getFollowedIds(actorId));
+  return projectUser(user, actorId);
 }
 
 /**
@@ -200,5 +238,5 @@ export async function upsertViewerUser(input: ViewerUserInput, actorId: string):
   await mockDelay();
   const user = db.get(input.id);
   if (!user) throw new Error(`Unknown user ${input.id}`);
-  return project(user, getFollowedIds(actorId));
+  return projectUser(user, actorId);
 }

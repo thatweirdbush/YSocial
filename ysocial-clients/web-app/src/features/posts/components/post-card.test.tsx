@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { makeUserProfile } from "@/features/profile/mocks/user-fixtures";
 import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
@@ -38,7 +39,7 @@ describe("PostCard author overlay", () => {
 
   it("follows the user-store copy of the author after a profile edit", () => {
     useUserStore.getState().actions.upsertUsers(
-      [{ id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev", followersCount: 0, followingCount: 0, isFollowing: false }],
+      [makeUserProfile({ id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev" })],
       "me",
     );
     render(<PostCard post={authorPost} />);

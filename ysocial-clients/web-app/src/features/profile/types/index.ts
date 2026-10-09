@@ -14,6 +14,9 @@ export type ProfileTab = "threads" | "replies" | "media" | "saved";
 
 export type FollowListKind = "followers" | "following";
 
+/** Follow edge status (BE `FollowStatus`). */
+export type FollowStatus = "none" | "pending" | "accepted";
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -24,15 +27,33 @@ export interface UserProfile {
   coverUrl?: string;
   followersCount: number;
   followingCount: number;
-  isFollowing: boolean;
   isVerified?: boolean;
+  isPrivate: boolean;
+  /** Viewer projection. `isFollowing` = `followStatus === "accepted"`. */
+  isFollowing: boolean;
+  followStatus: FollowStatus;
+  /** Viewer marked this user as a close friend (effective only while the follow is accepted). */
+  viewerMarkedCloseFriend: boolean;
+  isMuted: boolean;
+  /** Viewer blocked this user. */
+  isBlocked: boolean;
+  /** This user blocked the viewer. */
+  isBlockedBy: boolean;
 }
 
-/** Profile data shared by every viewer; `isFollowing` lives in the viewer-scoped follow projection. */
-export type UserProfileBase = Omit<UserProfile, "isFollowing">;
+type ViewerField =
+  | "isFollowing"
+  | "followStatus"
+  | "viewerMarkedCloseFriend"
+  | "isMuted"
+  | "isBlocked"
+  | "isBlockedBy";
 
-/** Mock DB row: shared profile data without counts (counts derive from the follow graph, spec D6). */
-export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCount">;
+/** Profile data shared by every viewer; viewer fields live in the viewer-scoped projections. */
+export type UserProfileBase = Omit<UserProfile, ViewerField>;
+
+/** Mock DB row: shared profile data without counts & privacy (both derive from the mock graphs, spec D6 & D17). */
+export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCount" | "isPrivate">;
 
 export interface FollowListQuery {
   query?: string;

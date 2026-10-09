@@ -1,7 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText } from "@/lib/text";
-import { __resetRelationGraph, getFollowedIds, getFollowerCount, getFollowingCount } from "@/mocks/relation-graph";
+import { __resetBlockGraph, setBlocked } from "@/mocks/block-graph";
+import { __resetPrivacy } from "@/mocks/privacy";
+import {
+  __resetRelationGraph,
+  getFollowedIds,
+  getFollowerCount,
+  getFollowingCount,
+  getFollowStatus,
+  getRequestIds,
+  requestFollow,
+} from "@/mocks/relation-graph";
 import { SEED_FOLLOWED_AUTHOR_IDS, SEED_FOLLOWING } from "@/mocks/seed-authors";
 import { isFanId } from "@/mocks/seed-fans";
 import { getSeedUserByUsername, HIDDEN_FOLLOWERS, HIDDEN_FOLLOWING, MOCK_USERS } from "../mocks/mock-users";
@@ -13,8 +23,9 @@ import {
   fetchSuggestedUsers,
   fetchUser,
   fetchUserByUsername,
+  followUser,
   searchUsers,
-  setFollow,
+  unfollowUser,
   updateProfile,
   upsertViewerUser,
 } from "./user-service";
@@ -30,6 +41,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   __resetMockUsers();
   __resetRelationGraph();
+  __resetBlockGraph();
+  __resetPrivacy();
 });
 
 afterEach(() => {
@@ -80,10 +93,10 @@ describe("fetchSuggestedUsers", () => {
   });
 });
 
-describe("setFollow", () => {
+describe("followUser", () => {
   it("persists follow so a refetch keeps it (idempotent set)", async () => {
-    await settle(setFollow("author-01", true, "v1"));
-    await settle(setFollow("author-01", true, "v1"));
+    await settle(followUser("author-01", "v1"));
+    await settle(followUser("author-01", "v1"));
 
     const suggested = await settle(fetchSuggestedUsers(8, "v1"));
     expect(suggested.some((user) => user.id === "author-01")).toBe(false);
@@ -93,7 +106,7 @@ describe("setFollow", () => {
   });
 
   it("follows per viewer while the follower count stays global", async () => {
-    await settle(setFollow("author-01", true, "v1"));
+    await settle(followUser("author-01", "v1"));
 
     const forV1 = await settle(fetchUser("author-01", "v1"));
     const forV2 = await settle(fetchUser("author-01", "v2"));
@@ -107,7 +120,7 @@ describe("setFollow", () => {
     const before = await settle(fetchUser("author-01", "v1"));
     const followingBefore = getFollowingCount("v1");
 
-    await settle(setFollow("author-01", true, "v1"));
+    await settle(followUser("author-01", "v1"));
 
     const after = await settle(fetchUser("author-01", "v1"));
     expect(after?.followersCount).toBe((before?.followersCount ?? 0) + 1);
@@ -137,7 +150,7 @@ describe("fetchFollowedIds", () => {
   it("returns the complete follow set of the viewer", async () => {
     expect((await settle(fetchFollowedIds("v1"))).sort()).toEqual([...SEED_FOLLOWED_AUTHOR_IDS].sort());
 
-    await settle(setFollow("author-08", true, "v1"));
+    await settle(followUser("author-08", "v1"));
     expect(await settle(fetchFollowedIds("v1"))).toContain("author-08");
     expect(await settle(fetchFollowedIds("v2"))).not.toContain("author-08");
   });
@@ -185,17 +198,17 @@ describe("fetchFollowList", () => {
   });
 
   it("never lists the legacy guest actor even though the graph counts it", async () => {
-    await settle(setFollow("author-05", true, "me"));
+    requestFollow("me", "author-04", false);
     const ids: string[] = [];
     let page: number | undefined = 1;
     while (page) {
       const result: Awaited<ReturnType<typeof fetchFollowList>> = await settle(
-        fetchFollowList("author-05", "followers", { page }, "v1"),
+        fetchFollowList("author-04", "followers", { page }, "v1"),
       );
       ids.push(...result.users.map((user) => user.id));
       page = result.nextPage;
     }
-    expect(getFollowerCount("author-05")).toBeGreaterThan(ids.length);
+    expect(getFollowerCount("author-04")).toBeGreaterThan(ids.length);
     expect(ids).not.toContain("me");
   });
 
@@ -262,5 +275,143 @@ describe("upsertViewerUser", () => {
     await settle(updateProfile("1", { displayName: "Edited" }, "1"));
     expect(getSeedUserByUsername("new.user")).toBeUndefined();
     expect(getSeedUserByUsername("ysocial_member")?.displayName).toBe("YSocial Member");
+  });
+});
+
+describe("follow commands", () => {
+  const rejection = async (promise: Promise<unknown>) => {
+    promise.catch(() => undefined);
+    await vi.runAllTimersAsync();
+    return promise;
+  };
+
+  it("follows a private account as pending without changing its follower count", async () => {
+    const before = await settle(fetchUser("author-07", "1"));
+
+    expect(await settle(followUser("author-07", "1"))).toBe("pending");
+
+    const after = await settle(fetchUser("author-07", "1"));
+    expect(after).toMatchObject({ followStatus: "pending", isFollowing: false });
+    expect(after?.followersCount).toBe(before?.followersCount);
+    expect(getRequestIds("author-07")).toContain("1");
+  });
+
+  it("follows a public account as accepted", async () => {
+    expect(await settle(followUser("author-01", "1"))).toBe("accepted");
+    expect(await settle(fetchUser("author-01", "1"))).toMatchObject({ followStatus: "accepted", isFollowing: true });
+  });
+
+  it("is idempotent: following again keeps the status", async () => {
+    await settle(followUser("author-07", "1"));
+
+    expect(await settle(followUser("author-07", "1"))).toBe("pending");
+  });
+
+  it.each([
+    ["a public target", "author-01"],
+    ["a private target", "author-07"],
+  ])("rejects a guest follow of %s with ForbiddenError", async (_label, target) => {
+    await expect(rejection(followUser(target, "me"))).rejects.toBeInstanceOf(ForbiddenError);
+    expect(getFollowStatus("me", target)).toBe("none");
+  });
+
+  it("rejects a guest unfollow with ForbiddenError", async () => {
+    await expect(rejection(unfollowUser("author-02", "me"))).rejects.toBeInstanceOf(ForbiddenError);
+    expect(getFollowStatus("me", "author-02")).toBe("accepted");
+  });
+
+  it("rejects a follow when either side blocked the other", async () => {
+    setBlocked("1", "author-01", true);
+    await expect(rejection(followUser("author-01", "1"))).rejects.toBeInstanceOf(ForbiddenError);
+
+    __resetBlockGraph();
+    setBlocked("author-01", "1", true);
+    await expect(rejection(followUser("author-01", "1"))).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("cancels a pending request on unfollow", async () => {
+    await settle(unfollowUser("author-05", "1"));
+
+    expect(getFollowStatus("1", "author-05")).toBe("none");
+    expect(getRequestIds("author-05")).not.toContain("1");
+  });
+
+  it("leaves a non-followed target unchanged on unfollow", async () => {
+    await settle(unfollowUser("author-01", "1"));
+
+    expect(getFollowStatus("1", "author-01")).toBe("none");
+  });
+});
+
+describe("viewer projection", () => {
+  it("projects privacy, close friend, mute and block flags", async () => {
+    expect(await settle(fetchUser("author-03", "1"))).toMatchObject({
+      isPrivate: false,
+      followStatus: "accepted",
+      viewerMarkedCloseFriend: true,
+      isMuted: false,
+      isBlocked: false,
+      isBlockedBy: false,
+    });
+    expect(await settle(fetchUser("author-07", "1"))).toMatchObject({ isPrivate: true, followStatus: "none" });
+  });
+
+  it("projects a block in both directions", async () => {
+    setBlocked("1", "author-01", true);
+    setBlocked("author-02", "1", true);
+
+    expect(await settle(fetchUser("author-01", "1"))).toMatchObject({ isBlocked: true, isBlockedBy: false });
+    expect(await settle(fetchUser("author-02", "1"))).toMatchObject({ isBlocked: false, isBlockedBy: true });
+  });
+
+  it("projects no block flags for a guest", async () => {
+    setBlocked("author-01", "me", true);
+
+    expect(await settle(fetchUser("author-01", "me"))).toMatchObject({ isBlocked: false, isBlockedBy: false });
+  });
+});
+
+describe("discovery", () => {
+  it("keeps private accounts discoverable in search", async () => {
+    expect((await settle(searchUsers("huy", "1"))).map((user) => user.id)).toContain("author-07");
+  });
+
+  it("hides blocked users in both directions from search, suggestions and follow lists", async () => {
+    setBlocked("1", "author-07", true);
+    setBlocked("author-04", "1", true);
+
+    expect((await settle(searchUsers("huy", "1"))).map((user) => user.id)).not.toContain("author-07");
+    const suggested = (await settle(fetchSuggestedUsers(500, "1"))).map((user) => user.id);
+    expect(suggested).not.toContain("author-07");
+    expect(suggested).not.toContain("author-04");
+    const followers = await settle(fetchFollowList("author-01", "followers", {}, "1"));
+    expect(followers.users.map((user) => user.id)).not.toContain("author-04");
+    expect(followers.users.map((user) => user.id)).not.toContain("author-07");
+  });
+
+  it("still returns a blocked user from fetchUser so the profile can show its blocked state", async () => {
+    setBlocked("1", "author-07", true);
+
+    expect(await settle(fetchUser("author-07", "1"))).toMatchObject({ id: "author-07", isBlocked: true });
+  });
+
+  it.each([
+    ["the viewer blocked the profile", "1", "author-01"],
+    ["the profile blocked the viewer", "author-01", "1"],
+  ])("returns an empty follow list when %s", async (_label, blocker, blocked) => {
+    setBlocked(blocker, blocked, true);
+
+    const page = await settle(fetchFollowList("author-01", "followers", {}, "1"));
+    expect(page).toEqual({ users: [] });
+  });
+
+  it("returns an empty follow list for a locked private profile but a full one for its owner", async () => {
+    expect(await settle(fetchFollowList("author-07", "followers", {}, "v1"))).toEqual({ users: [] });
+
+    expect((await settle(fetchFollowList("1", "followers", {}, "1"))).users.length).toBeGreaterThan(0);
+  });
+
+  it("lists only accepted follows in fetchFollowedIds", async () => {
+    expect(await settle(fetchFollowedIds("1"))).not.toContain("author-05");
   });
 });
