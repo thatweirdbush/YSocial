@@ -87,7 +87,11 @@ export function useProfileTabPostsController(userId: string, actorId: string): P
   useLayoutEffect(() => {
     if (seenScope.current !== scopeKey) {
       seenScope.current = scopeKey;
-      for (const tab of TABS) tokens.current[tab] += 1;
+      for (const tab of TABS) {
+        tokens.current[tab] += 1;
+        // A revisited scope (A -> B -> A) must be allowed to activate again
+        activatedScope.current[tab] = undefined;
+      }
     }
     latest.current = { state, scopeKey };
   });

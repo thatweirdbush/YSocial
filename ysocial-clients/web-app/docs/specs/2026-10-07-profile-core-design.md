@@ -155,7 +155,7 @@ Client  Providers
 
 - **`page.tsx`** (Server Component, thin; ONLY Next request boundary): `await params`, `await cookies()`, `parseMockSession`, `resolveProfileRoute(username, session)` (`features/profile/utils/resolve-profile-route.ts`, pure: decode, strip leading `@`, lowercase compare) -> `{ kind: "seed"; user } | { kind: "session"; identity } | null`; `null` -> `notFound()`. Renders `<MainLayout><ProfileContainer key={username} username={username} /></MainLayout>`. NO `fetch`, NO `BASE_URL`, NO dev fallback branch
 - **`generateMetadata`:** same resolution. Seed -> title `Name (@username) • YSocial`, description = bio or default, OG `type: "profile"`, image = avatar. Session (runtime) user -> title `@username • YSocial`, default description, no image (server has no profile data, D8). Not found -> not-found title. Strings via `translate(DEFAULT_LOCALE, ...)` (D20)
-- **`loading.tsx`:** NOT shipped (it streams shell first, so `notFound()` would answer HTTP 200). `<ProfileSkeleton />` serves client hydration gate only
+- **`loading.tsx`:** NOT shipped (it streams shell first, so `notFound()` answer HTTP 200). `<ProfileSkeleton />` serves client hydration gate only
 - **`not-found.tsx`:** `EmptyState` (`UserX`) "Người dùng không tồn tại" + CTA Home
 - **`error.tsx`:** `EmptyState` + Retry (`reset()`)
 - **Desync edge:** server resolved session user but client cannot (cookie present, localStorage wiped) -> `hydrate()` clears cookie; container shows an inline `EmptyState` + `router.refresh()` CTA, which then lands on route 404. This inline state is client UI for this desync ONLY, NOT route-level not-found

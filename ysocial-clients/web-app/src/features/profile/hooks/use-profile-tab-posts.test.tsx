@@ -91,6 +91,20 @@ describe("useProfileTabPosts", () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  it("refetches a tab revisited after scope A -> B -> A", async () => {
+    const saved = vi.spyOn(postService, "fetchSavedPosts").mockImplementation(async (actorId) => ({ posts: [makePost(`s-${actorId}`)] }));
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(page(["t"]));
+    const { rerender } = render(<Harness userId="1" actorId="1" tabs={["saved"]} />);
+    await waitFor(() => expect(screen.getByTestId("panel-saved")).toHaveTextContent("s-1|ready"));
+
+    rerender(<Harness userId="1" actorId="2" tabs={["threads"]} />);
+    await waitFor(() => expect(screen.getByTestId("panel-threads")).toHaveTextContent("t|ready"));
+
+    rerender(<Harness userId="1" actorId="1" tabs={["saved"]} />);
+    await waitFor(() => expect(screen.getByTestId("panel-saved")).toHaveTextContent("s-1|ready"));
+    expect(saved).toHaveBeenCalledTimes(2);
+  });
+
   it("loadMore appends the next page without duplicates", async () => {
     vi.spyOn(postService, "fetchUserPosts").mockImplementation(async (_user, _tab, pageNumber) =>
       pageNumber === 1 ? page(["a", "b"], 2) : page(["b", "c"]),
