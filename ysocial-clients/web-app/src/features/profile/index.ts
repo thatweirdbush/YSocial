@@ -1,3 +1,4 @@
+export { BlockConfirmDialog } from "./components/block-confirm-dialog";
 export { FollowButton } from "./components/follow-button";
 export { ProfileContainer } from "./components/profile-container";
 export { ViewerSync } from "./components/viewer-sync";

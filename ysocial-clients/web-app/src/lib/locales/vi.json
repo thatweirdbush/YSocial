@@ -102,9 +102,7 @@
     "notInterested": "Không quan tâm",
     "notInterestedToast": "Sẽ hiển thị ít bài như thế này hơn",
     "mute": "Ẩn @{username}",
-    "muteToast": "Đã ẩn @{username}",
     "block": "Chặn @{username}",
-    "blockToast": "Đã chặn @{username}",
     "copyLink": "Sao chép liên kết",
     "report": "Báo cáo bài viết",
     "reportToast": "Đã gửi báo cáo. Cảm ơn bạn!"
@@ -347,6 +345,14 @@
     "requestCanceledToast": "Đã hủy yêu cầu theo dõi @{username}",
     "unblock": "Bỏ chặn",
     "unblockedToast": "Đã bỏ chặn @{username}",
-    "actionError": "Không thể cập nhật, thử lại nhé"
+    "actionError": "Không thể cập nhật, thử lại nhé",
+    "blockTitle": "Chặn @{username}?",
+    "blockDescription": "Họ sẽ không xem được bài viết hay theo dõi bạn, và bạn cũng không thấy nội dung của họ. Các lượt theo dõi giữa hai bên sẽ bị gỡ.",
+    "blockConfirm": "Chặn",
+    "blockedToast": "Đã chặn @{username}",
+    "muteToast": "Đã ẩn @{username} khỏi bảng tin",
+    "unmuteToast": "Đã bỏ ẩn @{username}",
+    "unmute": "Bỏ ẩn @{username}",
+    "undo": "Hoàn tác"
   }
 }

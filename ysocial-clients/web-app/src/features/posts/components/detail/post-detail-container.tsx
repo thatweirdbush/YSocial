@@ -5,6 +5,7 @@ import { AlertCircle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useActorId } from "@/features/auth";
+import { useIsBlocked, useIsBlockedBy } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { fetchPostThread } from "../../services/post-service";
 import { usePostActions } from "../../store/post-store";
@@ -18,7 +19,7 @@ type LoadState =
   | { status: "loading" }
   | { status: "missing" }
   | { status: "error" }
-  | { status: "ready"; authorUsername: string; parentUsername?: string };
+  | { status: "ready"; authorId: string; authorUsername: string; parentUsername?: string };
 
 /** Thread page body. Mount with `key={postId}` so navigating between threads starts fresh. */
 export function PostDetailContainer({ postId }: { postId: string }) {
@@ -27,6 +28,11 @@ export function PostDetailContainer({ postId }: { postId: string }) {
   const { upsertPosts, setReplies } = usePostActions();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
+  // Blocking the root author (or being blocked by them) while the thread is open refetches it: the service answers not-found (D26)
+  const rootAuthorId = state.status === "ready" ? state.authorId : "";
+  const isBlocked = useIsBlocked(rootAuthorId);
+  const isBlockedBy = useIsBlockedBy(rootAuthorId);
+  const isAuthorHidden = isBlocked || isBlockedBy;
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +59,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
 
         setState({
           status: "ready",
+          authorId: thread.post.user.id,
           authorUsername: thread.post.user.username,
           parentUsername: thread.parent?.user.username,
         });
@@ -64,7 +71,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [postId, actorId, attempt, upsertPosts, setReplies]);
+  }, [postId, actorId, attempt, isAuthorHidden, upsertPosts, setReplies]);
 
   if (state.status === "missing") notFound();
 

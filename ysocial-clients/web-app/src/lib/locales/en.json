@@ -102,9 +102,7 @@
     "notInterested": "Not interested",
     "notInterestedToast": "You'll see fewer posts like this",
     "mute": "Mute @{username}",
-    "muteToast": "Muted @{username}",
     "block": "Block @{username}",
-    "blockToast": "Blocked @{username}",
     "copyLink": "Copy link",
     "report": "Report post",
     "reportToast": "Report submitted. Thank you!"
@@ -347,6 +345,14 @@
     "requestCanceledToast": "Canceled follow request to @{username}",
     "unblock": "Unblock",
     "unblockedToast": "Unblocked @{username}",
-    "actionError": "Could not update, try again"
+    "actionError": "Could not update, try again",
+    "blockTitle": "Block @{username}?",
+    "blockDescription": "They won't see your posts or follow you, and you won't see theirs. Follows between you will be removed.",
+    "blockConfirm": "Block",
+    "blockedToast": "Blocked @{username}",
+    "muteToast": "Muted @{username} from your feeds",
+    "unmuteToast": "Unmuted @{username}",
+    "unmute": "Unmute @{username}",
+    "undo": "Undo"
   }
 }

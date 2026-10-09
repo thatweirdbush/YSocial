@@ -1,6 +1,9 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/features/auth/store/auth-store";
+import { commitBlock, resetRelationStore } from "@/features/profile/store/relation-store";
+import { resetUserStore } from "@/features/profile/store/user-store";
 import * as service from "../../services/post-service";
 import { resetPostStore } from "../../store/post-store";
 import { PostDetailContainer } from "./post-detail-container";
@@ -67,5 +70,27 @@ describe("PostDetailContainer", () => {
     window.history.pushState({}, "", "/posts/post-001");
     await userEvent.click(backButton);
     expect(back).toHaveBeenCalled();
+  });
+});
+
+describe("PostDetailContainer blocked author", () => {
+  beforeEach(() => {
+    resetRelationStore();
+    resetUserStore();
+    useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+  });
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("refetches and shows not-found when the viewer blocks the root author while the thread is open", async () => {
+    render(<PostDetailContainer postId="post-001" />);
+    expect(await screen.findByText(/Chào mừng các bạn đến với YSocial/, {}, WAIT)).toBeInTheDocument();
+    expect(notFound).not.toHaveBeenCalled();
+
+    void commitBlock("1", "author-01", true);
+
+    await waitFor(() => expect(notFound).toHaveBeenCalled(), WAIT);
   });
 });
