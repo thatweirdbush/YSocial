@@ -1,6 +1,6 @@
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
-import { getFollowedAuthorIds } from "@/mocks/follow-graph";
+import { getFollowedIds } from "@/mocks/relation-graph";
 import { SEED_AUTHORS } from "@/mocks/seed-authors";
 import { MOCK_INCOMING_CONTENTS } from "../mocks/mock-incoming";
 import { MOCK_POSTS } from "../mocks/mock-posts";
@@ -145,7 +145,7 @@ function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string
 export async function fetchFeed(tab: FeedTab, page: number, viewerId: string): Promise<FeedPage> {
   await simulateNetwork();
 
-  const followed = getFollowedAuthorIds(viewerId);
+  const followed = getFollowedIds(viewerId);
   const roots = [...db.values()].filter((post) => getPostFeedTabs(post, followed).includes(tab)).sort(byNewest);
 
   const start = (page - 1) * FEED_PAGE_SIZE;

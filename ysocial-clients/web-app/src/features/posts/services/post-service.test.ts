@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SEED_AUTHORS, SEED_DEMO_ACCOUNT, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
 import type { CreatePostInput } from "../types";
 import { POST_CONTENT_MAX } from "../utils/post-content";
-import { __resetFollowGraph, setFollowed } from "@/mocks/follow-graph";
+import { __resetRelationGraph, requestFollow } from "@/mocks/relation-graph";
 import {
   __removePostOnly,
   __resetMockDb,
@@ -43,7 +43,7 @@ const input = (content: string): CreatePostInput => ({ content, images: [], audi
 beforeEach(() => {
   vi.useFakeTimers();
   __resetMockDb();
-  __resetFollowGraph();
+  __resetRelationGraph();
 });
 
 afterEach(() => {
@@ -74,7 +74,7 @@ describe("fetchFeed", () => {
     const before = await settle(fetchFeed("following", 1, VIEWER));
     expect(before.posts.some((p) => p.user.id === "author-01")).toBe(false);
 
-    setFollowed(VIEWER, "author-01", true);
+    requestFollow(VIEWER, "author-01", false);
     const after = await settle(fetchFeed("following", 1, VIEWER));
     expect(after.posts.some((p) => p.user.id === "author-01")).toBe(true);
 

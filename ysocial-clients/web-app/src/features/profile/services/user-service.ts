@@ -1,6 +1,6 @@
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
-import { getFollowedAuthorIds, getFollowerCount, getFollowerIds, getFollowingCount, setFollowed } from "@/mocks/follow-graph";
+import { getFollowedIds, getFollowerCount, getFollowerIds, getFollowingCount, removeFollow, requestFollow } from "@/mocks/relation-graph";
 import { isFanId } from "@/mocks/seed-fans";
 import { HIDDEN_FOLLOWERS, HIDDEN_FOLLOWING, isSeedUserId, MOCK_USERS } from "../mocks/mock-users";
 import {
@@ -55,7 +55,7 @@ export async function searchUsers(query: string, actorId: string, limit = SEARCH
   const tokens = tokenize(query.trim().replace(/^@/, ""));
   if (tokens.length === 0) return [];
 
-  const followed = getFollowedAuthorIds(actorId);
+  const followed = getFollowedIds(actorId);
   const startsWithFirst = (user: UserProfile) => normalizeText(user.username).startsWith(tokens[0]);
   return [...db.values()]
     .filter((user) => {
@@ -71,7 +71,7 @@ export async function searchUsers(query: string, actorId: string, limit = SEARCH
 export async function fetchSuggestedUsers(limit: number, actorId: string): Promise<UserProfile[]> {
   await mockDelay();
 
-  const followed = getFollowedAuthorIds(actorId);
+  const followed = getFollowedIds(actorId);
   return [...db.values()]
     .filter((user) => user.id !== actorId && !isFanId(user.id) && !followed.has(user.id))
     .map((user) => project(user, followed))
@@ -83,7 +83,7 @@ export async function fetchUser(id: string, actorId: string): Promise<UserProfil
   await mockDelay();
 
   const user = db.get(id);
-  return user ? project(user, getFollowedAuthorIds(actorId)) : null;
+  return user ? project(user, getFollowedIds(actorId)) : null;
 }
 
 /** Case-insensitive username lookup. */
@@ -92,13 +92,13 @@ export async function fetchUserByUsername(username: string, actorId: string): Pr
 
   const wanted = username.toLowerCase();
   const user = [...db.values()].find((candidate) => candidate.username.toLowerCase() === wanted);
-  return user ? project(user, getFollowedAuthorIds(actorId)) : null;
+  return user ? project(user, getFollowedIds(actorId)) : null;
 }
 
 /** Complete set of authors the actor follows. */
 export async function fetchFollowedIds(actorId: string): Promise<string[]> {
   await mockDelay();
-  return [...getFollowedAuthorIds(actorId)];
+  return [...getFollowedIds(actorId)];
 }
 
 /**
@@ -106,7 +106,10 @@ export async function fetchFollowedIds(actorId: string): Promise<string[]> {
  * The follow flag is per actor; counts derive from the follow graph, nothing is stored on the user.
  */
 export async function setFollow(id: string, following: boolean, actorId: string): Promise<void> {
-  if (db.has(id)) setFollowed(actorId, id, following);
+  if (db.has(id)) {
+    if (following) requestFollow(actorId, id, false);
+    else removeFollow(actorId, id);
+  }
   await mockDelay();
 }
 
@@ -122,8 +125,8 @@ export async function fetchFollowList(
 ): Promise<FollowListPage> {
   await mockDelay();
 
-  const followed = getFollowedAuthorIds(actorId);
-  const ids = kind === "followers" ? getFollowerIds(userId) : getFollowedAuthorIds(userId);
+  const followed = getFollowedIds(actorId);
+  const ids = kind === "followers" ? getFollowerIds(userId) : getFollowedIds(userId);
   const tokens = tokenize(query.trim().replace(/^@/, ""));
 
   const matches = [...ids]
@@ -174,7 +177,7 @@ export async function updateProfile(id: string, patch: ProfilePatch, actorId: st
   user.avatarUrl = patch.avatarUrl || undefined;
 
   await mockDelay();
-  return project(user, getFollowedAuthorIds(actorId));
+  return project(user, getFollowedIds(actorId));
 }
 
 /**
@@ -197,5 +200,5 @@ export async function upsertViewerUser(input: ViewerUserInput, actorId: string):
   await mockDelay();
   const user = db.get(input.id);
   if (!user) throw new Error(`Unknown user ${input.id}`);
-  return project(user, getFollowedAuthorIds(actorId));
+  return project(user, getFollowedIds(actorId));
 }

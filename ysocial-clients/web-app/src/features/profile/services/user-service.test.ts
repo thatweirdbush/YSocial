@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText } from "@/lib/text";
-import { __resetFollowGraph, getFollowedAuthorIds, getFollowerCount, getFollowingCount } from "@/mocks/follow-graph";
+import { __resetRelationGraph, getFollowedIds, getFollowerCount, getFollowingCount } from "@/mocks/relation-graph";
 import { SEED_FOLLOWED_AUTHOR_IDS, SEED_FOLLOWING } from "@/mocks/seed-authors";
 import { isFanId } from "@/mocks/seed-fans";
 import { getSeedUserByUsername, HIDDEN_FOLLOWERS, HIDDEN_FOLLOWING, MOCK_USERS } from "../mocks/mock-users";
@@ -29,7 +29,7 @@ const usernames = async (query: string) => (await settle(searchUsers(query, "v1"
 beforeEach(() => {
   vi.useFakeTimers();
   __resetMockUsers();
-  __resetFollowGraph();
+  __resetRelationGraph();
 });
 
 afterEach(() => {
@@ -99,8 +99,8 @@ describe("setFollow", () => {
     const forV2 = await settle(fetchUser("author-01", "v2"));
     expect(forV1).toMatchObject({ isFollowing: true });
     expect(forV2).toMatchObject({ isFollowing: false });
-    expect(getFollowedAuthorIds("v1").has("author-01")).toBe(true);
-    expect(getFollowedAuthorIds("v2").has("author-01")).toBe(false);
+    expect(getFollowedIds("v1").has("author-01")).toBe(true);
+    expect(getFollowedIds("v2").has("author-01")).toBe(false);
   });
 
   it("derives counts from the graph: target followers +1 and actor following +1, nothing stored", async () => {
