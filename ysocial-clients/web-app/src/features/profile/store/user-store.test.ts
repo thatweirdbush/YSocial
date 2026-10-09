@@ -279,6 +279,35 @@ describe("commitFollow", () => {
     expect(isFollowing("v1", "u1")).toBe(false);
   });
 
+  it("discards the refetch response when a newer toggle lands while the fetch is in flight", async () => {
+    vi.spyOn(service, "setFollow").mockResolvedValue(undefined);
+    const fetchDeferreds: ReturnType<typeof deferred<UserProfile>>[] = [];
+    vi.spyOn(service, "fetchUser").mockImplementation(() => {
+      const next = deferred<UserProfile>();
+      fetchDeferreds.push(next);
+      return next.promise;
+    });
+
+    const first = commitFollow("v1", "u1");
+    // Flush microtasks so setFollow resolves and the version-gated refetch starts (2 fetchUser calls: u1, v1)
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(fetchDeferreds).toHaveLength(2);
+
+    // A newer toggle (e.g. a second click) lands before the first commit's refetch resolves
+    actions().toggleFollow("v1", "u1");
+    expect(isFollowing("v1", "u1")).toBe(false);
+
+    // The stale refetch resolves with data from before the newer toggle
+    fetchDeferreds[0].resolve({ ...user, id: "u1", followersCount: 99, isFollowing: true });
+    fetchDeferreds[1].resolve({ ...user, id: "v1", followersCount: 0, isFollowing: false });
+    await first;
+
+    expect(isFollowing("v1", "u1")).toBe(false);
+    expect(useUserStore.getState().users.u1.followersCount).not.toBe(99);
+  });
+
   it("reverts the projection and resolves false when the write fails", async () => {
     vi.spyOn(service, "setFollow").mockRejectedValue(new Error("boom"));
 

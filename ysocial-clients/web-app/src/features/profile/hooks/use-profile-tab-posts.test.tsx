@@ -1,5 +1,5 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { useEffect, type ReactNode } from "react";
+import { StrictMode, useEffect, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as postService from "@/features/posts/services/post-service";
@@ -77,6 +77,32 @@ describe("useProfileTabPosts", () => {
     rerender(<Harness userId="u1" actorId="v1" tabs={["threads"]} />);
     expect(screen.getByTestId("panel-threads")).toHaveTextContent("a,b|ready");
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("fetches once under StrictMode's double-invoked effects", async () => {
+    const spy = vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(page(["a", "b"]));
+    render(
+      <StrictMode>
+        <Harness userId="u1" actorId="v1" tabs={["threads"]} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(screen.getByTestId("panel-threads")).toHaveTextContent("a,b|ready"));
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("refetches a tab revisited after scope A -> B -> A", async () => {
+    const saved = vi.spyOn(postService, "fetchSavedPosts").mockImplementation(async (actorId) => ({ posts: [makePost(`s-${actorId}`)] }));
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(page(["t"]));
+    const { rerender } = render(<Harness userId="1" actorId="1" tabs={["saved"]} />);
+    await waitFor(() => expect(screen.getByTestId("panel-saved")).toHaveTextContent("s-1|ready"));
+
+    rerender(<Harness userId="1" actorId="2" tabs={["threads"]} />);
+    await waitFor(() => expect(screen.getByTestId("panel-threads")).toHaveTextContent("t|ready"));
+
+    rerender(<Harness userId="1" actorId="1" tabs={["saved"]} />);
+    await waitFor(() => expect(screen.getByTestId("panel-saved")).toHaveTextContent("s-1|ready"));
+    expect(saved).toHaveBeenCalledTimes(2);
   });
 
   it("loadMore appends the next page without duplicates", async () => {

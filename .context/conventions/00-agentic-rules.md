@@ -41,15 +41,28 @@ MUST check & activate these core skills before ANY task.
    - High-level project vision (Phase 0 -> Phase N)
    - Single source of truth for phase progress (`[x]`, `[-]`, `[ ]`)
 2. **Tier 2: Spec & Plan** (`docs/specs/` & `docs/plans/`)
-   - `docs/specs/YYYY-MM-DD-<feature>-design.md`: WHAT & WHY - technical architecture, data flow, Zustand stores, mock definitions, edge cases.
-      - **Note:** DO NOT list individual i18n keys. ONLY define Domains/Scope (e.g., auth.*). The full key-value mapping belongs in the Plan phase.
+   - `docs/specs/YYYY-MM-DD-<feature>-design.md`: WHAT & WHY - technical architecture, data flow, Zustand stores, mock definitions, edge cases
+      - **Note:** DO NOT list individual i18n keys. ONLY define Domains/Scope (e.g., auth.*). The full key-value mapping belongs in Plan phase
    - `docs/plans/YYYY-MM-DD-<feature>.md`: HOW & STEPS - bite-sized TDD tasks with checkboxes (`- [ ]`)
 3. **Tier 3: Feature Context / As-Built Doc** (`.context/features/<feature-name>.md`)
    - Created/Updated AFTER completion. Documents actual implemented state, API mappings, permanent Design Decisions & Pitfall Logs
 
 ### 4.2. Completion Protocol - Check off Progress
-- Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if a phase/feature is done.
-- If decisions/architecture shifted during execution, update Tier 2 spec 7 plan to reflect the new reality (or note the change).
+- Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if a phase/feature is done
+- If decisions/architecture shifted during execution, update Tier 2 spec 7 plan to reflect new reality (or note the change)
+
+### 4.3 Deferred Minor Triage Before Completion
+Before declaring done:
+1. Review every deferred minor & classify it as:
+   - **Resolve now:** low-risk, within scope, straightforward to verify
+   - **Defer:** requires design decision, expands scope, or has better owner/future milestone
+   - **Close:** not worth addressing, with brief rationale
+2. Resolve all `Resolve now` items in current session
+3. Do not expand scope, introduce unnecessary refactors, or make architectural decisions without justification
+4. Run relevant verification again after fixes
+5. Report remaining deferred items with rationale, impact, priority & recommended next action
+
+> DOC_FORMAT: MUST follow `.context/conventions/01-doc-standards.md`
 
 ## 5. Working Habits & Directives
 
@@ -57,7 +70,7 @@ MUST check & activate these core skills before ANY task.
 - **Persona:** self = "Em", user = "Chồng iu", in ALL interactions
 - **Decision Proposals:** task needs user intervention (`User Review Required`) -> explicitly propose recommended approach with concise trade-offs
 - **Status Honesty:** state verification level. Fix based ONLY on code inspection w/o real test run -> MUST say: *"Em mới fix theo suy luận code, chưa run verify"*
-- **Commit Messages:** conventional Commits, author = user ONLY, NO `Co-Authored-By` trailer.
+- **Commit Messages:** conventional Commits, author = user ONLY, NO `Co-Authored-By` trailer
 
 ### Architectural Guardrails & Performance
 - ALWAYS prioritize high-performance, maintainable solutions; strictly follow established project patterns

@@ -176,11 +176,15 @@ export function ensureUserByUsername(username: string, actorId: string): Promise
   return request;
 }
 
-/** Refetches users from the service (bypasses the cache); ids the service does not know are ignored. */
-export async function refreshUsers(ids: string[], actorId: string): Promise<void> {
+/**
+ * Refetches users from the service (bypasses the cache); ids the service does not know are ignored.
+ * `shouldApply` is re-checked after the fetch, right before the upsert, so a caller can drop a response
+ * that went stale while the fetch was in flight (default: always apply).
+ */
+export async function refreshUsers(ids: string[], actorId: string, shouldApply: () => boolean = () => true): Promise<void> {
   const fetched = await Promise.all(ids.map((id) => fetchUser(id, actorId)));
   const users = fetched.filter((user): user is UserProfile => user !== null);
-  if (users.length > 0) useUserStore.getState().actions.upsertUsers(users, actorId);
+  if (users.length > 0 && shouldApply()) useUserStore.getState().actions.upsertUsers(users, actorId);
 }
 
 /**
@@ -220,7 +224,10 @@ export async function commitFollow(actorId: string, id: string): Promise<boolean
     return false;
   }
 
-  if (useUserStore.getState().follows[actorId]?.version === version) await refreshUsers([id, actorId], actorId);
+  if (useUserStore.getState().follows[actorId]?.version === version) {
+    // Re-checked again after the fetch: a toggle landing mid-flight must not be overwritten by a stale response
+    await refreshUsers([id, actorId], actorId, () => useUserStore.getState().follows[actorId]?.version === version);
+  }
   return true;
 }
 

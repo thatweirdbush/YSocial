@@ -75,11 +75,23 @@ export function useProfileTabPostsController(userId: string, actorId: string): P
   const tokens = useRef<Record<ProfileTab, number>>({ threads: 0, replies: 0, media: 0, saved: 0 });
   const seenScope = useRef(scopeKey);
   const latest = useRef({ state, scopeKey });
+  // Tracks the scope each tab already kicked a fetch off for (StrictMode double-invokes effects before the
+  // `start` dispatch commits, so a state-only idle check would fire the request twice for the same scope)
+  const activatedScope = useRef<Record<ProfileTab, string | undefined>>({
+    threads: undefined,
+    replies: undefined,
+    media: undefined,
+    saved: undefined,
+  });
   // Layout effects run before any child passive effect, so `activate` always sees the committed scope & lists
   useLayoutEffect(() => {
     if (seenScope.current !== scopeKey) {
       seenScope.current = scopeKey;
-      for (const tab of TABS) tokens.current[tab] += 1;
+      for (const tab of TABS) {
+        tokens.current[tab] += 1;
+        // A revisited scope (A -> B -> A) must be allowed to activate again
+        activatedScope.current[tab] = undefined;
+      }
     }
     latest.current = { state, scopeKey };
   });
@@ -111,8 +123,12 @@ export function useProfileTabPostsController(userId: string, actorId: string): P
 
   const activate = useCallback(
     (tab: ProfileTab) => {
+      if (activatedScope.current[tab] === scopeKey) return;
       const current = latest.current.scopeKey === scopeKey ? latest.current.state[tab] : IDLE;
-      if (current.status === "idle") void fetchTab(tab, 1, false);
+      if (current.status === "idle") {
+        activatedScope.current[tab] = scopeKey;
+        void fetchTab(tab, 1, false);
+      }
     },
     [fetchTab, scopeKey],
   );

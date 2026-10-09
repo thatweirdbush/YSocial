@@ -67,7 +67,7 @@ function EditProfileForm({ user, onDone }: { user: UserProfile; onDone: () => vo
   const actorId = useActorId();
   const authUser = useAuthUser();
   const { updateUser } = useAuthActions();
-  const { patchUser } = useUserActions();
+  const { upsertUsers } = useUserActions();
 
   const {
     register,
@@ -85,10 +85,12 @@ function EditProfileForm({ user, onDone }: { user: UserProfile; onDone: () => vo
       avatarUrl: values.avatarUrl || undefined,
     };
     try {
-      await updateProfile(user.id, patch, actorId);
-      patchUser(user.id, patch);
+      const updated = await updateProfile(user.id, patch, actorId);
+      upsertUsers([updated], actorId);
       // Keep the sidebar account widget (auth store) in step; the cookie only carries { id, username }
-      if (authUser?.id === user.id) updateUser({ ...authUser, ...patch });
+      if (authUser?.id === user.id) {
+        updateUser({ ...authUser, displayName: updated.displayName, bio: updated.bio, avatarUrl: updated.avatarUrl });
+      }
       toast.success(t("profile.editSuccess"));
       onDone();
     } catch {
