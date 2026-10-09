@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GUEST_ACTOR_ID } from "@/features/auth/store/auth-store";
+import { GUEST_ACTOR_ID, useAuthStore } from "@/features/auth/store/auth-store";
 import * as userService from "@/features/profile/services/user-service";
 import { getFollowedIds, resetUserStore } from "@/features/profile/store/user-store";
 import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
@@ -142,6 +142,52 @@ describe("PostFeed paging & refresh", () => {
 
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(10), LOAD_TIMEOUT);
     expect(nextPageCalls()).toBe(2);
+  });
+});
+
+describe("PostFeed viewer switch", () => {
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("reloads page 1 for the new viewer after the viewer feeds were reset", async () => {
+    const spy = vi.spyOn(service, "fetchFeed");
+    render(<PostFeed />);
+    await screen.findAllByRole("article", {}, LOAD_TIMEOUT);
+    expect(spy).toHaveBeenCalledWith("forYou", 1, GUEST_ACTOR_ID);
+
+    act(() => {
+      useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+      usePostStore.getState().actions.resetViewerFeeds();
+    });
+
+    await waitFor(() => expect(spy).toHaveBeenCalledWith("forYou", 1, "1"), LOAD_TIMEOUT);
+    await waitFor(() => expect(usePostStore.getState().feedMeta.forYou.loaded).toBe(true), LOAD_TIMEOUT);
+    expect(screen.getAllByRole("article").length).toBeGreaterThan(0);
+  });
+
+  it("ignores a page that finished after the viewer changed", async () => {
+    const realFetch = service.fetchFeed;
+    let releaseGuest!: () => void;
+    const guestGate = new Promise<void>((resolve) => (releaseGuest = resolve));
+    vi.spyOn(service, "fetchFeed").mockImplementation(async (tab, page, actorId) => {
+      const result = await realFetch(tab, page, actorId);
+      if (actorId === GUEST_ACTOR_ID) await guestGate;
+      return result;
+    });
+    render(<PostFeed />);
+
+    act(() => {
+      useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+      usePostStore.getState().actions.resetViewerFeeds();
+    });
+    await waitFor(() => expect(usePostStore.getState().feedMeta.forYou.loaded).toBe(true), LOAD_TIMEOUT);
+    const ownIds = usePostStore.getState().feedIds.forYou;
+
+    releaseGuest();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(usePostStore.getState().feedIds.forYou).toEqual(ownIds);
   });
 });
 

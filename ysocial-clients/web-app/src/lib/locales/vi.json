@@ -344,6 +344,9 @@
   "relations": {
     "requested": "Đã yêu cầu",
     "requestSentToast": "Đã gửi yêu cầu theo dõi @{username}",
-    "requestCanceledToast": "Đã hủy yêu cầu theo dõi @{username}"
+    "requestCanceledToast": "Đã hủy yêu cầu theo dõi @{username}",
+    "unblock": "Bỏ chặn",
+    "unblockedToast": "Đã bỏ chặn @{username}",
+    "actionError": "Không thể cập nhật, thử lại nhé"
   }
 }

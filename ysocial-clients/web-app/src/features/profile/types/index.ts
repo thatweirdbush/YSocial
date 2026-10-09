@@ -57,6 +57,17 @@ export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCoun
 
 export type RequestDecision = "accept" | "decline";
 
+/** The viewer's relation flags for one user, read from the relation store. */
+export interface RelationFlags {
+  isMuted: boolean;
+  /** Viewer blocked the user. */
+  isBlocked: boolean;
+  /** The user blocked the viewer. */
+  isBlockedBy: boolean;
+  /** Viewer set the close friend flag (effective only while the follow is accepted). */
+  markedCloseFriend: boolean;
+}
+
 /** Viewer's relation sets loaded once per session (spec D24); drive optimistic projections. */
 export interface RelationSets {
   blocked: string[];

@@ -1,4 +1,6 @@
-import type { FollowStatus, UserProfile, UserProfileBase } from "../types";
+import type { FollowStatus, RelationFlags, UserProfile, UserProfileBase } from "../types";
+
+const NO_FLAGS: RelationFlags = { isMuted: false, isBlocked: false, isBlockedBy: false, markedCloseFriend: false };
 
 const VIEWER_FIELDS = [
   "isFollowing",
@@ -16,15 +18,16 @@ export function toUserBase(user: UserProfile): UserProfileBase {
   return base as UserProfileBase;
 }
 
-/** Full profile from shared data & the follow status; other viewer fields default to "no relation". */
-export function withViewerDefaults(base: UserProfileBase, followStatus: FollowStatus): UserProfile {
+/** Full profile from shared data, the follow status & the relation flags (default: no relation). */
+export function withViewerDefaults(base: UserProfileBase, followStatus: FollowStatus, flags: RelationFlags = NO_FLAGS): UserProfile {
   return {
     ...base,
     isFollowing: followStatus === "accepted",
     followStatus,
-    viewerMarkedCloseFriend: false,
-    isMuted: false,
-    isBlocked: false,
-    isBlockedBy: false,
+    // A dormant flag (follow no longer accepted) never counts
+    viewerMarkedCloseFriend: flags.markedCloseFriend && followStatus === "accepted",
+    isMuted: flags.isMuted,
+    isBlocked: flags.isBlocked,
+    isBlockedBy: flags.isBlockedBy,
   };
 }

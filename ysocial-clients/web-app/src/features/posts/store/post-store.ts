@@ -584,6 +584,9 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
   },
 }));
 
+/** Non-hook access to the actions for event handlers & other stores (call time only). */
+export const getPostActions = (): PostStoreActions => usePostStore.getState().actions;
+
 /** Test-only: clear cached data, keep actions. */
 export const resetPostStore = () => usePostStore.setState(initialData());
 

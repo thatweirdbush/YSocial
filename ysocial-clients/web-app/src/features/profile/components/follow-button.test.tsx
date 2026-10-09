@@ -3,8 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import { makeUserProfile } from "../mocks/user-fixtures";
+import * as relationService from "../services/relation-service";
 import * as service from "../services/user-service";
 import { resetOpLedger } from "../store/op-ledger";
+import { resetRelationStore, useRelationStore } from "../store/relation-store";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import { FollowButton } from "./follow-button";
 
@@ -21,6 +23,7 @@ const statusOf = (actorId: string, id: string) => useUserStore.getState().follow
 
 beforeEach(() => {
   resetUserStore();
+  resetRelationStore();
   resetOpLedger();
   vi.restoreAllMocks();
   push.mockClear();
@@ -154,5 +157,41 @@ describe("FollowButton guest", () => {
     expect(follow).not.toHaveBeenCalled();
     expect(toast.success).not.toHaveBeenCalled();
     expect(statusOf("me", "u1")).toBeUndefined();
+  });
+});
+
+describe("FollowButton blocked users", () => {
+  it("shows Unblock for a user the viewer blocked and unblocks on click", async () => {
+    useRelationStore.getState().actions.setFlag("v1", "blocked", "u1", true);
+    const setBlocked = vi.spyOn(relationService, "setBlocked").mockResolvedValue();
+    vi.spyOn(service, "fetchUser").mockResolvedValue(null);
+    vi.spyOn(relationService, "fetchFollowRequestCount").mockResolvedValue(0);
+    render(<FollowButton userId="u1" />);
+    expect(screen.queryByRole("button", { name: "Theo dõi" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Bỏ chặn" }));
+
+    expect(setBlocked).toHaveBeenCalledWith("u1", false, "v1");
+    expect(await screen.findByRole("button", { name: "Theo dõi" })).toBeInTheDocument();
+    expect(toast.success).toHaveBeenCalledWith("Đã bỏ chặn @minhthu");
+  });
+
+  it("shows the error toast and keeps Unblock when unblocking fails", async () => {
+    useRelationStore.getState().actions.setFlag("v1", "blocked", "u1", true);
+    vi.spyOn(relationService, "setBlocked").mockRejectedValue(new Error("boom"));
+    render(<FollowButton userId="u1" />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Bỏ chặn" }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Không thể cập nhật, thử lại nhé"));
+    expect(screen.getByRole("button", { name: "Bỏ chặn" })).toBeInTheDocument();
+  });
+
+  it("renders nothing when the user blocked the viewer", () => {
+    useRelationStore.getState().actions.setFlag("v1", "blockedBy", "u1", true);
+
+    const { container } = render(<FollowButton userId="u1" />);
+
+    expect(container).toBeEmptyDOMElement();
   });
 });

@@ -11,6 +11,23 @@ export {
   unfollowUser,
 } from "./services/user-service";
 export {
+  commitBlock,
+  commitCloseFriend,
+  commitMute,
+  commitPrivacy,
+  commitRespondRequest,
+  ensureRelationSets,
+  invalidateViewerProjection,
+  refreshRequestCount,
+  useFollowRequestCount,
+  useIsBlocked,
+  useIsBlockedBy,
+  useIsMuted,
+  useIsPrivateAccount,
+  useRelationsLoaded,
+  useViewerMarkedCloseFriend,
+} from "./store/relation-store";
+export {
   clearViewerFollows,
   commitFollow,
   ensureFollowGraph,

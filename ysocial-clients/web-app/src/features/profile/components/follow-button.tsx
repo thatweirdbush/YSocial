@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
+import { commitBlock, useIsBlocked, useIsBlockedBy } from "../store/relation-store";
 import { commitFollow, useFollowState, useUser } from "../store/user-store";
 
 interface FollowButtonProps {
@@ -32,6 +33,8 @@ export function FollowButton({ userId, className, reserveSpace = false, confirmU
   const router = useRouter();
   const user = useUser(userId);
   const status = useFollowState(userId);
+  const isBlocked = useIsBlocked(userId);
+  const isBlockedBy = useIsBlockedBy(userId);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Unknown follow state (e.g. right after an account switch) -> never render a guessed "Follow"
@@ -41,6 +44,35 @@ export function FollowButton({ userId, className, reserveSpace = false, confirmU
       <span aria-hidden="true" className={cn(buttonVariants({ size: "sm", variant: "outline" }), BASE, "invisible", className)}>
         {t("card.follow")}
       </span>
+    );
+  }
+
+  // The user blocked the viewer: nothing to follow. The viewer blocked the user: the only action is Unblock
+  if (isBlockedBy) return null;
+  if (isBlocked) {
+    const handleUnblock = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void commitBlock(actorId, userId, false).then((ok) => {
+        if (ok) toast.success(t("relations.unblockedToast", { username: user.username }));
+        else toast.error(t("relations.actionError"));
+      });
+    };
+    return (
+      <Button
+        type="button"
+        onClick={handleUnblock}
+        size="sm"
+        variant="outline"
+        className={cn(
+          BASE,
+          "border-zinc-950 bg-transparent text-black transition-all duration-300 hover:bg-black hover:text-white motion-reduce:transition-none dark:border-zinc-100 dark:text-white dark:hover:bg-white dark:hover:text-black",
+          "after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']",
+          className,
+        )}
+      >
+        {t("relations.unblock")}
+      </Button>
     );
   }
 

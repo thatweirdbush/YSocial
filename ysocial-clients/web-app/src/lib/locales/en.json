@@ -344,6 +344,9 @@
   "relations": {
     "requested": "Requested",
     "requestSentToast": "Follow request sent to @{username}",
-    "requestCanceledToast": "Canceled follow request to @{username}"
+    "requestCanceledToast": "Canceled follow request to @{username}",
+    "unblock": "Unblock",
+    "unblockedToast": "Unblocked @{username}",
+    "actionError": "Could not update, try again"
   }
 }

@@ -13,6 +13,7 @@ import {
 import type { FollowStatus, ProfilePatch, UserProfile, UserProfileBase, ViewerFollows, ViewerUserInput } from "../types";
 import { toUserBase, withViewerDefaults } from "../utils/user-projection";
 import { beginOp, isCurrentOp } from "./op-ledger";
+import { getViewerRelations, relationFlagsOf, useRelationFlags } from "./relation-state";
 
 // Normalized client cache of users. Profile data is shared by every viewer; follow flags live in a
 // per-viewer projection, so switching account never leaks the follow status. Every screen reads the same
@@ -155,7 +156,7 @@ function cachedFor(id: string, actorId: string): UserProfile | null {
   const { users, follows } = useUserStore.getState();
   const base = users[id];
   const followStatus = followState(follows[actorId], id);
-  return base && followStatus !== undefined ? withViewerDefaults(base, followStatus) : null;
+  return base && followStatus !== undefined ? withViewerDefaults(base, followStatus, relationFlagsOf(getViewerRelations(actorId), id)) : null;
 }
 
 /**
@@ -300,20 +301,20 @@ export const useUser = (id: string): UserProfile | undefined => {
   const [base, followStatus] = useUserStore(
     useShallow((state) => [state.users[id], state.follows[actorId]?.status[id] ?? "none"] as const),
   );
-  return useMemo(() => (base ? withViewerDefaults(base, followStatus) : undefined), [base, followStatus]);
+  const flags = useRelationFlags(actorId, id);
+  return useMemo(() => (base ? withViewerDefaults(base, followStatus, flags) : undefined), [base, followStatus, flags]);
 };
 
 /** User by username (case-insensitive) as seen by the current viewer. */
 export const useUserByUsername = (username: string): UserProfile | undefined => {
   const actorId = useActorId();
   const lower = username.toLowerCase();
+  const id = useUserStore((state) => state.idByUsername[lower]);
   const [base, followStatus] = useUserStore(
-    useShallow((state) => {
-      const id = state.idByUsername[lower];
-      return [id ? state.users[id] : undefined, id ? (state.follows[actorId]?.status[id] ?? "none") : "none"] as const;
-    }),
+    useShallow((state) => [id ? state.users[id] : undefined, id ? (state.follows[actorId]?.status[id] ?? "none") : "none"] as const),
   );
-  return useMemo(() => (base ? withViewerDefaults(base, followStatus) : undefined), [base, followStatus]);
+  const flags = useRelationFlags(actorId, id ?? "");
+  return useMemo(() => (base ? withViewerDefaults(base, followStatus, flags) : undefined), [base, followStatus, flags]);
 };
 
 /** Current viewer's follow status for `id`; undefined while unknown (FollowButton must not guess). */
