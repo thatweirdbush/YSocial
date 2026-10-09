@@ -180,7 +180,9 @@
     "emptyLikes": "No likes yet.",
     "actionLike": "liked your post",
     "actionFollow": "started following you",
-    "actionReply": "replied to your post"
+    "actionReply": "replied to your post",
+    "followRequests": "{count} follow requests",
+    "followRequestsHint": "Review, approve or delete requests"
   },
   "auth": {
     "loginTitle": "Log in to YSocial",

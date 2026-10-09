@@ -180,7 +180,9 @@
     "emptyLikes": "Chưa có lượt thả tim nào.",
     "actionLike": "đã thích bài viết của bạn",
     "actionFollow": "đã bắt đầu theo dõi bạn",
-    "actionReply": "đã trả lời bài viết của bạn"
+    "actionReply": "đã trả lời bài viết của bạn",
+    "followRequests": "{count} yêu cầu theo dõi",
+    "followRequestsHint": "Duyệt hoặc xoá yêu cầu"
   },
   "auth": {
     "loginTitle": "Đăng nhập vào YSocial",
