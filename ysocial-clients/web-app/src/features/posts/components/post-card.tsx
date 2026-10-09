@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   EyeOff,
   Pin,
+  Star,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ensureUser, FollowButton, useUser, UserHoverCard } from "@/features/profile";
@@ -87,6 +88,8 @@ function PostCardView({
   const isBookmarked = live.isBookmarkedByCurrentUser;
   const bookmarksCount = isBookmarked ? 12 : 11;
   const isDetail = variant === "detail";
+  // Close friends posts get a green ring + label (the viewer only sees them when marked, so this is never a leak)
+  const isCloseFriends = live.visibility === "closeFriends";
 
   const [sharesCount, setSharesCount] = useState(14);
 
@@ -216,7 +219,7 @@ function PostCardView({
       <div className="flex flex-col items-center self-stretch shrink-0">
         <UserHoverCard userId={post.user.id}>
           <Link href={`/@${post.user.username}`}>
-            <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity`}>
+            <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity ${isCloseFriends ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-black" : ""}`}>
               <AvatarImage src={author.avatarUrl} alt={author.displayName} />
               <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
                 {author.displayName?.charAt(0).toUpperCase() || "U"}
@@ -254,6 +257,13 @@ function PostCardView({
                 </span>
               </Link>
             </UserHoverCard>
+
+            {isCloseFriends && (
+              <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                <Star className="size-3" aria-hidden="true" />
+                {t("card.closeFriends")}
+              </span>
+            )}
 
             {/* Follow bound to user-store: same state as the hover card, sidebar & search */}
             {!isOwner && <FollowButton userId={post.user.id} className="ml-1.5" reserveSpace />}

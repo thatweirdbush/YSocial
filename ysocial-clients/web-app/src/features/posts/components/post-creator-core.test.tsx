@@ -1,5 +1,8 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { useAuthStore } from "@/features/auth/store/auth-store";
+import { useDraftStore } from "../store/post-draft-store";
 import { PostCreatorCore } from "./post-creator-core";
 
 const AUDIENCE_LABEL = "Mọi người có thể phản hồi";
@@ -21,5 +24,78 @@ describe("PostCreatorCore modes", () => {
     expect(screen.queryByRole("button", { name: AUDIENCE_LABEL })).not.toBeInTheDocument();
     expect(screen.queryByTitle(DRAFTS_TITLE)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Trả lời" })).toBeInTheDocument();
+  });
+});
+
+describe("PostCreatorCore close friends visibility", () => {
+  const CHIP = "Chỉ bạn thân";
+
+  beforeEach(() => {
+    useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+    useDraftStore.setState({ drafts: [] });
+  });
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("offers a close friends chip to a signed-in author, off by default", () => {
+    render(<PostCreatorCore />);
+
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("hides the chip for a guest and in reply mode", () => {
+    const { unmount } = render(<PostCreatorCore mode="reply" />);
+    expect(screen.queryByRole("button", { name: CHIP })).toBeNull();
+    unmount();
+
+    useAuthStore.setState({ user: null });
+    render(<PostCreatorCore />);
+    expect(screen.queryByRole("button", { name: CHIP })).toBeNull();
+  });
+
+  it("submits public by default", async () => {
+    const onPostSubmitted = vi.fn().mockResolvedValue(undefined);
+    render(<PostCreatorCore onPostSubmitted={onPostSubmitted} />);
+
+    await userEvent.type(screen.getByRole("textbox"), "xin chào");
+    await userEvent.click(screen.getByRole("button", { name: "Đăng" }));
+
+    await waitFor(() => expect(onPostSubmitted).toHaveBeenCalledWith("xin chào", [], "anyone", "public"));
+  });
+
+  it("submits closeFriends when the chip is on, then resets it to public", async () => {
+    const onPostSubmitted = vi.fn().mockResolvedValue(undefined);
+    render(<PostCreatorCore onPostSubmitted={onPostSubmitted} />);
+
+    await userEvent.click(screen.getByRole("button", { name: CHIP }));
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "true");
+    await userEvent.type(screen.getByRole("textbox"), "chỉ bạn thân thấy");
+    await userEvent.click(screen.getByRole("button", { name: "Đăng" }));
+
+    await waitFor(() => expect(onPostSubmitted).toHaveBeenCalledWith("chỉ bạn thân thấy", [], "anyone", "closeFriends"));
+    await waitFor(() => expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false"));
+  });
+
+  it("turns the chip off again on a second click", async () => {
+    render(<PostCreatorCore />);
+
+    await userEvent.click(screen.getByRole("button", { name: CHIP }));
+    await userEvent.click(screen.getByRole("button", { name: CHIP }));
+
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("resets the chip to public when a draft is restored", async () => {
+    useDraftStore.getState().actions.saveDraft("bản nháp cũ", [], "anyone");
+    render(<PostCreatorCore />);
+    await userEvent.click(screen.getByRole("button", { name: CHIP }));
+
+    await userEvent.click(screen.getByTitle("Bản nháp"));
+    await userEvent.click(await screen.findByRole("button", { name: "Khôi phục" }));
+
+    expect(screen.getByRole("textbox")).toHaveValue("bản nháp cũ");
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
   });
 });

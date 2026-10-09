@@ -205,3 +205,35 @@ describe("PostCreatorDialog default submit", () => {
     }, LOAD_TIMEOUT);
   });
 });
+
+describe("PostCreatorDialog close friends", () => {
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("publishes a close friends post through the default submit", async () => {
+    useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev", username: "ysocial_member" } });
+    const create = vi.spyOn(service, "createPost");
+    render(<PostCreatorDialog open onOpenChange={vi.fn()} />);
+
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Chỉ bạn thân" }));
+    await userEvent.type(within(dialog).getByRole("textbox"), "bài riêng tư");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Đăng" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ content: "bài riêng tư", visibility: "closeFriends" }), expect.anything()));
+    await waitFor(() => expect(usePostStore.getState().feedIds.forYou.length).toBeGreaterThan(0), LOAD_TIMEOUT);
+  });
+
+  it("keeps public posts free of a visibility field", async () => {
+    const create = vi.spyOn(service, "createPost");
+    render(<PostCreatorDialog open onOpenChange={vi.fn()} />);
+
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox"), "bài công khai");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Đăng" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0][0].visibility).toBeUndefined();
+  });
+});

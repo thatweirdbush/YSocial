@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect } from "react";
 import { PostCreatorCore, PostCreatorCoreRef } from "./post-creator-core";
-import type { CreatePostInput, PostAudience } from "../types";
+import type { CreatePostInput, PostAudience, PostVisibility } from "../types";
 
 interface PostCreatorFeedProps {
   onSuccess?: (input: CreatePostInput) => Promise<void>;
@@ -14,9 +14,10 @@ export function PostCreatorFeed({ onSuccess }: PostCreatorFeedProps) {
   const handlePostSubmitted = async (
     content: string,
     images: string[],
-    audience: PostAudience
+    audience: PostAudience,
+    visibility: PostVisibility
   ) => {
-    await onSuccess?.({ content, images, audience });
+    await onSuccess?.({ content, images, audience, ...(visibility === "closeFriends" ? { visibility } : {}) });
   };
 
   useEffect(() => {

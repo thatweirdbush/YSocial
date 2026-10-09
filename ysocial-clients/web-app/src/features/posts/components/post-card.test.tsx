@@ -317,3 +317,29 @@ describe("PostCard blocked author", () => {
     expect(screen.getByText("Nội dung bài viết")).toBeInTheDocument();
   });
 });
+
+describe("PostCard close friends badge", () => {
+  const avatarOf = (container: HTMLElement) => container.querySelector('[data-slot="avatar"]');
+
+  it("rings the avatar and labels a close friends post", () => {
+    const { container } = render(<PostCard post={{ ...post, visibility: "closeFriends" }} />);
+
+    expect(avatarOf(container)).toHaveClass("ring-2", "ring-emerald-500");
+    expect(screen.getByText("Bạn thân")).toBeInTheDocument();
+  });
+
+  it("shows no ring or label on a public post", () => {
+    const { container } = render(<PostCard post={post} />);
+
+    expect(avatarOf(container)).not.toHaveClass("ring-emerald-500");
+    expect(screen.queryByText("Bạn thân")).toBeNull();
+  });
+
+  it("follows the store copy of the post", () => {
+    usePostStore.getState().actions.upsertPosts([{ ...post, visibility: "closeFriends" }]);
+
+    const { container } = render(<PostCard post={post} />);
+
+    expect(avatarOf(container)).toHaveClass("ring-emerald-500");
+  });
+});

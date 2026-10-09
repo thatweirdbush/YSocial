@@ -56,7 +56,9 @@
     "location": "Location",
     "searchGifPlaceholder": "Search GIFs...",
     "searchEmojiPlaceholder": "Search emojis...",
-    "searchLocationPlaceholder": "Search locations..."
+    "searchLocationPlaceholder": "Search locations...",
+    "closeFriends": "Close friends only",
+    "closeFriendsHint": "Only your close friends will see this post"
   },
   "card": {
     "justNow": "Just now",
@@ -106,7 +108,8 @@
     "block": "Block @{username}",
     "copyLink": "Copy link",
     "report": "Report post",
-    "reportToast": "Report submitted. Thank you!"
+    "reportToast": "Report submitted. Thank you!",
+    "closeFriends": "Close friends"
   },
   "common": {
     "language": "Language",

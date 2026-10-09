@@ -56,7 +56,9 @@
     "location": "Vị trí",
     "searchGifPlaceholder": "Tìm kiếm GIF...",
     "searchEmojiPlaceholder": "Tìm kiếm emoji...",
-    "searchLocationPlaceholder": "Tìm kiếm vị trí..."
+    "searchLocationPlaceholder": "Tìm kiếm vị trí...",
+    "closeFriends": "Chỉ bạn thân",
+    "closeFriendsHint": "Chỉ những người bạn thân của bạn mới thấy bài viết này"
   },
   "card": {
     "justNow": "Vừa xong",
@@ -106,7 +108,8 @@
     "block": "Chặn @{username}",
     "copyLink": "Sao chép liên kết",
     "report": "Báo cáo bài viết",
-    "reportToast": "Đã gửi báo cáo. Cảm ơn bạn!"
+    "reportToast": "Đã gửi báo cáo. Cảm ơn bạn!",
+    "closeFriends": "Bạn thân"
   },
   "common": {
     "language": "Ngôn ngữ",

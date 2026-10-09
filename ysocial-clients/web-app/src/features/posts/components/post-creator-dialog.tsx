@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PostCreatorCore, PostCreatorCoreRef } from "./post-creator-core";
-import type { PostAudience } from "../types";
+import type { PostAudience, PostVisibility } from "../types";
 import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../hooks/use-current-author";
 import { createPost } from "../services/post-service";
@@ -12,7 +12,7 @@ import { usePostActions } from "../store/post-store";
 interface PostCreatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPostSubmitted?: (content: string, images: string[], audience: PostAudience) => Promise<void>;
+  onPostSubmitted?: (content: string, images: string[], audience: PostAudience, visibility: PostVisibility) => Promise<void>;
 }
 
 export function PostCreatorDialog({
@@ -26,8 +26,8 @@ export function PostCreatorDialog({
   const { prependPost } = usePostActions();
 
   // Default when the caller supplies no handler (sidebar "Create post"): publish to the mock feed.
-  const submitPost = onPostSubmitted ?? (async (content: string, images: string[], audience: PostAudience) => {
-    const post = await createPost({ content, images, audience }, author);
+  const submitPost = onPostSubmitted ?? (async (content: string, images: string[], audience: PostAudience, visibility: PostVisibility) => {
+    const post = await createPost({ content, images, audience, ...(visibility === "closeFriends" ? { visibility } : {}) }, author);
     prependPost("forYou", post);
   });
 
@@ -97,8 +97,8 @@ export function PostCreatorDialog({
             onCancel={() => onOpenChange(false)}
             onPopoverStateChange={setIsSubPopoverOpen}
             onStateChange={setHasUnsavedChanges}
-            onPostSubmitted={async (content, images, audience) => {
-              await submitPost(content, images, audience);
+            onPostSubmitted={async (content, images, audience, visibility) => {
+              await submitPost(content, images, audience, visibility);
               onOpenChange(false);
             }}
           />
