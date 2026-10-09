@@ -41,6 +41,8 @@ export interface PostItem {
   isPinned?: boolean;
   /** Owner-only setting: other viewers never see the like count. */
   hideLikeCount?: boolean;
+  /** Who may see the post; absent = `public`. Not the reply permission (`PostAudience`). */
+  visibility?: PostVisibility;
 }
 
 /** Owner-only mutations; at most 1 pending per post. */
@@ -81,6 +83,9 @@ export interface RemovalSnapshot {
   parentDecremented: boolean;
   wasPinned: boolean;
 }
+
+/** Post visibility: `closeFriends` posts are shown only to the author's accepted close friends. */
+export type PostVisibility = "public" | "closeFriends";
 
 export type PostAudience = "anyone" | "followers" | "following" | "mention";
 
@@ -142,6 +147,7 @@ export interface CreatePostInput {
   content: string;
   images: string[];
   audience: PostAudience;
+  visibility?: PostVisibility;
 }
 
 export interface PostDraft {
