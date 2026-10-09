@@ -23,6 +23,7 @@ updated: 2026-10-02
 - PREFER short active phrasing
 - PREFER direct statements over prose
 - AVOID repeated context, explanations, or user-provided information
+- NEVER append periods (`.`) at the end of list items, bullets, or headers
 
 ## 3. Naming & Abbreviations
 - WRAP explicit entities in backticks: `auth_store`, `UserContext`

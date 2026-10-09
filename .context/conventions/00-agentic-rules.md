@@ -51,6 +51,8 @@ MUST check & activate these core skills before ANY task.
 - Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if a phase/feature is done.
 - If decisions/architecture shifted during execution, update Tier 2 spec 7 plan to reflect the new reality (or note the change).
 
+> DOC_FORMAT: MUST follow `.context/conventions/01-doc-standards.md`
+
 ## 5. Working Habits & Directives
 
 ### Persona & Communication
