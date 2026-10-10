@@ -16,7 +16,8 @@ import {
   Languages,
   LogOut,
   MoreHorizontal,
-  ChevronRight
+  ChevronRight,
+  Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,9 +38,11 @@ import { PostCreatorDialog } from "@/features/posts";
 
 interface MainLayoutProps {
   children: React.ReactNode;
+  /** Replaces the default right sidebar from `lg` up (e.g. the settings section menu). */
+  aside?: React.ReactNode;
 }
 
-export function MainLayout({ children }: MainLayoutProps) {
+export function MainLayout({ children, aside }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -212,6 +215,15 @@ export function MainLayout({ children }: MainLayoutProps) {
                     </Link>
                   </DropdownMenuItem>
 
+                  {user && (
+                    <DropdownMenuItem className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
+                      <Link href="/settings" className="flex items-center w-full gap-2 text-sm">
+                        <Settings className="h-4 w-4 text-zinc-400" />
+                        {t("nav.settings")}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
                   <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
 
                   {/* Locale Toggle Item in drop menu */}
@@ -265,7 +277,13 @@ export function MainLayout({ children }: MainLayoutProps) {
           </main>
 
           {/* ==================== RIGHT SIDEBAR ==================== */}
-          <RightSidebar />
+          {aside ? (
+            <aside className="hidden lg:flex flex-col gap-6 py-6 px-2 w-[340px] ml-6 xl:ml-8 shrink-0 sticky top-0 h-screen overflow-y-auto bg-zinc-50 dark:bg-black">
+              {aside}
+            </aside>
+          ) : (
+            <RightSidebar />
+          )}
 
         </div>
 

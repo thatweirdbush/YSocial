@@ -41,7 +41,14 @@ export interface PostItem {
   isPinned?: boolean;
   /** Owner-only setting: other viewers never see the like count. */
   hideLikeCount?: boolean;
+  /** Who may see the post; absent = `public`. Not the reply permission (`PostAudience`). */
+  visibility?: PostVisibility;
 }
+
+/** Why the viewer no longer sees an author's posts in lists: `blocked` covers both directions of a block. */
+export type ExclusionReason = "muted" | "blocked";
+
+export type ExcludedAuthors = Record<string, Partial<Record<ExclusionReason, true>>>;
 
 /** Owner-only mutations; at most 1 pending per post. */
 export type OwnerOp = "edit" | "delete" | "pin" | "hideLikeCount";
@@ -82,6 +89,9 @@ export interface RemovalSnapshot {
   wasPinned: boolean;
 }
 
+/** Post visibility: `closeFriends` posts are shown only to the author's accepted close friends. */
+export type PostVisibility = "public" | "closeFriends";
+
 export type PostAudience = "anyone" | "followers" | "following" | "mention";
 
 export type FeedTab = "forYou" | "following";
@@ -107,6 +117,8 @@ export interface UserPostsPage {
   /** Replies tab only. */
   parents: ParentReference[];
   nextPage?: number;
+  /** Private profile the viewer may not see: `posts` is empty. */
+  locked: boolean;
 }
 
 export interface SavedPostsPage {
@@ -142,6 +154,7 @@ export interface CreatePostInput {
   content: string;
   images: string[];
   audience: PostAudience;
+  visibility?: PostVisibility;
 }
 
 export interface PostDraft {
@@ -149,6 +162,8 @@ export interface PostDraft {
   content: string;
   images: string[];
   audience: PostAudience;
+  /** Absent in drafts saved before close friends existed = public. */
+  visibility?: PostVisibility;
   createdAt: number;
 }
 // #endregion

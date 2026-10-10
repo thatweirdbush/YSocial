@@ -14,6 +14,9 @@ export type ProfileTab = "threads" | "replies" | "media" | "saved";
 
 export type FollowListKind = "followers" | "following";
 
+/** Follow edge status (BE `FollowStatus`). */
+export type FollowStatus = "none" | "pending" | "accepted";
+
 export interface UserProfile {
   id: string;
   displayName: string;
@@ -24,15 +27,65 @@ export interface UserProfile {
   coverUrl?: string;
   followersCount: number;
   followingCount: number;
-  isFollowing: boolean;
   isVerified?: boolean;
+  isPrivate: boolean;
+  /** Viewer projection. `isFollowing` = `followStatus === "accepted"`. */
+  isFollowing: boolean;
+  followStatus: FollowStatus;
+  /** Viewer marked this user as a close friend (effective only while the follow is accepted). */
+  viewerMarkedCloseFriend: boolean;
+  isMuted: boolean;
+  /** Viewer blocked this user. */
+  isBlocked: boolean;
+  /** This user blocked the viewer. */
+  isBlockedBy: boolean;
 }
 
-/** Profile data shared by every viewer; `isFollowing` lives in the viewer-scoped follow projection. */
-export type UserProfileBase = Omit<UserProfile, "isFollowing">;
+type ViewerField =
+  | "isFollowing"
+  | "followStatus"
+  | "viewerMarkedCloseFriend"
+  | "isMuted"
+  | "isBlocked"
+  | "isBlockedBy";
 
-/** Mock DB row: shared profile data without counts (counts derive from the follow graph, spec D6). */
-export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCount">;
+/** Profile data shared by every viewer; viewer fields live in the viewer-scoped projections. */
+export type UserProfileBase = Omit<UserProfile, ViewerField>;
+
+/** Mock DB row: shared profile data without counts & privacy (both derive from the mock graphs, spec D6 & D17). */
+export type StoredUser = Omit<UserProfileBase, "followersCount" | "followingCount" | "isPrivate">;
+
+export type RequestDecision = "accept" | "decline";
+
+/** The viewer's relation flags for one user, read from the relation store. */
+export interface RelationFlags {
+  isMuted: boolean;
+  /** Viewer blocked the user. */
+  isBlocked: boolean;
+  /** The user blocked the viewer. */
+  isBlockedBy: boolean;
+  /** Viewer set the close friend flag (effective only while the follow is accepted). */
+  markedCloseFriend: boolean;
+}
+
+/** Viewer's relation sets loaded once per session (spec D24); drive optimistic projections. */
+export interface RelationSets {
+  blocked: string[];
+  /** Users who blocked the viewer. */
+  blockedBy: string[];
+  muted: string[];
+  /** Every flag the viewer set, dormant ones included; "effective" = flag AND an accepted follow (spec D7). */
+  closeFriends: string[];
+  isPrivate: boolean;
+  requestCount: number;
+}
+
+export interface RelationListQuery {
+  query?: string;
+  page?: number;
+}
+
+export const RELATION_PAGE_SIZE = 20;
 
 export interface FollowListQuery {
   query?: string;
@@ -57,14 +110,14 @@ export const PROFILE_DISPLAY_NAME_MIN = 2;
 export const PROFILE_DISPLAY_NAME_MAX = 50;
 export const PROFILE_BIO_MAX = 160;
 
-/** One viewer's follow projection in `user-store`. */
+/** One viewer's follow projection in `user-store`. Absent id = `none`. */
 export interface ViewerFollows {
-  ids: Record<string, true>;
-  /** Ids whose follow state was fetched or toggled for this viewer (trusted even before `loaded`). */
+  status: Record<string, "pending" | "accepted">;
+  /** Ids whose follow state was fetched or changed for this viewer (trusted even before `loaded`). */
   known: Record<string, true>;
   /** True once the complete follow set was loaded (not just ids seen in fetched profiles). */
   loaded: boolean;
-  /** Bumped by every local toggle; a follow-set load started before a toggle is discarded. */
+  /** Bumped by every local status change; a follow-set load started before a change is discarded. */
   version: number;
 }
 

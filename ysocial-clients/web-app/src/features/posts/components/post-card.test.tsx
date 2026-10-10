@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { makeUserProfile } from "@/features/profile/mocks/user-fixtures";
 import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
@@ -38,7 +39,7 @@ describe("PostCard author overlay", () => {
 
   it("follows the user-store copy of the author after a profile edit", () => {
     useUserStore.getState().actions.upsertUsers(
-      [{ id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev", followersCount: 0, followingCount: 0, isFollowing: false }],
+      [makeUserProfile({ id: "author-03", displayName: "Trần Anh Quốc", username: "anquoc.dev" })],
       "me",
     );
     render(<PostCard post={authorPost} />);
@@ -294,5 +295,51 @@ describe("PostCard owner state", () => {
     expect(screen.getByRole("textbox", { name: "Nội dung bài viết" })).toHaveValue("Nội dung bài viết");
     await userEvent.keyboard("{Escape}");
     expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
+describe("PostCard blocked author", () => {
+  it("renders nothing for a blocked author (fallback guard for lists that are not refilled)", () => {
+    const { container, rerender } = render(<PostCard post={post} />);
+    expect(screen.getByText("Nội dung bài viết")).toBeInTheDocument();
+
+    act(() => usePostStore.getState().actions.excludeAuthor("u1", "blocked"));
+    rerender(<PostCard post={post} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("still renders a muted author", () => {
+    usePostStore.getState().actions.excludeAuthor("u1", "muted");
+
+    render(<PostCard post={post} />);
+
+    expect(screen.getByText("Nội dung bài viết")).toBeInTheDocument();
+  });
+});
+
+describe("PostCard close friends badge", () => {
+  const avatarOf = (container: HTMLElement) => container.querySelector('[data-slot="avatar"]');
+
+  it("rings the avatar and labels a close friends post", () => {
+    const { container } = render(<PostCard post={{ ...post, visibility: "closeFriends" }} />);
+
+    expect(avatarOf(container)).toHaveClass("ring-2", "ring-emerald-500");
+    expect(screen.getByText("Bạn thân")).toBeInTheDocument();
+  });
+
+  it("shows no ring or label on a public post", () => {
+    const { container } = render(<PostCard post={post} />);
+
+    expect(avatarOf(container)).not.toHaveClass("ring-emerald-500");
+    expect(screen.queryByText("Bạn thân")).toBeNull();
+  });
+
+  it("follows the store copy of the post", () => {
+    usePostStore.getState().actions.upsertPosts([{ ...post, visibility: "closeFriends" }]);
+
+    const { container } = render(<PostCard post={post} />);
+
+    expect(avatarOf(container)).toHaveClass("ring-emerald-500");
   });
 });

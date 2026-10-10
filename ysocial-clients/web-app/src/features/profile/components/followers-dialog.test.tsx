@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAuthStore } from "@/features/auth";
+import { makeUserProfile } from "../mocks/user-fixtures";
 import * as userService from "../services/user-service";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import type { FollowListPage, UserProfile } from "../types";
@@ -14,15 +15,8 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh }),
 }));
 
-const makeUser = (id: string, overrides: Partial<UserProfile> = {}): UserProfile => ({
-  id,
-  displayName: `User ${id}`,
-  username: `user.${id}`,
-  followersCount: 5,
-  followingCount: 5,
-  isFollowing: false,
-  ...overrides,
-});
+const makeUser = (id: string, overrides: Partial<UserProfile> = {}): UserProfile =>
+  makeUserProfile({ id, displayName: `User ${id}`, username: `user.${id}`, followersCount: 5, followingCount: 5, ...overrides });
 
 const pageOf = (ids: string[], nextPage?: number): FollowListPage => ({ users: ids.map((id) => makeUser(id)), nextPage });
 const idsRange = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `u${from + i}`);
@@ -153,14 +147,15 @@ describe("FollowersDialog", () => {
 
   it("follows from a row through the store (target followers +1)", async () => {
     vi.spyOn(userService, "fetchFollowList").mockResolvedValue(pageOf(["u1"]));
-    vi.spyOn(userService, "setFollow").mockResolvedValue();
+    useAuthStore.setState({ user: { id: "v1", email: "v1@ysocial.dev" }, hydrated: true });
+    vi.spyOn(userService, "followUser").mockResolvedValue("accepted");
     renderDialog();
     await waitFor(() => expect(rows()).toHaveLength(1));
 
     await userEvent.click(within(rows()[0]).getByRole("button", { name: "Theo dõi" }));
 
     expect(useUserStore.getState().users.u1.followersCount).toBe(6);
-    expect(userService.setFollow).toHaveBeenCalledWith("u1", true, "me");
+    expect(userService.followUser).toHaveBeenCalledWith("u1", "v1");
   });
 
   it("hides the follow button on the signed-in user's own row", async () => {
@@ -234,17 +229,18 @@ describe("FollowersDialog", () => {
   });
 
   it("asks for confirmation before unfollowing", async () => {
-    vi.spyOn(userService, "fetchFollowList").mockResolvedValue({ users: [makeUser("u2", { isFollowing: true })] });
-    const setFollow = vi.spyOn(userService, "setFollow").mockResolvedValue();
+    useAuthStore.setState({ user: { id: "v1", email: "v1@ysocial.dev" }, hydrated: true });
+    vi.spyOn(userService, "fetchFollowList").mockResolvedValue({ users: [makeUser("u2", { isFollowing: true, followStatus: "accepted" })] });
+    const unfollow = vi.spyOn(userService, "unfollowUser").mockResolvedValue();
     renderDialog();
     await waitFor(() => expect(rows()).toHaveLength(1));
 
     await userEvent.click(within(rows()[0]).getByRole("button", { name: "Đang theo dõi" }));
 
     expect(await screen.findByText("Bỏ theo dõi @user.u2?")).toBeInTheDocument();
-    expect(setFollow).not.toHaveBeenCalled();
+    expect(unfollow).not.toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "Bỏ theo dõi" }));
-    await waitFor(() => expect(setFollow).toHaveBeenCalledWith("u2", false, "me"));
+    await waitFor(() => expect(unfollow).toHaveBeenCalledWith("u2", "v1"));
   });
 });

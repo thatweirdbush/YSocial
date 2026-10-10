@@ -86,6 +86,7 @@ describe("SearchContainer", () => {
     const post = getMockPostById("post-004")!;
     usePostStore.getState().actions.upsertPosts([post]);
     useSearchStore.getState().actions.setResult({
+      actorId: "me",
       query: "Zinc",
       userIds: [],
       postIds: [post.id],
@@ -107,7 +108,7 @@ describe("SearchContainer", () => {
     const spy = vi.spyOn(service, "fetchSearch").mockRejectedValueOnce(new Error("boom"));
     const post = getMockPostById("post-004")!;
     usePostStore.getState().actions.upsertPosts([post]);
-    useSearchStore.getState().actions.setResult({ query: "zinc", userIds: [], postIds: [post.id], latestPostIds: [post.id], tags: [] });
+    useSearchStore.getState().actions.setResult({ actorId: "me", query: "zinc", userIds: [], postIds: [post.id], latestPostIds: [post.id], tags: [] });
 
     render(<SearchContainer query="zinc" tab="top" />);
     await waitFor(() => expect(spy).toHaveBeenCalled());
@@ -161,4 +162,22 @@ describe("SearchContainer", () => {
 
     expect(useSearchStore.getState().recent[0]).toBe("next");
   });
+
+  it("never renders the cached result of another viewer", async () => {
+    const post = getMockPostById("post-004")!;
+    usePostStore.getState().actions.upsertPosts([post]);
+    useSearchStore.getState().actions.setResult({
+      actorId: "someone-else",
+      query: "zinc",
+      userIds: [],
+      postIds: [post.id],
+      latestPostIds: [post.id],
+      tags: [],
+    });
+
+    render(<SearchContainer query="zinc" tab="top" />);
+
+    expect(screen.queryByRole("article")).toBeNull();
+  });
 });
+

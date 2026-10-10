@@ -2,6 +2,12 @@ import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useAuthStore } from "@/features/auth";
+import { getPostActions } from "@/features/posts";
+import { resetPostStore, usePostStore } from "@/features/posts/store/post-store";
+import * as relationService from "../services/relation-service";
+import type { RelationSets } from "../types";
+import { getViewerGeneration, resetOpLedger } from "../store/op-ledger";
+import * as relationStore from "../store/relation-store";
 import * as store from "../store/user-store";
 import { ViewerSync } from "./viewer-sync";
 
@@ -13,6 +19,9 @@ describe("ViewerSync", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     store.resetUserStore();
+    relationStore.resetRelationStore();
+    resetPostStore();
+    resetOpLedger();
     spy = vi.spyOn(store, "ensureViewerUser").mockResolvedValue(null);
     localStorage.removeItem("ysocial_user");
     localStorage.removeItem("ysocial_access_token");
@@ -50,3 +59,73 @@ describe("ViewerSync", () => {
     expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ id: "2", username: "new.user" }), "2");
   });
 });
+
+describe("ViewerSync viewer switch", () => {
+  const USER_2 = { id: "2", email: "two@ysocial.dev", username: "two", displayName: "Two" };
+  const emptySets: RelationSets = { blocked: [], blockedBy: [], muted: [], closeFriends: [], isPrivate: false, requestCount: 0 };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    store.resetUserStore();
+    relationStore.resetRelationStore();
+    resetPostStore();
+    resetOpLedger();
+    vi.spyOn(store, "ensureViewerUser").mockResolvedValue(null);
+    vi.spyOn(store, "ensureFollowGraph").mockResolvedValue();
+    useAuthStore.setState({ user: DEMO, accessToken: "a", refreshToken: "r", isAuthenticated: true, hydrated: true });
+  });
+
+  it("loads the relation sets of the initial viewer without resetting the feeds", () => {
+    const load = vi.spyOn(relationStore, "ensureRelationSets").mockResolvedValue();
+    const reset = vi.spyOn(getPostActions(), "resetViewerFeeds");
+
+    render(<ViewerSync />);
+
+    expect(load).toHaveBeenCalledWith("1", { force: true });
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("resets the viewer feeds once, invalidates the new viewer and reloads its sets on an account switch", () => {
+    const load = vi.spyOn(relationStore, "ensureRelationSets").mockResolvedValue();
+    const invalidate = vi.spyOn(relationStore, "invalidateViewerProjection");
+    const reset = vi.spyOn(getPostActions(), "resetViewerFeeds");
+    usePostStore.getState().actions.setFeedPage("forYou", [], false);
+    const generation = getViewerGeneration();
+    render(<ViewerSync />);
+
+    act(() => useAuthStore.setState({ user: USER_2 }));
+
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith("2");
+    expect(load).toHaveBeenLastCalledWith("2", { force: true });
+    expect(getViewerGeneration()).toBe(generation + 1);
+    expect(usePostStore.getState().feedMeta.forYou.loaded).toBe(false);
+    expect(store.ensureFollowGraph).toHaveBeenCalledWith("2");
+  });
+
+  it("does not reset again when the same account updates", () => {
+    vi.spyOn(relationStore, "ensureRelationSets").mockResolvedValue();
+    const reset = vi.spyOn(getPostActions(), "resetViewerFeeds");
+    render(<ViewerSync />);
+
+    act(() => useAuthStore.getState().actions.updateUser({ ...DEMO, bio: "changed" }));
+
+    expect(reset).not.toHaveBeenCalled();
+  });
+
+  it("never applies the relation sets of the previous viewer to the post store (stale result)", async () => {
+    let resolveFirst!: (sets: RelationSets) => void;
+    vi.spyOn(relationService, "fetchRelationSets").mockImplementation((actorId) =>
+      actorId === "1" ? new Promise((resolve) => (resolveFirst = resolve)) : Promise.resolve(emptySets),
+    );
+    render(<ViewerSync />);
+
+    act(() => useAuthStore.setState({ user: USER_2 }));
+    await act(async () => {
+      resolveFirst({ ...emptySets, blocked: ["author-01"] });
+    });
+
+    expect(usePostStore.getState().excludedAuthors).toEqual({});
+  });
+});
+

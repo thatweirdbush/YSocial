@@ -9,9 +9,13 @@ import { resetPostStore } from "@/features/posts/store/post-store";
 import type { PostItem } from "@/features/posts/types";
 import { useUIStore } from "@/lib/store/ui-store";
 import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
+import { makeUserProfile } from "../mocks/user-fixtures";
+import * as relationService from "../services/relation-service";
 import * as userService from "../services/user-service";
+import { resetOpLedger } from "../store/op-ledger";
+import { resetRelationStore } from "../store/relation-store";
 import { resetUserStore, useUserStore } from "../store/user-store";
-import type { UserProfile } from "../types";
+import type { RelationSets, UserProfile } from "../types";
 import { ProfileContainer } from "./profile-container";
 
 const refresh = vi.hoisted(() => vi.fn());
@@ -27,20 +31,22 @@ const DEMO_AUTH = {
   displayName: SEED_DEMO_ACCOUNT.displayName,
 };
 
-const profile = (overrides: Partial<UserProfile> = {}): UserProfile => ({
-  id: "author-03",
-  displayName: "Trần Anh Quốc",
-  username: "anquoc.dev",
-  bio: "Bio của Quốc",
-  followersCount: 100,
-  followingCount: 10,
-  isFollowing: false,
-  ...overrides,
-});
+const profile = (overrides: Partial<UserProfile> = {}): UserProfile =>
+  makeUserProfile({
+    id: "author-03",
+    displayName: "Trần Anh Quốc",
+    username: "anquoc.dev",
+    bio: "Bio của Quốc",
+    followersCount: 100,
+    followingCount: 10,
+    ...overrides,
+  });
 
 const demoProfile = profile({ id: "1", displayName: "YSocial Member", username: "ysocial_member", bio: undefined });
 
-const emptyPage = { posts: [] as PostItem[], parents: [], nextPage: undefined };
+const NO_RELATIONS: RelationSets = { blocked: [], blockedBy: [], muted: [], closeFriends: [], isPrivate: false, requestCount: 0 };
+
+const emptyPage = { posts: [] as PostItem[], parents: [], nextPage: undefined, locked: false };
 
 const signedOut = () =>
   useAuthStore.setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false, hydrated: true });
@@ -52,7 +58,10 @@ beforeEach(() => {
   refresh.mockClear();
   resetPostStore();
   resetUserStore();
+  resetRelationStore();
+  resetOpLedger();
   useUIStore.setState({ composerOpen: false });
+  vi.spyOn(relationService, "fetchRelationSets").mockResolvedValue(NO_RELATIONS);
   vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(emptyPage);
   vi.spyOn(postService, "fetchSavedPosts").mockResolvedValue({ posts: [] });
   vi.spyOn(userService, "fetchUserByUsername").mockImplementation(async (username) =>
@@ -195,13 +204,13 @@ describe("ProfileContainer tabs", () => {
 
 describe("ProfileContainer follow & edit", () => {
   it("follows from the header through the service", async () => {
-    signedOut();
-    const setFollow = vi.spyOn(userService, "setFollow").mockResolvedValue();
+    signedInAsDemo();
+    const follow = vi.spyOn(userService, "followUser").mockResolvedValue("accepted");
     render(<ProfileContainer username="anquoc.dev" />);
 
     await userEvent.click(await screen.findByRole("button", { name: "Theo dõi" }));
 
-    expect(setFollow).toHaveBeenCalledWith("author-03", true, "me");
+    expect(follow).toHaveBeenCalledWith("author-03", DEMO_AUTH.id);
   });
 
   it("edits the own profile through the service and updates the header from the store", async () => {
@@ -252,5 +261,117 @@ describe("ProfileContainer follow & edit", () => {
 
     expect(await within(dialog).findByText("Tên hiển thị phải từ 2 ký tự")).toBeInTheDocument();
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("ProfileContainer private, blocked & unavailable states", () => {
+  const asPrivate = (overrides: Partial<UserProfile> = {}) => {
+    vi.mocked(userService.fetchUserByUsername).mockImplementation(async (username) =>
+      username.toLowerCase() === "anquoc.dev" ? profile({ isPrivate: true, ...overrides }) : null,
+    );
+  };
+
+  it("locks a private profile for a viewer who does not follow it: counts visible but not clickable, no tabs", async () => {
+    signedInAsDemo();
+    asPrivate();
+    render(<ProfileContainer username="anquoc.dev" />);
+
+    expect(await screen.findByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Trần Anh Quốc" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Tài khoản riêng tư")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Theo dõi" })).toBeInTheDocument();
+    expect(screen.getByText("100 người theo dõi")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /người theo dõi/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /đang theo dõi/ })).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(postService.fetchUserPosts).not.toHaveBeenCalled();
+  });
+
+  it("keeps a pending request locked and unlocks the tabs once the follow is accepted", async () => {
+    signedInAsDemo();
+    asPrivate({ followStatus: "pending" });
+    render(<ProfileContainer username="anquoc.dev" />);
+    expect(await screen.findByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Đã yêu cầu" })).toBeInTheDocument();
+
+    act(() => useUserStore.getState().actions.upsertUsers([profile({ isPrivate: true, followStatus: "accepted", isFollowing: true })], "1"));
+
+    expect(await screen.findByRole("tab", { name: "Thread" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeNull();
+    await waitFor(() => expect(postService.fetchUserPosts).toHaveBeenCalled());
+  });
+
+  it("shows tabs for the owner of a private profile, with the lock icon", async () => {
+    signedInAsDemo();
+    vi.mocked(userService.upsertViewerUser).mockResolvedValue({ ...demoProfile, isPrivate: true });
+    render(<ProfileContainer username="ysocial_member" />);
+
+    expect(await screen.findByLabelText("Tài khoản riêng tư")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Thread" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeNull();
+  });
+
+  it("shows the blocked state with Unblock instead of the profile when the viewer blocked the user", async () => {
+    signedInAsDemo();
+    vi.mocked(relationService.fetchRelationSets).mockResolvedValue({ ...NO_RELATIONS, blocked: ["author-03"] });
+    const setBlocked = vi.spyOn(relationService, "setBlocked").mockResolvedValue();
+    vi.spyOn(relationService, "fetchFollowRequestCount").mockResolvedValue(0);
+    render(<ProfileContainer username="anquoc.dev" />);
+
+    expect(await screen.findByRole("heading", { name: "Bạn đã chặn @anquoc.dev" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Trần Anh Quốc" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Bỏ chặn" }));
+
+    expect(setBlocked).toHaveBeenCalledWith("author-03", false, "1");
+    expect(await screen.findByRole("tab", { name: "Thread" })).toBeInTheDocument();
+  });
+
+  it("shows an unavailable profile without a follow button when the user blocked the viewer", async () => {
+    signedInAsDemo();
+    vi.mocked(relationService.fetchRelationSets).mockResolvedValue({ ...NO_RELATIONS, blockedBy: ["author-03"] });
+    render(<ProfileContainer username="anquoc.dev" />);
+
+    expect(await screen.findByRole("heading", { name: "Hồ sơ không khả dụng" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Theo dõi" })).toBeNull();
+    expect(screen.queryByRole("tablist")).toBeNull();
+  });
+
+  it("never flashes the tabs of a blocked profile while the relation sets are loading", async () => {
+    signedInAsDemo();
+    let release!: (sets: RelationSets) => void;
+    vi.mocked(relationService.fetchRelationSets).mockReturnValue(new Promise((resolve) => (release = resolve)));
+    render(<ProfileContainer username="anquoc.dev" />);
+
+    await waitFor(() => expect(relationService.fetchRelationSets).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId("profile-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Trần Anh Quốc" })).toBeNull();
+
+    await act(async () => release({ ...NO_RELATIONS, blocked: ["author-03"] }));
+
+    expect(await screen.findByRole("heading", { name: "Bạn đã chặn @anquoc.dev" })).toBeInTheDocument();
+  });
+
+  it("does not gate a guest on the relation sets", async () => {
+    signedOut();
+    render(<ProfileContainer username="anquoc.dev" />);
+
+    expect(await screen.findByRole("tab", { name: "Thread" })).toBeInTheDocument();
+  });
+
+  it("offers the header menu to a signed-in viewer on another profile but not on their own", async () => {
+    signedInAsDemo();
+    const { unmount } = render(<ProfileContainer username="anquoc.dev" />);
+    expect(await screen.findByRole("button", { name: "Thêm" })).toBeInTheDocument();
+    unmount();
+
+    render(<ProfileContainer username="ysocial_member" />);
+    await screen.findByRole("heading", { name: "YSocial Member" });
+    expect(screen.queryByRole("button", { name: "Thêm" })).toBeNull();
   });
 });

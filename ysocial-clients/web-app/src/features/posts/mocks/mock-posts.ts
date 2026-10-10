@@ -47,6 +47,15 @@ const RAW_POSTS: RawPost[] = [
     content: "Một tuần trekking, 0 thông báo, 100% bình yên. Giờ quay lại feed thôi 🏔️ #dalat" },
   // #endregion
 
+  // #region Close friends posts (author-03 marks the demo account, author-02 does not)
+  { id: "post-cf-01", author: 2, minutesAgo: 20, likesCount: 4, visibility: "closeFriends",
+    content: "Chỉ chia sẻ với bạn thân thôi: tối nay mình thử deploy bản beta của dự án mới." },
+  { id: "post-cf-02", author: 2, minutesAgo: 75, likesCount: 7, visibility: "closeFriends",
+    content: "Cà phê cuối tuần ở chỗ quen. Ai ở gần ghé nha." },
+  { id: "post-cf-03", author: 1, minutesAgo: 110, likesCount: 3, visibility: "closeFriends",
+    content: "Draft mới của mình, chưa muốn public. Góp ý riêng giúp mình nhé." },
+  // #endregion
+
   // #region Demo account (mock login) content
   { id: "post-demo-01", author: "demo", minutesAgo: 90, likesCount: 18, isPinned: true,
     content: "Bài ghim: chào mừng bạn đến trang cá nhân của mình trên YSocial! 👋" },
@@ -64,7 +73,7 @@ const RAW_POSTS: RawPost[] = [
   { id: "reply-001-02", parentId: "post-001", author: 3, minutesAgo: 8, likesCount: 22, liked: true, content: "Cho mình hỏi palette màu chính là zinc hay slate vậy?" },
   { id: "reply-001-02-01", parentId: "reply-001-02", author: 0, minutesAgo: 7, likesCount: 6, content: "Zinc bạn nhé, cả light lẫn dark mode." },
   { id: "reply-001-02-02", parentId: "reply-001-02", author: 3, minutesAgo: 6, likesCount: 2, content: "Cảm ơn ad, đúng gu mình luôn 💜" },
-  { id: "reply-001-02-03", parentId: "reply-001-02", author: 4, minutesAgo: 5, likesCount: 1, content: "Zinc + border mảnh là combo bất bại." },
+  { id: "reply-001-02-03", parentId: "reply-001-02", author: 5, minutesAgo: 5, likesCount: 1, content: "Zinc + border mảnh là combo bất bại." },
   { id: "reply-001-03", parentId: "post-001", author: 5, minutesAgo: 6, likesCount: 3, content: "Đã share cho team design rồi nha." },
   { id: "reply-001-04", parentId: "post-001", author: 6, minutesAgo: 4, likesCount: 0, content: "Khi nào có app mobile vậy ad?" },
   { id: "reply-001-04-01", parentId: "reply-001-04", author: 0, minutesAgo: 3, likesCount: 4, content: "Đang trong roadmap, sớm thôi!" },

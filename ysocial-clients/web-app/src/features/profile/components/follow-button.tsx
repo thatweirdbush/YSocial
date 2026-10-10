@@ -1,13 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useActorId } from "@/features/auth";
+import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
+import { commitBlock, useIsBlocked, useIsBlockedBy } from "../store/relation-store";
 import { commitFollow, useFollowState, useUser } from "../store/user-store";
 
 interface FollowButtonProps {
@@ -21,16 +23,22 @@ interface FollowButtonProps {
 
 const BASE = "relative shrink-0 rounded-full border px-3 py-0.5 text-[11px] font-bold tracking-tight";
 
-/** Follow toggle bound to `user-store`; persists to the user service. */
+/**
+ * Follow control bound to `user-store`; persists to the user service. States: Follow / Requested (pending request,
+ * click cancels without confirm) / Following. A guest sees the same button; clicking it goes to `/login`.
+ */
 export function FollowButton({ userId, className, reserveSpace = false, confirmUnfollow = false }: FollowButtonProps) {
   const { t } = useTranslation();
   const actorId = useActorId();
+  const router = useRouter();
   const user = useUser(userId);
-  const isFollowing = useFollowState(userId);
+  const status = useFollowState(userId);
+  const isBlocked = useIsBlocked(userId);
+  const isBlockedBy = useIsBlockedBy(userId);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Unknown follow state (e.g. right after an account switch) -> never render a guessed "Follow"
-  if (!user || isFollowing === undefined) {
+  if (!user || status === undefined) {
     if (!reserveSpace) return null;
     return (
       <span aria-hidden="true" className={cn(buttonVariants({ size: "sm", variant: "outline" }), BASE, "invisible", className)}>
@@ -39,21 +47,54 @@ export function FollowButton({ userId, className, reserveSpace = false, confirmU
     );
   }
 
-  const commit = () => {
-    const next = !isFollowing;
-    void commitFollow(actorId, userId).then((ok) => {
+  // The user blocked the viewer: nothing to follow. The viewer blocked the user: the only action is Unblock
+  if (isBlockedBy) return null;
+  if (isBlocked) {
+    const handleUnblock = (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      void commitBlock(actorId, userId, false).then((ok) => {
+        if (ok) toast.success(t("relations.unblockedToast", { username: user.username }));
+        else toast.error(t("relations.actionError"));
+      });
+    };
+    return (
+      <Button
+        type="button"
+        onClick={handleUnblock}
+        size="sm"
+        variant="outline"
+        className={cn(
+          BASE,
+          "border-zinc-950 bg-transparent text-black transition-all duration-300 hover:bg-black hover:text-white motion-reduce:transition-none dark:border-zinc-100 dark:text-white dark:hover:bg-white dark:hover:text-black",
+          "after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']",
+          className,
+        )}
+      >
+        {t("relations.unblock")}
+      </Button>
+    );
+  }
+
+  const isFollowing = status === "accepted";
+  const isRequested = status === "pending";
+
+  const commit = (next: "follow" | "unfollow") => {
+    void commitFollow(actorId, userId, next).then((ok) => {
       if (!ok) toast.error(t("card.followError"));
     });
-    if (next) toast.success(t("card.followSuccess", { username: user.username }));
-    else toast.info(t("card.unfollowSuccess", { username: user.username }));
+    const params = { username: user.username };
+    if (next === "follow") toast.success(t(user.isPrivate ? "relations.requestSentToast" : "card.followSuccess", params));
+    else toast.info(t(isRequested ? "relations.requestCanceledToast" : "card.unfollowSuccess", params));
   };
 
   const handleClick = (e: React.MouseEvent) => {
     // Rows around the button link to the profile; keep the click local
     e.preventDefault();
     e.stopPropagation();
-    if (isFollowing && confirmUnfollow) setConfirmOpen(true);
-    else commit();
+    if (actorId === GUEST_ACTOR_ID) router.push("/login");
+    else if (isFollowing && confirmUnfollow) setConfirmOpen(true);
+    else commit(status === "none" ? "follow" : "unfollow");
   };
 
   return (
@@ -69,13 +110,13 @@ export function FollowButton({ userId, className, reserveSpace = false, confirmU
         "transition-all duration-300 motion-reduce:transition-none",
         // Invisible hit area -> 44px touch target without changing the visual size
         "after:absolute after:-inset-x-1 after:-inset-y-2 after:content-['']",
-        isFollowing
+        isFollowing || isRequested
           ? "border-zinc-200 bg-zinc-100 text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400"
           : "border-zinc-950 bg-transparent text-black hover:bg-black hover:text-white dark:border-zinc-100 dark:text-white dark:hover:bg-white dark:hover:text-black",
         className,
       )}
     >
-      {isFollowing ? t("card.following") : t("card.follow")}
+      {isFollowing ? t("card.following") : isRequested ? t("relations.requested") : t("card.follow")}
     </Button>
     {confirmUnfollow && (
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -104,7 +145,7 @@ export function FollowButton({ userId, className, reserveSpace = false, confirmU
               type="button"
               onClick={() => {
                 setConfirmOpen(false);
-                commit();
+                commit("unfollow");
               }}
               className="min-h-11 flex-1 rounded-2xl border-none bg-red-500 font-bold text-white shadow-none hover:bg-red-600"
             >

@@ -15,9 +15,10 @@ export {
   fetchTrendingTags,
   fetchUserPosts,
   ForbiddenError,
+  isPostPubliclyVisible,
   PROFILE_PAGE_SIZE,
   searchPosts,
   SEARCH_LIMIT,
 } from "./services/post-service";
-export { useIsDeleted, usePinnedPostId, usePost, usePostActions } from "./store/post-store";
+export { getPostActions, useIsAuthorBlocked, useIsDeleted, usePinnedPostId, usePost, usePostActions } from "./store/post-store";
 export { byNewest as byNewestPost } from "./utils/hashtags";

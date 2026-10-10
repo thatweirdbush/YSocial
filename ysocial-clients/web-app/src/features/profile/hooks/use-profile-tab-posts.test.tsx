@@ -24,6 +24,7 @@ const page = (ids: string[], nextPage?: number, parents: ParentReference[] = [])
   posts: ids.map((id) => makePost(id)),
   parents,
   nextPage,
+  locked: false,
 });
 
 const deferred = <T,>() => {
@@ -70,7 +71,7 @@ describe("useProfileTabPosts", () => {
 
     await waitFor(() => expect(screen.getByTestId("panel-threads")).toHaveTextContent("a,b|ready"));
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith("u1", "threads", 1);
+    expect(spy).toHaveBeenCalledWith("u1", "threads", 1, "v1");
     expect(usePostStore.getState().posts.a).toBeDefined();
 
     rerender(<Harness userId="u1" actorId="v1" tabs={[]} />);
@@ -198,5 +199,21 @@ describe("useProfileTabPosts", () => {
 
     await waitFor(() => expect(screen.getByTestId("panel-saved")).toHaveTextContent("saved-2|ready"));
     expect(screen.getByTestId("panel-saved")).not.toHaveTextContent("saved-1");
+  });
+
+  it("exposes the locked flag the service reports for a private profile", async () => {
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue({ ...page([]), locked: true });
+    render(<Harness userId="u1" actorId="v1" tabs={["threads"]} />);
+
+    await waitFor(() => expect(probe.current?.locked).toBe(true));
+    expect(probe.current?.ids).toEqual([]);
+  });
+
+  it("is not locked for a readable profile", async () => {
+    vi.spyOn(postService, "fetchUserPosts").mockResolvedValue(page(["a"]));
+    render(<Harness userId="u1" actorId="v1" tabs={["threads"]} />);
+
+    await waitFor(() => expect(probe.current?.status).toBe("ready"));
+    expect(probe.current?.locked).toBe(false);
   });
 });

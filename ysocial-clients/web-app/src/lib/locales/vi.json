@@ -7,7 +7,8 @@
     "saved": "Đã lưu",
     "profile": "Trang cá nhân",
     "switchProfile": "Chuyển tài khoản",
-    "logout": "Đăng xuất"
+    "logout": "Đăng xuất",
+    "settings": "Cài đặt"
   },
   "feed": {
     "forYou": "Cho bạn",
@@ -55,7 +56,9 @@
     "location": "Vị trí",
     "searchGifPlaceholder": "Tìm kiếm GIF...",
     "searchEmojiPlaceholder": "Tìm kiếm emoji...",
-    "searchLocationPlaceholder": "Tìm kiếm vị trí..."
+    "searchLocationPlaceholder": "Tìm kiếm vị trí...",
+    "closeFriends": "Chỉ bạn thân",
+    "closeFriendsHint": "Chỉ những người bạn thân của bạn mới thấy bài viết này"
   },
   "card": {
     "justNow": "Vừa xong",
@@ -102,12 +105,11 @@
     "notInterested": "Không quan tâm",
     "notInterestedToast": "Sẽ hiển thị ít bài như thế này hơn",
     "mute": "Ẩn @{username}",
-    "muteToast": "Đã ẩn @{username}",
     "block": "Chặn @{username}",
-    "blockToast": "Đã chặn @{username}",
     "copyLink": "Sao chép liên kết",
     "report": "Báo cáo bài viết",
-    "reportToast": "Đã gửi báo cáo. Cảm ơn bạn!"
+    "reportToast": "Đã gửi báo cáo. Cảm ơn bạn!",
+    "closeFriends": "Bạn thân"
   },
   "common": {
     "language": "Ngôn ngữ",
@@ -166,7 +168,8 @@
     "backHome": "Về trang chủ",
     "loadError": "Không tải được trang cá nhân",
     "followSearchPlaceholder": "Tìm kiếm",
-    "followNoMatch": "Không tìm thấy ai khớp với \"{query}\""
+    "followNoMatch": "Không tìm thấy ai khớp với \"{query}\"",
+    "privateBadge": "Tài khoản riêng tư"
   },
   "notifications": {
     "title": "Thông báo",
@@ -180,7 +183,9 @@
     "emptyLikes": "Chưa có lượt thả tim nào.",
     "actionLike": "đã thích bài viết của bạn",
     "actionFollow": "đã bắt đầu theo dõi bạn",
-    "actionReply": "đã trả lời bài viết của bạn"
+    "actionReply": "đã trả lời bài viết của bạn",
+    "followRequests": "{count} yêu cầu theo dõi",
+    "followRequestsHint": "Duyệt hoặc xoá yêu cầu"
   },
   "auth": {
     "loginTitle": "Đăng nhập vào YSocial",
@@ -340,5 +345,64 @@
     "qrTitle": "Mã QR của @{username}",
     "downloadPng": "Tải PNG",
     "downloadFailed": "Không tải được ảnh QR"
+  },
+  "relations": {
+    "requested": "Đã yêu cầu",
+    "requestSentToast": "Đã gửi yêu cầu theo dõi @{username}",
+    "requestCanceledToast": "Đã hủy yêu cầu theo dõi @{username}",
+    "unblock": "Bỏ chặn",
+    "unblockedToast": "Đã bỏ chặn @{username}",
+    "actionError": "Không thể cập nhật, thử lại nhé",
+    "blockTitle": "Chặn @{username}?",
+    "blockDescription": "Họ sẽ không xem được bài viết hay theo dõi bạn, và bạn cũng không thấy nội dung của họ. Các lượt theo dõi giữa hai bên sẽ bị gỡ.",
+    "blockConfirm": "Chặn",
+    "blockedToast": "Đã chặn @{username}",
+    "muteToast": "Đã ẩn @{username} khỏi bảng tin",
+    "unmuteToast": "Đã bỏ ẩn @{username}",
+    "unmute": "Bỏ ẩn @{username}",
+    "undo": "Hoàn tác",
+    "privateTitle": "Tài khoản này là riêng tư",
+    "privateDescription": "Theo dõi để xem bài viết của họ.",
+    "blockedTitle": "Bạn đã chặn @{username}",
+    "unavailableTitle": "Hồ sơ không khả dụng",
+    "unavailableDescription": "Bạn không thể xem hồ sơ này.",
+    "addCloseFriend": "Thêm vào bạn thân",
+    "removeCloseFriend": "Xoá khỏi bạn thân",
+    "closeFriendAddedToast": "Đã thêm @{username} vào bạn thân",
+    "closeFriendRemovedToast": "Đã xoá @{username} khỏi bạn thân",
+    "searchPlaceholder": "Tìm theo tên hoặc @username",
+    "loadMore": "Xem thêm",
+    "retry": "Thử lại",
+    "blockedEmptyTitle": "Chưa chặn ai",
+    "blockedEmptyDescription": "Những tài khoản bạn chặn sẽ xuất hiện ở đây.",
+    "mutedEmptyTitle": "Chưa ẩn ai",
+    "mutedEmptyDescription": "Tài khoản bạn ẩn khỏi bảng tin sẽ xuất hiện ở đây.",
+    "unmuteAction": "Bỏ ẩn",
+    "requestsTitle": "Yêu cầu theo dõi",
+    "confirm": "Xác nhận",
+    "delete": "Xoá",
+    "requestsEmptyTitle": "Không có yêu cầu nào",
+    "requestsEmptyDescription": "Khi có người muốn theo dõi bạn, yêu cầu sẽ hiện ở đây.",
+    "closeFriendsCount": "{n} bạn thân",
+    "closeFriendsEmptyTitle": "Chưa có ai để thêm",
+    "closeFriendsEmptyDescription": "Hãy theo dõi vài người rồi thêm họ vào bạn thân.",
+    "add": "Thêm",
+    "remove": "Xoá"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "privacy": "Quyền riêng tư",
+    "blocked": "Đã chặn",
+    "muted": "Đã ẩn",
+    "closeFriends": "Bạn thân",
+    "back": "Quay lại",
+    "privateAccount": "Tài khoản riêng tư",
+    "privateAccountDescription": "Chỉ người theo dõi được bạn chấp thuận mới xem được bài viết của bạn.",
+    "goPublicTitle": "Chuyển sang công khai?",
+    "goPublicDescription": "Bài viết của bạn sẽ hiển thị công khai.",
+    "goPublicRequests": "{count} yêu cầu theo dõi sẽ được tự động chấp nhận.",
+    "goPublicConfirm": "Chuyển sang công khai",
+    "guestTitle": "Đăng nhập để mở cài đặt",
+    "guestCta": "Đăng nhập"
   }
 }

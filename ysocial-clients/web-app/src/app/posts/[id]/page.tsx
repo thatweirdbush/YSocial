@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { MainLayout } from "@/components/layout/main-layout";
-import { getMockPostById, PostDetailContainer } from "@/features/posts";
+import { getMockPostById, isPostPubliclyVisible, PostDetailContainer } from "@/features/posts";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -12,7 +12,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { id } = await params;
   const post = getMockPostById(id);
 
-  if (!post) {
+  // Close friends posts & private authors get the same generic metadata as an unknown post: no content in OG
+  if (!post || !isPostPubliclyVisible(post)) {
     return { title: "Không tìm thấy bài viết • YSocial" };
   }
 

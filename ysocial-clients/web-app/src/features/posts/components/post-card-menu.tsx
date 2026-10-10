@@ -21,6 +21,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
+import { BlockConfirmDialog, commitBlock, commitMute, useIsMuted } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import type { OwnerActions } from "../hooks/use-owner-actions";
 import type { PostItem } from "../types";
@@ -40,11 +42,37 @@ const ICON = "size-4 text-zinc-400 mr-2";
 /** Triple-dot menu: owner actions (edit, pin, hide likes, delete) or viewer actions. */
 export function PostCardMenu({ post, owner, isSavedPage = false, onUnsave, onEdit }: PostCardMenuProps) {
   const { t } = useTranslation();
+  const actorId = useActorId();
+  const isMuted = useIsMuted(post.user.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
   // Edit opens only after the menu closed: its focus scope would otherwise swallow the editor's autofocus
   const editRequestedRef = useRef(false);
   const busy = owner?.pendingOp !== undefined;
   const username = post.user.username;
+  const authorId = post.user.id;
+  const canManageAuthor = actorId !== GUEST_ACTOR_ID;
+
+  const setMuted = (next: boolean) => {
+    void commitMute(actorId, authorId, next).then((ok) => {
+      if (!ok) toast.error(t("relations.actionError"));
+    });
+    if (next) {
+      toast.info(t("relations.muteToast", { username }), {
+        action: { label: t("relations.undo"), onClick: () => void commitMute(actorId, authorId, false) },
+      });
+    } else {
+      toast.info(t("relations.unmuteToast", { username }));
+    }
+  };
+
+  const block = () => {
+    setBlockOpen(false);
+    void commitBlock(actorId, authorId, true).then((ok) => {
+      if (ok) toast.success(t("relations.blockedToast", { username }));
+      else toast.error(t("relations.actionError"));
+    });
+  };
 
   const copyLink = async () => {
     try {
@@ -132,15 +160,19 @@ export function PostCardMenu({ post, owner, isSavedPage = false, onUnsave, onEdi
                 {t("card.notInterested")}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-              <DropdownMenuItem onSelect={() => toast.info(t("card.muteToast", { username }))} className={ITEM}>
-                <VolumeX className={ICON} />
-                {t("card.mute", { username })}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => toast.info(t("card.blockToast", { username }))} className={ITEM}>
-                <Ban className={ICON} />
-                {t("card.block", { username })}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
+              {canManageAuthor && (
+                <>
+                  <DropdownMenuItem onSelect={() => setMuted(!isMuted)} className={ITEM}>
+                    <VolumeX className={ICON} />
+                    {isMuted ? t("relations.unmute", { username }) : t("card.mute", { username })}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setBlockOpen(true)} className={ITEM}>
+                    <Ban className={ICON} />
+                    {t("card.block", { username })}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
+                </>
+              )}
               <DropdownMenuItem onSelect={() => void copyLink()} className={ITEM}>
                 <Link2 className={ICON} />
                 {t("card.copyLink")}
@@ -156,6 +188,10 @@ export function PostCardMenu({ post, owner, isSavedPage = false, onUnsave, onEdi
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {!owner && canManageAuthor && (
+        <BlockConfirmDialog open={blockOpen} onOpenChange={setBlockOpen} username={username} onConfirm={block} />
+      )}
 
       {owner && (
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

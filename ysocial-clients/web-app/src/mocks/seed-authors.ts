@@ -31,7 +31,7 @@ export const SEED_FOLLOWED_AUTHOR_IDS: readonly string[] = ["author-02", "author
 export const SEED_FOLLOWING: Readonly<Record<string, readonly string[]>> = {
   "author-01": ["author-02", "author-03", "author-06"],
   "author-02": ["author-01", "author-04"],
-  "author-03": ["author-01", "author-02", "author-05"],
+  "author-03": ["author-01", "author-02", "author-05", "1"],
   "author-04": ["author-02", "author-06"],
   "author-05": ["author-01", "author-03"],
   "author-06": ["author-01", "author-08"],
@@ -39,4 +39,10 @@ export const SEED_FOLLOWING: Readonly<Record<string, readonly string[]>> = {
   "author-08": ["author-04", "author-06"],
   "1": SEED_FOLLOWED_AUTHOR_IDS,
   me: SEED_FOLLOWED_AUTHOR_IDS,
+};
+
+/** Close friend flags per observer (observer -> targets marked); effective only on accepted edges. */
+export const SEED_CLOSE_FRIENDS: Readonly<Record<string, readonly string[]>> = {
+  "author-03": ["1"],
+  "1": ["author-03"],
 };

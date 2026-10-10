@@ -15,12 +15,12 @@ page.tsx (server) : params + cookies() -> parseMockSession -> resolveProfileRout
 Providers         : useLayoutEffect hydrate() -> <ViewerSync/> ensureViewerUser (once per session id, after hydrated)
 ProfileContainer  : !hydrated -> ProfileSkeleton ; ProfileLookup (ensureViewerUser | ensureUserByUsername) -> ProfileView
 ProfileView       : useProfileTabPostsController(user.id, actorId) -> ProfileTabPanel(tab) -> post-store (posts) / ProfileMediaGrid
-FollowButton / FollowersDialog -> commitFollow -> toggleFollow (optimistic) -> setFollow -> refreshUsers (only if no newer toggle)
+FollowButton / FollowersDialog -> commitFollow(actor, id, follow|unfollow) -> setFollowStatus (optimistic) -> followUser|unfollowUser -> refreshUsers (only if no newer op on the target)
 ```
 
 ## Key rules
 - **Identity:** `useViewerId(): string | null` = authenticated identity (own-profile, Saved, Edit, route). `useActorId()` = legacy mutation actor (`"me"` for guest) ONLY for mock services/stores. NEVER mix
-- **Counts:** visible = `HIDDEN_*` baseline (`profile/mocks`) + graph relation count (`src/mocks/follow-graph.ts`, forward + reverse index, `link()` only mutation). No stored counts. Dialog lists partial dataset by design
+- **Counts:** visible = `HIDDEN_*` baseline (`profile/mocks`) + graph relation count (`src/mocks/relation-graph.ts`, accepted edges only, `writeEdge()` only mutation; see `relationship-controls.md`). No stored counts. Dialog lists partial dataset by design
 - **Fans:** `src/mocks/seed-fans.ts`, mulberry32(0x5eed), 30-60 per base user, follow only their base user, 0 followers. Excluded from suggestions, included in search & follow lists
 - **Session cookie** `ysocial_mock_user` = `{ id, username }` ONLY. Client-writable, NOT auth boundary (never reuse as real auth). Lets server resolve current session's runtime user; another session's runtime user = 404.
 - **Mock login** always signs in `SEED_DEMO_ACCOUNT` (`1`, `@ysocial_member`). Register issues id `2` for every new account

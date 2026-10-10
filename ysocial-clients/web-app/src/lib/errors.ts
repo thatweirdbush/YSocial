@@ -5,3 +5,11 @@ export class ForbiddenError extends Error {
     this.name = "ForbiddenError";
   }
 }
+
+/** Rejection for blocking oneself. */
+export class CannotBlockYourselfError extends Error {
+  constructor(message = "Cannot block yourself") {
+    super(message);
+    this.name = "CannotBlockYourselfError";
+  }
+}

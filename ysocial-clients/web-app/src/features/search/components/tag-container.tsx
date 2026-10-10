@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
+import { useActorId } from "@/features/auth";
 import { fetchPostsByTag, PostCard, usePost, usePostActions } from "@/features/posts";
 import type { TagSort } from "@/features/posts/types";
 import { useTranslation } from "@/hooks/use-translation";
@@ -28,6 +29,7 @@ function TagPostCard({ id }: { id: string }) {
 export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
   const { t } = useTranslation();
   const router = useRouter();
+  const actorId = useActorId();
   const { upsertPosts } = usePostActions();
   const { setTagPage } = useSearchActions();
 
@@ -43,14 +45,14 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
   const [attempt, setAttempt] = useState(0);
   const [failedKey, setFailedKey] = useState<string | null>(null);
 
-  const key = tagPageKey(tag, sort);
+  const key = tagPageKey(tag, sort, actorId);
   const page = useTagPage(key);
 
   useEffect(() => {
     // Stale-while-revalidate: cached pages (Back, sort switched back) render at once, refetch replaces them silently
     let active = true;
 
-    fetchPostsByTag(tag, sort)
+    fetchPostsByTag(tag, sort, actorId)
       .then((result) => {
         if (!active) return;
         upsertPosts(result.posts);
@@ -61,7 +63,7 @@ export function TagContainer({ tag, sort: initialSort }: TagContainerProps) {
     return () => {
       active = false;
     };
-  }, [tag, sort, key, attempt, upsertPosts, setTagPage]);
+  }, [tag, sort, key, attempt, actorId, upsertPosts, setTagPage]);
 
   const tabs = useMemo(
     () => [

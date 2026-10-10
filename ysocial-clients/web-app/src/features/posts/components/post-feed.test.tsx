@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GUEST_ACTOR_ID } from "@/features/auth/store/auth-store";
+import { GUEST_ACTOR_ID, useAuthStore } from "@/features/auth/store/auth-store";
 import * as userService from "@/features/profile/services/user-service";
 import { getFollowedIds, resetUserStore } from "@/features/profile/store/user-store";
 import { SEED_AUTHORS, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
@@ -120,8 +120,13 @@ describe("PostFeed paging & refresh", () => {
     globalThis.IntersectionObserver = AlwaysVisibleObserver as unknown as typeof IntersectionObserver;
     const realFetch = service.fetchFeed;
     let failNextPage = true;
+    // A guest sees only 10 seed roots (one real page): split them across 2 fake pages (5 + 5)
+    const half = async (tab: Parameters<typeof realFetch>[0], actorId: string, second: boolean) => {
+      const result = await realFetch(tab, 1, actorId);
+      return second ? { posts: result.posts.slice(5) } : { posts: result.posts.slice(0, 5), nextPage: 2 };
+    };
     const spy = vi.spyOn(service, "fetchFeed").mockImplementation((tab, page, actorId) =>
-      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : realFetch(tab, page, actorId),
+      page > 1 && failNextPage ? Promise.reject(new Error("offline")) : half(tab, actorId, page > 1),
     );
     const toastError = vi.spyOn(toast, "error");
     const nextPageCalls = () => spy.mock.calls.filter(([, page]) => page === 2).length;
@@ -135,8 +140,54 @@ describe("PostFeed paging & refresh", () => {
     failNextPage = false;
     await userEvent.click(retry);
 
-    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(16), LOAD_TIMEOUT);
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(10), LOAD_TIMEOUT);
     expect(nextPageCalls()).toBe(2);
+  });
+});
+
+describe("PostFeed viewer switch", () => {
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("reloads page 1 for the new viewer after the viewer feeds were reset", async () => {
+    const spy = vi.spyOn(service, "fetchFeed");
+    render(<PostFeed />);
+    await screen.findAllByRole("article", {}, LOAD_TIMEOUT);
+    expect(spy).toHaveBeenCalledWith("forYou", 1, GUEST_ACTOR_ID);
+
+    act(() => {
+      useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+      usePostStore.getState().actions.resetViewerFeeds();
+    });
+
+    await waitFor(() => expect(spy).toHaveBeenCalledWith("forYou", 1, "1"), LOAD_TIMEOUT);
+    await waitFor(() => expect(usePostStore.getState().feedMeta.forYou.loaded).toBe(true), LOAD_TIMEOUT);
+    expect(screen.getAllByRole("article").length).toBeGreaterThan(0);
+  });
+
+  it("ignores a page that finished after the viewer changed", async () => {
+    const realFetch = service.fetchFeed;
+    let releaseGuest!: () => void;
+    const guestGate = new Promise<void>((resolve) => (releaseGuest = resolve));
+    vi.spyOn(service, "fetchFeed").mockImplementation(async (tab, page, actorId) => {
+      const result = await realFetch(tab, page, actorId);
+      if (actorId === GUEST_ACTOR_ID) await guestGate;
+      return result;
+    });
+    render(<PostFeed />);
+
+    act(() => {
+      useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+      usePostStore.getState().actions.resetViewerFeeds();
+    });
+    await waitFor(() => expect(usePostStore.getState().feedMeta.forYou.loaded).toBe(true), LOAD_TIMEOUT);
+    const ownIds = usePostStore.getState().feedIds.forYou;
+
+    releaseGuest();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(usePostStore.getState().feedIds.forYou).toEqual(ownIds);
   });
 });
 
@@ -152,5 +203,37 @@ describe("PostCreatorDialog default submit", () => {
       const { feedIds, posts } = usePostStore.getState();
       expect(posts[feedIds.forYou[0]]?.content).toBe("bài mới");
     }, LOAD_TIMEOUT);
+  });
+});
+
+describe("PostCreatorDialog close friends", () => {
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  it("publishes a close friends post through the default submit", async () => {
+    useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev", username: "ysocial_member" } });
+    const create = vi.spyOn(service, "createPost");
+    render(<PostCreatorDialog open onOpenChange={vi.fn()} />);
+
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Chỉ bạn thân" }));
+    await userEvent.type(within(dialog).getByRole("textbox"), "bài riêng tư");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Đăng" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ content: "bài riêng tư", visibility: "closeFriends" }), expect.anything()));
+    await waitFor(() => expect(usePostStore.getState().feedIds.forYou.length).toBeGreaterThan(0), LOAD_TIMEOUT);
+  });
+
+  it("keeps public posts free of a visibility field", async () => {
+    const create = vi.spyOn(service, "createPost");
+    render(<PostCreatorDialog open onOpenChange={vi.fn()} />);
+
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByRole("textbox"), "bài công khai");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Đăng" }));
+
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0][0].visibility).toBeUndefined();
   });
 });

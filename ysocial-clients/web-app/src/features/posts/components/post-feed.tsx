@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
+import { getActorId } from "@/features/auth";
 import { ensureFollowGraph, getFollowedIds } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../hooks/use-current-author";
@@ -19,10 +20,13 @@ import { PostSkeletonList, PostSkeletonText } from "./post-skeleton";
 
 const NO_FAILURES: Record<FeedTab, boolean> = { forYou: false, following: false };
 
-/** Tabs whose pages are already in the store (snapshot at mount). */
-function cachedFeedTabs(): Set<FeedTab> {
+/** Key of a tab's first-page request: it belongs to one viewer, so a viewer switch loads it again. */
+const requestKey = (viewerId: string, tab: FeedTab) => `${viewerId}:${tab}`;
+
+/** Tabs whose pages are already in the store for `viewerId` (snapshot at mount). */
+function cachedFeedTabs(viewerId: string): Set<string> {
   const { feedMeta } = usePostStore.getState();
-  return new Set((Object.keys(feedMeta) as FeedTab[]).filter((tab) => feedMeta[tab].loaded));
+  return new Set((Object.keys(feedMeta) as FeedTab[]).filter((tab) => feedMeta[tab].loaded).map((tab) => requestKey(viewerId, tab)));
 }
 
 /** Subscribes to a single post so a like re-renders only this card. */
@@ -41,9 +45,9 @@ export function PostFeed() {
   const [failedTabs, setFailedTabs] = useState(NO_FAILURES);
   const [isFetchingNext, setIsFetchingNext] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
-  // Tabs whose first page was already requested (seeded with tabs cached in the store, e.g. Back from a
-  // thread, so they render instantly); guards against duplicate fetches across re-renders.
-  const requestedTabsRef = useRef<Set<FeedTab>>(cachedFeedTabs());
+  // Tabs whose first page was already requested for this viewer (seeded with tabs cached in the store, e.g. Back
+  // from a thread, so they render instantly); guards against duplicate fetches across re-renders.
+  const requestedTabsRef = useRef<Set<string>>(cachedFeedTabs(viewerId));
   const feedIds = useFeedIds(activeTab);
   const { loaded, nextPage } = useFeedMeta(activeTab);
   const failed = failedTabs[activeTab];
@@ -52,6 +56,8 @@ export function PostFeed() {
   const loadPage = useCallback(async (tab: FeedTab, page: number) => {
     try {
       const result = await fetchFeed(tab, page, viewerId);
+      // The viewer changed while the page was in flight: it belongs to the previous account
+      if (getActorId() !== viewerId) return true;
       upsertPosts(result.posts);
       setFeedPage(tab, result.posts.map((p) => p.id), page > 1, result.nextPage);
       if (page === 1) {
@@ -90,12 +96,13 @@ export function PostFeed() {
     void loadWithFeedback(tab, page).finally(() => setIsFetchingNext(false));
   }, [loadWithFeedback]);
 
-  // First load per tab; switching back to a loaded tab reuses the cached ids.
+  // First load per tab and viewer; switching back to a loaded tab reuses the cached ids.
   useEffect(() => {
-    if (requestedTabsRef.current.has(activeTab)) return;
-    requestedTabsRef.current.add(activeTab);
+    const key = requestKey(viewerId, activeTab);
+    if (requestedTabsRef.current.has(key)) return;
+    requestedTabsRef.current.add(key);
     void loadWithFeedback(activeTab, 1);
-  }, [activeTab, loadWithFeedback]);
+  }, [activeTab, viewerId, loadWithFeedback]);
 
   const handleRefresh = () => {
     void loadWithFeedback(activeTab, 1);

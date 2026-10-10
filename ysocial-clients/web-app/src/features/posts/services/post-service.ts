@@ -1,9 +1,11 @@
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
-import { getFollowedAuthorIds } from "@/mocks/follow-graph";
+import { isPrivate } from "@/mocks/privacy";
+import { getFollowedIds } from "@/mocks/relation-graph";
 import { SEED_AUTHORS } from "@/mocks/seed-authors";
+import { asViewer, canViewPost, canViewProfile, isMutedBy } from "@/mocks/visibility";
 import { MOCK_INCOMING_CONTENTS } from "../mocks/mock-incoming";
-import { MOCK_POSTS } from "../mocks/mock-posts";
+import { getMockPostById, MOCK_POSTS } from "../mocks/mock-posts";
 import type {
   CreatePostInput,
   FeedPage,
@@ -81,6 +83,24 @@ async function simulateNetwork(): Promise<void> {
 
 const copy = (post: PostItem): PostItem => structuredClone(post);
 
+/**
+ * Whether `viewer` may see `post`: the visibility contract (`mocks/visibility`) plus thread rules. A reply carries
+ * no visibility of its own, so it is visible only if its nearest existing root is visible and its author passes.
+ */
+function visibleTo(viewer: string | null, post: PostItem): boolean {
+  if (!canViewPost(viewer, post)) return false;
+  let root = post;
+  for (let parent = db.get(root.parentId ?? ""); parent; parent = db.get(root.parentId ?? "")) root = parent;
+  return root === post || canViewPost(viewer, root);
+}
+
+/** True when a signed-out visitor could see `post` and its seed thread root (server metadata must not leak more). */
+export function isPostPubliclyVisible(post: Pick<PostItem, "user" | "visibility" | "parentId">): boolean {
+  if (!canViewPost(null, post)) return false;
+  const parent = post.parentId ? getMockPostById(post.parentId) : undefined;
+  return parent ? isPostPubliclyVisible(parent) : true;
+}
+
 const roots = (): PostItem[] => [...db.values()].filter((post) => post.parentId === undefined);
 
 function countOccurrences(text: string, token: string): number {
@@ -138,6 +158,7 @@ function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string
     isBookmarkedByCurrentUser: false,
     user: { ...author },
     parentId,
+    ...(parentId === undefined && input.visibility === "closeFriends" ? { visibility: "closeFriends" as const } : {}),
   };
 }
 // #endregion
@@ -145,8 +166,11 @@ function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string
 export async function fetchFeed(tab: FeedTab, page: number, viewerId: string): Promise<FeedPage> {
   await simulateNetwork();
 
-  const followed = getFollowedAuthorIds(viewerId);
-  const roots = [...db.values()].filter((post) => getPostFeedTabs(post, followed).includes(tab)).sort(byNewest);
+  const followed = getFollowedIds(viewerId);
+  const viewer = asViewer(viewerId);
+  const roots = [...db.values()]
+    .filter((post) => getPostFeedTabs(post, followed).includes(tab) && visibleTo(viewer, post) && !isMutedBy(viewer, post.user.id))
+    .sort(byNewest);
 
   const start = (page - 1) * FEED_PAGE_SIZE;
   const posts = roots.slice(start, start + FEED_PAGE_SIZE).map(copy);
@@ -165,10 +189,13 @@ function pageOf<T>(items: T[], page: number): { items: T[]; nextPage?: number } 
  * One author's posts per profile tab, newest first. `threads`: roots, the pinned one first (so it is never
  * repeated on later pages); `replies`: replies plus their parent references; `media`: roots with images.
  */
-export async function fetchUserPosts(userId: string, tab: UserPostsTab, page: number): Promise<UserPostsPage> {
+export async function fetchUserPosts(userId: string, tab: UserPostsTab, page: number, actorId: string): Promise<UserPostsPage> {
   await simulateNetwork();
 
-  const own = [...db.values()].filter((post) => post.user.id === userId).sort(byNewest);
+  const viewer = asViewer(actorId);
+  if (!canViewProfile(viewer, userId)) return { posts: [], parents: [], locked: true };
+
+  const own = [...db.values()].filter((post) => post.user.id === userId && visibleTo(viewer, post)).sort(byNewest);
   let list: PostItem[];
   switch (tab) {
     case "threads": {
@@ -195,35 +222,40 @@ export async function fetchUserPosts(userId: string, tab: UserPostsTab, page: nu
       parents.push(parent ? { id: parentId, author: { ...parent.user }, deleted: false } : { id: parentId, deleted: true });
     }
   }
-  return { posts: items.map(copy), parents, nextPage };
+  return { posts: items.map(copy), parents, nextPage, locked: false };
 }
 
 /**
- * Posts the viewer bookmarked (roots and replies), newest first. `actorId` is reserved for per-viewer bookmarks:
- * the flag is currently global on the post (tracked debt).
+ * Posts the viewer bookmarked (roots and replies) and may still see, newest first. The bookmark flag is currently
+ * global on the post (tracked debt); `actorId` drives visibility only.
  */
 export async function fetchSavedPosts(actorId: string, page: number): Promise<SavedPostsPage> {
-  void actorId;
   await simulateNetwork();
 
-  const saved = [...db.values()].filter((post) => post.isBookmarkedByCurrentUser).sort(byNewest);
+  const viewer = asViewer(actorId);
+  const saved = [...db.values()].filter((post) => post.isBookmarkedByCurrentUser && visibleTo(viewer, post)).sort(byNewest);
   const { items, nextPage } = pageOf(saved, page);
   return { posts: items.map(copy), nextPage };
 }
 
-export async function fetchPostThread(id: string): Promise<PostThread | null> {
+/** Not-found (`null`) when the viewer cannot see the post; replies the viewer cannot see are filtered out. */
+export async function fetchPostThread(id: string, actorId: string): Promise<PostThread | null> {
   await simulateNetwork();
 
+  const viewer = asViewer(actorId);
   const post = db.get(id);
-  if (!post) return null;
+  if (!post || !visibleTo(viewer, post)) return null;
 
-  const replies = childrenOf(id);
+  const replies = childrenOf(id).filter((reply) => visibleTo(viewer, reply));
   const childReplies: Record<string, PostItem[]> = {};
   for (const reply of replies) {
-    childReplies[reply.id] = childrenOf(reply.id).map(copy);
+    childReplies[reply.id] = childrenOf(reply.id)
+      .filter((child) => visibleTo(viewer, child))
+      .map(copy);
   }
 
-  const parent = post.parentId ? db.get(post.parentId) : undefined;
+  const candidate = post.parentId ? db.get(post.parentId) : undefined;
+  const parent = candidate && visibleTo(viewer, candidate) ? candidate : undefined;
   return {
     post: copy(post),
     parent: parent && copy(parent),
@@ -275,14 +307,22 @@ export async function createReply(parentId: string, input: CreatePostInput, auth
  * Root posts matching every token. `relevance`: score, likes, newest; `latest`: newest first.
  * `#tag` query -> exact tag match (relevance = likes, newest).
  */
-export async function searchPosts(query: string, limit = SEARCH_LIMIT, sort: PostSearchSort = "relevance"): Promise<PostItem[]> {
+export async function searchPosts(
+  query: string,
+  actorId: string,
+  limit = SEARCH_LIMIT,
+  sort: PostSearchSort = "relevance",
+): Promise<PostItem[]> {
   await simulateNetwork();
+
+  const viewer = asViewer(actorId);
+  const visibleRoots = () => roots().filter((post) => visibleTo(viewer, post));
 
   const trimmed = query.trim();
   if (trimmed.startsWith("#")) {
     const key = tagKey(trimmed);
     if (!key) return [];
-    return roots()
+    return visibleRoots()
       .filter((post) => hasTag(post, key))
       .sort(sort === "latest" ? byNewest : (a, b) => b.likesCount - a.likesCount || byNewest(a, b))
       .slice(0, limit)
@@ -292,7 +332,7 @@ export async function searchPosts(query: string, limit = SEARCH_LIMIT, sort: Pos
   const tokens = tokenize(trimmed);
   if (tokens.length === 0) return [];
 
-  return roots()
+  return visibleRoots()
     .map((post) => ({ post, score: scorePost(post, tokens) }))
     .filter((entry): entry is { post: PostItem; score: number } => entry.score !== null)
     .sort((a, b) =>
@@ -304,11 +344,12 @@ export async function searchPosts(query: string, limit = SEARCH_LIMIT, sort: Pos
     .map((entry) => copy(entry.post));
 }
 
-export async function fetchPostsByTag(tag: string, sort: TagSort): Promise<TagPage> {
+export async function fetchPostsByTag(tag: string, sort: TagSort, actorId: string): Promise<TagPage> {
   await simulateNetwork();
 
+  const viewer = asViewer(actorId);
   const key = tagKey(tag);
-  const matches = roots().filter((post) => hasTag(post, key));
+  const matches = roots().filter((post) => hasTag(post, key) && visibleTo(viewer, post));
   if (matches.length === 0) return { tag, postsCount: 0, posts: [] };
 
   const order = sort === "top" ? (a: PostItem, b: PostItem) => b.likesCount - a.likesCount || byNewest(a, b) : byNewest;
@@ -320,11 +361,14 @@ export async function fetchPostsByTag(tag: string, sort: TagSort): Promise<TagPa
   };
 }
 
-/** Most used tags over root posts: count desc, then normalized tag asc. */
+/**
+ * Most used tags over root posts a signed-out visitor can see (trending is global, so private authors' and close
+ * friends posts never feed it): count desc, then normalized tag asc.
+ */
 export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
   await simulateNetwork();
 
-  return [...collectTagStats(db.values())]
+  return [...collectTagStats([...db.values()].filter((post) => canViewPost(null, post)))]
     .sort(([keyA, a], [keyB, b]) => b.postsCount - a.postsCount || keyA.localeCompare(keyB))
     .slice(0, limit)
     .map(([, stat]) => stat);
@@ -386,7 +430,8 @@ function scheduleTick(): void {
     const count = Math.random() < 0.5 ? 1 : 2;
     for (let i = 0; i < count && listeners.size > 0; i += 1) {
       const input: CreatePostInput = { content: pick(MOCK_INCOMING_CONTENTS), images: [], audience: "anyone" };
-      const post = buildPost(input, pick(SEED_AUTHORS), undefined, "post-live");
+      // The stream is global, not viewer-scoped: only public posts by public authors are generated
+      const post = buildPost(input, pick(SEED_AUTHORS.filter((author) => !isPrivate(author.id))), undefined, "post-live");
       db.set(post.id, post);
       for (const listener of listeners) listener(copy(post));
     }

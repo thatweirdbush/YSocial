@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { toast } from "sonner";
+import { FollowRequestsBanner } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { SafeHydration } from "@/components/shared/safe-hydration";
 import { NotificationList } from "./notification-list";
@@ -132,6 +133,9 @@ export const NotificationContainer: React.FC = () => {
             {t("notifications.title") || "Notifications"}
           </h1>
         </div>
+
+        {/* Pending follow requests of a private account (hidden when there are none) */}
+        <FollowRequestsBanner />
 
         {/* Dynamic Notification List */}
         <NotificationList

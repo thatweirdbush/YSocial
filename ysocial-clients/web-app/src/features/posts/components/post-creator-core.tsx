@@ -17,13 +17,14 @@ import {
   Trash2,
   MapPinned,
   Check,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { useDrafts, useDraftActions } from "../store/post-draft-store";
-import type { PostAudience } from "../types";
+import type { PostAudience, PostVisibility } from "../types";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { DiscardWarningDialog } from "./discard-warning-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,7 +43,7 @@ export interface PostCreatorCoreRef {
 
 interface PostCreatorCoreProps {
   draftId?: string;
-  onPostSubmitted?: (content: string, images: string[], audience: PostAudience) => Promise<void>;
+  onPostSubmitted?: (content: string, images: string[], audience: PostAudience, visibility: PostVisibility) => Promise<void>;
   onCancel?: () => void;
   onPopoverStateChange?: (isOpen: boolean) => void;
   onStateChange?: (hasUnsavedChanges: boolean) => void;
@@ -271,6 +272,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const [images, setImages] = useState<string[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [audience, setAudience] = useState<PostAudience>("anyone");
+  // Who can SEE the post (close friends only), separate from `audience` = who can reply
+  const [visibility, setVisibility] = useState<PostVisibility>("public");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [location, setLocation] = useState<string | null>(null);
 
@@ -605,15 +608,15 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const handleSaveToDrafts = useCallback(() => {
     const content = textareaRef.current?.value || "";
     if (!content.trim() && images.length === 0) return;
-    const savedId = saveDraft(content, images, audience, activeDraftId);
+    const savedId = saveDraft(content, images, audience, activeDraftId, visibility);
     setActiveDraftId(savedId);
     toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     setIsDraftsOpen(false);
-  }, [images, audience, activeDraftId, saveDraft, t]);
+  }, [images, audience, visibility, activeDraftId, saveDraft, t]);
 
   const handleSaveToDraftsAndClose = useCallback(() => {
     const content = textareaRef.current?.value || "";
-    saveDraft(content, images, audience, activeDraftId);
+    saveDraft(content, images, audience, activeDraftId, visibility);
 
     // Revoke preview URLs
     previewUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
@@ -628,7 +631,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     toast.success(t("creator.draftSaved") || "Draft saved successfully!");
     textareaRef.current?.blur();
     onCancel?.();
-  }, [images, audience, activeDraftId, saveDraft, reset, onCancel, t]);
+  }, [images, audience, visibility, activeDraftId, saveDraft, reset, onCancel, t]);
 
   const handleDiscardAndClose = useCallback(() => {
     if (activeDraftId) {
@@ -653,6 +656,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setValue("content", draft.content);
     setImages(draft.images);
     setAudience(draft.audience);
+    setVisibility(draft.visibility ?? "public");
     setActiveDraftId(draft.id);
     setIsDraftsOpen(false);
   }, [setValue]);
@@ -663,7 +667,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setIsSubmitting(true);
     try {
       if (onPostSubmitted) {
-        await onPostSubmitted(data.content, images, audience);
+        await onPostSubmitted(data.content, images, audience, visibility);
       }
       if (activeDraftId) {
         deleteDraft(activeDraftId);
@@ -678,6 +682,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       setImages([]);
       setLocation(null);
       setAudience("anyone");
+      setVisibility("public");
       setActiveDraftId(undefined);
     } catch (err) {
       console.error("Failed to submit post", err);
@@ -1206,7 +1211,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
           <div className="flex items-center justify-between">
             {/* Post Option Audience Toggle (empty spacer in reply mode keeps the submit action right-aligned) */}
             {isReplyMode ? <span /> : (
-            <div className="relative">
+            <div className="relative flex items-center gap-1">
               <Popover open={isAudienceOpen} onOpenChange={setIsAudienceOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -1227,6 +1232,24 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                 </PopoverTrigger>
                 {audiencePickerContent}
               </Popover>
+
+              {/* Close friends only: signed-in authors; the post carries a visibility, replies never do */}
+              {user && (
+                <button
+                  type="button"
+                  aria-pressed={visibility === "closeFriends"}
+                  title={t("creator.closeFriendsHint")}
+                  onClick={() => setVisibility((current) => (current === "closeFriends" ? "public" : "closeFriends"))}
+                  className={`h-8 flex items-center gap-1.5 px-3 rounded-full transition-colors motion-reduce:transition-none text-xs font-bold whitespace-nowrap tracking-tight cursor-pointer ${
+                    visibility === "closeFriends"
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+                      : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-100"
+                  }`}
+                >
+                  <Star className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span>{t("creator.closeFriends")}</span>
+                </button>
+              )}
             </div>
             )}
 

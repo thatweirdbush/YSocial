@@ -15,12 +15,14 @@ const NOTHING_PENDING: PendingFeed & { authors: PostAuthor[] } = { ids: [], over
 export function usePendingFeed(tab: FeedTab): PendingFeed & { authors: PostAuthor[] } {
   const buffer = useIncomingBuffer();
   const buffered = usePostStore(useShallow((state) => state.incoming.map((id) => state.posts[id])));
+  const excluded = usePostStore((state) => state.excludedAuthors);
   const followed = useFollowedIds();
 
   return useMemo(() => {
     if (tab === "following" && !followed.loaded) return NOTHING_PENDING;
     const posts: Record<string, PostItem> = {};
-    for (const post of buffered) if (post) posts[post.id] = post;
+    // Excluded authors never count, even if their posts were buffered before the exclusion landed
+    for (const post of buffered) if (post && !excluded[post.user.id]) posts[post.id] = post;
     const pending = getPendingFeed(posts, buffer, tab, followed.ids);
     // Distinct authors, newest first: several posts by one author show one avatar
     const authors = new Map<string, PostAuthor>();
@@ -30,5 +32,5 @@ export function usePendingFeed(tab: FeedTab): PendingFeed & { authors: PostAutho
       if (!authors.has(user.id)) authors.set(user.id, user);
     }
     return { ...pending, authors: [...authors.values()] };
-  }, [tab, buffer, buffered, followed]);
+  }, [tab, buffer, buffered, excluded, followed]);
 }

@@ -58,8 +58,9 @@ describe("fetchSearch", () => {
 
   it("returns the latest order from the service", async () => {
     const result = await settle(fetchSearch("nextjs", "v1"));
-    expect(result.posts.map((post) => post.id)).toEqual(["post-009", "post-002", "post-007"]);
-    expect(result.latestPosts.map((post) => post.id)).toEqual(["post-002", "post-007", "post-009"]);
+    // post-007 (private author) is hidden from this viewer
+    expect(result.posts.map((post) => post.id)).toEqual(["post-009", "post-002"]);
+    expect(result.latestPosts.map((post) => post.id)).toEqual(["post-002", "post-009"]);
   });
 
   it("resolves at once without calling services for a bare # or @", async () => {

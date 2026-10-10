@@ -42,7 +42,7 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
 
   const hasQuery = tokenize(query.replace(/^[#@]/, "")).length > 0;
   const result = useSearchResult();
-  const cached = hasQuery && result && normalizeText(result.query) === normalizeText(query) ? result : null;
+  const cached = hasQuery && result && result.actorId === actorId && normalizeText(result.query) === normalizeText(query) ? result : null;
 
   // Stale-while-revalidate: a cached result (Back from a thread) renders at once, the refetch replaces it silently
   const [failed, setFailed] = useState(false);
@@ -67,6 +67,7 @@ export function SearchContainer({ query, tab }: SearchContainerProps) {
         upsertPosts([...posts, ...latestPosts]);
         upsertUsers(users, actorId);
         setResult({
+          actorId,
           query,
           userIds: users.map((user) => user.id),
           postIds: posts.map((post) => post.id),

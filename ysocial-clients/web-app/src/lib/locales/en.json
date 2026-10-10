@@ -7,7 +7,8 @@
     "saved": "Saved",
     "profile": "Profile",
     "switchProfile": "Switch accounts",
-    "logout": "Log out"
+    "logout": "Log out",
+    "settings": "Settings"
   },
   "feed": {
     "forYou": "For you",
@@ -55,7 +56,9 @@
     "location": "Location",
     "searchGifPlaceholder": "Search GIFs...",
     "searchEmojiPlaceholder": "Search emojis...",
-    "searchLocationPlaceholder": "Search locations..."
+    "searchLocationPlaceholder": "Search locations...",
+    "closeFriends": "Close friends only",
+    "closeFriendsHint": "Only your close friends will see this post"
   },
   "card": {
     "justNow": "Just now",
@@ -102,12 +105,11 @@
     "notInterested": "Not interested",
     "notInterestedToast": "You'll see fewer posts like this",
     "mute": "Mute @{username}",
-    "muteToast": "Muted @{username}",
     "block": "Block @{username}",
-    "blockToast": "Blocked @{username}",
     "copyLink": "Copy link",
     "report": "Report post",
-    "reportToast": "Report submitted. Thank you!"
+    "reportToast": "Report submitted. Thank you!",
+    "closeFriends": "Close friends"
   },
   "common": {
     "language": "Language",
@@ -166,7 +168,8 @@
     "backHome": "Back to Home",
     "loadError": "Couldn't load this profile",
     "followSearchPlaceholder": "Search",
-    "followNoMatch": "No one matches \"{query}\""
+    "followNoMatch": "No one matches \"{query}\"",
+    "privateBadge": "Private account"
   },
   "notifications": {
     "title": "Notifications",
@@ -180,7 +183,9 @@
     "emptyLikes": "No likes yet.",
     "actionLike": "liked your post",
     "actionFollow": "started following you",
-    "actionReply": "replied to your post"
+    "actionReply": "replied to your post",
+    "followRequests": "{count} follow requests",
+    "followRequestsHint": "Review, approve or delete requests"
   },
   "auth": {
     "loginTitle": "Log in to YSocial",
@@ -340,5 +345,64 @@
     "qrTitle": "@{username}'s QR code",
     "downloadPng": "Download PNG",
     "downloadFailed": "Couldn't download the QR image"
+  },
+  "relations": {
+    "requested": "Requested",
+    "requestSentToast": "Follow request sent to @{username}",
+    "requestCanceledToast": "Canceled follow request to @{username}",
+    "unblock": "Unblock",
+    "unblockedToast": "Unblocked @{username}",
+    "actionError": "Could not update, try again",
+    "blockTitle": "Block @{username}?",
+    "blockDescription": "They won't see your posts or follow you, and you won't see theirs. Follows between you will be removed.",
+    "blockConfirm": "Block",
+    "blockedToast": "Blocked @{username}",
+    "muteToast": "Muted @{username} from your feeds",
+    "unmuteToast": "Unmuted @{username}",
+    "unmute": "Unmute @{username}",
+    "undo": "Undo",
+    "privateTitle": "This account is private",
+    "privateDescription": "Follow to see their posts.",
+    "blockedTitle": "You blocked @{username}",
+    "unavailableTitle": "Profile unavailable",
+    "unavailableDescription": "You can't view this profile.",
+    "addCloseFriend": "Add to close friends",
+    "removeCloseFriend": "Remove from close friends",
+    "closeFriendAddedToast": "Added @{username} to close friends",
+    "closeFriendRemovedToast": "Removed @{username} from close friends",
+    "searchPlaceholder": "Search by name or @username",
+    "loadMore": "Load more",
+    "retry": "Try again",
+    "blockedEmptyTitle": "No blocked accounts",
+    "blockedEmptyDescription": "Accounts you block will show up here.",
+    "mutedEmptyTitle": "No muted accounts",
+    "mutedEmptyDescription": "Accounts you mute from your feeds will show up here.",
+    "unmuteAction": "Unmute",
+    "requestsTitle": "Follow requests",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "requestsEmptyTitle": "No follow requests",
+    "requestsEmptyDescription": "When someone asks to follow you, it will show up here.",
+    "closeFriendsCount": "{n} close friends",
+    "closeFriendsEmptyTitle": "No one to add yet",
+    "closeFriendsEmptyDescription": "Follow some people, then add them to your close friends.",
+    "add": "Add",
+    "remove": "Remove"
+  },
+  "settings": {
+    "title": "Settings",
+    "privacy": "Privacy",
+    "blocked": "Blocked",
+    "muted": "Muted",
+    "closeFriends": "Close friends",
+    "back": "Back",
+    "privateAccount": "Private account",
+    "privateAccountDescription": "Only followers you approve can see your posts.",
+    "goPublicTitle": "Switch to public?",
+    "goPublicDescription": "Your posts will be visible to everyone.",
+    "goPublicRequests": "{count} follow requests will be accepted automatically.",
+    "goPublicConfirm": "Go public",
+    "guestTitle": "Sign in to open settings",
+    "guestCta": "Sign in"
   }
 }
