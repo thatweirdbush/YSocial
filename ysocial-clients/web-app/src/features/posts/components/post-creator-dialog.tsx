@@ -66,7 +66,7 @@ export function PostCreatorDialog({
         onEscapeKeyDown={handleCloseAttempt}
         onPointerDownOutside={handleCloseAttempt}
         showCloseButton={false}
-        className="max-w-xl w-[95vw] rounded-3xl p-6 border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 shadow-2xl z-50 overflow-hidden outline-none [&>button]:hidden flex flex-col gap-4"
+        className="max-w-xl w-[95vw] rounded-3xl p-6 border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 shadow-2xl z-50 overflow-hidden outline-none flex flex-col gap-4"
       >
         <DialogHeader className="flex flex-row items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-3 mb-1 shrink-0">
           <button

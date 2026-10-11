@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { ShieldAlert } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
@@ -24,9 +23,9 @@ export function DiscardWarningDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
-        showCloseButton={false} 
-        className="max-w-[320px] rounded-3xl p-6 border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 shadow-2xl z-50 text-center flex flex-col gap-4 select-none [&>button]:hidden"
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-[320px] rounded-3xl p-6 border-zinc-200/50 dark:border-zinc-900 bg-white dark:bg-zinc-950 shadow-2xl z-50 text-center flex flex-col gap-4 select-none"
       >
         <div className="mx-auto size-12 rounded-full bg-zinc-100 dark:bg-zinc-900 flex items-center justify-center text-zinc-900 dark:text-zinc-50">
           <ShieldAlert className="size-6 text-zinc-950 dark:text-zinc-100" />

@@ -609,7 +609,8 @@ export const SavedList: React.FC = () => {
       {/* Delete Collection Confirmation Dialog */}
       <Dialog open={collectionToDelete !== null} onOpenChange={(isOpen) => !isOpen && setCollectionToDelete(null)}>
         <DialogContent
-          className="w-[340px] p-6 rounded-3xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-900 text-center flex flex-col items-center gap-4 z-[100] [&>button]:hidden animate-in fade-in zoom-in duration-200"
+          showCloseButton={false}
+          className="w-[340px] p-6 rounded-3xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-900 text-center flex flex-col items-center gap-4 z-[100] animate-in fade-in zoom-in duration-200"
         >
           <DialogHeader className="flex flex-col items-center gap-3 w-full">
             <div className="size-12 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-500 mx-auto shrink-0">

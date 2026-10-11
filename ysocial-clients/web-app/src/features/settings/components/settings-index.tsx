@@ -11,7 +11,7 @@ export function SettingsIndex() {
 
   return (
     <div className="flex flex-col">
-      <h1 className="px-4 py-4 text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">{t("settings.title")}</h1>
+      <h1 className="p-4 text-xl font-bold text-zinc-900 dark:text-zinc-50">{t("settings.title")}</h1>
       <ul className="flex flex-col">
         {SETTINGS_SECTIONS.map(({ href, titleKey, icon: Icon }) => (
           <li key={href} className="border-b border-zinc-200/50 last:border-0 dark:border-zinc-900/50">

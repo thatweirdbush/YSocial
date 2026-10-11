@@ -48,7 +48,7 @@ export function PrivacySettings() {
   };
 
   return (
-    <section className="flex flex-col gap-1 px-4 py-4">
+    <section className="flex flex-col gap-1 p-4">
       <div className="flex min-h-11 items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <label htmlFor="private-account" className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">

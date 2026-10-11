@@ -32,7 +32,7 @@ interface FollowersDialogProps {
 export function FollowersDialog({ open, onOpenChange, userId, username, initialKind }: FollowersDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="z-50 flex h-[560px] max-h-[85vh] w-[95vw] max-w-sm flex-col overflow-hidden rounded-3xl border-zinc-200/50 bg-white p-0 shadow-2xl dark:border-zinc-900 dark:bg-zinc-950 [&>button]:hidden">
+      <DialogContent showCloseButton={false} className="z-50 flex h-[560px] max-h-[85vh] w-[95vw] max-w-sm flex-col overflow-hidden rounded-3xl border-zinc-200/50 bg-white p-0 shadow-2xl dark:border-zinc-900 dark:bg-zinc-950">
         {/* Mounted only while open: every open starts on the requested kind with a clean query */}
         <FollowersDialogBody userId={userId} username={username} initialKind={initialKind} onClose={() => onOpenChange(false)} />
       </DialogContent>

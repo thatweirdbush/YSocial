@@ -17,7 +17,7 @@ export function SettingsPageHeader({ title }: { title: TranslationKey }) {
       >
         <ArrowLeft className="size-5" aria-hidden="true" />
       </Link>
-      <h1 className="px-2 text-lg font-bold tracking-tight text-zinc-900 lg:px-4 dark:text-zinc-50">{t(title)}</h1>
+      <h1 className="px-2 text-lg font-bold text-zinc-900 dark:text-zinc-50">{t(title)}</h1>
     </header>
   );
 }
