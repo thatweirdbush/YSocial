@@ -32,10 +32,10 @@ export function DiscardWarningDialog({
         </div>
         <div className="flex flex-col gap-1">
           <DialogTitle className="text-sm font-bold text-zinc-900 dark:text-zinc-50 uppercase tracking-wider">
-            {t("creator.unsavedTitle") || "Discard changes?"}
+            {t("creator.unsavedTitle")}
           </DialogTitle>
           <DialogDescription className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-            {t("creator.unsavedDesc") || "You have unsaved changes. Do you want to save this post as a draft or discard it?"}
+            {t("creator.unsavedDesc")}
           </DialogDescription>
         </div>
         <div className="flex flex-col gap-1.5 mt-1">
@@ -44,21 +44,21 @@ export function DiscardWarningDialog({
             onClick={onSaveDraft}
             className="w-full h-9 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-black font-bold text-xs hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all cursor-pointer"
           >
-            {t("creator.saveDraft") || "Save Draft"}
+            {t("creator.saveDraft")}
           </button>
           <button
             type="button"
             onClick={onDiscard}
             className="w-full h-9 rounded-xl border border-zinc-250 dark:border-zinc-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-red-500 font-bold text-xs transition-all cursor-pointer"
           >
-            {t("creator.discard") || "Discard"}
+            {t("creator.discard")}
           </button>
           <button
             type="button"
             onClick={onKeepEditing}
             className="w-full h-9 rounded-xl text-zinc-500 dark:text-zinc-400 font-bold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-all cursor-pointer"
           >
-            {t("creator.keepEditing") || "Keep editing"}
+            {t("creator.keepEditing")}
           </button>
         </div>
       </DialogContent>

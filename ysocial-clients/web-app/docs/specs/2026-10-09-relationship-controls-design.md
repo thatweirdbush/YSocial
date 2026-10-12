@@ -51,7 +51,7 @@
 - Cross-feature imports via barrels, used at render/call time only (feed spec I9)
 - Touch targets >= 44px, icon buttons `aria-label`, `motion-reduce`, no `hover:scale-*`
 - Store updates touching >1 entity in 1 `set()`
-- NO `as any` in new/touched files; i18n keys flat `domain.elementName`, vi + en
+- i18n keys flat `domain.elementName`, vi + en
 - Private routes `robots: { index: false }`
 
 ## 4. Architecture & Data Flow

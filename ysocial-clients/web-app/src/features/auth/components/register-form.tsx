@@ -38,7 +38,7 @@ export const RegisterForm: React.FC = () => {
       bio: "Just joined the YSocial ecosystem!",
     });
 
-    toast.success(t("auth.toastRegisterSuccess") || "Account created successfully! Welcome to YSocial.");
+    toast.success(t("auth.toastRegisterSuccess"));
     router.push("/");
   };
 
@@ -46,19 +46,19 @@ export const RegisterForm: React.FC = () => {
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full">
       <div className="text-center md:text-left">
         <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {t("auth.registerTitle") || "Create your account"}
+          {t("auth.registerTitle")}
         </h2>
       </div>
 
       {/* Email Input */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.emailLabel") || "Email"}
+          {t("auth.emailLabel")}
         </label>
         <input
           {...register("email")}
           type="email"
-          placeholder={t("auth.emailPlaceholder") || "Enter your email address"}
+          placeholder={t("auth.emailPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
           autoFocus
@@ -73,11 +73,11 @@ export const RegisterForm: React.FC = () => {
       {/* Username Input */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.usernameLabel") || "Username"}
+          {t("auth.usernameLabel")}
         </label>
         <input
           {...register("username")}
-          placeholder={t("auth.usernamePlaceholder") || "Choose a username"}
+          placeholder={t("auth.usernamePlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
         />
@@ -91,12 +91,12 @@ export const RegisterForm: React.FC = () => {
       {/* Password Input */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.passwordLabel") || "Password"}
+          {t("auth.passwordLabel")}
         </label>
         <input
           {...register("password")}
           type="password"
-          placeholder={t("auth.passwordPlaceholder") || "Enter your password"}
+          placeholder={t("auth.passwordPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
         />
@@ -110,12 +110,12 @@ export const RegisterForm: React.FC = () => {
       {/* Confirm Password Input */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.confirmPasswordLabel") || "Confirm Password"}
+          {t("auth.confirmPasswordLabel")}
         </label>
         <input
           {...register("confirmPassword")}
           type="password"
-          placeholder={t("auth.confirmPasswordPlaceholder") || "Re-enter your password"}
+          placeholder={t("auth.confirmPasswordPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
         />
@@ -134,21 +134,21 @@ export const RegisterForm: React.FC = () => {
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="animate-spin size-4" />
-            <span>{t("auth.registering") || "Creating account..."}</span>
+            <span>{t("auth.registering")}</span>
           </div>
         ) : (
-          t("auth.registerSubmit") || "Register"
+          t("auth.registerSubmit")
         )}
       </Button>
 
       <div className="text-center mt-2">
         <span className="text-xs text-zinc-500">
-          {t("auth.haveAccountPrompt") || "Already have an account?"}{" "}
+          {t("auth.haveAccountPrompt")}{" "}
           <a
             href="/login"
             className="text-zinc-900 dark:text-zinc-100 hover:underline font-bold transition-all ml-1"
           >
-            {t("auth.switchToLogin") || "Log in here"}
+            {t("auth.switchToLogin")}
           </a>
         </span>
       </div>

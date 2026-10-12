@@ -39,7 +39,7 @@
 - Next.js 16 App Router, React 19, TypeScript strict, Tailwind v4, Zustand 5, shadcn/Radix (`radix-ui` umbrella pkg), Lucide. **NO new deps.**
 - Files/dirs `kebab-case`; components `PascalCase`; vars/functions `camelCase`; CRLF line endings.
 - Domain types in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`.
-- All strings via `useTranslation()`, keys in `vi.json` & `en.json`, NO `as any` (new code + touched `post-card.tsx`).
+- All strings via `useTranslation()`, keys in `vi.json` & `en.json`.
 - Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms, `motion-reduce` respected.
 - Store updates touching >1 entity (pin, remove, flush) happen in ONE `set()` -> no visible intermediate state.
 

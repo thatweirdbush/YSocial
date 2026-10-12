@@ -15,7 +15,7 @@
 - Domain types ONLY in `features/<feature>/types/index.ts`; cross-feature imports ONLY via barrels, used at render/call time (never module top level)
 - New feature edges allowed: `settings -> profile`, `settings -> auth`, `notifications -> profile`. `src/mocks/*` imports NO feature except `type` imports
 - D9: guest = `GUEST_ACTOR_ID` (`"me"`) normalized to `null` by `asViewer`; every guest relationship mutation throws `ForbiddenError` (`@/lib/errors`)
-- Strings via `useTranslation()`; flat keys in BOTH `src/lib/locales/vi.json` & `en.json` + `TranslationKey` union; NO `any` / `as any` in new/touched files
+- Strings via `useTranslation()`; flat keys in BOTH `src/lib/locales/vi.json` & `en.json` + `TranslationKey` union
 - Touch targets >= 44px; icon-only buttons `aria-label`; transitions 150-300ms + `motion-reduce:*`; NO `hover:scale-*`
 - Store updates touching >1 entity of 1 store in 1 `set()`
 - Tests: fake timers + `settle()` for services; `beforeEach` resets `__resetRelationGraph()`, `__resetBlockGraph()`, `__resetPrivacy()`, `__resetMockUsers()`, `__resetMockDb()`, `resetUserStore()`, `resetRelationStore()`, `resetPostStore()`

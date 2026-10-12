@@ -29,11 +29,11 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   const getActionText = () => {
     switch (item.kind) {
       case "like":
-        return t("notifications.actionLike") || "liked your post";
+        return t("notifications.actionLike");
       case "follow":
-        return t("notifications.actionFollow") || "started following you";
+        return t("notifications.actionFollow");
       case "reply":
-        return t("notifications.actionReply") || "replied to your post";
+        return t("notifications.actionReply");
       default:
         return "";
     }
@@ -130,7 +130,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
               : "bg-transparent border-zinc-950 dark:border-zinc-100 text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
               }`}
           >
-            {item.user.isFollowing ? t("card.following") || "Following" : t("card.follow") || "Follow"}
+            {item.user.isFollowing ? t("card.following") : t("card.follow")}
           </Button>
         )}
       </div>

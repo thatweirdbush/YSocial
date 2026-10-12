@@ -80,11 +80,11 @@ export function PostCreatorDialog({
             }}
             className="text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors cursor-pointer"
           >
-            {t("creator.cancel") || "Cancel"}
+            {t("creator.cancel")}
           </button>
 
           <DialogTitle className="text-sm font-extrabold text-zinc-900 dark:text-zinc-50 tracking-tight select-none">
-            {t("creator.newPost") || "New post"}
+            {t("creator.newPost")}
           </DialogTitle>
 
           <div className="w-12" /> {/* Symmetrical balancing placeholder */}

@@ -331,7 +331,7 @@ function PostCardView({
           {/* Like pop trigger */}
           <div className="flex items-center gap-1.5 relative">
             {showSparkles && (
-              <Sparkles className="absolute -top-6 -left-2 h-8 w-8 text-amber-400 fill-amber-300 animate-sparkle-burst pointer-events-none" />
+              <Sparkles className="absolute -top-6 -left-2 size-8 text-amber-400 fill-amber-300 animate-sparkle-burst pointer-events-none" />
             )}
             <button
               type="button"

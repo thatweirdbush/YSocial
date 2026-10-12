@@ -25,7 +25,7 @@ Add `/posts/[id]` thread page (root post + replies + inline reply composer) & sh
 - Files/dirs `kebab-case`; components `PascalCase`; vars/functions `camelCase`; CRLF line endings.
 - Types in `src/features/posts/types/index.ts`; cross-feature imports via `@/features/posts` or `@/features/posts/types`.
 - Pages = thin wrappers; metadata declared in `page.tsx`.
-- All user-facing strings via `useTranslation()`, keys in both `src/lib/locales/vi.json` & `en.json` (NO `as any`).
+- All user-facing strings via `useTranslation()`, keys in `src/lib/locales/vi.json` & `en.json`.
 - Touch targets >= 44px; every icon-only button has `aria-label`; transitions 150-300ms, disabled under `motion-reduce`.
 - Content max length: 500 chars (existing `postSchema` in `post-creator-core.tsx`).
 

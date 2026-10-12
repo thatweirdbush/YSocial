@@ -131,6 +131,7 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 
 ## Forbidden Patterns
 - NO inline CSS
+- NO `any` or `as any`
 - NO unapproved animation/icon libraries; ONLY Lucide & Radix Primitives (Vega Preset)
 - NEVER update code outside `ysocial-clients/web-app/`
 - NEVER `dangerouslySetInnerHTML` for user content (posts, bio, comments); linkify via React nodes

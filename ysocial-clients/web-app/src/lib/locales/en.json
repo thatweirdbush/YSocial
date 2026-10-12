@@ -255,7 +255,7 @@
     "bulkUnsaveSuccess": "Selected items unsaved successfully!",
     "manageMode": "Manage",
     "exitManage": "Exit",
-    "selectedCount": "{{count}} selected",
+    "selectedCount": "{count} selected",
     "deleteSelected": "Delete Selected",
     "moveToCollection": "Move to Collection",
     "collectionsTitle": "Collections",
@@ -263,7 +263,7 @@
     "collectionNamePlaceholder": "Collection name...",
     "cancel": "Cancel",
     "create": "Create",
-    "movedSuccess": "Successfully moved to collection!",
+    "movedSuccess": "Successfully moved to collection {name}!",
     "collectionAddedSuccess": "Collection created successfully!",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
@@ -271,9 +271,13 @@
     "confirmDeleteCollection": "Are you sure you want to delete this collection?",
     "collectionDeletedSuccess": "Collection deleted successfully!",
     "deleteCollectionConfirmTitle": "Delete collection {name}?",
+    "deleteCollectionDefaultTitle": "Delete collection?",
     "deleteCollectionConfirmDesc": "This will delete the collection permanently. Saved items inside this collection will not be deleted.",
     "delete": "Delete",
-    "search": "Search"
+    "search": "Search",
+    "dragToSort": "Drag to sort items",
+    "collectionExists": "Collection already exists!",
+    "noCollections": "No collections available"
   },
   "postDetail": {
     "title": "Thread",

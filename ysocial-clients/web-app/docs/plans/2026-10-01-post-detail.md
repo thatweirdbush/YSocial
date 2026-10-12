@@ -14,7 +14,7 @@
 - NO new runtime deps. devDependencies allowed: `vitest`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`.
 - Files `kebab-case`, components `PascalCase`, CRLF line endings, `import type` for type-only imports.
 - Types ONLY in `src/features/posts/types/index.ts`; cross-feature imports via `@/features/posts` or `@/features/posts/types`.
-- All strings via `useTranslation()`; every new key in both `vi.json` & `en.json`; NO `as any` on `t()`.
+- All strings via `useTranslation()`; new keys in `vi.json` & `en.json`.
 - Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms with `motion-reduce:transition-none`.
 - Reply max length 500 chars (existing `postSchema`).
 - Lint/typecheck baseline: `npx tsc --noEmit` exits 0; ESLint has pre-existing errors -> **NO new errors** in touched files.

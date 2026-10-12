@@ -43,7 +43,7 @@
 - **Dependency exception:** `qrcode.react@^4.2.0` (ISC, 0 runtime deps, React `^19` peer, built-in types, `QRCodeSVG` + `QRCodeCanvas`, `imageSettings.excavate` / `crossOrigin`). Chosen over `react-qr-code` (2 deps, no logo), `qr-code-styling` (no React binding, heavier), `qrcode` (Node-oriented deps). Approved
 - Files/dirs `kebab-case`; components `PascalCase`; vars/functions `camelCase`; CRLF line endings
 - Domain types in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`; D17 boundary
-- Strings via D20, keys in `vi.json` & `en.json`, NO `as any` / `any` in new or touched profile files
+- Strings via D20, keys in `vi.json` & `en.json`
 - Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms, `motion-reduce` respected
 - Store updates touching >1 entity happen in 1 `set()`
 

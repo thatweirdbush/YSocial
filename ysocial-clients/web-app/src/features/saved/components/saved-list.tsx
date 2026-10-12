@@ -126,7 +126,7 @@ export const SavedList: React.FC = () => {
 
     const slug = newCollectionName.toLowerCase().trim().replace(/\s+/g, "-");
     if (collections.some((col) => col.slug === slug)) {
-      toast.error(t("saved.collectionExists" as any) || "Collection already exists!");
+      toast.error(t("saved.collectionExists"));
       return;
     }
 
@@ -139,7 +139,7 @@ export const SavedList: React.FC = () => {
     setCollections((prev) => [...prev, newCol]);
     setNewCollectionName("");
     setShowAddCollection(false);
-    toast.success(t("saved.collectionAddedSuccess" as any) || "Collection created successfully!");
+    toast.success(t("saved.collectionAddedSuccess"));
   };
 
   const handleDeleteCollection = (id: string, name: string) => {
@@ -163,7 +163,7 @@ export const SavedList: React.FC = () => {
     }
 
     setCollectionToDelete(null);
-    toast.success(t("saved.collectionDeletedSuccess" as any) || "Collection deleted successfully!");
+    toast.success(t("saved.collectionDeletedSuccess"));
   };
 
   // 5. Unsave / Slide-Out Optimistic trigger
@@ -178,7 +178,7 @@ export const SavedList: React.FC = () => {
         setSelectedIds((prev) => prev.filter((selectedId) => selectedId !== id));
         setAnimatingUnsaveIds((prev) => prev.filter((animId) => animId !== id));
       });
-      toast.success(t("saved.unsaveSuccess" as any) || "Item unsaved successfully!");
+      toast.success(t("saved.unsaveSuccess"));
     }, 300);
   };
 
@@ -197,7 +197,7 @@ export const SavedList: React.FC = () => {
         setIsManageMode(false);
         setAnimatingUnsaveIds((prev) => prev.filter((id) => !idsToUnsave.includes(id)));
       });
-      toast.success(t("saved.bulkUnsaveSuccess" as any) || "Selected items unsaved successfully!");
+      toast.success(t("saved.bulkUnsaveSuccess"));
     }, 300);
   };
 
@@ -219,9 +219,7 @@ export const SavedList: React.FC = () => {
     );
 
     const targetCol = collections.find((c) => c.id === collectionId);
-    toast.success(
-      t("saved.movedSuccess" as any) || `Successfully moved to collection ${targetCol?.name || ""}`
-    );
+    toast.success(t("saved.movedSuccess", { name: targetCol?.name || "" }));
     setSelectedIds([]);
     setIsManageMode(false);
   };
@@ -322,7 +320,7 @@ export const SavedList: React.FC = () => {
         {/* Left Side: Title */}
         <h1 className={`text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 transition-all duration-300
           }`}>
-          {t("saved.title" as any) || "Saved"}
+          {t("saved.title")}
         </h1>
 
         {/* Right Side Controls */}
@@ -334,7 +332,7 @@ export const SavedList: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("saved.search" as any) || "Search..."}
+              placeholder={t("saved.search")}
               className={`bg-zinc-100 dark:bg-zinc-900 border-none rounded-full px-3 py-1.5 text-xs outline-none focus:ring-0 text-zinc-950 dark:text-zinc-50 placeholder:text-zinc-400 dark:placeholder:text-zinc-650 transition-all duration-300 origin-right
                 ${isSearchExpanded ? "w-44 sm:w-64 mr-1 opacity-100" : "w-0 opacity-0 pointer-events-none p-0"
                 }`}
@@ -380,7 +378,7 @@ export const SavedList: React.FC = () => {
                 : "border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-950"
               }`}
           >
-            {isManageMode ? t("saved.exitManage" as any) || "Exit" : t("saved.manageMode" as any) || "Manage"}
+            {isManageMode ? t("saved.exitManage") : t("saved.manageMode")}
           </button>
         </div>
       </header>
@@ -417,7 +415,7 @@ export const SavedList: React.FC = () => {
               : "bg-transparent border-zinc-150 dark:border-zinc-900 text-zinc-500 dark:text-zinc-400 hover:border-zinc-450 dark:hover:border-zinc-700"
               }`}
           >
-            {t("saved.all" as any) || "All"}
+            {t("saved.all")}
           </button>
 
           {/* Collection lists */}
@@ -476,7 +474,7 @@ export const SavedList: React.FC = () => {
                     setNewCollectionName("");
                   }
                 }}
-                placeholder={t("saved.collectionNamePlaceholder" as any) || "New..."}
+                placeholder={t("saved.collectionNamePlaceholder")}
                 className="h-8 bg-transparent border border-zinc-200 dark:border-zinc-800 rounded-full px-3 py-1 text-xs outline-none focus:border-zinc-950 dark:focus:border-zinc-100 text-zinc-900 dark:text-zinc-100"
               />
               <button
@@ -484,14 +482,14 @@ export const SavedList: React.FC = () => {
                 className="h-8 px-3 py-1.5 bg-zinc-900 text-white dark:bg-white dark:text-black rounded-full flex items-center justify-center font-bold text-xs tracking-tight transition-all cursor-pointer shrink-0"
               >
                 <Plus className="size-3.5 mr-1" />
-                <span>{t("saved.create" as any) || "Create"}</span>
+                <span>{t("saved.create")}</span>
               </button>
               <button
                 type="button"
                 onClick={() => setShowAddCollection(false)}
                 className="h-8 px-3 border border-zinc-150 dark:border-zinc-900 rounded-full flex items-center justify-center text-xs font-bold text-zinc-500 dark:text-zinc-400 hover:text-red-500 hover:border-red-500/30 transition-colors cursor-pointer shrink-0"
               >
-                {t("saved.cancel" as any) || "Cancel"}
+                {t("saved.cancel")}
               </button>
             </form>
           ) : (
@@ -500,7 +498,7 @@ export const SavedList: React.FC = () => {
               className="h-8 flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-zinc-300 dark:border-zinc-800 text-zinc-400 dark:text-zinc-650 hover:text-zinc-800 dark:hover:text-zinc-350 hover:border-zinc-600 dark:hover:border-zinc-600 transition-colors text-xs font-semibold whitespace-nowrap tracking-tight cursor-pointer shrink-0"
             >
               <FolderPlus className="size-3.5 shrink-0" />
-              <span>{t("saved.createCollection" as any) || "New"}</span>
+              <span>{t("saved.createCollection")}</span>
             </button>
           )}
         </div>
@@ -530,10 +528,10 @@ export const SavedList: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center select-none">
             <Layers className="size-12 text-zinc-300 dark:text-zinc-800 mb-4 stroke-1 animate-pulse" />
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
-              {t("saved.emptyTitle" as any) || "No saved items found"}
+              {t("saved.emptyTitle")}
             </h3>
             <p className="text-xs text-zinc-400 dark:text-zinc-600 max-w-xs mt-1.5 leading-relaxed">
-              {t("saved.emptyDesc" as any) || "Start saving posts from your timeline feed to display them here!"}
+              {t("saved.emptyDesc")}
             </p>
           </div>
         ) : (
@@ -557,7 +555,7 @@ export const SavedList: React.FC = () => {
                 {/* Drag-and-drop indicator bar handle */}
                 <div
                   className="w-1.5 self-stretch cursor-grab hover:bg-zinc-300 dark:hover:bg-zinc-800 flex items-center justify-center group/grab select-none shrink-0"
-                  title={t("saved.dragToSort" as any) || "Drag to sort items"}
+                  title={t("saved.dragToSort")}
                 >
                   <div className="w-[2px] h-8 bg-zinc-200 dark:bg-zinc-900 group-hover/grab:bg-zinc-400 rounded-full" />
                 </div>
@@ -618,11 +616,11 @@ export const SavedList: React.FC = () => {
             </div>
             <DialogTitle className="text-md font-semibold text-zinc-900 dark:text-zinc-50 leading-tight mx-auto">
               {collectionToDelete
-                ? (t("saved.deleteCollectionConfirmTitle" as any)?.replace("{name}", collectionToDelete.name) || `Delete "${collectionToDelete.name}" collection?`)
-                : "Delete collection?"}
+                ? t("saved.deleteCollectionConfirmTitle", { name: collectionToDelete.name })
+                : t("saved.deleteCollectionDefaultTitle")}
             </DialogTitle>
             <p className="text-xs text-zinc-400 dark:text-zinc-600 max-w-xs mt-1 leading-relaxed mx-auto">
-              {t("saved.deleteCollectionConfirmDesc" as any) || "This will delete the collection permanently. Saved items inside this collection will not be deleted."}
+              {t("saved.deleteCollectionConfirmDesc")}
             </p>
           </DialogHeader>
           <div className="w-full flex flex-row gap-2 mt-2">
@@ -631,7 +629,7 @@ export const SavedList: React.FC = () => {
               onClick={() => setCollectionToDelete(null)}
               className="w-full flex-1 rounded-2xl font-bold bg-transparent border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none h-10 flex items-center justify-center"
             >
-              {t("saved.cancel" as any) || "Cancel"}
+              {t("saved.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -641,7 +639,7 @@ export const SavedList: React.FC = () => {
               }}
               className="w-full flex-1 rounded-2xl font-bold bg-red-500 hover:bg-red-650 text-white border-none shadow-none h-10 flex items-center justify-center cursor-pointer"
             >
-              {t("saved.delete" as any) || "Delete"}
+              {t("saved.delete")}
             </Button>
           </div>
         </DialogContent>

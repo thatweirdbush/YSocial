@@ -610,7 +610,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     if (!content.trim() && images.length === 0) return;
     const savedId = saveDraft(content, images, audience, activeDraftId, visibility);
     setActiveDraftId(savedId);
-    toast.success(t("creator.draftSaved") || "Draft saved successfully!");
+    toast.success(t("creator.draftSaved"));
     setIsDraftsOpen(false);
   }, [images, audience, visibility, activeDraftId, saveDraft, t]);
 
@@ -628,7 +628,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setLocation(null);
     setIsWarningOpen(false);
 
-    toast.success(t("creator.draftSaved") || "Draft saved successfully!");
+    toast.success(t("creator.draftSaved"));
     textareaRef.current?.blur();
     onCancel?.();
   }, [images, audience, visibility, activeDraftId, saveDraft, reset, onCancel, t]);
@@ -738,18 +738,18 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
       >
         <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
-          {t("creator.addMockEmoji") || "Select Emoji"}
+          {t("creator.addMockEmoji")}
         </div>
 
         <input
           type="text"
           value={emojiQuery}
           onChange={(e) => setEmojiQuery(e.target.value)}
-          placeholder={t("creator.searchEmojiPlaceholder") || "Search emojis..."}
+          placeholder={t("creator.searchEmojiPlaceholder")}
           className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
         />
 
-        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+        <ScrollArea className="grow pr-1 flex flex-col min-h-0">
           <div className="flex flex-col gap-3">
             {["Smileys", "Hearts & Gestures", "Nature & Objects"].map((cat) => {
               const catEmojis = filteredEmojis.filter(e => e.category === cat);
@@ -792,18 +792,18 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         className="w-80 sm:w-96 h-[420px] flex flex-col p-3 gap-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-900 shadow-2xl z-50 rounded-2xl"
       >
         <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0">
-          {t("creator.addMockGif") || "Select GIF"}
+          {t("creator.addMockGif")}
         </div>
 
         <input
           type="text"
           value={gifQuery}
           onChange={(e) => setGifQuery(e.target.value)}
-          placeholder={t("creator.searchGifPlaceholder") || "Search GIFs..."}
+          placeholder={t("creator.searchGifPlaceholder")}
           className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
         />
 
-        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+        <ScrollArea className="grow pr-1 flex flex-col min-h-0">
           <div className="flex flex-col gap-3">
             {["Trending", "Reactions", "Memes"].map((cat) => {
               const catGifs = filteredGifs.filter(g => g.category === cat);
@@ -847,18 +847,18 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       >
         <div className="text-[10px] font-bold uppercase text-zinc-400 px-2 py-1 mb-1 border-b border-zinc-100 dark:border-zinc-900/60 shrink-0 flex items-center gap-1">
           <MapPinned className="size-3" />
-          <span>{t("creator.location") || "Select location"}</span>
+          <span>{t("creator.location")}</span>
         </div>
 
         <input
           type="text"
           value={locationQuery}
           onChange={(e) => setLocationQuery(e.target.value)}
-          placeholder={t("creator.searchLocationPlaceholder") || "Search locations..."}
+          placeholder={t("creator.searchLocationPlaceholder")}
           className="w-full h-9 px-3 rounded-xl border border-zinc-200 dark:border-zinc-850 bg-transparent text-xs outline-none text-zinc-900 dark:text-zinc-100 focus:border-zinc-400 transition-colors shrink-0"
         />
 
-        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0">
+        <ScrollArea className="grow pr-1 flex flex-col min-h-0">
           <div className="flex flex-col gap-1">
             {filteredLocations.map((loc) => {
               const isActive = location === loc;
@@ -917,13 +917,13 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         className="w-60 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-1.5 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200 z-50"
       >
         <div className="text-[10px] font-bold uppercase text-zinc-400 px-3 py-1 mb-1 tracking-wider">
-          {t("creator.audience") || "Post Options"}
+          {t("creator.audience")}
         </div>
         {[
-          { id: "anyone", label: t("creator.anyone") || "Anyone can reply", icon: Globe },
-          { id: "followers", label: t("creator.followers") || "Your followers", icon: Users },
-          { id: "following", label: t("creator.following") || "Profiles you follow", icon: UserCheck },
-          { id: "mention", label: t("creator.mention") || "Profiles you mention", icon: AtSign },
+          { id: "anyone", label: t("creator.anyone"), icon: Globe },
+          { id: "followers", label: t("creator.followers"), icon: Users },
+          { id: "following", label: t("creator.following"), icon: UserCheck },
+          { id: "mention", label: t("creator.mention"), icon: AtSign },
         ].map((opt) => {
           const OptIcon = opt.icon;
           const isActive = audience === opt.id;
@@ -963,23 +963,23 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         className="w-72 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200 flex flex-col gap-2 z-50"
       >
         <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-900/60 pb-2 mb-1 shrink-0">
-          <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-50">{t("creator.drafts") || "Drafts"}</span>
+          <span className="text-xs font-extrabold text-zinc-900 dark:text-zinc-50">{t("creator.drafts")}</span>
           {isValid && (
             <button
               type="button"
               onClick={handleSaveToDrafts}
               className="text-[10px] font-bold text-zinc-650 dark:text-zinc-300 hover:text-black dark:hover:text-white border border-zinc-200 dark:border-zinc-800 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
             >
-              {t("creator.saveDraft") || "Save Current"}
+              {t("creator.saveDraft")}
             </button>
           )}
         </div>
 
-        <ScrollArea className="flex-grow pr-1 flex flex-col min-h-0 max-h-52">
+        <ScrollArea className="grow pr-1 flex flex-col min-h-0 max-h-52">
           <div className="flex flex-col gap-2">
             {drafts.length === 0 ? (
               <div className="text-[11px] text-zinc-400 py-6 text-center select-none">
-                {t("creator.noDrafts") || "No drafts saved yet"}
+                {t("creator.noDrafts")}
               </div>
             ) : (
               drafts.map((draft) => (
@@ -1006,7 +1006,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                         onClick={() => handleRestoreDraft(draft)}
                         className="text-[10px] font-bold text-zinc-950 dark:text-zinc-50 hover:underline cursor-pointer"
                       >
-                        {t("creator.restore") || "Restore"}
+                        {t("creator.restore")}
                       </button>
                       <button
                         type="button"
@@ -1037,14 +1037,14 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-bold">Y</AvatarFallback>
       </Avatar>
 
-      <div className="flex-grow flex flex-col min-w-0 relative">
+      <div className="grow flex flex-col min-w-0 relative">
         <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-2">
           {/* Main User Username Info */}
           <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-bold tracking-tight">
             <span>{user?.displayName || "YSocial Member"}</span>
             <span className="text-zinc-400">@{user?.username || "ysocial_member"}</span>
             {location && (
-              <span className="flex items-center text-zinc-400 dark:text-zinc-500 font-medium font-bold">
+              <span className="flex items-center text-zinc-400 dark:text-zinc-500 font-bold">
                 <MapPin className="size-3 mr-0.5 text-zinc-500" />
                 {location}
               </span>
@@ -1059,7 +1059,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
               textareaRef.current = e;
             }}
             onChange={handleTextareaChange}
-            placeholder={placeholder ?? (t("creator.placeholder") || "What's new?")}
+            placeholder={placeholder ?? (t("creator.placeholder"))}
             className="w-full bg-transparent border-none outline-none resize-none text-zinc-950 dark:text-zinc-100 placeholder-zinc-400 text-md min-h-[50px] py-1 max-h-[250px] leading-relaxed"
             maxLength={500}
           />
@@ -1068,7 +1068,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
           {isMentionsOpen && filteredProfiles.length > 0 && (
             <div className="absolute top-16 left-0 z-40 w-64 rounded-2xl border border-zinc-100 dark:border-zinc-900 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md p-1.5 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 max-h-48 overflow-y-auto">
               <div className="text-[10px] uppercase font-bold text-zinc-400 px-2 py-1 tracking-wider border-b border-zinc-100 dark:border-zinc-900/60 mb-1">
-                {t("creator.mentionSearchPlaceholder") || "Mention suggestions"}
+                {t("creator.mentionSearchPlaceholder")}
               </div>
               {filteredProfiles.map((profile) => (
                 <button
@@ -1118,9 +1118,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
               size="icon"
               onClick={() => fileInputRef.current?.click()}
               className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
-              title={t("creator.attachment") || "Attach an image"}
+              title={t("creator.attachment")}
             >
-              <ImageIcon className="h-4 w-4 shrink-0" />
+              <ImageIcon className="size-4 shrink-0" />
             </Button>
 
             {/* GIF Popover */}
@@ -1135,7 +1135,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                       ? "bg-zinc-150 border-zinc-300 text-zinc-900 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-100"
                       : "border-zinc-205 dark:border-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100"
                       }`}
-                    title={t("creator.addMockGif") || "Add GIF"}
+                    title={t("creator.addMockGif")}
                   >
                     GIF
                   </Button>
@@ -1153,9 +1153,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
-                    title={t("creator.addMockEmoji") || "Add Emoji"}
+                    title={t("creator.addMockEmoji")}
                   >
-                    <Smile className="h-4 w-4 shrink-0" />
+                    <Smile className="size-4 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 {emojiPickerContent}
@@ -1171,9 +1171,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer"
-                    title={t("creator.addMockLocation") || "Add Location"}
+                    title={t("creator.addMockLocation")}
                   >
-                    <MapPin className="h-4 w-4 shrink-0" />
+                    <MapPin className="size-4 shrink-0" />
                   </Button>
                 </PopoverTrigger>
                 {locationPickerContent}
@@ -1190,9 +1190,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-transform active:scale-95 cursor-pointer relative"
-                    title={t("creator.drafts") || "Drafts"}
+                    title={t("creator.drafts")}
                   >
-                    <FileText className="h-4 w-4 shrink-0" />
+                    <FileText className="size-4 shrink-0" />
                     {drafts.length > 0 && (
                       <span className="absolute -top-0.5 -right-0.5 size-2 bg-zinc-950 dark:bg-white rounded-full border border-white dark:border-black shrink-0" />
                     )}
@@ -1205,7 +1205,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
           </div>
 
           {/* Bottom Divider */}
-          <div className="h-[1px] bg-zinc-100 dark:bg-zinc-900/60 my-1" />
+          <div className="h-px bg-zinc-100 dark:bg-zinc-900/60 my-1" />
 
           {/* Options & Action Footer */}
           <div className="flex items-center justify-between">
@@ -1223,10 +1223,10 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                     {audience === "following" && <UserCheck className="size-3.5 shrink-0" />}
                     {audience === "mention" && <AtSign className="size-3.5 shrink-0" />}
                     <span>
-                      {audience === "anyone" && (t("creator.anyone") || "Anyone can reply")}
-                      {audience === "followers" && (t("creator.followers") || "Your followers")}
-                      {audience === "following" && (t("creator.following") || "Profiles you follow")}
-                      {audience === "mention" && (t("creator.mention") || "Profiles you mention")}
+                      {audience === "anyone" && (t("creator.anyone"))}
+                      {audience === "followers" && (t("creator.followers"))}
+                      {audience === "following" && (t("creator.following"))}
+                      {audience === "mention" && (t("creator.mention"))}
                     </span>
                   </button>
                 </PopoverTrigger>
@@ -1269,7 +1269,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                 >
                   {isReplyMode
                     ? t(isSubmitting ? "postDetail.replying" : "postDetail.reply")
-                    : isSubmitting ? t("creator.posting") || "Posting..." : t("creator.post") || "Post"}
+                    : isSubmitting ? t("creator.posting") : t("creator.post")}
                 </Button>
               </div>
             </div>

@@ -16,12 +16,12 @@
 - Domain types ONLY in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`
 - **D17:** NO new feature-to-feature import edges. Existing edges: posts -> profile, profile -> posts, profile -> auth, posts -> auth, search -> profile/posts/auth. On existing edges ONLY non-UI APIs (services, store hooks/selectors, types) may be added; only post UI profile may use is already-imported `PostCard` & `PostSkeletonList`. `features/profile` MUST NOT import `PostCreatorDialog`; `auth` MUST NOT import `profile`
 - **D9:** `actorId` (legacy `"me"` fallback) is ONLY for mock mutations/fetch scoping; NEVER for own-profile, Saved visibility, Edit permission, auth state or route resolution - those use `useViewerId(): string | null`
-- Strings: client `useTranslation()`, server `translate(DEFAULT_LOCALE, ...)`; keys in both `vi.json` & `en.json`; NO `any` / `as any` in new or touched profile files
-- Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms + `motion-reduce:*`; every `<img>` has non-empty `alt`.
+- Strings: client `useTranslation()`, server `translate(DEFAULT_LOCALE, ...)`; keys in both `vi.json` & `en.json`
+- Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms + `motion-reduce:*`; every `<img>` has non-empty `alt`
 - Store updates touching >1 entity happen in 1 `set()`
 - Baseline (2026-10-07, `main` @ `6452425`): `npm run test` 342 passed / 38 files; `npm run typecheck` exit 0; `npx eslint src` 62 errors, 25 warnings, per file/rule in Appendix A -> **NO file/rule count may increase** (lower total that hides new error elsewhere fails); touched profile files' existing errors MUST disappear
 - Tests: services use fake timers + `settle()` (`vi.runAllTimersAsync()` then await); reset `__resetMockUsers()`, `__resetFollowGraph()`, `__resetMockDb()`, `resetUserStore()`, `resetPostStore()` in `beforeEach`; async containers MUST await first fetch before test ends
-- Commit messages: Conventional Commits, author = user ONLY, **NO `Co-Authored-By` trailer**.
+- Commit messages: Conventional Commits, author = user ONLY, **NO `Co-Authored-By` trailer**
 
 ## Review Focus
 

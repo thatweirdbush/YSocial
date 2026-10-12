@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useTranslation } from "@/hooks/use-translation";
+import { TranslationKey, useTranslation } from "@/hooks/use-translation";
 import { NotificationItem } from "./notification-item";
 import { NotificationItemData, NotificationUser } from "../types";
 
@@ -23,12 +23,12 @@ export const NotificationList: React.FC<NotificationListProps> = ({
   const follows = items.filter((item) => item.kind === "follow");
 
   // Render content lists
-  const renderList = (filteredItems: NotificationItemData[], emptyKey: string) => {
+  const renderList = (filteredItems: NotificationItemData[], emptyKey: TranslationKey) => {
     if (filteredItems.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
           <p className="text-sm text-zinc-400 dark:text-zinc-500 max-w-xs font-medium">
-            {t(emptyKey as any) || "No notifications yet."}
+            {t(emptyKey)}
           </p>
         </div>
       );
@@ -63,16 +63,16 @@ export const NotificationList: React.FC<NotificationListProps> = ({
       <div className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 w-full shrink-0">
         <TabsList className="w-full grid grid-cols-4 rounded-none bg-transparent p-0 border-b border-zinc-200/80 dark:border-zinc-900/80 outline-none">
           <TabsTrigger value="all" className={triggerClass}>
-            <span className="text-sm">{t("notifications.filterAll") || "All"}</span>
+            <span className="text-sm">{t("notifications.filterAll")}</span>
           </TabsTrigger>
           <TabsTrigger value="replies" className={triggerClass}>
-            <span className="text-sm">{t("notifications.filterReplies") || "Replies"}</span>
+            <span className="text-sm">{t("notifications.filterReplies")}</span>
           </TabsTrigger>
           <TabsTrigger value="likes" className={triggerClass}>
-            <span className="text-sm">{t("notifications.filterLikes") || "Likes"}</span>
+            <span className="text-sm">{t("notifications.filterLikes")}</span>
           </TabsTrigger>
           <TabsTrigger value="follows" className={triggerClass}>
-            <span className="text-sm">{t("notifications.filterFollows") || "Follows"}</span>
+            <span className="text-sm">{t("notifications.filterFollows")}</span>
           </TabsTrigger>
         </TabsList>
       </div>

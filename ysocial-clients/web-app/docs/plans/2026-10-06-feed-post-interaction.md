@@ -13,7 +13,7 @@
 - NO BE/API calls in new/touched flows; new files MUST NOT import `apiClient`. NO new deps.
 - Files `kebab-case`, components `PascalCase`, CRLF line endings, `import type` for type-only imports, sorted imports.
 - Domain types ONLY in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`. NO top-level (module-evaluation) use of another feature's exported values (§4.1).
-- All strings via `useTranslation()`, keys in both `vi.json` & `en.json`, NO `as any` in new code or in touched `post-card.tsx`.
+- All strings via `useTranslation()`, keys in both `vi.json` & `en.json`.
 - Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms + `motion-reduce:*`.
 - Store updates touching >1 entity happen in ONE `set()`.
 - Baseline (2026-10-06): `npm run test` 180 passed / 28 files; `npm run typecheck` exit 0; `npx eslint src` 64 errors, 25 warnings -> **NO new errors/warnings**; `post-card.tsx` errors (`:90` setState-in-effect, `:442` any) MUST disappear.
@@ -171,8 +171,8 @@
 
 **Files:**
 - Modify: `src/lib/locales/vi.json`, `src/lib/locales/en.json`, `src/hooks/use-translation.ts`
-- **Feature scope:** new `hoverCard.*` domain in `TranslationKey` + keys below.
-- **Cleanup (not feature scope, gap #5 / 7.6):** add the existing `saved` domain to `TranslationKey` (keys already in both locale files; union drifted) so touched `post-card.tsx` can drop `t("saved.unsave" as any)`. Other `saved.*` `as any` call sites are NOT touched here.
+- **Feature scope:** new `hoverCard.*` domain in `TranslationKey` + keys below
+- **Cleanup:** add the existing `saved` domain to `TranslationKey` (keys already in both locale files; union drifted)
 
 | Key | vi | en |
 |---|---|---|
@@ -275,7 +275,7 @@
   - editor: autofocus with caret at end; Save disabled when unchanged, when `"   "` & `hasImages=false`, when `disabled`; counter `n/500`, Save disabled at 501 chars; Esc -> `onCancel`; Ctrl+Enter -> `onSave(trimmed)`.
   - card: tombstoned id -> renders nothing; `hideLikeCount` + other viewer -> no count, owner -> count + hint icon; `isEdited` -> "Đã chỉnh sửa"; `isPinned` root -> "Đã ghim" badge, compact variant -> no badge.
 - [x] **Step 2:** `npm run test -- post-card-menu post-inline-editor post-card` -> FAIL.
-- [x] **Step 3:** Implement. Owner = `post.user.id === useCurrentAuthor().id`. Menu hidden on `isPending`. Delete dialog closes on confirm in every mode (D14 always optimistic); lock blocks a 2nd delete. Remove `t("..." as any)` & hard-coded menu strings.
+- [x] **Step 3:** Implement. Owner = `post.user.id === useCurrentAuthor().id`. Menu hidden on `isPending`. Delete dialog closes on confirm in every mode (D14 always optimistic); lock blocks a 2nd delete.
 - [x] **Step 4:** Same command -> PASS; `npm run typecheck` exit 0.
 - [x] **Step 5:** Commit `feat(posts): owner menu, inline editor, pinned/edited labels & hidden likes`.
 
@@ -336,8 +336,8 @@
   - hover author name -> card, Follow in card -> header button & sidebar suggestion update; mobile preset (touch) -> tap name opens profile, no card
   - log out / log in as another viewer -> follow states differ per viewer
   - 375 / 768 / 1440, light & dark, keyboard: menu, dialog focus trap, editor shortcuts, pill focusable
-- [x] **Step 3:** Docs (Task Closure Protocol, `01-doc-standards.md` format): new `.context/features/feed-post-interaction.md` (as-built; spec decisions D1-D16 + D5b as actually implemented, plus any NEW implementation decisions numbered separately as I1, I2...; pitfalls found); INDEX entry; roadmap: 1.4/1.5/1.6 `[x]`, gap #2 `[x]`, F0.2 note (seed authors + follow graph), gap #5 / 7.6 note (`post-card.tsx` `as any` removed).
-- [x] **Step 4:** Commit `docs(feed): as-built context, roadmap & plan status`.
+- [x] **Step 3:** Docs (Task Closure Protocol, `01-doc-standards.md` format): new `.context/features/feed-post-interaction.md` (as-built; spec decisions D1-D16 + D5b as actually implemented, plus any NEW implementation decisions numbered separately as I1, I2...; pitfalls found); INDEX entry; roadmap: 1.4/1.5/1.6 `[x]`, gap #2 `[x]`, F0.2 note (seed authors + follow graph)
+- [x] **Step 4:** Commit `docs(feed): as-built context, roadmap & plan status`
 
 ---
 

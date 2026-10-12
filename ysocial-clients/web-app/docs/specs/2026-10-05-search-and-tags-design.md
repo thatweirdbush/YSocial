@@ -35,7 +35,7 @@
 - Files/dirs `kebab-case`; components `PascalCase`; vars/functions `camelCase`; CRLF line endings.
 - Domain types in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`.
 - Pages = thin Server Component wrappers; metadata in `page.tsx`.
-- All strings via `useTranslation()`, keys in `vi.json` & `en.json` (NO `as any`).
+- All strings via `useTranslation()`, keys in `vi.json` & `en.json`.
 - Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms, `motion-reduce` respected.
 - SSR-safe stores: NEVER read `localStorage` in initializer (FE convention 4).
 

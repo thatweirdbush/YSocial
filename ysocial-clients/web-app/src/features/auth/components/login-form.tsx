@@ -106,17 +106,17 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full">
       <div className="text-center md:text-left">
         <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {t("auth.loginTitle") || "Log in to YSocial"}
+          {t("auth.loginTitle")}
         </h2>
       </div>
 
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.identityLabel") || "Email, username or phone number"}
+          {t("auth.identityLabel")}
         </label>
         <input
           {...register("identity")}
-          placeholder={t("auth.identityPlaceholderShort") || "Enter your account..."}
+          placeholder={t("auth.identityPlaceholderShort")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
           autoFocus
@@ -136,10 +136,10 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="animate-spin size-4" />
-            <span>{t("creator.posting") || "Posting..."}</span>
+            <span>{t("creator.posting")}</span>
           </div>
         ) : (
-          t("auth.continue") || "Continue"
+          t("auth.continue")
         )}
       </Button>
 
@@ -147,7 +147,7 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
       <div className="flex items-center my-1 w-full select-none">
         <div className="flex-1 border-t border-zinc-100 dark:border-zinc-900"></div>
         <span className="px-3 text-[11px] text-zinc-400 dark:text-zinc-500 font-semibold uppercase tracking-wider whitespace-nowrap">
-          {t("auth.orContinueWith") || "Or continue with"}
+          {t("auth.orContinueWith")}
         </span>
         <div className="flex-1 border-t border-zinc-100 dark:border-zinc-900"></div>
       </div>
@@ -206,12 +206,12 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
 
       <div className="text-center mt-2">
         <span className="text-xs text-zinc-500">
-          {t("auth.noAccountPrompt") || "Don't have an account?"}{" "}
+          {t("auth.noAccountPrompt")}{" "}
           <a
             href="/register"
             className="text-zinc-900 dark:text-zinc-100 hover:underline font-bold transition-all ml-1"
           >
-            {t("auth.switchToRegister") || "Register here"}
+            {t("auth.switchToRegister")}
           </a>
         </span>
       </div>
@@ -257,7 +257,7 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
       bio: "Joined YSocial Premium Social Ecosystem",
     });
 
-    toast.success(t("auth.toastLoginSuccess") || "Welcome back to YSocial!");
+    toast.success(t("auth.toastLoginSuccess"));
     router.push("/");
   };
 
@@ -265,7 +265,7 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full">
       <div className="text-center md:text-left">
         <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {t("auth.loginTitle") || "Log in to YSocial"}
+          {t("auth.loginTitle")}
         </h2>
       </div>
 
@@ -279,18 +279,18 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
           onClick={onBack}
           className="text-xs font-bold text-zinc-400 dark:text-zinc-500 hover:text-zinc-950 dark:hover:text-zinc-200 transition-colors select-none"
         >
-          {t("auth.editIdentity") || "Edit"}
+          {t("auth.editIdentity")}
         </button>
       </div>
 
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.passwordLabel") || "Password"}
+          {t("auth.passwordLabel")}
         </label>
         <input
           {...register("password")}
           type="password"
-          placeholder={t("auth.passwordPlaceholder") || "Enter your password"}
+          placeholder={t("auth.passwordPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
           autoFocus
@@ -308,7 +308,7 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
           onClick={onForgotPassword}
           className="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 hover:underline"
         >
-          {t("auth.forgotPasswordPrompt") || "Forgot password?"}
+          {t("auth.forgotPasswordPrompt")}
         </button>
       </div>
 
@@ -320,10 +320,10 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="animate-spin size-4" />
-            <span>{t("auth.loggingIn") || "Logging in..."}</span>
+            <span>{t("auth.loggingIn")}</span>
           </div>
         ) : (
-          t("auth.loginSubmit") || "Log In"
+          t("auth.loginSubmit")
         )}
       </Button>
 
@@ -333,7 +333,7 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
           onClick={onBack}
           className="text-xs font-bold text-zinc-500 hover:underline hover:text-zinc-900 dark:hover:text-zinc-100"
         >
-          {t("auth.backToLogin") || "Back to log in"}
+          {t("auth.backToLogin")}
         </button>
       </div>
     </form>
@@ -362,7 +362,7 @@ const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent })
 
   const onSubmit = async (data: ForgotFormValues) => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    toast.success(t("auth.toastOtpSent") || "OTP code has been sent successfully!");
+    toast.success(t("auth.toastOtpSent"));
     onSent(data.email);
   };
 
@@ -370,18 +370,18 @@ const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent })
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full">
       <div className="text-center md:text-left">
         <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {t("auth.forgotPasswordPrompt") || "Forgot password?"}
+          {t("auth.forgotPasswordPrompt")}
         </h2>
       </div>
 
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.emailLabel") || "Email"}
+          {t("auth.emailLabel")}
         </label>
         <input
           {...register("email")}
           type="email"
-          placeholder={t("auth.emailPlaceholder") || "Enter your email address"}
+          placeholder={t("auth.emailPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
           autoFocus
@@ -401,10 +401,10 @@ const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent })
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="animate-spin size-4" />
-            <span>{t("auth.sendingOtp") || "Sending OTP..."}</span>
+            <span>{t("auth.sendingOtp")}</span>
           </div>
         ) : (
-          t("auth.sendOtp") || "Send OTP"
+          t("auth.sendOtp")
         )}
       </Button>
 
@@ -414,7 +414,7 @@ const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent })
           onClick={onBack}
           className="text-xs font-bold text-zinc-500 hover:underline hover:text-zinc-900 dark:hover:text-zinc-100"
         >
-          {t("auth.backToLogin") || "Back to log in"}
+          {t("auth.backToLogin")}
         </button>
       </div>
     </form>
@@ -442,7 +442,7 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
 
   const onSubmit = async (data: ResetFormValues) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
-    toast.success(t("auth.toastResetSuccess") || "Password reset successfully! Please log in.");
+    toast.success(t("auth.toastResetSuccess"));
     onSuccess();
   };
 
@@ -450,7 +450,7 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full">
       <div className="text-center md:text-left">
         <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          {t("auth.resetPassword") || "Reset Password"}
+          {t("auth.resetPassword")}
         </h2>
       </div>
 
@@ -462,11 +462,11 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
       {/* OTP Input */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.otpLabel") || "Verification Code (OTP)"}
+          {t("auth.otpLabel")}
         </label>
         <input
           {...register("otp")}
-          placeholder={t("auth.otpPlaceholder") || "Enter your 6-digit OTP code"}
+          placeholder={t("auth.otpPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           maxLength={6}
           disabled={isSubmitting}
@@ -482,12 +482,12 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
       {/* New Password */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.newPasswordLabel") || "New Password"}
+          {t("auth.newPasswordLabel")}
         </label>
         <input
           {...register("newPassword")}
           type="password"
-          placeholder={t("auth.newPasswordPlaceholder") || "Enter your new password"}
+          placeholder={t("auth.newPasswordPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
         />
@@ -501,12 +501,12 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
       {/* Confirm Password */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 py-3 flex flex-col gap-2 transition-colors focus-within:border-zinc-950 dark:focus-within:border-zinc-200">
         <label className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-          {t("auth.confirmNewPasswordLabel") || "Confirm New Password"}
+          {t("auth.confirmNewPasswordLabel")}
         </label>
         <input
           {...register("confirmNewPassword")}
           type="password"
-          placeholder={t("auth.confirmNewPasswordPlaceholder") || "Re-enter your new password"}
+          placeholder={t("auth.confirmNewPasswordPlaceholder")}
           className="bg-transparent border-none outline-none focus:outline-none w-full text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-700"
           disabled={isSubmitting}
         />
@@ -525,10 +525,10 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
         {isSubmitting ? (
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="animate-spin size-4" />
-            <span>{t("auth.resettingPassword") || "Resetting password..."}</span>
+            <span>{t("auth.resettingPassword")}</span>
           </div>
         ) : (
-          t("auth.resetPassword") || "Reset Password"
+          t("auth.resetPassword")
         )}
       </Button>
 
@@ -538,7 +538,7 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
           onClick={onBack}
           className="text-xs font-bold text-zinc-500 hover:underline hover:text-zinc-900 dark:hover:text-zinc-100"
         >
-          {t("auth.backToLogin") || "Back to log in"}
+          {t("auth.backToLogin")}
         </button>
       </div>
     </form>

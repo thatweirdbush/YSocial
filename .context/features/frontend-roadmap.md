@@ -34,8 +34,7 @@ updated: 2026-10-06
 2. [x] Like/bookmark/follow out of sync -> feed/detail/search/tag/saved share `post-store`/`user-store`; `PostCard` Follow bound to viewer-scoped `user-store` (1.6 done); profile on mocks (F0.6 done)
 3. [-] Route shells -> done `/posts/[id]`, `/search`, `/tags/[tag]`; missing global `not-found`, `/`, `/notifications`, `/saved`, `/@username` (F0.4)
 4. [x] Need test runner -> Vitest + RTL + jsdom, `test` & `typecheck` scripts (F0.1)
-5. [-] `t("..." as any)` -> `post-card.tsx` cleaned & `saved` domain added to `TranslationKey`; still 21 in `saved-list.tsx`, plus `notification-list.tsx`, `saved-command-bar.tsx` (7.6)
-6. [-] Scattered mocks -> posts & users centralized, shared seeds + viewer-scoped follow graph in `src/mocks/`; notifications & saved collections still inline (F0.2)
+5. [-] Scattered mocks -> posts & users centralized, shared seeds + viewer-scoped follow graph in `src/mocks/`; notifications & saved collections still inline (F0.2)
 
 ---
 
@@ -103,8 +102,7 @@ updated: 2026-10-06
 - [ ] **7.3 Scroll restoration** feed <-> detail (convention), `content-visibility` for long lists
 - [ ] **7.4 Micro-animations:** like "pop & sparkle", share -> ✓, `prefers-reduced-motion`
 - [ ] **7.5 A11y pass:** focus ring, icon button `aria-label`, touch target >= 44px, contrast 4.5:1 in both themes
-- [ ] **7.6 i18n cleanup:** typed keys, remove all `as any`, full vi/en for every new feature
-- [-] **7.7 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`, `/@username`)*
+- [-] **7.6 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`, `/@username`)*
 
 **Out of scope:** real API/SignalR, Communities/Lists, Analytics, Scheduled posts, PWA
 

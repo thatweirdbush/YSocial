@@ -118,9 +118,9 @@ export const NotificationContainer: React.FC = () => {
     );
 
     if (user.isFollowing) {
-      toast.info(`${t("card.unfollow") || "Unfollowed"} @${user.username}`);
+      toast.info(`${t("card.unfollow")} @${user.username}`);
     } else {
-      toast.success(`${t("card.following") || "Following"} @${user.username}`);
+      toast.success(`${t("card.following")} @${user.username}`);
     }
   };
 
@@ -130,7 +130,7 @@ export const NotificationContainer: React.FC = () => {
         {/* Title Header */}
         <div className="px-6 py-5">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {t("notifications.title") || "Notifications"}
+            {t("notifications.title")}
           </h1>
         </div>
 

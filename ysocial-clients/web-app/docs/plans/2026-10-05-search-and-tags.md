@@ -15,7 +15,7 @@
 - Files `kebab-case`, components `PascalCase`, CRLF line endings, `import type` for type-only imports, sorted imports.
 - Domain types ONLY in `features/<feature>/types/index.ts`; cross-feature imports ONLY via `@/features/<feature>` or `@/features/<feature>/types`.
 - Pages = thin Server Components; metadata in `page.tsx`; read `searchParams`/`params` server-side (NO `useSearchParams`).
-- All strings via `useTranslation()`, keys in both `vi.json` & `en.json`, NO `as any`. Add `search.*` & `tags.*` to the `TranslationKey` union in `src/hooks/use-translation.ts`.
+- All strings via `useTranslation()`, keys in both `vi.json` & `en.json`. Add `search.*` & `tags.*` to the `TranslationKey` union in `src/hooks/use-translation.ts`.
 - Touch targets >= 44px; icon-only buttons have `aria-label`; transitions 150-300ms + `motion-reduce:transition-none`.
 - SSR-safe stores: NO `localStorage` read in initializer.
 - Baseline (2026-10-05): `npm run test` 74 passed / 12 files; `npm run typecheck` exit 0; `npx eslint src` 64 errors, 25 warnings -> **NO new errors/warnings** in touched files.
