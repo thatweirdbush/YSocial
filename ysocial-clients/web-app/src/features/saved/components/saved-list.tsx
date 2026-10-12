@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { Search, FolderPlus, Plus, Bookmark, Sliders, CheckSquare, Layers, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, FolderPlus, Plus, Layers, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import { SavedItem, Collection } from "../types";
@@ -140,10 +140,6 @@ export const SavedList: React.FC = () => {
     setNewCollectionName("");
     setShowAddCollection(false);
     toast.success(t("saved.collectionAddedSuccess"));
-  };
-
-  const handleDeleteCollection = (id: string, name: string) => {
-    setCollectionToDelete({ id, name });
   };
 
   const confirmDeleteCollection = (id: string) => {
@@ -316,7 +312,7 @@ export const SavedList: React.FC = () => {
   return (
     <div className="flex flex-col w-full min-h-screen pb-24 relative select-none">
       {/* Sticky Header */}
-      <header className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 pt-3.5 px-4 flex items-center justify-between gap-3">
+      <header className="sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 py-3.5 px-4 flex items-center justify-between gap-3">
         {/* Left Side: Title */}
         <h1 className={`text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 transition-all duration-300
           }`}>
@@ -352,7 +348,7 @@ export const SavedList: React.FC = () => {
                     searchInputRef.current?.focus();
                   }, 50);
                 } else {
-                  setSearchQuery(""); // Clear search query when collapsing
+                  setSearchQuery("");
                 }
               }}
               className="p-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer shrink-0"
@@ -367,7 +363,7 @@ export const SavedList: React.FC = () => {
               const nextMode = !isManageMode;
               setIsManageMode(nextMode);
               if (!nextMode) {
-                setSelectedIds([]); // Clean state on closing checkboxes
+                setSelectedIds([]);
               }
             }}
             disabled={filteredItems.length === 0}
@@ -383,7 +379,7 @@ export const SavedList: React.FC = () => {
         </div>
       </header>
 
-      <div className="px-0 py-4 h-16 overflow-hidden relative flex items-center w-full group/scroll">
+      <div className="pb-4 h-12 overflow-hidden relative flex items-center w-full group/scroll">
         {/* Left Gradient Overlay */}
         <div
           className={`absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none bg-gradient-to-r from-white via-white/80 to-transparent dark:from-black dark:via-black/80 transition-opacity duration-300 ${canScrollLeft ? "opacity-100" : "opacity-0"
@@ -442,11 +438,10 @@ export const SavedList: React.FC = () => {
                   {col.name}
                 </button>
 
-                {/* Delete button positioned absolute inside the pill */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteCollection(col.id, col.name);
+                    setCollectionToDelete({ id: col.id, name: col.name });
                   }}
                   className={`absolute right-2 size-3.5 rounded-full flex items-center justify-center transition-colors cursor-pointer select-none ${activeCollectionId === col.id
                     ? "text-zinc-400 hover:text-white hover:bg-zinc-800"
@@ -588,27 +583,29 @@ export const SavedList: React.FC = () => {
       </div>
 
       {/* Floating Bottom Utility Command Bar */}
-      <SavedCommandBar
-        selectedCount={selectedIds.length}
-        onBulkUnsave={handleBulkUnsave}
-        onMoveToCollection={handleBulkMoveToCollection}
-        collections={collections}
-        isAllSelected={
-          filteredItems.length > 0 &&
-          filteredItems.map((item) => item.id).every((id) => selectedIds.includes(id))
-        }
-        onSelectAllToggle={handleSelectAllToggle}
-        onClose={() => {
-          setSelectedIds([]);
-          setIsManageMode(false); // Make sure checkboxes are smoothly closed as well
-        }}
-      />
+      {selectedIds.length !== 0 &&
+        <SavedCommandBar
+          selectedCount={selectedIds.length}
+          onBulkUnsave={handleBulkUnsave}
+          onMoveToCollection={handleBulkMoveToCollection}
+          collections={collections}
+          isAllSelected={
+            filteredItems.length > 0 &&
+            filteredItems.every((item) => selectedIds.includes(item.id))
+          }
+          onSelectAllToggle={handleSelectAllToggle}
+          onClose={() => {
+            setSelectedIds([]);
+            setIsManageMode(false);
+          }}
+        />
+      }
 
       {/* Delete Collection Confirmation Dialog */}
-      <Dialog open={collectionToDelete !== null} onOpenChange={(isOpen) => !isOpen && setCollectionToDelete(null)}>
+      <Dialog open={!!collectionToDelete} onOpenChange={(isOpen) => !isOpen && setCollectionToDelete(null)}>
         <DialogContent
           showCloseButton={false}
-          className="w-[340px] p-6 rounded-3xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-900 text-center flex flex-col items-center gap-4 z-[100] animate-in fade-in zoom-in duration-200"
+          className="w-[340px] p-6 rounded-3xl bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-900 text-center flex flex-col items-center gap-4 z-100 animate-in fade-in zoom-in duration-200"
         >
           <DialogHeader className="flex flex-col items-center gap-3 w-full">
             <div className="size-12 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center text-red-500 mx-auto shrink-0">
@@ -623,11 +620,11 @@ export const SavedList: React.FC = () => {
               {t("saved.deleteCollectionConfirmDesc")}
             </p>
           </DialogHeader>
-          <div className="w-full flex flex-row gap-2 mt-2">
+          <div className="w-full flex flex-row gap-2 mt-1">
             <Button
               variant="outline"
               onClick={() => setCollectionToDelete(null)}
-              className="w-full flex-1 rounded-2xl font-bold bg-transparent border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none h-10 flex items-center justify-center"
+              className="w-full flex-1 rounded-2xl font-bold bg-transparent border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-none h-10 flex items-center justify-center cursor-pointer"
             >
               {t("saved.cancel")}
             </Button>
@@ -637,7 +634,7 @@ export const SavedList: React.FC = () => {
                   confirmDeleteCollection(collectionToDelete.id);
                 }
               }}
-              className="w-full flex-1 rounded-2xl font-bold bg-red-500 hover:bg-red-650 text-white border-none shadow-none h-10 flex items-center justify-center cursor-pointer"
+              className="w-full flex-1 rounded-2xl font-bold bg-red-500 hover:bg-red-500/85 text-white border-none shadow-none h-10 flex items-center justify-center cursor-pointer"
             >
               {t("saved.delete")}
             </Button>
