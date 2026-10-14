@@ -24,7 +24,7 @@ fe-roadmap: .context/features/frontend-roadmap.md
 | JSON | camelCase, enums as integers (in & out), ids as GUID strings; `DateTime` ISO UTC | BG §8 |
 | Error body | handler errors `{title, detail, status, timestamp}`; framework 400 `ValidationProblemDetails`; bare string for null `TargetType`; empty body for 401/403/route-404; domain exceptions = 500 | BG §5 |
 | Content type of follow result | `Ok(string)` -> raw string (`Accepted`/`Pending`, PascalCase), may be `text/plain` unless `Accept: application/json`; FE `handleResponse` tolerates both (`JSON.parse` fallback to text) | `FollowUser.cs`; `api-client.ts`; negotiation `Partially verified` |
-| Pagination | only `GET /api/posts/user/{userId}`: `page` 1-based, `pageSize` default 10 (1..50 if validator runs), `PagedList{items,page,pageSize,totalCount,totalPages,hasNextPage,hasPreviousPage}` | `GetPostsByUserIdQuery.cs`, `PagedList.cs` |
+| Pagination | only `GET /api/posts/user/{userId}`: `page` 1-based, `pageSize` default 10 (1..50 dead validator: queries skip `ValidationBehavior` -> no bounds), `PagedList{items,page,pageSize,totalCount,totalPages,hasNextPage,hasPreviousPage}` | `GetPostsByUserIdQuery.cs`, `PagedList.cs` |
 | Id types | profile `UserId` everywhere (authors, targets); never AccountId except `RegisterAccount` result | DM §1 |
 
 ## 2. Endpoint matrix by feature
@@ -188,7 +188,7 @@ Legend per row: **Auth** = effective requirement (attribute / handler check). **
 | Open point | Status | Probe |
 |---|---|---|
 | Real error status/format of domain exceptions | Partially verified | 1 `PUT /api/posts/{id}` as non-author |
-| Query validators executed? | Unverified | `GET /api/posts/user/{id}?pageSize=1000` |
+| Query validators executed? | NOT executed (queries are not `ICommand<>`) |
 | Follow response content type | Partially verified | `curl -i` with and without `Accept: application/json` |
 | GUID JSON shape of `AccountId`/`PostId` in `CreatePostResponse`/register | Partially verified | 1 register + 1 create-post call |
 | Port, launch profile, `appsettings` | Unverified | add redacted `launchSettings.json` & `appsettings.Development.json` to snapshot |

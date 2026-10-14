@@ -40,7 +40,8 @@ updated: 2026-10-14
 - Cross-aggregate links are by id only (no navigation): comment -> `PostId`, `UserId`; relation -> `UserId` x2
 - Domain services (transient, stateless): `UserRelationManager` (follow/unfollow/block/unblock/close-friend; uses 3 repos), `CommentPostingService`, `LikeToggleService`, `SavedItemToggleService`, `UserProfileService`
 - **Soft-delete contract:** domain method sets `IsDeleted`; mock `Remove()` merely re-stores entity (Account, User, Post, Comment, SavedItem, UserRelation); `GetByIdAsync(id)` hides deleted, `GetByIdAsync(id, includeDeleted: true)` returns them. Hard removal only for Like, Notification, UserBlock (`Infrastructure/Data/Mock*Repository.cs`)
-- **Shared-kernel contract inferred from implementations:** `IRepository<T,TId>` = `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove`, `UnitOfWork`
+- **Shared-kernel contract (`BB:Domain/Repositories/IRepository.cs`):** `IRepository<T,TId>` = `UnitOfWork`, `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove`, `T : IAggregateRoot`
+- **Base types (`BB:Domain`):** `Entity<TId>` equality by id (transient entities never equal), `ISoftDeletable` = `IsDeleted` + `DeletedAt` (+ `WhereNotDeleted`), `ValueObject`/`Enumeration<T>` are records (value equality); `EntityMustBeDeletedToRestoreRule` breaks when entity is NOT deleted ("The entity must be deleted before it can be restored.")
 
 ## 3. Enumerations (serialized as integers in JSON)
 
@@ -188,5 +189,4 @@ Pending --AcceptFollow--> Accepted   <- NO use case / endpoint (domain + tests o
 | Deleted-user handling | follow only | posts/likes/comments by deleted profiles stay readable |
 
 ## 9. Smallest next investigations
-- Confirm `EntityMustBeDeletedToRestoreRule` & `IRepository` shapes (add BuildingBlocks to snapshot)
 - Runtime confirm of §5.1/§5.2 event loss: follow user, `GET` nothing exposes counts -> verify via debug log of `FollowersCount` or one-off test against `MockDataStore.GetAllDomainEvents` (no BE source change needed beyond test project; deferred)

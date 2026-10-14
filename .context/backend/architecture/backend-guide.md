@@ -7,7 +7,7 @@ updated: 2026-10-14
 # BACKEND GUIDE
 
 ## 0. Scope
-- **Paths:** BE-solution-relative (`src/...`); BE root = folder holding `YSocial.sln` (located by filename lookup at `D:\Bush\`, 1 level above `YSocial/` FE monorepo folder; sibling `Microservice.BuildingBlocks` resolves 1 level higher)
+- **Paths:** repo-relative (`src/...`, `tests/...`); BE root = repo root (`YSocial.sln`). Shared kernel = sibling repo `Microservice.BuildingBlocks` (own snapshot; paths cited as `BB:Domain/...`, `BB:CQRS/...` under its `src/Microservice.BuildingBlocks.*`)
 - **Companions:** domain detail in `domain-model.md` | FE contract in `../integration/frontend-backend-mapping.md`
 - **Generic conventions** (strongly-typed IDs, `IBusinessRule`, `Result`) in `.context/conventions/backend.md`
 
@@ -23,7 +23,12 @@ updated: 2026-10-14
 
 - All projects target `net8.0`; Api `Nullable` enabled
 - **Source:** `YSocial.sln`, each `*.csproj`
-- **Shared kernel:** `Microservice.BuildingBlocks.{CQRS,Domain}`
+- **Shared kernel:** `Microservice.BuildingBlocks.{CQRS,Domain}`, net8.0; CQRS refs Domain (MediatR 14.1.0, FluentValidation 12.1.1 unused there); Domain uses MediatR.Contracts 2.0.1
+  - `IRepository<T,TId>`: `UnitOfWork`, `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove` (`BB:Domain/Repositories/IRepository.cs`)
+  - `Entity.CheckRule` & `ValueObject.CheckRule` throw `BusinessRuleValidationException` when `BrokenWhen` (`BB:Domain/Entities/Entity.cs`)
+  - `IDomainEvent : INotification`; `AggregateRoot<TId>` holds `DomainEvents`, `ClearDomainEvents()`, protected `AddDomainEvent` (its null guard is ineffective: `ThrowIfNull` receives a string)
+  - `Enumeration<T>.FromValue(int)` returns null for unknown values; `GetAll()` reflects declared public static fields
+  - Present but unused by YSocial: `EventSourcedAggregateRoot`, `Event`/`IEvent`, `UnknownEventException`, `QueryBase`/`IQuery`/`IQueryHandler`
 
 ## 2. Mislead names
 
@@ -52,9 +57,10 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 
 - **Pipeline order:** registration order in `Application/DependencyInjection.cs`: `ValidationBehavior`, `LoggingBehavior`, `MetricsBehavior`, `TransactionBehavior`
 - **Applicability:** `ValidationBehavior` & `TransactionBehavior` constrain `TRequest : ICommand<TResponse>`; `LoggingBehavior` & `MetricsBehavior` constrain `TRequest : notnull`
-  - Commands (`ResultCommand*`) inherit `CommandBase` -> `RequestBase, ICommand`
-  - Queries (`ResultQuery<T>` : `RequestBase<>`) -> Unverified whether `ICommand`; if not, query validators (`GetPostQueryValidator`, `GetPostsByUserIdQueryValidator`) are dead & queries skip commit
-  - **Smallest probe:** `GET /api/posts/user/{id}?pageSize=1000` -> 200 means validation skipped; 400/500 means it ran
+  - **Commands** (`ResultCommand*` -> `CommandBase<>` -> `ICommand<>`): all 4 behaviors apply (`BB:CQRS/Commands/CommandBase.cs`)
+  - **Queries (Verified):** `ResultQuery<T> : RequestBase<Result<T>>` implements only `IRequest<>`, not `ICommand<>` -> `ValidationBehavior` & `TransactionBehavior` are **skipped**; only Logging & Metrics wrap them (`BB:CQRS/Requests/RequestBase.cs`)
+  - **Consequences:** `GetPostQueryValidator` & `GetPostsByUserIdQueryValidator` are dead code; `page`/`pageSize` are unbounded (`pageSize=1000` returns up to 1000 rows; `pageSize=0` -> `TotalPages` divides by zero; `page<1` -> negative `Skip` treated as 0) -> LINQ semantics, `Partially verified`
+  - Query handlers implement `IRequestHandler` directly (not `IQueryHandler`)
 - **Validation:** all `IValidator<T>` run in parallel, errors merged, `throw new ValidationException(errors)` (not `Result`) -> see §5
 - **Logging:** `LoggingBehavior` logs request & response objects at Information (`{@Command}`, `{@Response}`) -> request records (`LoginCommand`, `RegisterAccountCommand`, `ResetPasswordCommand`) carry passwords/OTP & `LoginResponse` carries tokens; rendering is framework-dependent; security debt
 - **Metrics:** only stopwatch log line
@@ -192,7 +198,7 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 - **CORS:** policy `WithOrigins("http://localhost:3000")` followed by `SetIsOriginAllowed(_ => true)` + `AllowCredentials` -> effectively **any origin with credentials** (security debt; e `WithOrigins` call is moot)
 - **HTTPS:** `UseHttpsRedirection` active; port/launch profile (FE hard-codes `https://localhost:49895`)
 - **Cancellation:** only `UserBlocksController` & `UserRelationsController` accept/forward `CancellationToken`; all other controllers call `Mediator.Send(cmd)` without one; mock repos ignore tokens anyway
-- **Pagination:** 1 endpoint only (`GET /api/posts/user/{userId}`): `page` (1-based, default 1), `pageSize` (default 10, validator 1..50 if validator runs), newest first, offset-based; `PagedList{Items,Page,PageSize,TotalCount,TotalPages,HasNextPage,HasPreviousPage}`
+- **Pagination:** 1 endpoint only (`GET /api/posts/user/{userId}`): `page` (1-based, default 1), `pageSize` (default 10; the 1..50 validator is dead, see §3), newest first, offset-based; `PagedList{Items,Page,PageSize,TotalCount,TotalPages,HasNextPage,HasPreviousPage}`
 - **Rate limiting, health checks, request size limits, structured logging:** Not found
 
 ## 9. Implementation boundaries (what exists vs not)
@@ -211,7 +217,7 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 8. Hard-coded JWT secret fallback, permissive CORS
 9. In-memory only; non-atomic cross-request event handling
 10. Username uniqueness absent; orphan-account path on register
-11. Validators on queries & `ICommand` applicability `Unverified`
+11. Query validators never run (queries are not `ICommand`): no bounds on `page`/`pageSize`
 12. Handlers using `Task.WhenAll` over same repo/DbContext (`FollowUserAsync`, `RemoveFollowsWhenUserBlocked`, `AddComment`) are safe on mock store but will break on single EF `DbContext` (inference, `Unverified`)
 13. `MockDataStore.SeedMockData` & Swagger dev token logging ship in same binary (Development-gated for token, seed always on)
 
@@ -228,11 +234,11 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 | Exceptions return 500 | Verified absence of handler; body `Partially verified` | `PUT /api/posts/{id}` as non-author, inspect status |
 | `DomainEvent : INotification` | Verified (compile constraint in `INotificationHandler<...>` usage) | none |
 | Behavior order | Partially verified | log line order from 1 command (Logging "Handling" precedes "Finished in") |
-| Queries skip Validation/Transaction | Unverified | `pageSize=1000` probe (§3) |
+| Queries skip Validation/Transaction | Verified (not `ICommand<>`); runtime effect Partially verified | `GET /api/posts/user/{id}?pageSize=1000` -> expect 200 with all rows |
 | `sub` claim readable as `AccountId` | Partially verified (`DefaultMapInboundClaims=false`) | `PUT /api/users/profiles/switch` with bogus refresh token: 404 profile/account vs 500 rule |
 | JSON camelCase & enum ints | Partially verified | `POST /api/likes/toggle` response shape |
 | `appsettings` values, ports | Unverified | add `appsettings.Development.json` (secrets redacted) & `launchSettings.json` to snapshot |
-| `IRepository`, `CommandBase`, `Enumeration<T>` shapes | Unverified | add `Microservice.BuildingBlocks` to snapshot |
+| `IRepository`, `CommandBase`, `Enumeration<T>`, `CheckRule` shapes | Verified (`BB:` snapshot) | none |
 
 ## 13. Deviations from existing docs
 - `conventions/backend.md`: claims `AnyAsync` high-frequency block checks & EF migration target as current -> mock `FirstOrDefault` scans; EF is planned only. Aggregate list omits Post, Comment, Like, SavedItem, Notification
