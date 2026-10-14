@@ -17,3 +17,8 @@
 - [Profile Core Spec](features/profile.md) - `/@username` on mocks: server-resolved route + real 404 (session cookie bridge), SSR-safe auth hydration, viewer/actor identity split, graph-derived counts & fans, profile tab controller, followers dialog, share link + QR
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
 - [BE Unit Test Spec](features/backend-unit-test.md) - xUnit, NSubstitute & FluentAssertions test matrix: Domain entities, Business Rules, Services, Application CQRS Command/Event Handlers
+
+## Backend Audit (`.context/backend/`)
+- [BE Guide](backend/architecture/backend-guide.md) - actual request lifecycle, behavior order, DI, exceptions->500, JWT/`IUserContext`, in-memory UoW & event-dispatch defects, tech debt, deviations from older docs
+- [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules, follow/block/post state machines, events (live vs never dispatched), repo contracts
+- [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - endpoint matrix by feature, FE roadmap coverage, ranked integration risks, recommended order, open contract decisions
