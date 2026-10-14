@@ -317,6 +317,8 @@
 - [x] **Step 4:** Update docs listed above per `01-doc-standards.md`
 - [x] **Step 5:** Commit `docs(relations): close out phase 2B`
 
+**Follow-up triage:** M1 (reread until fresh), M3 (tag OG filter), M4 (composer visibility reset), M5 (follow state gate) resolved with tests; M2 closed (not reproducible, regression test added); M6 & plural deferred (see As-Built Tech debt). Tests 824 -> 833 PASS, typecheck 0, eslint 23 E / 14 W (unchanged)
+
 ---
 
 ## Appendix A - Baseline

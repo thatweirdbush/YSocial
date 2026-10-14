@@ -134,6 +134,39 @@ describe("ensureRelationSets", () => {
     expect(excluded()).toEqual({ fresh: { blocked: true } });
   });
 
+  it("keeps reading until a response is not stale, so the slot always ends loaded", async () => {
+    const spy = vi.spyOn(relationService, "fetchRelationSets").mockImplementation(async () => {
+      if (spy.mock.calls.length <= 3) {
+        beginOp("1", `author-0${spy.mock.calls.length}`);
+        return { ...EMPTY_SETS, blocked: ["stale"] };
+      }
+      return { ...EMPTY_SETS, blocked: ["fresh"] };
+    });
+
+    await ensureRelationSets("1");
+
+    expect(spy).toHaveBeenCalledTimes(4);
+    expect(relations("1")).toMatchObject({ loaded: true, blocked: { fresh: true } });
+    expect(excluded()).toEqual({ fresh: { blocked: true } });
+  });
+
+  it("never applies the response of a load that a newer one superseded", async () => {
+    const first = deferred<RelationSets>();
+    const spy = vi
+      .spyOn(relationService, "fetchRelationSets")
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValue({ ...EMPTY_SETS, blocked: ["newer"] });
+
+    const older = ensureRelationSets("1");
+    const newer = ensureRelationSets("1", { force: true });
+    beginOp("1", "author-09");
+    first.resolve({ ...EMPTY_SETS, blocked: ["older"] });
+    await Promise.all([older, newer]);
+
+    expect(spy).toHaveBeenCalledTimes(3);
+    expect(relations("1").blocked).toEqual({ newer: true });
+  });
+
   it("never applies a response of an older viewer generation to the post store (A -> B -> A)", async () => {
     const pending = deferred<RelationSets>();
     vi.spyOn(relationService, "fetchRelationSets").mockReturnValue(pending.promise);

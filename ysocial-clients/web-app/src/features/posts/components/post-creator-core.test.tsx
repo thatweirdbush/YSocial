@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import { useDraftStore } from "../store/post-draft-store";
-import { PostCreatorCore } from "./post-creator-core";
+import { PostCreatorCore, type PostCreatorCoreRef } from "./post-creator-core";
 
 const AUDIENCE_LABEL = "Mọi người có thể phản hồi";
 const DRAFTS_TITLE = "Bản nháp";
@@ -119,5 +120,49 @@ describe("PostCreatorCore close friends visibility", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Lưu bản nháp" }));
 
     expect(useDraftStore.getState().drafts[0]).toMatchObject({ content: "nháp riêng", visibility: "closeFriends" });
+  });
+});
+
+describe("PostCreatorCore closing from the discard warning", () => {
+  const CHIP = "Chỉ bạn thân";
+
+  beforeEach(() => {
+    useAuthStore.setState({ user: { id: "1", email: "member@ysocial.dev" } });
+    useDraftStore.setState({ drafts: [] });
+  });
+
+  afterEach(() => {
+    useAuthStore.setState({ user: null });
+  });
+
+  async function closeWith(choice: string) {
+    const ref = createRef<PostCreatorCoreRef>();
+    render(<PostCreatorCore ref={ref} onCancel={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: CHIP }));
+    await userEvent.type(screen.getByRole("textbox"), "nội dung");
+    act(() => ref.current?.triggerClose());
+    await userEvent.click(await screen.findByRole("button", { name: choice }));
+  }
+
+  it("resets the visibility after save and close", async () => {
+    await closeWith("Lưu bản nháp");
+
+    expect(useDraftStore.getState().drafts[0]).toMatchObject({ visibility: "closeFriends" });
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("resets the visibility after discard", async () => {
+    await closeWith("Hủy bỏ");
+
+    expect(screen.getByRole("button", { name: CHIP })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("starts a new draft after save and close instead of overwriting the closed one", async () => {
+    await closeWith("Lưu bản nháp");
+    await userEvent.type(screen.getByRole("textbox"), "bài khác");
+    await userEvent.click(screen.getByTitle("Bản nháp"));
+    await userEvent.click(await screen.findByRole("button", { name: "Lưu bản nháp" }));
+
+    expect(useDraftStore.getState().drafts).toHaveLength(2);
   });
 });
