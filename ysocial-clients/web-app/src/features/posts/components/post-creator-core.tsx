@@ -626,6 +626,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     reset();
     setImages([]);
     setLocation(null);
+    setVisibility("public");
     setIsWarningOpen(false);
 
     toast.success(t("creator.draftSaved"));
@@ -646,6 +647,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     reset();
     setImages([]);
     setLocation(null);
+    setVisibility("public");
     setIsWarningOpen(false);
 
     textareaRef.current?.blur();

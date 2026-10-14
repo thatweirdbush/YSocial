@@ -11,7 +11,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useUIActions } from "@/lib/store/ui-store";
 import { ProfileTabPostsProvider, useProfileTabPostsController } from "../hooks/use-profile-tab-posts";
 import { commitBlock, ensureRelationSets, useRelationsLoaded } from "../store/relation-store";
-import { ensureUserByUsername, ensureViewerUser, useUserByUsername } from "../store/user-store";
+import { ensureUserByUsername, ensureViewerUser, useFollowState, useUserByUsername } from "../store/user-store";
 import type { FollowListKind, ProfileTab, UserProfile } from "../types";
 import { copyProfileLink } from "../utils/share";
 import { toViewerUserInput } from "../utils/viewer-user";
@@ -43,6 +43,7 @@ function ProfileLookup({ username }: ProfileContainerProps) {
   const viewerId = useViewerId();
   const actorId = useActorId();
   const user = useUserByUsername(username);
+  const followKnown = useFollowState(user?.id ?? "") !== undefined;
 
   const wanted = username.toLowerCase();
   const sessionUsername = authUser ? toMockSession(authUser).username : null;
@@ -69,7 +70,9 @@ function ProfileLookup({ username }: ProfileContainerProps) {
     };
   }, [wanted, actorId, lookupKey, viewerId, sessionUsername]);
 
-  if (user) return <ProfileView user={user} isOwn={viewerId !== null && viewerId === user.id} actorId={actorId} />;
+  // A cached user without a known follow state for this viewer (account switch) must not render: it would read as "none"
+  const isOwn = user !== undefined && viewerId !== null && viewerId === user.id;
+  if (user && (isOwn || followKnown)) return <ProfileView user={user} isOwn={isOwn} actorId={actorId} />;
 
   if (missingKey === lookupKey) {
     return (

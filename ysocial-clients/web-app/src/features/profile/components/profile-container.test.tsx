@@ -13,7 +13,7 @@ import { makeUserProfile } from "../mocks/user-fixtures";
 import * as relationService from "../services/relation-service";
 import * as userService from "../services/user-service";
 import { resetOpLedger } from "../store/op-ledger";
-import { resetRelationStore } from "../store/relation-store";
+import { ensureRelationSets, invalidateViewerProjection, resetRelationStore } from "../store/relation-store";
 import { resetUserStore, useUserStore } from "../store/user-store";
 import type { RelationSets, UserProfile } from "../types";
 import { ProfileContainer } from "./profile-container";
@@ -106,6 +106,8 @@ describe("ProfileContainer identity", () => {
 
   it("falls back to Threads and never loads Saved for a guest after logging out on the Saved tab", async () => {
     signedInAsDemo();
+    // The guest reload after logout resolves the same user
+    vi.mocked(userService.fetchUserByUsername).mockImplementation(async (name) => (name === "ysocial_member" ? demoProfile : null));
     render(<ProfileContainer username="ysocial_member" />);
     await userEvent.click(await screen.findByRole("tab", { name: "Đã lưu" }));
     await waitFor(() => expect(postService.fetchSavedPosts).toHaveBeenCalledWith("1", 1));
@@ -355,6 +357,45 @@ describe("ProfileContainer private, blocked & unavailable states", () => {
     await act(async () => release({ ...NO_RELATIONS, blocked: ["author-03"] }));
 
     expect(await screen.findByRole("heading", { name: "Bạn đã chặn @anquoc.dev" })).toBeInTheDocument();
+  });
+
+  it("never flashes the locked state of a followed private profile while an account switch reloads the follow state", async () => {
+    signedInAsDemo();
+    asPrivate({ followStatus: "accepted", isFollowing: true });
+    render(<ProfileContainer username="anquoc.dev" />);
+    expect(await screen.findByRole("tab", { name: "Thread" })).toBeInTheDocument();
+
+    let release!: (user: UserProfile) => void;
+    vi.mocked(userService.fetchUserByUsername).mockReturnValue(new Promise((resolve) => (release = resolve)));
+    await act(async () => {
+      useAuthStore.setState({ user: { ...DEMO_AUTH, id: "2", email: "other@ysocial.dev", username: "other" } });
+      invalidateViewerProjection("2");
+      await ensureRelationSets("2", { force: true });
+    });
+
+    expect(screen.queryByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeNull();
+    expect(screen.getByTestId("profile-skeleton")).toBeInTheDocument();
+
+    await act(async () => release(profile({ isPrivate: true, followStatus: "accepted", isFollowing: true })));
+
+    expect(await screen.findByRole("tab", { name: "Thread" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Tài khoản này là riêng tư" })).toBeNull();
+  });
+
+  it("shows the desync state when the reload after the projection was dropped fails", async () => {
+    signedInAsDemo();
+    asPrivate({ followStatus: "accepted", isFollowing: true });
+    render(<ProfileContainer username="anquoc.dev" />);
+    expect(await screen.findByRole("tab", { name: "Thread" })).toBeInTheDocument();
+
+    vi.mocked(userService.fetchUserByUsername).mockRejectedValue(new Error("offline"));
+    await act(async () => {
+      useAuthStore.setState({ user: { ...DEMO_AUTH, id: "2", email: "other@ysocial.dev", username: "other" } });
+      invalidateViewerProjection("2");
+      await ensureRelationSets("2", { force: true });
+    });
+
+    expect(await screen.findByRole("button", { name: "Tải lại" })).toBeInTheDocument();
   });
 
   it("does not gate a guest on the relation sets", async () => {

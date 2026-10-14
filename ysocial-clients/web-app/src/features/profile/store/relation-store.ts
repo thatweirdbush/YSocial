@@ -48,8 +48,9 @@ function toExcludedAuthors(sets: RelationSets): ExcludedAuthors {
 async function loadRelationSets(actorId: string, token: number): Promise<void> {
   // A response of another viewer generation (A -> B -> A) never reaches the post store (D25)
   const generation = getViewerGeneration();
-  // A mutation started while the request was in flight makes the response stale: read again once (D18 c)
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  // A mutation started while the request was in flight makes the response stale: read again until one lands. Only a
+  // new user mutation causes a retry (mock writes are synchronous), so the loop ends; a newer load ends it too (D18 c)
+  for (;;) {
     const sequence = getMutationSeq(actorId);
     const sets = await fetchRelationSets(actorId);
     if (loadTokens.get(actorId) !== token) return;

@@ -277,6 +277,15 @@ describe("fetchTrendingTags", () => {
     expect(tags).not.toContain("VietCode");
     expect(tags).not.toContain("Zustand");
   });
+
+  it("never counts replies under a close friends root", async () => {
+    const root = await settle(createPost({ ...input("secret thread"), visibility: "closeFriends" }, SEED_AUTHORS[1]));
+    await settle(createReply(root.id, input("reply #cfreply"), SEED_AUTHORS[1]));
+
+    const tags = (await settle(fetchTrendingTags(50))).map((stat) => stat.tag);
+
+    expect(tags).not.toContain("cfreply");
+  });
 });
 
 describe("searchPosts latest sort", () => {

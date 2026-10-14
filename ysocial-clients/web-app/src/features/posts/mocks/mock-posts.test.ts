@@ -59,8 +59,13 @@ describe("mock dataset", () => {
   });
 
   it("looks up seed hashtag stats case & diacritics insensitive", () => {
-    expect(getMockTagStat("nextjs")).toEqual({ tag: "NextJS", postsCount: 3 });
+    expect(getMockTagStat("nextjs")).toEqual({ tag: "NextJS", postsCount: 2 });
     expect(getMockTagStat("DALAT")?.postsCount).toBe(2);
     expect(getMockTagStat("nope")).toBeUndefined();
+  });
+
+  it("counts only posts a signed-out visitor can see (no private authors, close friends or their replies)", () => {
+    expect(getMockTagStat("VietCode")).toBeUndefined();
+    expect(getMockTagStat("Zustand")).toBeUndefined();
   });
 });

@@ -1,4 +1,5 @@
 import { SEED_AUTHORS, SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
+import { canViewPost } from "@/mocks/visibility";
 import type { HashtagStat, PostItem } from "../types";
 import { collectTagStats, tagKey } from "../utils/hashtags";
 
@@ -122,8 +123,8 @@ export const getMockPostById = (id: string): PostItem | undefined => MOCK_POSTS.
 
 let seedTagStats: Map<string, HashtagStat> | undefined;
 
-/** Synchronous seed hashtag stat for server-side metadata; case & diacritics insensitive. */
+/** Synchronous seed hashtag stat for server-side metadata (posts a signed-out visitor can see); case & diacritics insensitive. */
 export const getMockTagStat = (tag: string): HashtagStat | undefined => {
-  seedTagStats ??= collectTagStats(MOCK_POSTS);
+  seedTagStats ??= collectTagStats(MOCK_POSTS.filter((post) => canViewPost(null, post)));
   return seedTagStats.get(tagKey(tag));
 };

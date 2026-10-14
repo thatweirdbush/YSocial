@@ -1,6 +1,6 @@
 ---
 module: Relationship Controls (FE, mock data) - roadmap 2.3 + 2.4 + 2.5 (Phase 2B)
-updated: 2026-10-09
+updated: 2026-10-14
 spec: ysocial-clients/web-app/docs/specs/2026-10-09-relationship-controls-design.md
 plan: ysocial-clients/web-app/docs/plans/2026-10-09-relationship-controls.md
 ---
@@ -31,14 +31,15 @@ Reads: post-service / user-service -> mocks/visibility.ts (asViewer) -> filter -
 - **Follow status projection:** `ViewerFollows.status` (`pending|accepted`, absent = none). `fetchFollowedIds` is accepted-ONLY, so `setFollowedIds` keeps cached pending entries and `followState` trusts "none" only for ids in `known` (loaded graph alone proves nothing about pending)
 - **Close friend set:** `fetchRelationSets.closeFriends` = every flag (dormant included); effective = flag AND accepted (`useCloseFriendCount`, `useViewerMarkedCloseFriend`, `withViewerDefaults`)
 - **Exclusion** (`post-store.excludedAuthors`): `muted` | `blocked` (blocked = either direction). Feeds + buffer + pill skip any; replies skip blocked only; `includeAuthor` lifts ONLY given reason; unblock keeps `blocked` when author also blocked viewer; removed ids never restored. `PostCard` renders null for blocked author (fallback for search / tag / saved / profile lists, not refilled)
-- **Viewer switch** (`ViewerSync`): bump generation, `resetViewerFeeds`, `invalidateViewerProjection` (clear follow projection + relation slot), `ensureFollowGraph`, `ensureRelationSets(force)`. Stale loads (token / generation / mutation seq) never apply. PostFeed first load keyed by viewer
+- **Viewer switch** (`ViewerSync`): bump generation, `resetViewerFeeds`, `invalidateViewerProjection` (clear follow projection + relation slot), `ensureFollowGraph`, `ensureRelationSets(force)`. Stale loads (token / generation / mutation seq) never apply: `loadRelationSets` rereads until a response starts after the last mutation (ends only by newer load), so the slot always ends `loaded`. PostFeed first load keyed by viewer
 - **Profile states:** precedence blocked-by (unavailable) > blocked (Unblock) > locked private > tabs. Non-own signed-in viewers wait for relation sets (skeleton, no flash of tabs). Counts visible but not clickable when locked
+- **Follow state gate:** `ProfileLookup` renders cached non-own user ONLY while `useFollowState(user.id)` is known (account switch clears it, `useUserByUsername` would read "none" = locked flash); unknown -> skeleton until the lookup refetch, refetch failure -> desync state
 - **Request list reload:** `requestsVersion` bumped by external count changes (going public, blocking requester), never by list's own responses
 - **Settings:** `/settings` index (center column list, default right sidebar) and `(sections)/` layout with `MainLayout aside={<SettingsNav/>}` (lg+). Root layout = noindex + `SettingsGuestGate` (own shell for guests). Pages thin, containers in `features/settings`
 - **Caches are viewer-scoped:** search result carries `actorId`; `tagPageKey(tag, sort, actorId)`
-- **Trending / tag lists** count only posts signed-out visitor can see
+- **Trending / tag lists** count only root posts signed-out visitor can see (`collectTagStats` skips replies; `getMockTagStat` for tag OG filters seeds by `canViewPost(null, post)`)
 - **Metadata:** `/posts/[id]` `generateMetadata` returns generic title for close friends, private author or reply under such root (`isPostPubliclyVisible`)
-- **Composer:** close friends chip (signed-in, post mode); `visibility` only sent when `closeFriends`; drafts keep `visibility`. Badge = `ring-emerald-500` + label
+- **Composer:** close friends chip (signed-in, post mode); `visibility` only sent when `closeFriends`; drafts keep `visibility`; submit, save-and-close & discard reset it to `public`. Badge = `ring-emerald-500` + label
 
 ## Files
 - `src/mocks/`: `relation-graph.ts`, `block-graph.ts`, `privacy.ts`, `visibility.ts`, `seed-authors.ts` (`SEED_CLOSE_FRIENDS`), seed pending in `relation-graph.ts`
@@ -61,9 +62,18 @@ Reads: post-service / user-service -> mocks/visibility.ts (asViewer) -> filter -
    - **Fix & Decision:** keep pending in `setFollowedIds`; unknown unless `known` (see Key rules)
    - **Verification:** `user-store.test.ts` "follow state after the follow graph loaded"
 3. **Viewer caches outside stores:** search result & tag pages were keyed by query only; now carry `actorId`
-4. **Dialog exit animation in hidden preview pane** never finishes (`data-state="closed"` but still in DOM). Not bug
+4. **Account switch flashes locked profile**
+   - **Symptom:** followed private profile showed the locked state after switching account, until user reloaded
+   - **Root Cause:** `invalidateViewerProjection` clears `status` & `known`, `useUserByUsername` defaults a missing status to "none", so `ProfileView` computed `locked` from cached base user
+   - **Fix & Decision:** gate on `useFollowState` known in `ProfileLookup` (see Key rules); global default of selectors stays
+   - **Verification:** `profile-container.test.tsx` switch tests (skeleton, never locked heading, desync on refetch failure)
+5. **Dialog exit animation in hidden preview pane** never finishes (`data-state="closed"` but still in DOM). Not bug
 
 ## Tech debt
 - **BE gaps:** accept/decline request, mute, privacy toggle, block / mute / request lists, post visibility in `CreatePostRequest`; real-API write ordering (spec D18)
-- **Deferred minors:** relation-sets load dropped after 2 stale reads (M1); trending counts replies under CF roots (M2); tag OG counts private authors (M3); composer visibility not reset after save-and-close (M4); followed private profile flashes locked after switch (M5); `RelationUserList` offset paging skips rows after removals (M6); English "1 close friends" plural
+- **Deferred minors:**
+  - **M6:** `RelationUserList` offset paging skips rows after removals. Impact: low (needs remove then Load more). Fix needs cursor / after-id paging contract (lists have no BE yet). Priority: low. Next: pick cursor shape when BE list endpoints are designed
+  - **Plural:** "1 close friends" (also `1 followers`...): `useTranslation` has no plural support, vi has none. Priority: low. Next: i18n-wide plural design (`Intl.PluralRules`), NOT a per-key patch
+  - **Closed:** M2 (not reproducible, `collectTagStats` already skips replies; regression test added)
+  - **Sibling gap:** composer close handlers still keep `audience` & `activeDraftId` (not visibility-related, untouched)
 - `PostAudience` (reply permission) still unenforced; server route cannot see block state (D13); `/saved` reads seed directly
