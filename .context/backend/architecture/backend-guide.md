@@ -26,20 +26,20 @@ updated: 2026-10-14
 - **Shared kernel:** `Microservice.BuildingBlocks.{CQRS,Domain}`, net8.0; CQRS refs Domain (MediatR 14.1.0, FluentValidation 12.1.1 unused there); Domain uses MediatR.Contracts 2.0.1
   - `IRepository<T,TId>`: `UnitOfWork`, `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove` (`BB:Domain/Repositories/IRepository.cs`)
   - `Entity.CheckRule` & `ValueObject.CheckRule` throw `BusinessRuleValidationException` when `BrokenWhen` (`BB:Domain/Entities/Entity.cs`)
-  - `IDomainEvent : INotification`; `AggregateRoot<TId>` holds `DomainEvents`, `ClearDomainEvents()`, protected `AddDomainEvent` (its null guard is ineffective: `ThrowIfNull` receives a string)
+  - `IDomainEvent : INotification`; `AggregateRoot<TId>` holds `DomainEvents`, `ClearDomainEvents()`, protected `AddDomainEvent` (ineffective null guard: `ThrowIfNull` receives string)
   - `Enumeration<T>.FromValue(int)` returns null for unknown values; `GetAll()` reflects declared public static fields
-  - Present but unused by YSocial: `EventSourcedAggregateRoot`, `Event`/`IEvent`, `UnknownEventException`, `QueryBase`/`IQuery`/`IQueryHandler`
+  - Unused: `EventSourcedAggregateRoot`, `Event`/`IEvent`, `UnknownEventException`, `QueryBase`/`IQuery`/`IQueryHandler`
 
 ## 2. Mislead names
 
 | Name | Reality | Source |
 |---|---|---|
 | `TransactionBehavior` | opens no transaction; calls `unitOfWork.CommitAsync` after handler, even when `Result` failed | `Application/CQRS/Behaviors/UnitOfWork/TransactionBehavior.cs` |
-| `MockDataStore : DbContext` | static `ConcurrentDictionary` store; `SaveChangesAsync` returns `1` & persists nothing | `Infrastructure/Data/MockDataStore.cs` |
-| `AddDbContext<MockDataStore>(UseNpgsql)` | registered, never queried; no EF query or migration in snapshot | `Infrastructure/DependencyInjection.cs` |
+| `MockDataStore : DbContext` | static `ConcurrentDictionary` store; `SaveChangesAsync` returns 1, persists nothing | `Infrastructure/Data/MockDataStore.cs` |
+| `AddDbContext<MockDataStore>(UseNpgsql)` | registered, never queried; no EF query or migration | `Infrastructure/DependencyInjection.cs` |
 | `YSocialDbContext` | has only `DbSet<Post>`; its registration is commented out | `Infrastructure/Data/YSocialDbContext.cs`, `DependencyInjection.cs` |
 | `EfNotificationOutboxService` | writes to in-memory `List`, no EF | `Infrastructure/Notifications/Outbox/EfNotificationOutboxService.cs` |
-| `CQRS/Decorators/` | holds only `DummyNotification` (+ no-op handler); no decorator exists; Scrutor never called (`Decorate` count 0) | `Application/CQRS/Decorators/...` |
+| `CQRS/Decorators/` | only `DummyNotification` (+ no-op handler); no decorator; Scrutor never called | `Application/CQRS/Decorators/...` |
 | `ClearCacheWhenUserUnblockedEventHandler`, `UserFollowRequestedEventHandler`, `InitializePostStatsHandler` | no-op or log only | `Application/Features/...` |
 | `ErrorType.Business` | maps to HTTP 400, not domain exception | `Api/Controllers/ApiController.cs` |
 | `Unauthorized` `Result` | produced inside handlers only; JWT middleware 401 has different (empty) body | §6 |
@@ -58,19 +58,22 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 - **Pipeline order:** registration order in `Application/DependencyInjection.cs`: `ValidationBehavior`, `LoggingBehavior`, `MetricsBehavior`, `TransactionBehavior`
 - **Applicability:** `ValidationBehavior` & `TransactionBehavior` constrain `TRequest : ICommand<TResponse>`; `LoggingBehavior` & `MetricsBehavior` constrain `TRequest : notnull`
   - **Commands** (`ResultCommand*` -> `CommandBase<>` -> `ICommand<>`): all 4 behaviors apply (`BB:CQRS/Commands/CommandBase.cs`)
-  - **Queries (Verified):** `ResultQuery<T> : RequestBase<Result<T>>` implements only `IRequest<>`, not `ICommand<>` -> `ValidationBehavior` & `TransactionBehavior` are **skipped**; only Logging & Metrics wrap them (`BB:CQRS/Requests/RequestBase.cs`)
-  - **Consequences:** `GetPostQueryValidator` & `GetPostsByUserIdQueryValidator` are dead code; `page`/`pageSize` are unbounded (`pageSize=1000` returns up to 1000 rows; `pageSize=0` -> `TotalPages` divides by zero; `page<1` -> negative `Skip` treated as 0) -> LINQ semantics, `Partially verified`
-  - Query handlers implement `IRequestHandler` directly (not `IQueryHandler`)
+  - **Queries:** `ResultQuery<T> : RequestBase<Result<T>>` implements only `IRequest<>`, not `ICommand<>` -> `ValidationBehavior` & `TransactionBehavior` are skipped; only Logging & Metrics wrap them (`BB:CQRS/Requests/RequestBase.cs`)
+  - **Consequences:** `GetPostQueryValidator` & `GetPostsByUserIdQueryValidator` are dead code; `page`/`pageSize` are unbounded (`pageSize=1000` returns up to 1000 rows; `pageSize=0` -> `TotalPages` divides by 0; `page<1` -> negative `Skip` treated as 0) -> LINQ semantics
+  - Query handlers implement `IRequestHandler` (not `IQueryHandler`)
 - **Validation:** all `IValidator<T>` run in parallel, errors merged, `throw new ValidationException(errors)` (not `Result`) -> see §5
 - **Logging:** `LoggingBehavior` logs request & response objects at Information (`{@Command}`, `{@Response}`) -> request records (`LoginCommand`, `RegisterAccountCommand`, `ResetPasswordCommand`) carry passwords/OTP & `LoginResponse` carries tokens; rendering is framework-dependent; security debt
 - **Metrics:** only stopwatch log line
-- **Commit:** runs for every command, including ones that returned failed `Result`
+- **Commit:** runs for every command, even ones returned failed `Result`
 - **No rollback:** repos mutate shared static dictionaries immediately; exception after mutation leaves state changed (§8)
 - **Notification (event) pipeline:** domain events published with `mediator.Publish` sequentially per event; open-generic behaviors do not wrap notifications (`IPipelineBehavior` is request-only; MediatR convention)
 - **Decorators:** none
 - **Nested dispatch:** see §7
 
-## 4. DI registration (`Infrastructure/DependencyInjection.cs`, `Application/DependencyInjection.cs`)
+## 4. DI registration
+
+> `Infrastructure/DependencyInjection.cs`
+> `Application/DependencyInjection.cs`
 
 | Lifetime | Registrations |
 |---|---|
@@ -101,19 +104,19 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 
 - **Error object:** anonymous `{ Title, Detail, Status, Timestamp }`; JSON casing = MVC default camelCase
 - **Swagger mismatch:** schema `ProblemDetails` lists `type|title|status|detail|instance`; `timestamp` missing, `type`/`instance` never sent
-- **Outliers:** `LikesController`/`SavedItemsController` return `BadRequest("Invalid TargetType")` (plain string) when `TargetType` is null
+- **Outliers:** `LikesController`/`SavedItemsController` return `BadRequest("Invalid TargetType")` when null `TargetType`
 - **`Result<bool>` commands** (UpdatePost, DeletePost, RestorePost, comment ops, profile ops) return 200 + `true`, never 204
 
 ### 5.2 Exceptions -> HTTP: NO mapping exists
 - `Program.cs` has no `UseExceptionHandler`, `IExceptionHandler`, exception filter or `AddProblemDetails`; neither DI extension registers one
 - Therefore these surface as **HTTP 500** (Development: exception page; Production: empty body):
-  - `BusinessRuleValidationException` (every `CheckRule` failure; proven thrown by tests `UserRelationManagerTests`)
+  - `BusinessRuleValidationException` (every `CheckRule` failure)
   - `FluentValidation.ValidationException` (`ValidationBehavior`)
   - `EntityNotFoundException` (`FollowUserAsync`, `MarkNotificationAsReadCommandHandler`)
 - **Affected paths (examples):** non-author post edit/delete/restore | wrong password (`Account.Login`) | 6th active session (`DeviceSessionLimitRule`) | follow self/missing/deleted/blocked target | close-friend while not following | block self | content over limits | invalid OTP | restore of non-deleted post (`EntityMustBeDeletedToRestoreRule`) | register with email local part < 3 chars
-- Swagger-declared 400/403/404 for these routes are therefore NOT what clients receive
+- Swagger-declared 400/403/404 for these routes -> NOT what clients receive
 - **Inconsistency:** unknown account on login -> `Result.Fail` 400, wrong password -> exception 500 (account enumeration + differing status)
-- **Framework 400s:** `[ApiController]` automatic `ValidationProblemDetails` (malformed JSON, invalid enum int via `EnumerationJsonConverter`, missing non-nullable `[FromQuery] string username` via implicit required) -> third error shape
+- **Framework 400s:** `[ApiController]` automatic `ValidationProblemDetails` (malformed JSON, invalid enum int via `EnumerationJsonConverter`, missing non-nullable `[FromQuery] string username` via implicit required)
 - **Routing 404:** `{id:guid}` constraint mismatch -> 404 with no body (framework default)
 - **Auth 401/403:** JWT middleware/`[Authorize]` -> 401 empty body + `WWW-Authenticate`, 403 empty (framework default)
 - Net: FE must handle 4 error shapes (handler object, `ValidationProblemDetails`, bare string, empty) plus HTML/text 500
@@ -122,7 +125,7 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 
 ### 6.1 JWT (`Api/Program.cs`, `Infrastructure/Identity/JwtProvider.cs`)
 - Scheme `JwtBearer`; validates issuer, audience, lifetime & signing key (HS256, symmetric); `DefaultMapInboundClaims = false` (claim names kept as issued)
-- **Claims:** `sub` = **AccountId** | `user_id` = **UserId (profile)** | `email` | `jti`; no role claim, no profile username
+- **Claims:** `sub` = AccountId | `user_id` = UserId (profile) | `email` | `jti`; no role claim, no profile username
 - **Lifetime:** access token & refresh token 7 days (`Account.DefaultRefreshTokenExpiryDays`)
 - **No revocation check:** tokens stay valid after logout/account delete/password change until expiry (no per-request account or user lookup)
 - **SignalR:** token accepted from query `access_token` only for paths starting `/hubs`
@@ -145,44 +148,48 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 | `NotificationHub` | yes | n/a |
 
 - `ApiController` has `[Authorize]` commented out -> default is anonymous
-- No role/policy authorization anywhere; `Account.Role` (`UserRole`) is never read by auth code
+- No role/policy authorization; `Account.Role` (`UserRole`) is never read by auth code
 - **Ownership checks** live in domain rules: `OnlyAuthorCanPerformActionOnPostRule`, `OnlyAuthorCanEditCommentRule`, `OnlyAuthorOrPostOwnerCanDeleteCommentRule`, `OnlyDeleterCanRestoreCommentRule`, `OnlyRecipientCanReadNotificationRule` -> violation = exception = 500 (§5.2)
 
 ### 6.4 Session lifecycle
-- **Login:** `LoginCommand(LoginId, Password, DeviceId)`; `LoginId` = email | phone | username (mock repo heuristics: contains `@` -> email; leading `+` or digits/space/dash -> phone; else username); profile used for token = profile whose username equals `LoginId`, else default profile (`UserProfileService.ResolveProfile`)
+- **Login:** `LoginCommand(LoginId, Password, DeviceId)`; `LoginId` = email | phone | username (heuristics: contains `@` -> email; leading `+` or digits/space/dash -> phone; else username); profile used for token = profile whose username equals `LoginId`, else default profile (`UserProfileService.ResolveProfile`)
 - Response `LoginResponse(AccessToken, RefreshToken, RefreshTokenExpiry)`; **no user id/profile in body** -> FE must decode `user_id` from JWT
 - **Refresh tokens:** opaque GUID strings stored on `Account.RefreshTokens`; max **5 active** (`DeviceSessionLimitRule`, 6th login throws -> 500); expired/revoked tokens purged on next login
 - **Refresh endpoint:** `Not found`. Only rotation path = `PUT /api/users/profiles/switch` (`Account.RotateRefreshToken`), which itself needs valid access token
-- **Logout defect:** `LogoutUserCommandHandler` builds `new AccountId(userContext.UserId)` (profile id used as account id) -> account lookup misses -> `NotFound` 404 "Account not found" -> refresh token never revoked
+- **Logout defect:** `LogoutUserCommandHandler` builds `new AccountId(userContext.UserId)` (profile id used as account id) -> account lookup misses -> `NotFound` 404 -> refresh token never revoked
   - Combined with 5-session cap: client logs in repeatedly without working revoke is locked out until process restart
 - **Password reset:** `forgot-password` always 204, also for unknown ids; OTP 6 digits, bcrypt-hashed, 15 min, max 5 attempts; delivery = `MockEmailSender`/`MockSmsSender` (log only, includes OTP); reset revokes all refresh tokens
-- **Register:** returns `AccountId` only (no tokens); username = email local part, **no uniqueness check**, can't choose or change it later (§ domain-model)
+- **Register:** returns `AccountId`, no tokens; username = email local part, **no uniqueness check**, can't choose or change later (§ domain-model)
 - **Delete account:** soft-delete + revoke refresh tokens + event removes all profiles; existing access tokens remain usable (§6.1)
 
 ## 7. Unit of Work, persistence & domain events
 
-### 7.1 Commit sequence (`Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`, `DomainEventsDispatcher.cs`)
-1. Handler mutates aggregates through singleton mock repos (immediate, in-process)
+### 7.1 Commit sequence
+
+> `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`
+> `Infrastructure/Messaging/DomainEventsDispatching/DomainEventsDispatcher.cs`
+
+1. Handler mutates aggregates through mock repos (immediate, in-process)
 2. `TransactionBehavior` -> `UnitOfWork.CommitAsync`
 3. `DomainEventsDispatcher`: `GetAllDomainEvents()` snapshot -> `ClearAllDomainEvents()` -> `Publish` each event sequentially
 4. `SaveChangesAsync` (no-op)
 
 ### 7.2 Dispatch defects
-- **Scan gap:** `MockDataStore.GetAllDomainEvents`/`ClearAllDomainEvents` iterate only `Accounts, Users, Posts, Likes, Comments, SavedItems`; `UserRelations`, `UserBlocks`, `Notifications` are never scanned
-  - **Consequence:** `UserFollowRequestedEvent`, `UserFollowAcceptedEvent`, `UserUnfollowedEvent`, `UserBlockedEvent`, `UserUnblockedEvent` are **never dispatched** -> follower/following counts never change, follow notifications never created, blocking does not purge follows (contradicts `user-profile-and-relations.md` §2.1)
+- **Scan gap:** `MockDataStore.GetAllDomainEvents`/`ClearAllDomainEvents` iterate only `Accounts, Users, Posts, Likes, Comments, SavedItems`; never `UserRelations`, `UserBlocks`, `Notifications`
+  - **Consequence:** `UserFollowRequestedEvent`, `UserFollowAcceptedEvent`, `UserUnfollowedEvent`, `UserBlockedEvent`, `UserUnblockedEvent` are **never dispatched** -> follower/following counts unchanged, follow notifications never created, blocking does not purge follows
 - **Lost event on unlike:** `Like.Remove()` adds `LikeRemovedEvent`, then `MockLikeRepository.Remove` does `TryRemove` before commit -> aggregate no longer in `Likes.Values` -> event lost -> `Post.LikeCount`/`Comment.LikeCount` only increase
-  - Soft-deleted aggregates (Post, Comment, SavedItem, Account) stay in dictionaries, so their delete events do dispatch
+  - Soft-deleted aggregates (Post, Comment, SavedItem, Account) stay in dictionaries -> delete events do dispatch
 - **Single pass:** events raised inside handlers (e.g. `RemoveSavedItemsWhen*` -> `SavedItem.Remove()`) are not re-collected; they stay on static aggregates & dispatch in **next unrelated commit** (any request)
 - **Process-global:** provider scans static dictionaries, not request-tracked entities; snapshot+clear is not atomic -> concurrent commits can double-publish or steal events
 - **Ordering:** events published grouped by aggregate type (Accounts, Users...), not chronologically
 - **Failure semantics:** handler exception -> 500, earlier mutations stay (no rollback). Example: `RegisterAccountCommandHandler` adds account, then `InitializeUserProfileHandler` (on commit) throws for local part < 3 chars -> **orphan account** (email taken -> later 409; login -> "No user profile found")
 
 ### 7.3 Persistence reality
-- State = static `ConcurrentDictionary` fields on `MockDataStore`; seed: 3 accounts, 4 profiles (1 account has 2), 2 posts (`SeedMockData`; seed credentials are hard-coded there, not reproduced here)
+- State = static `ConcurrentDictionary` fields on `MockDataStore`; seed: 3 accounts, 4 profiles (1 account has 2), 2 posts (`SeedMockData`; hard-coded seed credentials, not reproduced here)
 - Soft vs hard `Remove`: soft-delete is performed by domain method; mock `Remove` just re-stores entity for Account, Comment, Post, SavedItem, UserRelation, User; **hard** removal for Like, Notification, UserBlock
 - No unique constraints (follow, like...) beyond application checks; queries are full scans
-- `appsettings`/connection string/migrations: Not found
-- `AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true)` is set but irrelevant until real DB exists
+- `appsettings`/connection string/migrations: not yet
+- `AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true)` irrelevant until real DB exists
 
 ### 7.4 Notifications pipeline
 - Handlers (`CreateNotificationWhenLiked`, `...CommentCreated`, `...FollowRequested`, `...FollowAccepted`) create `Notification` & enqueue to in-memory outbox; `ProcessNotificationOutboxJob` pushes `ReceiveNotification` via `IHubContext` to `Clients.User(recipientId)` every second; nothing is ever removed from outbox list
@@ -190,16 +197,16 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 - Self notifications are created (`CannotSendNotificationToYourselfRule` call is commented out in `Notification.Create`)
 - Hub user id = claim `user_id` -> only connection of active profile receives it
 - Payload `NotificationPayload { Id, Type, Title, Content, MetaData, RecipientId }` (SignalR JSON protocol -> camelCase); type names `FollowRequested|FollowAccepted|NewComment|NewLike`
-- **No HTTP endpoint** to list notifications or mark as read (`MarkNotificationAsReadCommand` has no controller; it throws instead of returning `Result`)
+- **No HTTP endpoint** to list notifications or mark as read (`MarkNotificationAsReadCommand` has no controller; throws instead of returning `Result`)
 
 ## 8. Cross-cutting API behavior
 - **Routing:** `api/[controller]` + `LowercaseUrls`; Users/UserRelations/UserBlocks override routes (`api/users/{targetId}/relations`, `api/users/{targetId}/blocks`)
 - **JSON:** System.Text.Json; only addition is `EnumerationJsonConverterFactory` -> every `Enumeration<T>` reads/writes as **integer** (strings rejected -> auto 400); strongly-typed IDs use generated `SystemTextJson` converter (expected GUID string)
 - **CORS:** policy `WithOrigins("http://localhost:3000")` followed by `SetIsOriginAllowed(_ => true)` + `AllowCredentials` -> effectively **any origin with credentials** (security debt; e `WithOrigins` call is moot)
 - **HTTPS:** `UseHttpsRedirection` active; port/launch profile (FE hard-codes `https://localhost:49895`)
-- **Cancellation:** only `UserBlocksController` & `UserRelationsController` accept/forward `CancellationToken`; all other controllers call `Mediator.Send(cmd)` without one; mock repos ignore tokens anyway
-- **Pagination:** 1 endpoint only (`GET /api/posts/user/{userId}`): `page` (1-based, default 1), `pageSize` (default 10; the 1..50 validator is dead, see §3), newest first, offset-based; `PagedList{Items,Page,PageSize,TotalCount,TotalPages,HasNextPage,HasPreviousPage}`
-- **Rate limiting, health checks, request size limits, structured logging:** Not found
+- **Cancellation:** only `UserBlocksController` & `UserRelationsController` accept/forward `CancellationToken`; all others call `Mediator.Send(cmd)`; mock repos ignore tokens anyway
+- **Pagination:** 1 endpoint only (`GET /api/posts/user/{userId}`): `page` (1-based, default 1), `pageSize` (default 10; dead 1..50 validator, see §3), newest first, offset-based; `PagedList{Items,Page,PageSize,TotalCount,TotalPages,HasNextPage,HasPreviousPage}`
+- **Rate limiting, health checks, request size limits, structured logging:** not found
 
 ## 9. Implementation boundaries (what exists vs not)
 - **Use-case-less domain behavior (no handler/endpoint):** `UserRelation.AcceptFollow`, `UserRelation.ToggleMute`, `User.UpdatePrivacySettings`, `Post.UpdateSettings`, `Account.Deactivate/Activate/AssignRole/ChangePassword`, `IUserRepository.GetByUsernameAsync/IsEmailUniqueAsync`, `INotificationRepository.GetByRecipientIdAsync`
@@ -218,27 +225,23 @@ HTTP -> UseHttpsRedirection -> UseCors("YSocialCorsPolicy") -> UseAuthentication
 9. In-memory only; non-atomic cross-request event handling
 10. Username uniqueness absent; orphan-account path on register
 11. Query validators never run (queries are not `ICommand`): no bounds on `page`/`pageSize`
-12. Handlers using `Task.WhenAll` over same repo/DbContext (`FollowUserAsync`, `RemoveFollowsWhenUserBlocked`, `AddComment`) are safe on mock store but will break on single EF `DbContext` (inference, `Unverified`)
+12. Handlers using `Task.WhenAll` over same repo/DbContext (`FollowUserAsync`, `RemoveFollowsWhenUserBlocked`, `AddComment`) are safe on mock, BREAK on single EF `DbContext`
 13. `MockDataStore.SeedMockData` & Swagger dev token logging ship in same binary (Development-gated for token, seed always on)
 
 ## 11. Tests
 - Single project `tests/YSocial.Domain.UnitTests`, 5 files, all under `UserRelations`: 3 rule tests, `UserRelationTests` (create, RequestFollow idempotency/restore, AcceptFollow, ToggleCloseFriend, ToggleMute, Delete incl. no unfollow event when Pending), `UserRelationManagerTests` (follow/unfollow/block/unblock/close-friend with NSubstitute repos)
 - **Not covered:** Account/Post/Comment/Like/SavedItem/User domain, every Application handler, pipeline behaviors, controllers, dispatcher/UoW, mock repos -> cannot detect findings in §7.2
-- `.context/features/backend-unit-test.md` describes larger matrix (Application handlers etc.) -> **deviation**: only UserRelations slice exists in snapshot
+- `.context/features/backend-unit-test.md` describes larger matrix (Application handlers etc.)
 
-## 12. Evidence ledger & smallest next probes
+## 12. Evidence ledger & next probes
 
-| Claim | Status | Smallest probe |
+| Claim | Status | Probe |
 |---|---|---|
-| Domain exceptions throw (`CheckRule`) | Verified (tests assert `ThrowAsync<BusinessRuleValidationException>`) | none |
 | Exceptions return 500 | Verified absence of handler; body `Partially verified` | `PUT /api/posts/{id}` as non-author, inspect status |
-| `DomainEvent : INotification` | Verified (compile constraint in `INotificationHandler<...>` usage) | none |
 | Behavior order | Partially verified | log line order from 1 command (Logging "Handling" precedes "Finished in") |
-| Queries skip Validation/Transaction | Verified (not `ICommand<>`); runtime effect Partially verified | `GET /api/posts/user/{id}?pageSize=1000` -> expect 200 with all rows |
 | `sub` claim readable as `AccountId` | Partially verified (`DefaultMapInboundClaims=false`) | `PUT /api/users/profiles/switch` with bogus refresh token: 404 profile/account vs 500 rule |
 | JSON camelCase & enum ints | Partially verified | `POST /api/likes/toggle` response shape |
-| `appsettings` values, ports | Unverified | add `appsettings.Development.json` (secrets redacted) & `launchSettings.json` to snapshot |
-| `IRepository`, `CommandBase`, `Enumeration<T>`, `CheckRule` shapes | Verified (`BB:` snapshot) | none |
+| `appsettings` values, ports | Unverified | read `appsettings.Development.json` (secrets redacted) & `launchSettings.json` |
 
 ## 13. Deviations from existing docs
 - `conventions/backend.md`: claims `AnyAsync` high-frequency block checks & EF migration target as current -> mock `FirstOrDefault` scans; EF is planned only. Aggregate list omits Post, Comment, Like, SavedItem, Notification
