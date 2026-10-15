@@ -234,7 +234,7 @@ FollowRequestCountDto: { count }
 PrivacyUpdatedDto: { acceptedCount }
 LoginResponse: { accessToken, refreshToken, refreshTokenExpiry }
 FollowUserResponse: { followStatus: accepted | pending }
-NotificationDto: { id, type, kind: like|reply|follow, title, message, createdAt, isRead, targetId: guid|null, senderId, senderName: string|null, senderAvatar: string|null }
+NotificationDto: { id, type, kind: like|reply|follow, title, message, createdAt, isRead, targetId: guid|null, senderId, senderName: string|null, senderUsername: string|null, senderAvatar: string|null }
 NotificationPageDto: PagedResponse<NotificationDto> + { unreadCount }
 UnreadCountDto: { count }
 SharePostLinkResponse: { postId, sharedUrl }
@@ -340,4 +340,4 @@ SharePostLinkResponse: { postId, sharedUrl }
 
 ## 8. Evidence
 - Probes of the original behavior (T0.2) and their current results: `../architecture/backend-guide.md` §12
-- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (413 tests; layers in `.context/features/backend-unit-test.md`)
+- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (418 tests; layers in `.context/features/backend-unit-test.md`)
