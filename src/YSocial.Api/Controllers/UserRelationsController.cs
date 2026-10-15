@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.UserRelations;
 using YSocial.Application.Features.UserRelations.Follow;
+using YSocial.Application.Features.UserRelations.RespondFollowRequest;
 using YSocial.Application.Features.UserRelations.ToggleCloseFriend;
 using YSocial.Application.Features.UserRelations.Unfollow;
 
@@ -49,4 +50,15 @@ public class UserRelationsController : ApiController
 
         return HandleResult(result);
     }
+
+    /// <summary>
+    /// Accept or decline the pending follow request of <c>targetId</c> (the requester) addressed to the caller
+    /// </summary>
+    [HttpPost("follow-request")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RespondFollowRequest(Guid targetId, [FromBody] RespondFollowRequestRequest request, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new RespondFollowRequestCommand(targetId, request.Decision), cancellationToken));
 }

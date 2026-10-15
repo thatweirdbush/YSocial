@@ -17,4 +17,9 @@ public interface IUserRelationRepository : IRepository<UserRelation, UserRelatio
     /// Active accepted edges touching any of the users, both directions (read-time counters).
     /// </summary>
     Task<IReadOnlyList<UserRelation>> GetAcceptedEdgesAsync(IReadOnlyCollection<UserId> userIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active pending follow requests addressed to the user (unordered; callers filter, order & page).
+    /// </summary>
+    Task<IReadOnlyList<UserRelation>> GetPendingRequestsAsync(UserId targetId, CancellationToken cancellationToken = default);
 }

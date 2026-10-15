@@ -68,7 +68,7 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
 
         FollowStatus = FollowStatus.Accepted;
         UpdatedAt = DateTime.UtcNow;
-        AddDomainEvent(new UserFollowAcceptedEvent(Id, ObserverId, TargetId));
+        AddDomainEvent(new UserFollowAcceptedEvent(Id, ObserverId, TargetId, FromRequest: true));
     }
 
     public void ToggleCloseFriend(bool isCloseFriend)

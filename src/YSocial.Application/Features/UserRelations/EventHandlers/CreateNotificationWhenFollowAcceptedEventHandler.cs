@@ -24,12 +24,17 @@ internal sealed class CreateNotificationWhenFollowAcceptedEventHandler(
 
         var metaDataPayload = new { observerId = observer.Id.Value };
 
+        // An accepted request tells the requester; a plain follow tells the followed user
+        var (recipient, sender) = notification.FromRequest ? (observer, target) : (target, observer);
+
         var followNotification = Notification.Create(
-            recipientId: target.Id,
-            senderId: observer.Id,
+            recipientId: recipient.Id,
+            senderId: sender.Id,
             type: NotificationType.FollowAccepted,
             title: "Follow Request Accepted",
-            content: $"{observer.Username} started following you.",
+            content: notification.FromRequest
+                ? $"{sender.Username} accepted your follow request."
+                : $"{observer.Username} started following you.",
             metaData: metaDataPayload
         );
 

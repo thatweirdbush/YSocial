@@ -6,4 +6,5 @@ namespace YSocial.Domain.UserRelations.Events;
 public sealed record UserFollowAcceptedEvent(
     UserRelationId RelationId,
     UserId ObserverId,
-    UserId TargetId) : DomainEvent;
+    UserId TargetId,
+    bool FromRequest = false) : DomainEvent;

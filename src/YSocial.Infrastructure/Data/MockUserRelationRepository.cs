@@ -60,6 +60,15 @@ public class MockUserRelationRepository : IUserRelationRepository
         return Task.FromResult<IReadOnlyList<UserRelation>>(edges);
     }
 
+    public Task<IReadOnlyList<UserRelation>> GetPendingRequestsAsync(UserId targetId, CancellationToken cancellationToken = default)
+    {
+        var requests = _relations.Values
+            .Where(r => !r.IsDeleted && r.FollowStatus == FollowStatus.Pending && r.TargetId == targetId)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRelation>>(requests);
+    }
+
     public Task AddAsync(UserRelation entity, CancellationToken cancellationToken = default)
     {
         _relations.TryAdd(entity.Id, entity);

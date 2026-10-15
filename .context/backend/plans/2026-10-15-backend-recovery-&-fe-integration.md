@@ -397,7 +397,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Swagger_Builds` | `Swagger_MvpEndpoints_HaveResponseSchemas` | `Swagger_ErrorResponses_UseProblemDetails`
 - **DoD:** MAP §2 rows updated; CP2 may be declared only after this task
 
-#### - [ ] T3.1 Privacy toggle & follow requests
+#### - [x] T3.1 Privacy toggle & follow requests
 - **Scope:** `PUT /api/users/profiles/me/privacy {isPrivate}` -> `{ acceptedCount }`: going public transitions ONLY `Pending` -> `Accepted` (via `AcceptFollow`, events fire per edge), existing accepted followers untouched; `acceptedCount` = number of actual transitions; going private changes no edge (0); same value again -> 0. `GET /api/users/me/follow-requests?page&pageSize&query` -> `FollowListPageDto` (`locked` always false): `page` default 1 (>= 1), `pageSize` default 20, bounds 1..50 (D16), newest request first (edge `UpdatedAt` desc, tie-break requester id), requesters filtered by §4.4 BEFORE paging; `query` per relation-list search rule (below); `GET /api/users/me/follow-requests/count` = same filter, no query; `POST /api/users/{requesterId}/relations/follow-request {decision: accept | decline}` -> 204 (decline = soft-delete edge, no event); accept notifies requester
 - **Relation-list search rule (shared with T3.2, T3.4):** `query` optional, trimmed, max 50 chars (> 50 -> 400), empty = no filter; matches `username` OR `displayName`, case-insensitive & diacritics-insensitive (`FormD` strip marks, matches FE search) substring; applied after §4.4 filter, before paging
 - **Depends:** T2.2, T1.3

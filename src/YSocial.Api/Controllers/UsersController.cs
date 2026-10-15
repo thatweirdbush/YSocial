@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Users;
 using YSocial.Application.Features.Users.DeleteProfile;
 using YSocial.Application.Features.Users.GetMe;
+using YSocial.Application.Features.UserRelations.GetFollowRequests;
 using YSocial.Application.Features.Users.GetUserProfile;
 using YSocial.Application.Features.Users.SetDefaultProfile;
 using YSocial.Application.Features.Users.SwitchProfile;
+using YSocial.Application.Features.Users.UpdatePrivacy;
 using YSocial.Application.Features.Users.UpdateProfile;
 
 namespace YSocial.Api.Controllers;
@@ -41,6 +43,38 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfileByUsername(string username)
         => HandleResult(await Mediator.Send(new GetUserProfileByUsernameQuery(username)));
+
+    /// <summary>
+    /// Pending follow requests addressed to the caller, newest first (search by username or display name)
+    /// </summary>
+    [HttpGet("me/follow-requests")]
+    [Authorize]
+    [ProducesResponseType(typeof(FollowListPageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetFollowRequests([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null)
+        => HandleResult(await Mediator.Send(new GetFollowRequestsQuery(page, pageSize, query)));
+
+    /// <summary>
+    /// Number of pending follow requests (same access filter as the list)
+    /// </summary>
+    [HttpGet("me/follow-requests/count")]
+    [Authorize]
+    [ProducesResponseType(typeof(FollowRequestCountDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetFollowRequestCount()
+        => HandleResult(await Mediator.Send(new GetFollowRequestCountQuery()));
+
+    /// <summary>
+    /// Switch the private-account flag; going public accepts the pending requests
+    /// </summary>
+    [HttpPut("profiles/me/privacy")]
+    [Authorize]
+    [ProducesResponseType(typeof(PrivacyUpdatedDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdatePrivacy([FromBody] UpdatePrivacyRequest request)
+        => HandleResult(await Mediator.Send(new UpdatePrivacyCommand(request.IsPrivate)));
 
     [HttpPut("profiles/switch")]
     [Authorize]
