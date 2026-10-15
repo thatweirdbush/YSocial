@@ -258,7 +258,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 
 ---
 
-#### - [ ] T0.1 Integration test harness, full reset & deterministic seed
+#### - [x] T0.1 Integration test harness, full reset & deterministic seed
 - **Scope:** new `tests/YSocial.Api.IntegrationTests` (xUnit, FluentAssertions, `Microsoft.AspNetCore.Mvc.Testing` 8.x) in `YSocial.sln`; `public partial class Program;`; `InternalsVisibleTo("YSocial.Api.IntegrationTests")` on Application & Infrastructure; `ApiFactory` removes `ProcessNotificationOutboxJob` hosted service (outbox tests call processing directly); `AuthHelper.LoginAsync(loginId, password)` -> bearer client; `[Collection("Api")]` with parallelization disabled
 - **Reset (`MockDataStore.ResetForTests()`):** `Clear()` IN PLACE every static collection (9 dictionaries + outbox `Messages`; NEVER reassign: singleton repos & `MockNotificationOutboxStore` hold references), which also drops pending aggregate events, refresh tokens/sessions (inside `Account`), OTP tokens, notifications; then reseed. Inventory step: grep Infrastructure/Application for other `static` mutable state & singleton fields; each found item gets reset or documented reason
 - **Deterministic seed:** fixed GUIDs (`SeedIds` constants) & fixed `CreatedAt` per entity via Infrastructure-only seed helper (reflection on private setters allowed ONLY in seed code); password hashes computed once & cached (bcrypt cost)

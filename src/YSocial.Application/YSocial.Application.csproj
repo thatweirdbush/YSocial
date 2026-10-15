@@ -18,4 +18,8 @@
     <ProjectReference Include="..\YSocial.Domain\YSocial.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="YSocial.Api.IntegrationTests" />
+  </ItemGroup>
+
 </Project>

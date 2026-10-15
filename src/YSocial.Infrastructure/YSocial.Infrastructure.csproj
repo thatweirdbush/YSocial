@@ -22,4 +22,8 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="YSocial.Api.IntegrationTests" />
+  </ItemGroup>
+
 </Project>
