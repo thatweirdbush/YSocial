@@ -157,7 +157,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
         response.IsSuccessStatusCode.Should().BeTrue();
     }
 
-    [Fact(Skip = "T1.1b")]
+    [Fact]
     public async Task NonAuthorEditPost_Returns403()
     {
         var demo = await LoginAsync(Seed.DemoLogin);

@@ -94,12 +94,8 @@ public sealed class UserRelationManager(
     public async Task ToggleCloseFriendAsync(UserId observerId, UserId targetId, bool isCloseFriend, CancellationToken cancellationToken)
     {
         var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, cancellationToken);
+        Entity.CheckRule(new CloseFriendRequiresAcceptedFollowRule(relation?.FollowStatus == FollowStatus.Accepted));
 
-        if (relation is null || relation.FollowStatus != FollowStatus.Accepted)
-        {
-            throw new BusinessRuleValidationException("You must be following the user to add them as a close friend.");
-        }
-
-        relation.ToggleCloseFriend(isCloseFriend);
+        relation!.ToggleCloseFriend(isCloseFriend);
     }
 }

@@ -72,7 +72,7 @@ public class Comment : AggregateRoot<CommentId>, ISoftDeletable
     {
         CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
         CheckRule(new OnlyDeleterCanRestoreCommentRule(DeletedBy, editorId));
-        CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
+        CheckRule(new CommentMustBeDeletedToRestoreRule(IsDeleted));
         CheckRule(new CannotRestoreCommentIfPostIsDeletedRule(isPostDeleted));
         
         IsDeleted = false;

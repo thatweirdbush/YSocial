@@ -282,7 +282,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** one per §4.1 generic row: `ResultValidation_Returns400_ValidationFailed` | `ResultConflict_DuplicateEmail_Returns409` | `ValidatorFailure_Returns400_WithErrorsCamelCase` | `MalformedJson_Returns400_ValidationFailed` | `NoToken_Returns401_Unauthenticated` | `UnknownRoute_Returns404_NotFound` | `EntityNotFound_FollowMissingUser_Returns404` | `Unhandled_Returns500_InternalError_NoStackOutsideDev` (throwing handler via test override) | `ErrorBody_HasTraceIdAndInstance`
 - **DoD:** every non-2xx body in suite is ProblemDetails with `status`, `title`, `code`; no 500 for validation failures
 
-#### - [ ] T1.1b Rule classification & stable codes
+#### - [x] T1.1b Rule classification & stable codes
 - **Scope:** D2. `IClassifiedRule` + `RuleViolationKind`; classify all 45 rules with explicit `Code` from catalog & `Kind`; replace string throw `UserRelationManager.cs:100` with `CloseFriendRequiresAcceptedFollowRule`; follow/interaction on blocked pair -> `Kind=NotFound` (D14); handler maps `BusinessRuleValidationException` by Kind
 - **Depends:** T1.1a
 - **Files:** `Domain/Common/Rules/*` (new), `Domain/*/Rules/*.cs` (45), `Domain/UserRelations/Services/UserRelationManager.cs`, `Api/Infrastructure/Errors/*`

@@ -105,7 +105,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
             // Still have attempts left,
             // throw a generic invalid credentials error
-            CheckRule(new InvalidCredentialsRule(false));
+            CheckRule(new InvalidOtpRule(false));
         }
 
         // Success

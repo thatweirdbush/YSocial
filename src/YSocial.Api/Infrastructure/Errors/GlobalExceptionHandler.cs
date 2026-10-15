@@ -4,6 +4,7 @@ using Microservice.BuildingBlocks.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Domain.Common.Errors;
+using YSocial.Domain.Common.Rules;
 
 namespace YSocial.Api.Infrastructure.Errors;
 
@@ -50,8 +51,8 @@ public sealed class GlobalExceptionHandler(
                     "One or more validation errors occurred.", errors);
 
             case BusinessRuleValidationException rule:
-                var (status, code) = Classify(rule);
-                return ApiProblems.Create(context, status, code, rule.Details);
+                var (status, code, ruleDetail) = Classify(rule);
+                return ApiProblems.Create(context, status, code, ruleDetail);
 
             case EntityNotFoundException notFound:
                 return ApiProblems.Create(context, StatusCodes.Status404NotFound, ErrorCodes.NotFound, notFound.Message);
@@ -62,6 +63,25 @@ public sealed class GlobalExceptionHandler(
         }
     }
 
-    private static (int Status, string Code) Classify(BusinessRuleValidationException exception)
-        => (StatusCodes.Status400BadRequest, ErrorCodes.BusinessRuleViolated);
+    private static (int Status, string Code, string Detail) Classify(BusinessRuleValidationException exception)
+    {
+        if (exception.BrokenRule is not IClassifiedRule rule)
+        {
+            return (StatusCodes.Status400BadRequest, ErrorCodes.BusinessRuleViolated, exception.Details);
+        }
+
+        var status = rule.Kind switch
+        {
+            RuleViolationKind.Forbidden => StatusCodes.Status403Forbidden,
+            RuleViolationKind.NotFound => StatusCodes.Status404NotFound,
+            RuleViolationKind.Conflict => StatusCodes.Status409Conflict,
+            RuleViolationKind.Unauthorized => StatusCodes.Status401Unauthorized,
+            _ => StatusCodes.Status400BadRequest
+        };
+
+        // Hidden entities (blocked, deleted) must not be named
+        var detail = rule.Kind == RuleViolationKind.NotFound ? "Resource not found." : exception.Details;
+
+        return (status, rule.Code, detail);
+    }
 }

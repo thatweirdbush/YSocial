@@ -82,7 +82,7 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     public void Restore(UserId editorId)
     {
         CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
-        CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
+        CheckRule(new PostMustBeDeletedToRestoreRule(IsDeleted));
         
         IsDeleted = false;
         DeletedAt = null;
