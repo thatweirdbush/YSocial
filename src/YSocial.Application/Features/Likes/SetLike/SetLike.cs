@@ -3,6 +3,7 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
@@ -28,6 +29,7 @@ internal sealed class SetLikeCommandHandler(
     ICommentRepository commentRepository,
     ILikeRepository likeRepository,
     LikeToggleService likeToggleService,
+    InteractionGuard interactionGuard,
     IUserContext userContext)
     : ICommandHandler<SetLikeCommand, Result>
 {
@@ -42,6 +44,11 @@ internal sealed class SetLikeCommandHandler(
 
         var targetAuthorId = await request.TargetType.GetTargetAuthorIdAsync(request.TargetId, postRepository, commentRepository, cancellationToken);
         if (targetAuthorId is not UserId validatedAuthorId)
+        {
+            return Result.NotFound("Target not found.");
+        }
+
+        if (!await interactionGuard.CanInteractAsync(likerId, request.TargetId, request.TargetType == LikeTargetType.Comment, cancellationToken))
         {
             return Result.NotFound("Target not found.");
         }
