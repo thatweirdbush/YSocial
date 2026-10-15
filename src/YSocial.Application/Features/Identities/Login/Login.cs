@@ -69,7 +69,7 @@ internal sealed class LoginCommandHandler(
 
         await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
 
-        var refreshToken = account.AddRefreshToken(request.DeviceId);
+        var refreshToken = account.AddRefreshToken(request.DeviceId, targetUser.Id);
         accountRepository.Update(account);
 
         return Result<LoginResponse>.Success(new LoginResponse(accessToken, refreshToken.Token, refreshToken.ExpiryTime));

@@ -11,11 +11,14 @@ namespace YSocial.Infrastructure.Identity;
 
 internal sealed class JwtProvider(IConfiguration configuration) : IJwtProvider
 {
+    private const int DefaultAccessTokenMinutes = 15;
+
     public string GenerateToken(User user, Account account)
     {
         var secretKey = configuration["Jwt:SecretKey"] ?? "super-secret-key-that-should-be-long-enough-for-hs256!";
         var issuer = configuration["Jwt:Issuer"] ?? "YSocialApi";
         var audience = configuration["Jwt:Audience"] ?? "YSocialClient";
+        var accessTokenMinutes = configuration.GetValue("Jwt:AccessTokenMinutes", DefaultAccessTokenMinutes);
 
         var claims = new[]
         {
@@ -32,7 +35,7 @@ internal sealed class JwtProvider(IConfiguration configuration) : IJwtProvider
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(7),
+            expires: DateTime.UtcNow.AddMinutes(accessTokenMinutes),
             signingCredentials: creds
         );
 

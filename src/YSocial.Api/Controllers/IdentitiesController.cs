@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Identities;
 using YSocial.Application.Features.Identities.DeleteAccount;
 using YSocial.Application.Features.Identities.ForgotPassword;
 using YSocial.Application.Features.Identities.Login;
 using YSocial.Application.Features.Identities.LogoutUser;
+using YSocial.Application.Features.Identities.RefreshToken;
 using YSocial.Application.Features.Identities.RegisterAccount;
 using YSocial.Application.Features.Identities.ResetPassword;
 
@@ -38,7 +40,22 @@ public class IdentitiesController : ApiController
         return HandleResult(result);
     }
 
+    /// <summary>
+    /// Silent refresh: exchanges a refresh token for a new access + refresh pair (anonymous).
+    /// </summary>
+    [HttpPost("refresh-token")]
+    [AllowAnonymous]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        var command = new RefreshTokenCommand(request.RefreshToken);
+
+        var result = await Mediator.Send(command);
+
+        return HandleResult(result);
+    }
+
     [HttpPost("logout")]
+    [AllowAnonymous]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
     {
         var command = new LogoutUserCommand(request.RefreshToken);
