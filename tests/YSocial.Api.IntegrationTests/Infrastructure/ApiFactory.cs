@@ -1,7 +1,9 @@
+using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using YSocial.Application.CQRS.Results;
 using YSocial.Infrastructure.Notifications.Outbox;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
@@ -22,6 +24,7 @@ public class ApiFactory : WebApplicationFactory<Program>
 
             // Test-only probe endpoints
             services.AddControllers().AddApplicationPart(typeof(TestProbeController).Assembly);
+            services.AddTransient<IRequestHandler<FailAfterEventCommand, Result>, FailAfterEventHandler>();
         });
     }
 

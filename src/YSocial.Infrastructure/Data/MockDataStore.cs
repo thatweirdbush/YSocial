@@ -1,3 +1,4 @@
+using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -12,6 +13,7 @@ using YSocial.Domain.SavedItems;
 using YSocial.Domain.UserBlocks;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Infrastructure.Data.Seed;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 using YSocial.Infrastructure.Notifications.Outbox;
@@ -19,7 +21,7 @@ using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure.Data;
 
-public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
+public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider, IPendingDomainEvents
 {
     public static ConcurrentDictionary<AccountId, Account> Accounts { get; } = [];
     public static ConcurrentDictionary<UserId, User> Users { get; } = [];
@@ -54,33 +56,76 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider
         SavedItems.Clear();
         Notifications.Clear();
         Messages.Clear();
+        RemovedAggregateEvents.Clear();
 
         SeedMockData();
     }
 
-    public void ClearAllDomainEvents()
+    #region Domain events
+
+    /// <summary>
+    /// Events of hard-removed aggregates (Like, UserBlock, Notification): they are no longer scanned, so they wait here.
+    /// </summary>
+    public static ConcurrentQueue<IDomainEvent> RemovedAggregateEvents { get; } = [];
+
+    private static readonly object EventsLock = new();
+
+    /// <summary>
+    /// Moves pending events of an aggregate that is about to be hard-removed into <see cref="RemovedAggregateEvents"/>.
+    /// </summary>
+    public static void CaptureRemovedEvents<TId>(AggregateRoot<TId> aggregate)
     {
-        foreach (var entry in Accounts.Values) entry.ClearDomainEvents();
-        foreach (var entry in Users.Values) entry.ClearDomainEvents();
-        foreach (var entry in Posts.Values) entry.ClearDomainEvents();
-        foreach (var entry in Likes.Values) entry.ClearDomainEvents();
-        foreach (var entry in Comments.Values) entry.ClearDomainEvents();
-        foreach (var entry in SavedItems.Values) entry.ClearDomainEvents();
+        lock (EventsLock)
+        {
+            foreach (var domainEvent in aggregate.DomainEvents)
+            {
+                RemovedAggregateEvents.Enqueue(domainEvent);
+            }
+
+            aggregate.ClearDomainEvents();
+        }
     }
 
-    public IReadOnlyCollection<IDomainEvent> GetAllDomainEvents()
+    /// <summary>
+    /// Process-global: a concurrent request can take or discard events raised by another request (lock only guards the snapshot).
+    /// </summary>
+    public IReadOnlyCollection<IDomainEvent> DrainDomainEvents()
     {
-        var events = new List<IDomainEvent>();
+        lock (EventsLock)
+        {
+            var events = new List<IDomainEvent>();
 
-        events.AddRange(Accounts.Values.SelectMany(e => e.DomainEvents));
-        events.AddRange(Users.Values.SelectMany(e => e.DomainEvents));
-        events.AddRange(Posts.Values.SelectMany(e => e.DomainEvents));
-        events.AddRange(Likes.Values.SelectMany(e => e.DomainEvents));
-        events.AddRange(Comments.Values.SelectMany(e => e.DomainEvents));
-        events.AddRange(SavedItems.Values.SelectMany(e => e.DomainEvents));
+            while (RemovedAggregateEvents.TryDequeue(out var removed)) events.Add(removed);
 
-        return events.AsReadOnly();
+            Collect(Accounts.Values, events);
+            Collect(Users.Values, events);
+            Collect(UserRelations.Values, events);
+            Collect(UserBlocks.Values, events);
+            Collect(Posts.Values, events);
+            Collect(Likes.Values, events);
+            Collect(Comments.Values, events);
+            Collect(SavedItems.Values, events);
+            Collect(Notifications.Values, events);
+
+            return events.OrderBy(e => e.OccurredOn).ToList().AsReadOnly();
+        }
     }
+
+    /// <inheritdoc/>
+    public IReadOnlyCollection<IDomainEvent> Discard() => DrainDomainEvents();
+
+    private static void Collect<TId>(IEnumerable<AggregateRoot<TId>> aggregates, List<IDomainEvent> into)
+    {
+        foreach (var aggregate in aggregates)
+        {
+            if (aggregate.DomainEvents.Count == 0) continue;
+
+            into.AddRange(aggregate.DomainEvents);
+            aggregate.ClearDomainEvents();
+        }
+    }
+
+    #endregion
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {

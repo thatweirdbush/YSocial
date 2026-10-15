@@ -43,6 +43,10 @@ public class TestProbeController : ApiController
     [HttpPost("echo")]
     public IActionResult EchoBody([FromBody] Echo body) => Ok(body);
 
+    [HttpPost("fail-after-event/{throwException:bool}")]
+    public async Task<IActionResult> FailAfterEvent(bool throwException)
+        => HandleResult(await Mediator.Send(new FailAfterEventCommand(throwException)));
+
     [HttpGet("secure")]
     [Authorize]
     public IActionResult Secure() => Ok();

@@ -63,6 +63,7 @@ public class MockUserBlockRepository : IUserBlockRepository
 
     public void Remove(UserBlock entity)
     {
+        MockDataStore.CaptureRemovedEvents(entity);
         _blocks.TryRemove(entity.Id, out _);
     }
 }

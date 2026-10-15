@@ -33,6 +33,7 @@ public class MockNotificationRepository : INotificationRepository
 
     public void Remove(Notification notification)
     {
+        MockDataStore.CaptureRemovedEvents(notification);
         _notifications.TryRemove(notification.Id, out _);
     }
 
@@ -47,4 +48,4 @@ public class MockNotificationRepository : INotificationRepository
 
         return Task.FromResult<IReadOnlyList<Notification>>(result);
     }
-}
+}

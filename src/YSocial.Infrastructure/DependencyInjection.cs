@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.Abstractions.Messaging;
 using YSocial.Application.Abstractions.Notifications;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
@@ -72,6 +73,7 @@ public static class DependencyInjection
 
         services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<MockDataStore>());
         services.AddScoped<IDomainEventsProvider>(sp => sp.GetRequiredService<MockDataStore>());
+        services.AddScoped<IPendingDomainEvents>(sp => sp.GetRequiredService<MockDataStore>());
 
         // Domain Events Dispatcher
         services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();

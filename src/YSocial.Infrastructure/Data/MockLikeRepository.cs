@@ -42,6 +42,7 @@ public class MockLikeRepository : ILikeRepository
 
     public void Remove(Like like)
     {
+        MockDataStore.CaptureRemovedEvents(like);
         _likes.TryRemove(like.Id, out _);
     }
 }

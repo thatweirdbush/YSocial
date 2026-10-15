@@ -20,6 +20,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="YSocial.Api.IntegrationTests" />
+    <InternalsVisibleTo Include="YSocial.Application.UnitTests" />
+    <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
 </Project>
