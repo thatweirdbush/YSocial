@@ -57,7 +57,7 @@ updated: 2026-10-15
 
 ### 3.3 Write side
 - **`InteractionGuard`** (`Application/Features/Access/`): like/bookmark (set & toggle) require the target and its root post to be accessible to the actor, else `NotFound` (404); comment creation uses the projector for the post & parent; block target existence is checked in the handler
-- Author-only actions keep ownership in domain rules (403); a hidden target answers 404 first where the handler applies the policy (`UpdatePost`, `AddComment`)
+- Author-only actions keep ownership in domain rules (403); a hidden target answers 404 first where the handler applies the policy (`UpdatePost`, `AddComment`, and delete/restore of posts & comments via `InteractionGuard.IsPostHiddenFromAsync`/`IsCommentHiddenFromAsync`: outsiders get 404, participants reach the 403 rules)
 
 ### 3.4 Repo contracts
 - **Set-based members** on Domain contracts (accept `IReadOnlyCollection<Id>`, return rows or `IReadOnlySet<...>`): e.g. `GetBlockedEitherWayAsync`, `GetRelationsAsync`, `GetAcceptedEdgesAsync`, `GetPendingRequestsAsync`, `GetByObserverAsync`, `GetLikedTargetIdsAsync`, `GetSavedTargetIdsAsync`, `GetByIdsAsync`, `GetTopLevelCommentsByPostIdsAsync`, `GetChildCommentsByParentIdsAsync`; list per contract in DM §7

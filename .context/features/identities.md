@@ -17,7 +17,7 @@ updated: 2026-10-15
 - **Not exposed (domain only):** change password (only via reset), deactivate/activate account, role assignment, session list
 
 ## 2. Password Reset (OTP Flow)
-- **Token generation:** generate OTP token & raise `PasswordResetTokenGeneratedEvent` to trigger email dispatch (mock senders log the OTP; redaction = open debt T4.3)
+- **Token generation:** generate OTP token & raise `PasswordResetTokenGeneratedEvent` to trigger email dispatch (mock senders never log the OTP: no body outside Development, digit runs masked in Development; pipeline logs are redacted)
 - **Verification limits:** max 5 attempts per OTP token before invalidation (`IsMaxAttemptsReached`); wrong OTP -> `InvalidOtp`, exhausted -> `OtpAttemptsExceeded`
 - **Reset action:** validate active OTP -> update password hash -> mark token used (`IsUsed = true`) -> revoke all active refresh tokens
 - **Privacy:** `forgot-password` always answers 204 (no account enumeration)

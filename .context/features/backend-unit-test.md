@@ -11,9 +11,9 @@ updated: 2026-10-15
 
 | Project | Layer | Tests (2026-10-15, all passing) |
 |---|---|---|
-| `tests/YSocial.Domain.UnitTests` (`net8.0`) | Domain: aggregates, rules, services (mock repos) | 54 |
-| `tests/YSocial.Application.UnitTests` (`net8.0`) | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock | 32 |
-| `tests/YSocial.Api.IntegrationTests` (`net8.0`) | real HTTP pipeline over `WebApplicationFactory<Program>` (see 1.3) | 328 |
+| `tests/YSocial.Domain.UnitTests` (`net8.0`) | Domain: aggregates, rules, services (mock repos) | 60 |
+| `tests/YSocial.Application.UnitTests` (`net8.0`) | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction, notification outbox | 41 |
+| `tests/YSocial.Api.IntegrationTests` (`net8.0`) | real HTTP pipeline over `WebApplicationFactory<Program>` (see 1.3) | 413 |
 
 - **Packages (all 3):** `xunit` 2.7.1, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `NSubstitute`, `FluentAssertions` 8.3.0; integration adds `Microsoft.AspNetCore.Mvc.Testing` 8.0.26
 - **Visibility:** MUST add `[assembly: InternalsVisibleTo("YSocial.<Layer>.UnitTests")]` / `("YSocial.Api.IntegrationTests")` to `YSocial.Domain.csproj`, `YSocial.Application.csproj` & `YSocial.Infrastructure.csproj` for direct testing of `internal sealed record` rules, handlers & mock repos
@@ -34,7 +34,10 @@ updated: 2026-10-15
 - **Reset rule:** `MockDataStore.ResetForTests()` clears every static collection IN PLACE (`Clear()`, NEVER reassign: singleton repos & `MockNotificationOutboxStore` hold references), also clears the removed-events queue & outbox, then reseeds; any new static mutable state MUST be added to the reset
 - **Deterministic seed:** `SeedIds` (fixed GUIDs, `BaseTime`) + `MockSeeder` (reflection on private setters allowed ONLY there; bcrypt work factor 4); tests may reference seed ids directly
 - **Characterization & probe tests** (`Characterization/`): pinned behavior that must survive the recovery + the probes of BG §12; target-behavior tests started as `[Fact(Skip = "T1.x")]` and were un-skipped by their owner task (0 skipped now)
-- **Layout (by area):** `Characterization`, `Config` (CORS), `Contract` (Swagger), `Errors` (pipeline, `RuleCodesTests`), `Events` (dispatch), `Identities` (register, session, refresh, race tests), `Interactions` (like/bookmark, write enforcement), `Pagination`, `Posts`, `Relations` (follow lists, requests, privacy), `Smoke`, `Status` (status codes), `Threads`, `Users` (profile reads)
+- **Layout (by area):** `Characterization`, `Config` (CORS), `Contract` (Swagger), `Errors` (pipeline, `RuleCodesTests`, framework 405/415), `Events` (dispatch), `Feed`, `Identities` (register, session, refresh, race tests), `Interactions` (like/bookmark, write enforcement, hidden-target ownership 404-before-403), `Notifications`, `Pagination`, `Posts` (incl. share link), `Relations` (follow lists, requests, privacy, mute), `Security` (log redaction, Production startup), `Smoke`, `Status` (status codes), `Threads`, `Users` (profile reads)
+- **Helpers:** `StoreData.AddUser/AddAccepted` (direct store seeding: many users/edges, events cleared); `ApiFactory.Logs` = `CapturingLoggerProvider` (every host log line; cleared per test by `ApiTestBase`) for redaction tests
+- **Static-store isolation:** unit tests that need the outbox use their OWN list (`new MockNotificationOutboxStore { Messages = [] }`): other classes call `MockDataStore.ResetForTests()` in parallel
+- **Non-Development hosts:** `Factory.WithWebHostBuilder(b => b.UseEnvironment("Production"))` MUST also `UseSetting("Jwt:SecretKey", <value with >= 32 chars>)`, else startup fails by design
 - **Race tests:** parallel requests released by a barrier, repeated (e.g. 50x); assert exactly 1 winner / no active token left / active <= 5
 - **Naming:** `[Subject]_[Scenario]_[Expected]` (e.g. `Refresh_RotatedToken_Returns401`)
 - **Contract guards elsewhere:** `RuleClassificationTests` (Domain: `AllRules_AreClassified`, `AllRuleCodes_ExistInCatalog`, `CodesSnapshot_MatchesApprovedList`), `SwaggerTests` (Api: `Swagger_Builds`, response schemas, `ProblemDetails` errors, DTO schemas)
@@ -171,7 +174,7 @@ updated: 2026-10-15
 | 8 | `AcceptFollow_ShouldBeIdempotent_WhenAlreadyAccepted` | No event |
 | 9 | `ToggleCloseFriend_ShouldSetTrue_WhenFollowingAccepted` | IsCloseFriend=true |
 | 10 | `ToggleCloseFriend_ShouldNotChange_WhenNotAccepted` | Guard: FollowStatus != Accepted |
-| 11 | `ToggleMute_ShouldSetTrue_WhenCalled` | IsMuted=true |
+| 11 | `SetMuted_*` (3 tests) | flag + `MutedAt`, `UpdatedAt` untouched, idempotent & unmute clears `MutedAt`, soft-deleted edge stays deleted |
 | 12 | `Delete_ShouldSoftDelete_WhenActive` | IsDeleted=true, DeletedAt set |
 | 13 | `Delete_ShouldRaiseUnfollowedEvent_WhenWasAccepted` | `UserUnfollowedEvent` |
 | 14 | `Delete_ShouldNotRaiseEvent_WhenWasPending` | No `UserUnfollowedEvent` (was not Accepted) |
@@ -209,6 +212,9 @@ updated: 2026-10-15
 | 3 | `Create_ShouldThrowBusinessRuleException_WhenBlockingSelf` | `CannotBlockYourselfRule` |
 | 4 | `Unblock_ShouldRaiseUserUnblockedEvent_WhenCalled` | DomainEvent |
 
+### `Notifications/NotificationTests.cs` (4)
+- `TargetId` kept, self notification throws, mark-read by non-recipient throws, mark-read idempotent
+
 ### Business Rules Direct Tests (~48 rule files)
 - Only 3 rule test classes exist (UserRelations); all rules are covered by the classification reflection tests + API tests
 - Each rule test class SHOULD implement 2 boundary tests:
@@ -219,11 +225,13 @@ updated: 2026-10-15
 
 # 3. APPLICATION TEST MATRIX (`YSocial.Application.UnitTests`)
 
-## 3.1 Existing (32)
+## 3.1 Existing (41)
 - `Access/ViewerAccessPolicyTests` (16): owner/anonymous/pending/accepted vs private, block either direction, deleted author, FollowersOnly & Private posts, dormant close-friend flag, comment under inaccessible root, filter helpers, `GetContext_CallsEachRepoOnce_For50Candidates`
 - `Posts/PostProjectorTests` (8): post/comment kind & parent, viewer flags per kind, anonymous = no viewer lookups, fixed repo calls per page, dropped inaccessible items, direct-children counting (`CommentCount_PostIdAndCommentIdQueriesNeverMix`)
 - `Cqrs/EventDispatchUnitTests` (6): dispatcher max passes, drain-until-empty, failure discards remaining; `TransactionBehavior` success commits, failed `Result`/exception skips commit & discards
 - `Identity/AccountSessionLockTests` (2): same account serialized & different accounts parallel, double dispose releases once
+- `Notifications/NotificationOutboxProcessorTests` (4): delivered message removed & payload sent to the recipient, failed message retried then dropped after `MaxAttempts`, bounded batch, FE payload field set
+- `Cqrs/LogRedactorTests` (5): password/OTP/token members masked by name, attribute marks other names, nested & collections, failed `Result`, null
 
 ## 3.2 Command handlers (CQRS) - target backlog
 Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert returned `Result` / `Result<T>`. Handler behavior is currently verified end-to-end by the integration layer (1.3)
@@ -243,8 +251,8 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 
 # 4. VERIFICATION PLAN
 
-- [x] **Build:** `dotnet build YSocial.sln` (0 errors, 2 baseline CS1998 warnings in Application EventHandlers)
-- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (54 pass)
-- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (32 pass)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (328 pass, serialized, identical seed per test)
+- [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
+- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (60 pass)
+- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (41 pass)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (413 pass, serialized, identical seed per test)
 - [x] **All:** `dotnet test YSocial.sln`

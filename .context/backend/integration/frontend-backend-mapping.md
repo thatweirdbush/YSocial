@@ -12,7 +12,7 @@ fe-roadmap: .context/features/frontend-roadmap.md
 - Decisions D1-D20 & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
 - Acceptance = integration tests over the real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`); Swagger is NOT the source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
-- **Status 2026-10-15:** BE contract frozen for CP0-CP3 (reached by tests); CP4 (feed, notifications, mute) NOT built, FE stays on mocks; BE NOT production-ready (BG §10: T4.3 required before shared deployment)
+- **Status 2026-10-15:** BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE still on mocks (CP = BE ready, FE adoption pending); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
 
 ## 1. Ground truth for integrators
 
@@ -27,14 +27,14 @@ fe-roadmap: .context/features/frontend-roadmap.md
 | **Cross-tab refresh (FE REQUIRED, CP1)** | refresh tokens are single-use: 2 tabs refreshing the same token -> exactly 1 x 200, the loser gets 401 `InvalidRefreshToken` and `clearAuth` logs out ALL tabs. FE MUST add cross-tab single-flight (`navigator.locks` or BroadcastChannel) and, after acquiring the lock, re-read the stored refresh token & skip the call if already rotated | `Refresh_ConcurrentSameToken_ExactlyOne200` |
 | JSON | camelCase; request enums = integers (`gender`, `targetType`), read DTO enums = lowercase strings; ids GUID strings; `DateTime` ISO UTC; `PostDto.parentId`/`imageUrl` omitted when null, other nullable fields (`bio`, `avatarUrl`, `coverUrl`, author `avatarUrl`) serialize as `null` (FE types must accept `null`, not only `undefined`) | BG §8 |
 | Error body | RFC 7807 `ProblemDetails` on EVERY error: `type, title, status, detail, instance, code, traceId`; validation adds `errors: { field: string[] }` (camelCase keys); FE switches on `code` (list below) | BG §5, `ErrorPipelineTests` |
-| Pagination | offset `page` (1-based) & `pageSize` (default 10; follow lists, follow requests, block list 20; max 50); invalid -> 400 `ValidationFailed`; page beyond last -> 200 empty `items` + real metadata; FE `nextPage = hasNextPage ? page + 1 : undefined` | `PaginationTests` |
+| Pagination | offset `page` (1-based) & `pageSize` (default 10; follow lists, follow requests, block & mute lists, notifications 20; max 50); invalid -> 400 `ValidationFailed`; page beyond last -> 200 empty `items` + real metadata; FE `nextPage = hasNextPage ? page + 1 : undefined` | `PaginationTests` |
 | Id types | profile `UserId` everywhere (authors, targets, viewer); AccountId only in `register` response | DM §1 |
 | Blocks (D14) | blocked either way = `404 NotFound` for profile, user posts, follow lists, post/thread reads, follow/like/bookmark/comment; ONLY exception = own block list; `isBlockedBy` always false | DM §5.2 |
 | Private account (D15) | profile 200 (same field set); content lists 200 `locked: true`, empty `items`, `totalCount: 0`; locked is NEVER 404 | DM §5.1 |
 | Idempotency | follow, unfollow, block, unblock, close-friend, PUT/DELETE like & bookmark are idempotent; toggle endpoints still exist (deprecated after CP2); post/comment delete is not idempotent (second call 404) | §2 |
 | Validator precedence | FluentValidation runs first: empty/over-long content yields `ValidationFailed` + `errors`; the domain rule codes (`PostContentInvalid`, `CommentContentInvalid`) appear only when a validator did not catch the case | `PostContentInvalid` |
 
-### 1.1 Published error codes (34, pinned by `CodesSnapshot_MatchesApprovedList`; rename = contract change, update this table)
+### 1.1 Published error codes (37, pinned by `CodesSnapshot_MatchesApprovedList`; rename = contract change, update this table)
 
 | Area | Code | HTTP | When |
 |---|---|---|---|
@@ -45,6 +45,8 @@ fe-roadmap: .context/features/frontend-roadmap.md
 | Generic | `NotFound` | 404 | unknown, deleted, blocked either way, hidden by privacy/visibility, route not matched |
 | Generic | `Conflict` | 409 | generic conflict (specific 409s below) |
 | Generic | `InternalError` | 500 | unexpected fault only (`detail` generic outside Development) |
+| Generic | `MethodNotAllowed` | 405 | known route, wrong HTTP method |
+| Generic | `UnsupportedMediaType` | 415 | request body is not JSON |
 | Auth | `InvalidCredentials` | 401 | login: unknown, deleted or wrong password (identical body) |
 | Auth | `InvalidRefreshToken` | 401 | refresh/switch: unknown, expired, revoked, rotated token; bound profile or account gone |
 | Auth | `AccountInactive` | 403 | login with VALID password on an inactive account |
@@ -70,8 +72,9 @@ fe-roadmap: .context/features/frontend-roadmap.md
 | Graph | `CannotFollowSelf` | 400 | follow self |
 | Graph | `CannotBlockSelf` | 400 | block self |
 | Graph | `CloseFriendRequiresAcceptedFollow` | 400 | close-friend flag while follow is not Accepted |
-| Notification | `NotNotificationRecipient` | 403 | no HTTP route yet (domain only) |
-| Notification | `NotificationContentInvalid` | 400 | no HTTP route yet (domain only) |
+| Graph | `CannotMuteSelf` | 400 | mute self |
+| Notification | `NotNotificationRecipient` | 403 | mark-read of another user's notification |
+| Notification | `NotificationContentInvalid` | 400 | domain only (never produced by a route) |
 
 ## 2. Endpoint matrix by feature
 
@@ -102,6 +105,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/users/me/follow-requests/count` | JWT | -> 200 `{count}` | same filter as the list | `fetchFollowRequestCount` |
 | `GET /api/users/me/relation-sets` | JWT | -> 200 `RelationSetsDto` | `blocked`, `muted`, `closeFriends` (dormant flags included), `isPrivate`, `requestCount`; no `blockedBy` | `fetchRelationSets`, `fetchCloseFriendCandidates` |
 | `GET /api/users/me/blocks` | JWT | `?page&pageSize(20)` -> 200 `PagedResponse<UserProfileDto>` (items `isBlocked: true`, no `locked`) | newest block first; deleted users omitted | `fetchBlockedUsers` |
+| `GET /api/users/me/mutes` | JWT | `?page&pageSize(20)&query` -> 200 `PagedResponse<UserProfileDto>` (items `isMuted: true`) | newest mute first (`MutedAt`); dormant mutes included; blocked/deleted users excluded BEFORE paging & `totalCount`; `query` <= 50 chars (relation search rule); 400 bad paging; 401 | `fetchMutedUsers` |
 | `PUT /api/users/profiles/me/privacy` | JWT | `{isPrivate}` -> 200 `{acceptedCount}` | going public accepts ONLY pending requests (count = transitions); going private/same value -> 0 | `setPrivateAccount` |
 | `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, coverUrl?, gender(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; urls are plain strings (no upload API) | `updateProfile` (mock) |
 | `PUT /api/users/profiles/switch` | JWT | `{profileId, refreshToken}` -> 200 `LoginResponse` | rotates refresh token, new JWT; 403 `ProfileNotOwned` (foreign/deleted/unknown profile); 401 `InvalidRefreshToken` | profile switcher (roadmap 2.7) |
@@ -117,12 +121,12 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/posts/{id}` | anon | -> 200 `PostDto` | 404 unknown/deleted/hidden/blocked either way; viewer flags false for anonymous | `post-service.fetchPostThread` (via threads) |
 | `POST /api/posts` | JWT | `{content(<=2000), imageUrl?(abs http(s), <=2048)}` -> 201 `PostDto` + `Location: /api/posts/{id}` | text-only allowed; 400 `ValidationFailed`; single image URL only, no upload; no visibility/audience input (always `public`) | `createPost` + `PostCreatorCore` (mock; multi-image & audience not supported) |
 | `PUT /api/posts/{id}` | JWT | `{content}` -> 200 `PostDto` (`isEdited` true) | 403 `NotPostAuthor`; 404 unknown or hidden from editor; 400 | `updatePostContent` |
-| `DELETE /api/posts/{id}` | JWT | -> 204 | soft-delete; 403 `NotPostAuthor`; 404 unknown/already deleted | `deletePost` (FE has no undo) |
-| `PUT /api/posts/{id}/restore` | JWT | -> 204 | author only; 400 `PostNotDeleted`; saved items not restored | - |
+| `DELETE /api/posts/{id}` | JWT | -> 204 | soft-delete; 403 `NotPostAuthor` (visible post); 404 unknown/already deleted/hidden from a non-author | `deletePost` (FE has no undo) |
+| `PUT /api/posts/{id}/restore` | JWT | -> 204 | author only (a non-author gets 403 on a live visible post, 404 on a deleted or hidden one); 400 `PostNotDeleted`; saved items not restored | - |
 | `GET /api/posts/user/{userId}` | anon | `?page&pageSize(10)` -> 200 `UserPostsPageDto` | root posts newest first, filtered BEFORE paging & counting; private non-permitted = `locked: true`; 404 blocked/deleted; `userId` = profile id | `fetchUserPosts(userId, "threads", page)` (tabs `replies`/`media` not supported) |
-| `POST /api/posts/{id}/share-link` | JWT | `?username=` (required) -> 200 `{postId, sharedUrl}` | no post lookup (never 404); URL `{App:FrontendUrl}/@{username}/post/{id}` while FE routes are `/posts/[id]` & `/@username` -> mismatch | client-built links in `PostCard` |
+| `POST /api/posts/{id}/share-link` | JWT | no body -> 200 `{postId, sharedUrl}` | URL `{App:FrontendUrl}/posts/{id}` (FE route); 404 unknown/deleted/hidden/blocked; legacy `?username=` ignored; 401 | client-built links in `PostCard` |
 
-- Not found: feed/timeline, search, trending, tags, pin, hide-like-count, multi-image, media upload, drafts (`fetchFeed`, `searchPosts`, `fetchPostsByTag`, `fetchTrendingTags`, `setPostPinned`, `setHideLikeCount` stay mock)
+- Not found: search, trending, tags, pin, hide-like-count, multi-image, media upload, drafts (`searchPosts`, `fetchPostsByTag`, `fetchTrendingTags`, `setPostPinned`, `setHideLikeCount` stay mock)
 
 ### 2.4 Threads & comments (FE models replies as posts: `PostDto` for both kinds)
 
@@ -131,7 +135,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/threads/{id}` | anon | id = post OR comment id -> 200 `ThreadDto` | 404 hidden/deleted/blocked/unknown; inaccessible parent -> `parent: null`; replies & 1 level `childReplies` newest first, filtered | `fetchPostThread(id)`; `/posts/[replyId]` resolvable |
 | `POST /api/comments` | handler | `{postId, content, parentCommentId?}` -> 201 `PostDto` (`kind: comment`) + `Location: /api/threads/{id}` | `Guid.Empty` parent = null; 404 post/parent unknown, deleted or inaccessible; 400 `ParentCommentMismatch` / `CommentsDisabled` / `CommentContentInvalid` / `ValidationFailed`; 401; notifies post author (also self) | `createReply(parentId, ...)` |
 | `PUT /api/comments/{id}` | handler | `{content}` -> 200 `PostDto` | 403 `NotCommentAuthor`; 404 | none (FE edits via post edit) |
-| `DELETE /api/comments/{id}` | handler | -> 204 | 403 `NotCommentAuthorOrPostOwner`; 404; soft | - |
+| `DELETE /api/comments/{id}` | handler | -> 204 | 403 `NotCommentAuthorOrPostOwner` (visible target); 404 unknown, deleted or hidden from a non-participant; soft | - |
 | `PUT /api/comments/{id}/restore` | handler | -> 204 | 403 `NotCommentDeleter`; 400 `CommentNotDeleted` / `PostDeleted` | - |
 
 ### 2.5 Likes & saved (`LikesController`, `SavedItemsController`)
@@ -158,18 +162,35 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `POST /api/users/{requesterId}/relations/follow-request` | JWT | `{decision: "accept" \| "decline"}` -> 204 | 404 no pending request or inaccessible requester; 400 bad decision; accept notifies requester; decline soft-deletes edge (no event) | `respondFollowRequest` |
 | `POST /api/users/{targetId}/blocks` | JWT | -> 204 | idempotent; 404 missing/deleted target; 400 `CannotBlockSelf`; purges follows both directions in the same request | `setBlocked(id, true)` |
 | `DELETE /api/users/{targetId}/blocks` | JWT | -> 204 | idempotent; follows not restored; 401 | `setBlocked(id, false)` |
+| `PUT /api/users/{targetId}/relations/mute` | JWT | no body -> 204 | idempotent; never changes the follow state (no edge -> hidden `None` edge, soft-deleted edge stays deleted, flag is dormant); 400 `CannotMuteSelf`; 404 unknown/deleted/blocked either way; 401 | `setMuted(id, true)` |
+| `DELETE /api/users/{targetId}/relations/mute` | JWT | no body -> 204 | idempotent; always 204 for authenticated callers (no 404, also for hidden users); 401 | `setMuted(id, false)` |
 
-- Not found: mute (`setMuted`, `fetchMutedUsers` stay mock; `isMuted` always false), restrict
+- Not found: restrict
 
-### 2.7 Notifications (SignalR `/hubs/notifications`)
+### 2.7 Notifications (`NotificationsController`, SignalR `/hubs/notifications`)
+
+| Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
+|---|---|---|---|---|
+| `GET /api/notifications` | JWT | `?page&pageSize(20)` -> 200 `NotificationPageDto` | newest first; notifications of blocked/deleted senders excluded BEFORE paging, `totalCount` & `unreadCount`; 400 bad paging; 401 | `/notifications` list (inline mock `INITIAL_NOTIFICATIONS`) |
+| `GET /api/notifications/unread-count` | JWT | -> 200 `{count}` | same sender filter as the list | unread badge |
+| `PUT /api/notifications/{id}/read` | JWT | no body -> 204 | idempotent; 403 `NotNotificationRecipient` (foreign notification); 404 unknown; 401 | item click |
+| `PUT /api/notifications/read-all` | JWT | no body -> 204 | idempotent; marks only own | "mark all read" |
 
 | Item | Actual | FE counterpart |
 |---|---|---|
-| Hub auth | `[Authorize]`, token via `access_token` query; connection user = `user_id` | `signalr-client.ts`: WebSockets, `skipNegotiation`, `accessTokenFactory` (compatible; unused) |
-| Event | `ReceiveNotification` with `{id, type, title, content, metaData, recipientId}`; `type` in `NewLike\|NewComment\|FollowRequested\|FollowAccepted` | FE `NotificationPayload` expects `{message, createdAt, isRead, senderName, senderAvatar, targetId}` & type `NewFollow` -> **incompatible shape** (T4.2 deferred) |
-| Live types | all 4 (follow events dispatch since T1.3); accepted request notifies the requester; self-events included | FE shows like/follow/reply list |
-| HTTP list / unread count / mark read | **Not found** (`MarkNotificationAsReadCommand` has no controller) | `/notifications` on inline mock `INITIAL_NOTIFICATIONS` |
-| Persistence | in-memory outbox; lost on restart; recipient receives only on active profile connection | - |
+| Hub auth | `[Authorize]`, token via `access_token` query; connection user = `user_id` | `signalr-client.ts`: WebSockets, `skipNegotiation`, `accessTokenFactory` (compatible) |
+| Event | `ReceiveNotification` with one `NotificationDto` (same item shape as the list) | FE `NotificationPayload` in `signalr-client.ts` expects `message`, `createdAt`, `isRead`, `senderName`, `senderAvatar`, `targetId`: all present; FE type union must add `NewFollow`, `FollowRequested`, `FollowAccepted`, `NewComment`, `NewLike` (`kind` gives the FE list grouping like \| reply \| follow) |
+| Types | `NewLike`, `NewComment`, `NewFollow` (public follow, notifies the followed user), `FollowRequested`, `FollowAccepted` (notifies the REQUESTER) | FE `NotificationKind` like \| follow \| reply = `kind` |
+| Self events | no notification (self like, self comment) | - |
+| Persistence | in-memory; delivered outbox messages removed; lost on restart; push reaches only the active profile connection | - |
+
+- Gaps: no `postContentPreview` for replies (FE shows a snippet; fetch the comment via `/api/threads/{targetId}`)
+
+### 2.8 Feed (`FeedController`)
+
+| Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
+|---|---|---|---|---|
+| `GET /api/feed` | anon for `forYou`, JWT for `following` | `?tab=forYou\|following&page&pageSize(10)` -> 200 `PagedResponse<PostDto>` | root posts only, newest first; `forYou` = every post the viewer may see; `following` = own + accepted followees (pending excluded); muted authors excluded in both tabs (dormant mutes too); policy & mute filter BEFORE `totalCount`/paging; page beyond last -> 200 empty + metadata; 400 bad `tab`/paging; 401 `following` anonymous | `fetchFeed(tab, page, viewerId)`; `nextPage = hasNextPage ? page + 1 : undefined`; new-posts pill stays FE-only (no push) |
 
 ## 3. DTO shapes (JSON as serialized)
 
@@ -201,7 +222,7 @@ UserProfileDto:                # SAME field set for every viewer incl. owner (no
   followStatus: none | pending | accepted
   isFollowing: bool            # followStatus == accepted
   viewerMarkedCloseFriend: bool   # includes dormant flag
-  isMuted: bool                # always false (T3.4 deferred)
+  isMuted: bool                # viewer's mute flag (dormant flag included)
   isBlocked: bool              # true ONLY inside GET /api/users/me/blocks
   isBlockedBy: bool            # ALWAYS false (any such read is 404); kept for FE type compat
 MeDto: { profile: UserProfileDto, email, profiles: [{ id, username, displayName, avatarUrl|null, isDefault }] }
@@ -213,6 +234,10 @@ FollowRequestCountDto: { count }
 PrivacyUpdatedDto: { acceptedCount }
 LoginResponse: { accessToken, refreshToken, refreshTokenExpiry }
 FollowUserResponse: { followStatus: accepted | pending }
+NotificationDto: { id, type, kind: like|reply|follow, title, message, createdAt, isRead, targetId: guid|null, senderId, senderName: string|null, senderAvatar: string|null }
+NotificationPageDto: PagedResponse<NotificationDto> + { unreadCount }
+UnreadCountDto: { count }
+SharePostLinkResponse: { postId, sharedUrl }
 ```
 
 - Status outcomes per profile/content read: accessible -> 200 data | private & not permitted -> 200 `locked: true` (lists) / 200 profile | blocked either way, deleted, unknown, inaccessible post -> 404 `NotFound`; a response NEVER mixes `locked` with 404 semantics
@@ -224,11 +249,11 @@ FollowUserResponse: { followStatus: accepted | pending }
 |---|---|---|
 | Login / register / forgot / reset | Done | OTP delivery is mock (logged) |
 | Session persistence / silent refresh / logout | Done | FE cross-tab single-flight (§1) & `/login` redirect |
-| Feed (for-you / following tabs), new-posts pill | Unsupported | no feed endpoint (T4.1 deferred); pill needs push |
+| Feed (for-you / following tabs), new-posts pill | Done (tabs) | `GET /api/feed`; pill needs push (not built) |
 | Post detail + replies | Done | `GET /api/threads/{id}` |
 | Create post (text, 1 image URL) | Done | multi-image, upload, audience unsupported |
 | Edit (text) / delete | Done | no undo in FE vs restore in BE |
-| Pin, hide like count, reposts, polls, drafts | Unsupported | no domain concept |
+| Pin, hide like count, reposts, polls, drafts | Unsupported | no domain concept (deferred, design needed) |
 | Like / bookmark | Done | idempotent PUT/DELETE routes; toggles deprecated |
 | Saved page (pagination) | Done | collections/drag sort/bulk unsave FE-only |
 | Search, trending, `/tags/[tag]`, hashtags/mentions | Unsupported | no search/tag/mention model |
@@ -238,9 +263,10 @@ FollowUserResponse: { followStatus: accepted | pending }
 | Private account & follow requests | Done | privacy toggle, list, count, respond |
 | Close friends manager | Done | `relation-sets.closeFriends`; audience for posts deferred (D17) |
 | Block | Done | own list; D14: blocked profile is 404 (FE "blocked by" states removed) |
-| Mute, restrict | Unsupported | T3.4 deferred; `isMuted` false |
+| Mute | Done | PUT/DELETE mute, `me/mutes`, `isMuted` on profiles |
+| Restrict | Unsupported | no concept |
 | Visibility / viewer-scoped content rules | Done server-side | FE close-friends audience has no BE value |
-| Notifications list, unread, mark read, realtime | Partial | realtime push for all 4 types, payload mismatch, no HTTP API (T4.2 deferred) |
+| Notifications list, unread, mark read, realtime | Done | HTTP API + push of 5 types; no reply preview text |
 | Profile switcher | Done | `GET me` + `PUT profiles/switch` (replace both tokens, reset viewer stores) |
 | Settings: sessions, language, deactivate | Unsupported | delete account exists |
 | DMs, report, onboarding | Unsupported | no code |
@@ -254,14 +280,14 @@ FollowUserResponse: { followStatus: accepted | pending }
 | 3 | Logout 404, no refresh, 7-day access token, 5-session lockout | CLOSED (T1.4/T1.5); FE cross-tab single-flight & redirect fix OPEN (FE, CP1) |
 | 4 | Follow/block events never dispatched, unlike lost | CLOSED (T1.3) |
 | 5 | `sub` != `user_id`; no user in login; username not choosable | CLOSED (`GET me`, register username, T1.8); FE must still decode `user_id` |
-| 6 | No read endpoints (profile, comments, lists) | CLOSED for profile, post, thread, user posts, saved, follow lists, requests, relation sets, blocks; feed, notifications, search, mutes OPEN (deferred) |
+| 6 | No read endpoints (profile, comments, lists) | CLOSED for profile, post, thread, user posts, saved, follow lists, requests, relation sets, blocks, mutes, feed, notifications; search, tags, trending OPEN (deferred) |
 | 7 | Reads ignored privacy/visibility/blocks; privacy unsettable; write leaks (like/bookmark/comment on hidden targets) | CLOSED (T2.1-T2.5 reads, T3.1 privacy, T3.3 writes) |
 | 8 | Toggle vs set semantics | CLOSED (T1.10 routes); toggles deprecated, FE removal after CP2 |
 | 9 | Response codes (200 `true` vs 201/204) | CLOSED (T1.9 & DTO writes) |
-| 10 | SignalR payload shape differs | OPEN (T4.2 deferred) |
+| 10 | SignalR payload shape differs | CLOSED (T4.2): `NotificationDto` carries the FE fields; FE type union still to extend (§6) |
 | 11 | 4 error body shapes | CLOSED: 1 ProblemDetails envelope |
-| 12 | Credentials/OTP/tokens in logs, JWT secret fallback, dev token/seed in same binary | OPEN, REQUIRED before shared deployment (T4.3 not done, BG §10.7/10.8/10.13) |
-| 13 | Delete/restore of hidden posts/comments answers 403 not 404 (existence disclosure) | OPEN, minor (BG §6.3) |
+| 12 | Credentials/OTP/tokens in logs, JWT secret fallback, dev token/seed in same binary | CLOSED (T4.3, BG §10.7/10.8/10.13) |
+| 13 | Delete/restore of hidden posts/comments answers 403 not 404 (existence disclosure) | CLOSED (BG §6.3) |
 | 14 | Process-global in-memory store, no transactions, no rollback | OPEN, accepted (BG §7.2); BE restart wipes state (deterministic seed ids) |
 
 ## 6. FE checkpoints & follow-ups
@@ -274,13 +300,14 @@ FollowUserResponse: { followStatus: accepted | pending }
 | CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke not performed |
 | CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | reached (tests, swagger verified) |
 | CP3 | private account, follow requests, followers dialog, block list, close friends | reached (tests, swagger regenerated) |
-| CP4 | feed, notifications, mute | NOT reached: stays on FE mocks (T3.4, T4.1, T4.2 deferred) |
+| CP4 | feed, notifications, mute | reached (tests, swagger regenerated); FE slices not adopted yet |
 
 ### FE follow-ups (record in FE roadmap; NOT done here)
 - **CP1 (required):** cross-tab refresh single-flight (§1); fix refresh-failure redirect `/auth/login` -> `/login`; register sends `username`
 - **CP2:** viewer bootstrap from `MeDto`, never expect `email` on other profiles; follow status from `{followStatus}`; like/bookmark via `PUT`/`DELETE` resource routes (route by `kind`); thread via `/api/threads/{id}`; accept `null` for nullable DTO fields (not only absent); map `visibility` `followersOnly|private` (not produced yet); remove toggle endpoint usage
 - **CP2/CP3 (D14):** blocked profile becomes not-found; drop `isBlockedBy` & `RelationSets.blockedBy` usage; "blocked by" UI state removed; unblock only from own block list
 - **CP3:** `FollowListPageDto.locked` for private profiles (counts visible on profile, list not clickable)
+- **CP4:** `fetchFeed` via `GET /api/feed` (`tab`, `page`; `nextPage` from `hasNextPage`; `following` needs a token); `setMuted`/`fetchMutedUsers` via mute routes & `me/mutes`; notifications: list/unread/read routes, extend `NotificationPayload.type` union (`NewFollow`, `FollowRequested`, `FollowAccepted`), map `kind` to the item icon, `targetId` to the link; share link: use `sharedUrl` as is
 
 ## 7. Decided contract decisions (D-ids, owner: plan §4)
 
@@ -304,9 +331,13 @@ FollowUserResponse: { followStatus: accepted | pending }
 | D18 | `imageUrl` optional single URL; no upload endpoint | Implemented |
 | D19 | Dev origin `https://localhost:49895`, CORS from config, deterministic seed | Implemented |
 | D20 | Content of soft-deleted profiles hidden from all reads | Implemented |
+| D21 | Mute = idempotent PUT/DELETE flag (`MutedAt`), never touches follow state or follow ordering; no edge -> hidden `None` edge; `CannotMuteSelf`; list `me/mutes` | Implemented (T3.4) |
+| D22 | Feed = offset pagination (default 10), `forYou` anonymous, `following` authenticated, muted authors excluded, policy before paging | Implemented (T4.1) |
+| D23 | Notifications: one `NotificationDto` for HTTP & push, `NewFollow` type, self notifications skipped, foreign mark-read 403, blocked/deleted senders filtered before paging | Implemented (T4.2) |
+| D24 | Security: log redaction by member name/attribute, JWT key required outside Development, seed & dev token Development-only | Implemented (T4.3) |
 
-- **Still open (not decided/built):** feed pagination (offset vs cursor, T4.1), mute semantics (T3.4), notification payload alignment & HTTP API (T4.2), media upload URL shape, access-token revocation list, audience `CloseFriends`
+- **Still open (not decided/built):** media upload URL shape, access-token revocation list, audience `CloseFriends`, feed ranking (`forYou` is chronological), notification reply preview, toggle endpoint removal (after FE adoption), search/tags/trending
 
 ## 8. Evidence
 - Probes of the original behavior (T0.2) and their current results: `../architecture/backend-guide.md` §12
-- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (328 tests; layers in `.context/features/backend-unit-test.md`)
+- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (413 tests; layers in `.context/features/backend-unit-test.md`)

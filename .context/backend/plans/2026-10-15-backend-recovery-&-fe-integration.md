@@ -7,6 +7,8 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 # BE RECOVERY & FE INTEGRATION PLAN
 
 > **For agentic workers:** execute 1 task per session with `superpowers:executing-plans`, TDD per `test-driven-development`, finish with `verification-before-completion`. Track progress with `- [ ]` -> `- [x]` on task headers (§5.4)
+>
+> **Status 2026-10-15:** ALL tasks T0-T4 done (T3.4, T4.1-T4.3 closed in the last session together with the debt pass, §9); 514 tests green (60 / 41 / 413), 0 build warnings
 
 - **Goal:** make BE safe to integrate (correct errors, auth lifecycle, events) & expose min read/write contract that replaces FE mocks for auth, profile, posts, threads, saved & relationship controls
 - **Architecture:** keep Clean Architecture + MediatR pipeline + FluentValidation + DDD rules + in-memory `MockDataStore`; add explicit error catalog & HTTP mapping, read-model projections in Application, viewer access policy as single read-side gate
@@ -88,6 +90,10 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 | D18 | Media | `imageUrl` optional single URL; no upload endpoint | T1.6 |
 | D19 | Dev origin & seed | `launchSettings` -> `https://localhost:49895`; CORS from `Cors:AllowedOrigins`; seed ids & timestamps deterministic | T0.1, T1.7 |
 | D20 | Deleted profile content | content of soft-deleted profiles hidden from all reads (404 on direct read) | T2.1 |
+| D21 | Mute | idempotent `PUT`/`DELETE /api/users/{id}/relations/mute`; `SetMuted` never touches follow state, deletion flag or `UpdatedAt`; no edge -> hidden `None` edge (rejected alternative: require a relation, FE mutes strangers); `MutedAt` orders `GET me/mutes`; new code `CannotMuteSelf`; unmute never 404 | T3.4 |
+| D22 | Feed | `GET /api/feed?tab&page&pageSize`: offset pagination (D16 kept, cursor rejected: no stable ordering key beyond `CreatedAt`, FE `nextPage` model fits offset), default tab `forYou` anonymous, `following` authenticated (own + accepted followees), muted authors excluded (dormant too), policy & mute before paging | T4.1 |
+| D23 | Notifications | one `NotificationDto` for HTTP list & SignalR push (FE fields + `kind`), new type `NewFollow`, self events skipped in `NotificationPublisher` (rule also enforced in `Notification.Create`), foreign mark-read = 403 (plan), unknown = 404, sender filter before paging, outbox deletes delivered messages | T4.2 |
+| D24 | Security | log redaction by member name (`password`, `otp`, `token` or `secret`) or `[SensitiveData]`, mock senders log no body outside Development, JWT key >= 32 chars required outside Development (dev constant fallback), seed & admin token Development-only | T4.3 |
 
 ### 4.1 Error catalog & HTTP mapping (D1, D2)
 
@@ -345,37 +351,37 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Like_PrivatePostNonFollower_404` | `Comment_BlockedEitherWay_404` | `Bookmark_BlockedAuthor_404` | `BlockMissingUser_404` | regression `Like_OwnContent_Allowed`
 - **DoD:** MAP §4.7 risk closed for writes
 
-#### - [ ] T3.4 Mute set endpoint (optional)
+#### - [x] T3.4 Mute set endpoint
 - **Scope:** `PUT`/`DELETE /api/users/{targetId}/relations/mute` (idempotent, no body); `GET /api/users/me/mutes?page`; mute without follow edge: decide in task (create `None` edge vs require relation)
 - **Depends:** T3.2
 - **Files:** `Features/UserRelations/{SetMute,GetMutes}/` (new), `Domain/UserRelations/UserRelation.cs` (if needed), `UserRelationsController.cs`
 - **Tests:** `PutMute_Twice_Idempotent` | `DeleteMute_NotMuted_204` | `Mutes_Paged` | `Profile_IsMutedTrue`
 - **DoD:** FE `setMuted`, `fetchMutedUsers` covered
-- **Status:** deferred (session 2026-10-15): optional, FE keeps mute on mocks; profile `isMuted` stays false
+- **Status:** done (D21): 16 integration + 3 domain tests; `GET me/mutes` also takes `query`
 
-#### - [ ] T4.1 Feed (optional, recommended next)
+#### - [x] T4.1 Feed
 - **Scope:** `GET /api/feed?tab=following|forYou&page` (following = accepted followees + self root posts; forYou = all viewable root posts); policy before paging; muted excluded when T3.4 done; offset vs cursor decided here (D16 alt)
 - **Depends:** T2.4 (T3.4 for mute exclusion)
 - **Files:** `Features/Feed/GetFeed/` (new), `IPostRepository` (by authors, paged), `FeedController.cs` (new)
 - **Tests:** `Feed_Following_OnlyAcceptedAndSelf` | `Feed_ForYou_ExcludesHiddenBlocked` | `Feed_NewestFirst_Paged`
 - **DoD:** FE `fetchFeed(tab, page)` covered
-- **Status:** deferred (session 2026-10-15): optional, FE keeps the feed on mocks
+- **Status:** done (D22): 12 integration tests; repo members `GetByAuthorIdsAsync`, `GetAllAsync`
 
-#### - [ ] T4.2 Notifications (optional)
+#### - [x] T4.2 Notifications
 - **Scope:** HTTP list/unread count/mark read (`MarkNotificationAsRead` -> `Result`, `403 NotNotificationRecipient`); SignalR payload aligned to FE (`createdAt, isRead, senderName, senderAvatar, targetId`, type `NewFollow`); skip self-notifications; outbox removes processed messages
 - **Depends:** T1.3, T2.2
 - **Files:** `Features/Notifications/*`, `NotificationsController.cs` (new), `Infrastructure/Notifications/*`, `Domain/Notifications/Notification.cs`
 - **Tests:** `Notifications_List_NewestFirst_Paged` | `MarkRead_OtherRecipient_403` | `SelfLike_NoNotification` | `Outbox_ProcessedMessageRemoved`
 - **DoD:** FE `/notifications` list & realtime payload render without blanks
-- **Status:** deferred (session 2026-10-15): optional, FE keeps notifications on mocks; payload mismatch & missing HTTP API stay open
+- **Status:** done (D23): 15 integration + 4 processor + 4 domain tests; extras: `unread-count`, `read-all`, `NotificationPublisher`; reply preview text deferred
 
-#### - [ ] T4.3 Security hardening (required before any shared deployment)
+#### - [x] T4.3 Security hardening
 - **Scope:** redaction of passwords, OTP, access & refresh tokens, reset tokens in BOTH `LoggingBehavior` (request & response objects) & `MockEmailSender`/`MockSmsSender` logs (OTP never logged outside Development, masked in Development); JWT secret required outside Development (no fallback); seed + admin-token logging Development-only
 - **Depends:** T1.5 (JWT config shape)
 - **Files:** `Application/CQRS/Behaviors/Logging/*`, `Infrastructure/*/Mock*Sender.cs`, `Infrastructure/Identity/JwtProvider.cs`, `Program.cs`, `MockDataStore.cs`
 - **Tests:** `Login_PipelineLogs_NoPasswordOrTokens` (captured logger) | `RefreshToken_PipelineLogs_NoTokens` | `ForgotPassword_SenderLogs_NoOtp` | `ResetPassword_PipelineLogs_NoOtpOrPassword` | `Production_MissingJwtSecret_FailsStartup`
 - **DoD:** BG §10.7, §10.8, §10.13 resolved
-- **Status:** deferred (session 2026-10-15): NOT done, REQUIRED before any shared deployment (BG §10.7, §10.8, §10.13 stay OPEN)
+- **Status:** done (D24): 12 redaction + 3 startup integration tests + 5 `LogRedactor` unit tests; RED verified by reverting `LoggingBehavior`; Production run verified manually (no key -> startup fails; with key -> no swagger, no seed, no dev token log)
 
 ## 6. FE integration checkpoints
 
@@ -414,11 +420,10 @@ Single owner per fact; others link, never copy
 ## 8. Deferred work & known risks
 
 ### Deferred (not integration blockers)
-- Feed, notifications HTTP + payload alignment, mute (T3.4, T4.x): FE stays on mocks
-- Search, tags, trending, suggestions, hashtags/mentions
+- Search, tags, trending, suggestions, hashtags/mentions (design: ranking/indexing)
 - Pin, hide-like-count, reposts, polls, drafts, DMs, report
 - Media upload & multi-image, close-friends audience (D17), profile tabs `replies` & `media`
-- Create-profile, username change, deactivate/activate, change password, session list
+- Create-profile, username change, deactivate/activate, change password, session list (account lifecycle: needs decisions on re-activation, session identity & username reuse)
 - EF Core / PostgreSQL persistence & transactions, outbox persistence, per-scope event tracking
 - Access-token revocation list (mitigated by 15 min lifetime, D6)
 
@@ -443,5 +448,5 @@ Single owner per fact; others link, never copy
 | Comment ids vs post ids in `/posts/[id]` | reply deep links 404 | D13 thread route |
 | D14 hides blocked users completely | FE "blocked by"/unblock-on-profile states unusable | FE follow-up (§6); unblock via own block list |
 | FE `generated.ts` from stale Swagger | type drift | T2.6 regenerate; integration tests are truth |
-| Toggle endpoints kept during transition | FE may call wrong one | remove after CP2 (follow-up task) |
-| Credentials/OTP in logs, permissive config | security exposure | T4.3 before shared deployment |
+| Toggle endpoints kept during transition | FE may call wrong one | remove after FE adopts CP2 (FE still on mocks: deferred) |
+| Credentials/OTP in logs, permissive config | security exposure | CLOSED (T4.3, D24) |
