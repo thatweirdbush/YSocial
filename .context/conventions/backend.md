@@ -1,25 +1,18 @@
 ---
-module: Backend Architecture & Conventions
+module: Backend Decisions & Conventions
 stack: C# / ASP.NET Core / Entity Framework Core / DDD
 updated: 2026-10-02
 ---
 
-# BACKEND ARCHITECTURE & CONVENTIONS
+# BACKEND DECISIONS & CONVENTIONS
 
-## 1. Solution Structure (Clean Architecture & DDD)
-- `Microservice.BuildingBlocks` (Shared Kernel): core base classes (`AggregateRoot`, `Entity`, `Result`, `IBusinessRule`, `ICommandHandler`, `Enumeration<T>`)
-- `YSocial.Domain`: pure business logic. Aggregates (`Account`, `User`, `UserRelation`, `UserBlock`), Value Objects, Domain Events, Business Rules. Zero external dependencies
-- `YSocial.Application`: CQRS via MediatR (Commands, Queries, Notification Handlers) + FluentValidation
-- `YSocial.Infrastructure`: implements Domain/Application interfaces. `MockDataStore` (in-memory), `JwtProvider`, `BCryptPasswordHasher`, `MockEmailSender`. Target migration: EF Core + PostgreSQL
-- `YSocial.Api`: RESTful Controllers inherit `ApiController`; handles routing, maps `Result` pattern -> HTTP status codes
-
-## 2. Key Architectural Decisions
+## 1. Architectural Decisions
 - **Soft delete over hard delete:** unfollow sets `IsDeleted = true` to preserve metadata (e.g. `IsCloseFriend`). Re-follow restores existing record -> prevents unique index conflicts
-- **Aggregate segregation:** `UserBlock` = standalone Aggregate Root (separate from `UserRelation`) for max execution speed (`AnyAsync`) on high-frequency block checks
+- **Aggregate segregation:** `UserBlock` = standalone Aggregate Root (separate from `UserRelation`) for max execution speed (e.g. `AnyAsync`) on high-frequency block checks
 - **Idempotent commands (fail silently):** re-trigger (e.g. follow already-followed user) -> return Success immediately, no DB mutation
 - **Query batching:** minimize DB round-trips via `Task.WhenAll()` & bidirectional queries (e.g. `GetBlocksBetweenAsync` checks A->B & B->A in 1 query)
 
-## 3. Conventions
+## 2. Conventions
 1. **Imports:** NEVER full namespace in code lines; MUST write `using` at file top
 2. **Enumerations:** prefer `Enumeration` from `Microservice.BuildingBlocks.Domain.Enumerations` over standard `enum`
    - Pattern: `public sealed record FollowStatus(int Value, string Name) : Enumeration<FollowStatus>`

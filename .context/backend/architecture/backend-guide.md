@@ -10,6 +10,7 @@ updated: 2026-10-14
 - **Paths:** repo-relative (`src/...`, `tests/...`); BE root = repo root (`YSocial.sln`). Shared kernel = sibling repo `Microservice.BuildingBlocks` (own snapshot; paths cited as `BB:Domain/...`, `BB:CQRS/...` under its `src/Microservice.BuildingBlocks.*`)
 - **Companions:** domain detail in `domain-model.md` | FE contract in `../integration/frontend-backend-mapping.md`
 - **Generic conventions** (strongly-typed IDs, `IBusinessRule`, `Result`) in `.context/conventions/backend.md`
+-  **Architecture:** Clean Architecture & DDD
 
 ## 1. Solution & project map
 

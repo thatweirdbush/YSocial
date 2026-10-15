@@ -172,6 +172,7 @@ Legend per row: **Auth** = effective requirement (attribute / handler check). **
 9. **Last:** settings sessions, mute, DMs, reposts, polls
 
 ## 7. Unresolved contract decisions
+> Proposed defaults & owner tasks: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` §4 (D1-D20). Mark items decided here once approved
 - Error envelope: RFC 7807 `ProblemDetails` everywhere? include `errors[]` for validation?
 - Replies: BE `Comment` aggregate vs FE post-with-`parentId`; read model for threads
 - Audience: add `CloseFriends` to `PostVisibility`? who may set it? enforcement point (query handlers)?
@@ -183,7 +184,7 @@ Legend per row: **Auth** = effective requirement (attribute / handler check). **
 - Refresh strategy: dedicated endpoint, access-token lifetime, revoke-on-logout
 - Media: upload endpoint & URL shape for `imageUrl`/`avatarUrl`/`coverUrl`
 
-## 8. Evidence limits & smalst probes
+## 8. Evidence limits & next probes
 
 | Open point | Status | Probe |
 |---|---|---|
