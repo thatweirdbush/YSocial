@@ -8,7 +8,7 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 
 > **For agentic workers:** execute 1 task per session with `superpowers:executing-plans`, TDD per `test-driven-development`, finish with `verification-before-completion`. Track progress with `- [ ]` -> `- [x]` on task headers (§5.4)
 >
-> **Status 2026-10-15:** ALL tasks T0-T4 done (T3.4, T4.1-T4.3 closed in the last session together with the debt pass, §9); 514 tests green (60 / 41 / 413), 0 build warnings
+> **Status 2026-10-15:** ALL tasks T0-T4 done (T3.4, T4.1-T4.3 closed in last session together with debt pass, §9); 514 tests green (60 / 41 / 413), 0 build warnings
 
 - **Goal:** make BE safe to integrate (correct errors, auth lifecycle, events) & expose min read/write contract that replaces FE mocks for auth, profile, posts, threads, saved & relationship controls
 - **Architecture:** keep Clean Architecture + MediatR pipeline + FluentValidation + DDD rules + in-memory `MockDataStore`; add explicit error catalog & HTTP mapping, read-model projections in Application, viewer access policy as single read-side gate
@@ -39,7 +39,7 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 - Repo additions = new interface members on Domain contracts + mock impl; set-based (accept id collections) to stay EF-friendly; NO `Task.WhenAll` over same repo in new code (BG §10.12)
 - **Viewer identity:** `viewerId` = profile `UserId` from JWT `user_id` (`IUserContext.UserId`), NEVER `AccountId`; anonymous = `null`
 - **List reads:** access policy (§4.4) applied to every returned entity BEFORE pagination & counts; fixed number of repo calls per page (no per-item lookups, no N+1)
-- **Refresh tokens:** every mutation under the shared per-account lock (§4.3)
+- **Refresh tokens:** every mutation under shared per-account lock (§4.3)
 - Swagger is NOT source of truth; acceptance = integration tests over real HTTP pipeline
 - JSON: camelCase; ids GUID strings; `Enumeration` ints stay for existing request bodies; new read DTOs expose string unions (D9)
 - Do not change FE code; FE checkpoints (§6) are verification hand-offs only
@@ -90,7 +90,7 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 | D18 | Media | `imageUrl` optional single URL; no upload endpoint | T1.6 |
 | D19 | Dev origin & seed | `launchSettings` -> `https://localhost:49895`; CORS from `Cors:AllowedOrigins`; seed ids & timestamps deterministic | T0.1, T1.7 |
 | D20 | Deleted profile content | content of soft-deleted profiles hidden from all reads (404 on direct read) | T2.1 |
-| D21 | Mute | idempotent `PUT`/`DELETE /api/users/{id}/relations/mute`; `SetMuted` never touches follow state, deletion flag or `UpdatedAt`; no edge -> hidden `None` edge (rejected alternative: require a relation, FE mutes strangers); `MutedAt` orders `GET me/mutes`; new code `CannotMuteSelf`; unmute never 404 | T3.4 |
+| D21 | Mute | idempotent `PUT`/`DELETE /api/users/{id}/relations/mute`; `SetMuted` never touches follow state, deletion flag or `UpdatedAt`; no edge -> hidden `None` edge (rejected alternative: require relation, FE mutes strangers); `MutedAt` orders `GET me/mutes`; new code `CannotMuteSelf`; unmute never 404 | T3.4 |
 | D22 | Feed | `GET /api/feed?tab&page&pageSize`: offset pagination (D16 kept, cursor rejected: no stable ordering key beyond `CreatedAt`, FE `nextPage` model fits offset), default tab `forYou` anonymous, `following` authenticated (own + accepted followees), muted authors excluded (dormant too), policy & mute before paging | T4.1 |
 | D23 | Notifications | one `NotificationDto` for HTTP list & SignalR push (FE fields + `kind`), new type `NewFollow`, self events skipped in `NotificationPublisher` (rule also enforced in `Notification.Create`), foreign mark-read = 403 (plan), unknown = 404, sender filter before paging, outbox deletes delivered messages | T4.2 |
 | D24 | Security | log redaction by member name (`password`, `otp`, `token` or `secret`) or `[SensitiveData]`, mock senders log no body outside Development, JWT key >= 32 chars required outside Development (dev constant fallback), seed & admin token Development-only | T4.3 |
@@ -219,7 +219,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Depends:** T1.1a
 - **Files:** `Domain/Common/Rules/*` (new), `Domain/*/Rules/*.cs` (45), `Domain/UserRelations/Services/UserRelationManager.cs`, `Api/Infrastructure/Errors/*`
 - **Tests:** `AllRules_AreClassified` (reflection over Domain assembly) | `AllRuleCodes_ExistInCatalog` | `NonAuthorEditPost_Returns403_NotPostAuthor` | `FollowSelf_Returns400_CannotFollowSelf` | `FollowBlockedEitherWay_Returns404_NotFound` | `CloseFriendWithoutFollow_Returns400` | `RestoreNotDeletedPost_Returns400_PostNotDeleted` | `InvalidOtp_Returns400_InvalidOtp` | `CodesSnapshot_MatchesApprovedList` (pins every emitted code; rename = contract change)
-- **DoD:** no rule failure produces 500; codes independent of class names (renaming a rule class leaves tests green)
+- **DoD:** no rule failure produces 500; codes independent of class names (renaming rule class leaves tests green)
 
 #### - [x] T1.2 Query validation & pagination bounds
 - **Scope:** D16. Relax `ValidationBehavior` constraint to all requests (queries validated; `TransactionBehavior` still commands-only); `page >= 1`, `1 <= pageSize <= 50`; shared pagination rules for new list queries; `PagedList.TotalPages` divide-by-0 guard; page beyond last -> 200 empty items + metadata
@@ -292,7 +292,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Depends:** T1.1b, T1.3
 - **Files:** `Application/Features/Access/` (new), Domain repo contracts, mock repos, new `tests/YSocial.Application.UnitTests` (xUnit + NSubstitute, `InternalsVisibleTo`)
 - **Tests (unit matrix):** owner sees own private | anonymous vs private -> locked | pending -> locked | accepted -> visible | block A->B & B->A -> undiscoverable for both | deleted author -> undiscoverable | FollowersOnly post vs non-follower -> hidden | dormant close-friend flag grants nothing | comment under inaccessible root post -> inaccessible | comment by blocked author under accessible post -> inaccessible | `GetContextAsync` calls each repo once for 50 candidates
-- **DoD:** rules mirror FE `mocks/visibility.ts` except D14 (404 instead of blocked states); §4.4 is the only accessibility definition in code
+- **DoD:** rules mirror FE `mocks/visibility.ts` except D14 (404 instead of blocked states); §4.4 is only accessibility definition in code
 
 #### - [x] T2.2 Profile reads & `me`
 - **Scope:** `GET /api/users/{id:guid}`, `GET /api/users/by-username/{username}` (anonymous allowed) -> `UserProfileDto` (§4.2, same field set for every viewer, never `email`/`profiles`); `GET /api/users/me` ([Authorize]) -> `MeDto` (ONLY place exposing `email` & account profiles); blocked either way / deleted / unknown -> 404 (D14, D20); private non-accepted -> 200 same field set (D15); `followersCount`/`followingCount` computed on read with §4.4 filter (`UserProfileProjector`, batch for N profiles, reused by T3.1/T3.2 lists); `PUT /api/users/profiles/me` -> 200 `UserProfileDto` (D7)
@@ -395,7 +395,7 @@ FE work is out of scope; CP = BE contract frozen for slice + test evidence
 | CP3 | CP2 + T3.1-T3.3 | private account, follow requests, followers dialog, block list, close friends | relation suite green; T2.6 snapshot re-run |
 | CP4 | T4.x | feed, notifications | per task |
 
-- FE never consumes a slice before its CP; mocks stay for everything else
+- FE never consumes slice before its CP; mocks stay for everything else
 
 ### FE follow-ups (record in FE roadmap at CP; not done here)
 - **CP1 (required):** cross-tab refresh single-flight (`navigator.locks` or BroadcastChannel) + after acquiring lock re-read stored refresh token & skip refresh if already rotated; fix refresh-failure redirect `/auth/login` -> `/login`; register sends `username`
@@ -410,7 +410,7 @@ Single owner per fact; others link, never copy
 |---|---|---|
 | Pipeline, error pipeline, auth lifecycle, dispatch semantics & concurrency, debt list | `backend/architecture/backend-guide.md` (§3, §5, §6, §7, §10, §12) | T1.1a/b, T1.3, T1.4, T1.5, T4.3 |
 | Rules (+ code/kind), events Live?, state machines, repo contracts | `backend/architecture/domain-model.md` (§4-§7) | T1.1b, T1.3, T1.4, T1.8, T2.5, T3.1 |
-| Endpoint matrix, statuses, published error-code list, DTO shapes, FE ground truth (incl. refresh cross-tab) | `backend/integration/frontend-backend-mapping.md` (§1, §2, §3, §7 decided D-ids) | every task touching an endpoint |
+| Endpoint matrix, statuses, published error-code list, DTO shapes, FE ground truth (incl. refresh cross-tab) | `backend/integration/frontend-backend-mapping.md` (§1, §2, §3, §7 decided D-ids) | every task touching endpoint |
 | Decision status & task progress | this plan (§4, §5.4 checkboxes); §4.1/§4.2 frozen once MAP holds them (replace by link) | each task close |
 | Generic patterns (classified rules, projector, access policy, set-based repo members) | `conventions/backend.md` | T1.1b, T2.1, T2.3 |
 | Stale specs | `features/identities.md`, `features/user-profile-and-relations.md` -> replace endpoint content with MAP link | T1.5, T3.1 |
@@ -435,7 +435,7 @@ Single owner per fact; others link, never copy
 | Process-global event provider under concurrency | concurrent requests may steal/discard each other's events | T1.3 atomic drain + lock; documented in BG §7.2 |
 | Failure after mutation | state changed but events discarded -> counters/side effects skipped | validators run before handlers (T1.1a, T1.6, T1.8); T1.3 logs discarded events |
 | Concurrent mutation of shared aggregates (`Account` token list, counters) | races, corrupted lists | 1 per-account session lock for ALL token mutations (§4.3, T1.4/T1.5); process-local only; other aggregates accepted risk |
-| Future token-mutating path skips the lock | silent race | §4.3 path list in BG §6.4; review grep `RefreshToken` mutators vs `IAccountSessionLock` usage |
+| Future token-mutating path skips lock | silent race | §4.3 path list in BG §6.4; review grep `RefreshToken` mutators vs `IAccountSessionLock` usage |
 | Stored follow counters drift from edges | wrong counts if exposed | not exposed: profile counts computed on read (§4.2, T2.2); `likesCount` stays stored (accepted, §4.4) |
 | New read endpoint forgets policy | indirect disclosure | §4.4 single definition in `IViewerAccessPolicy`; each read task has blocked/deleted/private tests |
 | Static state leaks between tests | flaky tests | T0.1 in-place reset inventory + serialized collection |
