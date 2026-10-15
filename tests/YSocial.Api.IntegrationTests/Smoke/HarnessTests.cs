@@ -1,6 +1,6 @@
 using FluentAssertions;
-using System.Net;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net;
 using System.Net.Http.Json;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;

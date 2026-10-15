@@ -1,6 +1,5 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
-using YSocial.Application.Abstractions.Messaging;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Domain.Identities;

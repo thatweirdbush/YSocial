@@ -14,7 +14,7 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
     public bool IsMuted { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
-    
+
     public bool IsDeleted { get; private set; }
     public DateTime? DeletedAt { get; private set; }
 

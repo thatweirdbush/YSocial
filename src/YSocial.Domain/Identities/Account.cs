@@ -1,9 +1,9 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
-using YSocial.Domain.Users;
 using System.Security.Cryptography;
 using YSocial.Domain.Identities.Events;
 using YSocial.Domain.Identities.Rules;
+using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Identities;
 

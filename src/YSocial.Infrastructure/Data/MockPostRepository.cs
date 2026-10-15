@@ -1,7 +1,6 @@
 using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 

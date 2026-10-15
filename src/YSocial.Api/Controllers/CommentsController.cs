@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Comments;
 using YSocial.Application.Features.Comments.AddComment;
 using YSocial.Application.Features.Comments.DeleteComment;

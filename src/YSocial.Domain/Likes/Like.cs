@@ -1,7 +1,6 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using YSocial.Domain.Likes.Events;
 using YSocial.Domain.Likes.Rules;
-using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Domain.Likes;

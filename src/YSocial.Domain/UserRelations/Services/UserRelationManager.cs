@@ -1,4 +1,3 @@
-using Microservice.BuildingBlocks.Domain.BusinessRules;
 using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.Exceptions;
 using YSocial.Domain.UserBlocks;

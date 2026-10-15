@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Posts;
 using YSocial.Application.Features.Posts.CreatePost;
 using YSocial.Application.Features.Posts.DeletePost;
 using YSocial.Application.Features.Posts.GetPost;
 using YSocial.Application.Features.Posts.GetPostsByUserId;
 using YSocial.Application.Features.Posts.RestorePost;
-using YSocial.Application.Features.Posts.SharePostLink;
 using YSocial.Application.Features.Posts.UpdatePost;
 
 namespace YSocial.Api.Controllers;

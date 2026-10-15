@@ -12,7 +12,7 @@ public class MockEmailSender(ILogger<MockEmailSender> logger) : IEmailSender
         logger.LogInformation("Subject: {Subject}", subject);
         logger.LogInformation("Body: {Body}", body);
         logger.LogInformation("-------------------------");
-        
+
         return Task.CompletedTask;
     }
 }

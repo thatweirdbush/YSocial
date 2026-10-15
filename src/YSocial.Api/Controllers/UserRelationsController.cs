@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.UserRelations;
-using YSocial.Application.Features.UserRelations.Follow;
 using YSocial.Application.Features.UserRelations.RespondFollowRequest;
 using YSocial.Application.Features.UserRelations.ToggleCloseFriend;
 using YSocial.Application.Features.UserRelations.Unfollow;

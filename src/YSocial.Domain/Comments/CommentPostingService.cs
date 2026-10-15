@@ -11,7 +11,7 @@ public class CommentPostingService
     {
         Entity.CheckRule(new PostMustAllowCommentsRule(post));
         Entity.CheckRule(new ParentCommentMustBelongToPostRule(post.Id, parentComment));
-        
+
         // Future extensions:
         // AggregateRoot.CheckRule(new UserMustNotBeBlockedRule(post.AuthorId, authorId));
 

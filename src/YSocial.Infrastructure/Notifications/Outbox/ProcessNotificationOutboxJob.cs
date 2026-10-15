@@ -35,7 +35,7 @@ public sealed class ProcessNotificationOutboxJob(
                 lock (outboxStore.Messages)
                 {
                     // 1. Scan for the Top 20 unprocessed messages
-                    messages = outboxStore.Messages 
+                    messages = outboxStore.Messages
                         .Where(m => m.ProcessedOnUtc == null)
                         .OrderBy(m => m.OccurredOnUtc)
                         .Take(20)

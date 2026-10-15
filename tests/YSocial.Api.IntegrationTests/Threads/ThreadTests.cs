@@ -4,7 +4,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
-using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Data.Seed;

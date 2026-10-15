@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Application.Features.Threads.GetThread;
 
 namespace YSocial.Api.Controllers;

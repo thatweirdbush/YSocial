@@ -5,7 +5,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Identities.RegisterAccount.EventHandlers;
 
-internal sealed class InitializeUserProfileHandler(IUserRepository userRepository) 
+internal sealed class InitializeUserProfileHandler(IUserRepository userRepository)
     : INotificationHandler<AccountCreatedEvent>
 {
     public async Task Handle(AccountCreatedEvent notification, CancellationToken cancellationToken)

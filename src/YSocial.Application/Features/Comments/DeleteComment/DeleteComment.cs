@@ -20,7 +20,7 @@ internal sealed class DeleteCommentCommandValidator : AbstractValidator<DeleteCo
 }
 
 internal sealed class DeleteCommentCommandHandler(
-    ICommentRepository commentRepository, 
+    ICommentRepository commentRepository,
     IPostRepository postRepository,
     IUserContext userContext)
     : ICommandHandler<DeleteCommentCommand, Result>

@@ -28,7 +28,7 @@ public class MockUserBlockRepository : IUserBlockRepository
         return block is not null;
     }
 
-    public  Task<UserBlock?> GetBlockAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
+    public Task<UserBlock?> GetBlockAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
     {
         var block = _blocks.Values
             .FirstOrDefault(b => b.ObserverId == observerId && b.TargetId == targetId);
@@ -40,7 +40,7 @@ public class MockUserBlockRepository : IUserBlockRepository
     {
         var blocks = _blocks.Values
             //.AsNoTracking() // EF Core specific, can be ignored in this in-memory implementation
-            .Where(b => (b.ObserverId == user1Id && b.TargetId == user2Id) || 
+            .Where(b => (b.ObserverId == user1Id && b.TargetId == user2Id) ||
                         (b.ObserverId == user2Id && b.TargetId == user1Id))
             .ToList();
 

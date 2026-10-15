@@ -3,8 +3,8 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
-using YSocial.Application.Models;
 using YSocial.Application.Features.UserRelations.GetFollowRequests;
+using YSocial.Application.Models;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
 

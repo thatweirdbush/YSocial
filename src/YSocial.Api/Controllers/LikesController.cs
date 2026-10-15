@@ -1,7 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Likes;
 using YSocial.Application.Features.Likes.SetLike;
-using YSocial.Application.Features.Likes.ToggleLike;
 using YSocial.Domain.Likes;
 
 namespace YSocial.Api.Controllers;

@@ -91,14 +91,14 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         var offenders = new List<string>();
 
         foreach (var path in document.GetProperty("paths").EnumerateObject())
-        foreach (var operation in path.Value.EnumerateObject())
-        foreach (var response in operation.Value.GetProperty("responses").EnumerateObject())
-        {
-            if (!int.TryParse(response.Name, out var status) || status < 400) continue;
+            foreach (var operation in path.Value.EnumerateObject())
+                foreach (var response in operation.Value.GetProperty("responses").EnumerateObject())
+                {
+                    if (!int.TryParse(response.Name, out var status) || status < 400) continue;
 
-            var schema = SchemaRef(document, path.Name, operation.Name, response.Name);
-            if (schema != "ProblemDetails") offenders.Add($"{operation.Name.ToUpper()} {path.Name} {response.Name} -> {schema}");
-        }
+                    var schema = SchemaRef(document, path.Name, operation.Name, response.Name);
+                    if (schema != "ProblemDetails") offenders.Add($"{operation.Name.ToUpper()} {path.Name} {response.Name} -> {schema}");
+                }
 
         offenders.Should().BeEmpty();
         document.GetProperty("components").GetProperty("schemas").TryGetProperty("ProblemDetails", out _).Should().BeTrue();

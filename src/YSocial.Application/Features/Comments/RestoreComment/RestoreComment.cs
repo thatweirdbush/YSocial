@@ -20,7 +20,7 @@ internal sealed class RestoreCommentCommandValidator : AbstractValidator<Restore
 }
 
 internal sealed class RestoreCommentCommandHandler(
-    ICommentRepository commentRepository, 
+    ICommentRepository commentRepository,
     IPostRepository postRepository,
     IUserContext userContext)
     : ICommandHandler<RestoreCommentCommand, Result>

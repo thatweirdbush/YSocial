@@ -63,7 +63,7 @@ public class MockSavedItemRepository : ISavedItemRepository
             .Where(l => l.UserId == userId && l.TargetType == targetType)
             .OrderByDescending(l => l.CreatedAt)
             .ToList();
-            
+
         return Task.FromResult(items);
     }
 

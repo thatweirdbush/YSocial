@@ -1,4 +1,3 @@
-using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.UserRelations;

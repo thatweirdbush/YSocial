@@ -51,7 +51,7 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
         // Use username as default display name initially
         var profileInfo = UserProfileInfo.CreateDefault(username);
         var user = new User(accountId, username, profileInfo, country, isDefault);
-        
+
         user.AddDomainEvent(new UserProfileCreatedEvent(user.Id, user.Username));
         return user;
     }
@@ -102,7 +102,7 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
         {
             CheckRule(new CannotDeleteDefaultUserRule(IsDefault));
         }
-        
+
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
     }

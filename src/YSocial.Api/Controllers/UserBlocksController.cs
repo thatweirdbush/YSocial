@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Application.Features.UserBlocks.Block;
 using YSocial.Application.Features.UserBlocks.Unblock;
 

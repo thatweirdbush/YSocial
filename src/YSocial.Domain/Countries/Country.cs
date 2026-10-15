@@ -1,5 +1,5 @@
-﻿using YSocial.Domain.Countries.Rules;
-using Microservice.BuildingBlocks.Domain.Enumerations;
+﻿using Microservice.BuildingBlocks.Domain.Enumerations;
+using YSocial.Domain.Countries.Rules;
 
 namespace YSocial.Domain.Countries;
 

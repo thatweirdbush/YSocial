@@ -1,5 +1,4 @@
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Infrastructure.Errors;
 using YSocial.Application.CQRS.Results;
 

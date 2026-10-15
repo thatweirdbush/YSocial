@@ -5,7 +5,6 @@ using System.Text.Json;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Countries;
-using YSocial.Domain.Identities;
 using YSocial.Domain.Users;
 using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Data.Seed;

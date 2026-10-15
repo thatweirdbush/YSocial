@@ -11,7 +11,7 @@ public class MockSmsSender(ILogger<MockSmsSender> logger) : ISmsSender
         logger.LogInformation("To: {PhoneNumber}", toPhoneNumber);
         logger.LogInformation("Message: {Message}", message);
         logger.LogInformation("-----------------------");
-        
+
         return Task.CompletedTask;
     }
 }

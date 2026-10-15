@@ -2,7 +2,6 @@ using FluentValidation;
 using Microservice.BuildingBlocks.Domain.BusinessRules;
 using Microservice.BuildingBlocks.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Domain.Common.Errors;
 using YSocial.Domain.Common.Rules;
 

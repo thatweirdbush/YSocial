@@ -1,6 +1,6 @@
+using System.Text.RegularExpressions;
 using YSocial.Domain.Common.Errors;
 using YSocial.Domain.Common.Rules;
-using System.Text.RegularExpressions;
 
 namespace YSocial.Domain.Identities.Rules;
 

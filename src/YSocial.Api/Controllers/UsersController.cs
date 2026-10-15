@@ -1,12 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Users;
-using YSocial.Application.Features.Users.DeleteProfile;
-using YSocial.Application.Features.Users.GetMe;
 using YSocial.Application.Features.UserBlocks.GetBlocks;
 using YSocial.Application.Features.UserRelations.GetFollowList;
 using YSocial.Application.Features.UserRelations.GetFollowRequests;
 using YSocial.Application.Features.UserRelations.GetRelationSets;
+using YSocial.Application.Features.Users.DeleteProfile;
+using YSocial.Application.Features.Users.GetMe;
 using YSocial.Application.Features.Users.GetUserProfile;
 using YSocial.Application.Features.Users.SetDefaultProfile;
 using YSocial.Application.Features.Users.SwitchProfile;

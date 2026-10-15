@@ -1,5 +1,4 @@
 using FluentAssertions;
-using Microsoft.AspNetCore.Hosting;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;

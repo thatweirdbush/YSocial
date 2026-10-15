@@ -1,5 +1,4 @@
 using Microservice.BuildingBlocks.Domain.Enumerations;
-using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -41,7 +40,7 @@ public class EnumerationJsonConverter<T> : JsonConverter<T>
         if (reader.TokenType == JsonTokenType.Number)
         {
             var value = reader.GetInt32();
-            
+
             var method = EnumerationJsonConverterCache.FromValueMethods.GetOrAdd(typeToConvert, type =>
             {
                 var baseType = type.BaseType;
@@ -62,7 +61,7 @@ public class EnumerationJsonConverter<T> : JsonConverter<T>
         {
             return default;
         }
-        
+
         throw new JsonException($"Cannot convert JSON to {typeToConvert.Name}. Expected integer value.");
     }
 

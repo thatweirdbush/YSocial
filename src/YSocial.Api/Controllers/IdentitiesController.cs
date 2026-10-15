@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Identities;
 using YSocial.Application.Features.Identities.DeleteAccount;
 using YSocial.Application.Features.Identities.ForgotPassword;
-using YSocial.Application.Features.Identities.Login;
 using YSocial.Application.Features.Identities.LogoutUser;
 using YSocial.Application.Features.Identities.RefreshToken;
 using YSocial.Application.Features.Identities.RegisterAccount;
@@ -85,7 +83,7 @@ public class IdentitiesController : ApiController
         var command = new ForgotPasswordCommand(request.LoginId);
 
         var result = await Mediator.Send(command);
-        
+
         return HandleResult(result);
     }
 
