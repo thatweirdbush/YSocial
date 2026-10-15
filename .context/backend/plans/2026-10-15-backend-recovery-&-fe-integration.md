@@ -267,7 +267,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Smoke_GetSeedPost_Returns200` | `Reset_RestoresSeed_AfterMutation` (create post + follow + login -> reset -> seed counts, 0 notifications, 0 active refresh tokens on seed accounts) | `Reset_RepositoriesSeeSameCollections` (write via repo after reset -> visible in `MockDataStore`) | `Seed_IdsStableAcrossResets`
 - **DoD:** suite green twice in a row & in random order; every test starts from identical seed
 
-#### - [ ] T0.2 Characterization & probe tests
+#### - [x] T0.2 Characterization & probe tests
 - **Scope:** pin behavior that MUST survive; resolve BG §12 & MAP §8 probes; target-behavior tests for known defects as `[Fact(Skip = "T1.x")]`, un-skipped by owner task
 - **Depends:** T0.1
 - **Files:** `tests/YSocial.Api.IntegrationTests/Characterization/*.cs`
