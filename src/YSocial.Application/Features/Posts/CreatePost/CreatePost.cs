@@ -1,14 +1,16 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
-using YSocial.Application.Abstractions.Identity;
+using YSocial.Application.Features.Posts.Projection;
+using YSocial.Application.Models;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.CreatePost;
 
-public sealed record CreatePostCommand(string Content, string? ImageUrl) : ResultCommand<CreatePostResponse>;
+public sealed record CreatePostCommand(string Content, string? ImageUrl) : ResultCommand<PostDto>;
 
 internal sealed partial class CreatePostCommandValidator : AbstractValidator<CreatePostCommand>
 {
@@ -33,28 +35,24 @@ internal sealed partial class CreatePostCommandValidator : AbstractValidator<Cre
         => Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }
 
-internal sealed class CreatePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)
-    : ICommandHandler<CreatePostCommand, Result<CreatePostResponse>>
+internal sealed class CreatePostCommandHandler(IPostRepository postsRepository, PostProjector projector, IUserContext userContext)
+    : ICommandHandler<CreatePostCommand, Result<PostDto>>
 {
-    public async Task<Result<CreatePostResponse>> Handle(CreatePostCommand command, CancellationToken cancellationToken)
+    public async Task<Result<PostDto>> Handle(CreatePostCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<CreatePostResponse>.Unauthorized();
+            return Result<PostDto>.Unauthorized();
         }
 
         var authorId = new UserId(userContext.UserId);
         var post = Post.Create(authorId, command.Content, command.ImageUrl);
-        
-        var resp = new CreatePostResponse(
-            post.Id,
-            post.AuthorId,
-            post.Content,
-            post.ImageUrl,
-            post.CreatedAt);
 
         await postsRepository.AddAsync(post, cancellationToken);
 
-        return Result<CreatePostResponse>.Success(resp);
+        var items = await projector.ProjectPostsAsync(authorId, [post], cancellationToken);
+
+        // Author profile deleted while the token is still valid: nothing to show
+        return items.Count == 0 ? Result<PostDto>.Unauthorized() : Result<PostDto>.Success(items[0]);
     }
 }

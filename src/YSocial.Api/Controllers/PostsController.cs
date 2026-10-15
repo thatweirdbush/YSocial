@@ -41,8 +41,7 @@ public class PostsController : ApiController
         var command = new CreatePostCommand(request.Content, request.ImageUrl);
 
         var result = await Mediator.Send(command);
-
-        return HandleResult(result);
+        return HandleCreated(result, post => post, post => $"/api/posts/{post.Id}");
     }
 
     [HttpPut("{id:guid}")]

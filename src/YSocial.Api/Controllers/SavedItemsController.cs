@@ -49,9 +49,9 @@ public class SavedItemsController : ApiController
     }
 
     [HttpGet("posts")]
-    public async Task<IActionResult> GetSavedPosts()
+    public async Task<IActionResult> GetSavedPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        var query = new GetSavedPostsQuery();
+        var query = new GetSavedPostsQuery(page, pageSize);
 
         var result = await Mediator.Send(query);
 

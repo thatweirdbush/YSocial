@@ -45,6 +45,17 @@ public class MockSavedItemRepository : ISavedItemRepository
         return Task.FromResult(savedItem);
     }
 
+    public Task<IReadOnlySet<Guid>> GetSavedTargetIdsAsync(UserId userId, IReadOnlyCollection<Guid> targetIds, SavedItemTargetType targetType, CancellationToken cancellationToken = default)
+    {
+        var wanted = targetIds.ToHashSet();
+        var saved = _savedItems.Values
+            .Where(s => !s.IsDeleted && s.UserId == userId && s.TargetType == targetType && wanted.Contains(s.TargetId))
+            .Select(s => s.TargetId)
+            .ToHashSet();
+
+        return Task.FromResult<IReadOnlySet<Guid>>(saved);
+    }
+
     public Task<List<SavedItem>> GetSavedItemsByUserAsync(UserId userId, SavedItemTargetType targetType, CancellationToken cancellationToken = default)
     {
         var items = _savedItems.Values

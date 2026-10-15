@@ -14,6 +14,7 @@ public static class DependencyInjection
         // Read-side access policy (D14, D15, D20)
         services.AddScoped<Features.Access.IViewerAccessPolicy, Features.Access.ViewerAccessPolicy>();
         services.AddScoped<Features.Users.Projection.UserProfileProjector>();
+        services.AddScoped<Features.Posts.Projection.PostProjector>();
 
         // Fluent Validation
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);

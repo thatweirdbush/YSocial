@@ -45,6 +45,17 @@ public class MockPostRepository : IPostRepository
         _posts[post.Id] = post;
     }
 
+    public Task<IReadOnlyList<Post>> GetByIdsAsync(IReadOnlyCollection<PostId> ids, CancellationToken cancellationToken = default)
+    {
+        var wanted = ids.ToHashSet();
+        var posts = _posts.Values
+            .WhereNotDeleted()
+            .Where(p => wanted.Contains(p.Id))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<Post>>(posts);
+    }
+
     public Task<IReadOnlyList<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default)
     {
         var posts = _posts.Values

@@ -31,7 +31,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
         var user = await LoginAsync("newuser@example.com", "Password123!");
         var create = await user.PostAsJsonAsync("/api/posts", new { content = "hello", imageUrl = "https://img.test/a.png" });
         create.IsSuccessStatusCode.Should().BeTrue();
-        var postId = (await JsonAsync(create)).GetProperty("postId").GetGuid();
+        var postId = (await JsonAsync(create)).GetProperty("id").GetGuid();
 
         var get = await Client.GetAsync($"/api/posts/{postId}");
 
@@ -102,7 +102,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
         var list = await JsonAsync(await test.GetAsync("/api/saveditems/posts"));
 
         toggle.GetProperty("isSaved").GetBoolean().Should().BeTrue();
-        list.EnumerateArray().Select(p => p.GetProperty("id").GetGuid()).Should().Contain(SeedIds.DemoPost.Value);
+        list.GetProperty("items").EnumerateArray().Select(p => p.GetProperty("id").GetGuid()).Should().Contain(SeedIds.DemoPost.Value);
     }
 
     [Fact]

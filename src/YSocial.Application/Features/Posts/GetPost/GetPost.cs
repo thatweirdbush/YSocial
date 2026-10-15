@@ -1,13 +1,18 @@
 using FluentValidation;
 using MediatR;
+using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Posts.Projection;
 using YSocial.Application.Models;
 using YSocial.Domain.Posts;
 
 namespace YSocial.Application.Features.Posts.GetPost;
 
-public sealed record GetPostQuery(Guid PostId) : ResultQuery<PostInfo>;
+/// <summary>
+/// Anonymous allowed. Deleted, hidden (privacy/visibility) & blocked posts are all 404 (§4.4).
+/// </summary>
+public sealed record GetPostQuery(Guid PostId) : ResultQuery<PostDto>;
 
 internal sealed class GetPostQueryValidator : AbstractValidator<GetPostQuery>
 {
@@ -17,27 +22,19 @@ internal sealed class GetPostQueryValidator : AbstractValidator<GetPostQuery>
     }
 }
 
-internal sealed class GetPostQueryHandler(IPostRepository postRepository)
-    : IRequestHandler<GetPostQuery, Result<PostInfo>>
+internal sealed class GetPostQueryHandler(IPostRepository postRepository, PostProjector projector, IUserContext userContext)
+    : IRequestHandler<GetPostQuery, Result<PostDto>>
 {
-    public async Task<Result<PostInfo>> Handle(GetPostQuery request, CancellationToken cancellationToken)
+    public async Task<Result<PostDto>> Handle(GetPostQuery request, CancellationToken cancellationToken)
     {
-        var postId = new PostId(request.PostId);
-        var post = await postRepository.GetByIdAsync(postId, cancellationToken);
-
+        var post = await postRepository.GetByIdAsync(new PostId(request.PostId), cancellationToken);
         if (post is null)
         {
-            return Result<PostInfo>.NotFound($"Post with ID {request.PostId} not found.");
+            return Result<PostDto>.NotFound("Post not found.");
         }
 
-        var response = new PostInfo(
-            post.Id.Value,
-            post.Content,
-            post.ImageUrl,
-            post.CreatedAt,
-            post.AuthorId.Value,
-            post.AuthorId.Value.ToString());
+        var items = await projector.ProjectPostsAsync(userContext.GetViewerId(), [post], cancellationToken);
 
-        return Result<PostInfo>.Success(response);
+        return items.Count == 0 ? Result<PostDto>.NotFound("Post not found.") : Result<PostDto>.Success(items[0]);
     }
 }

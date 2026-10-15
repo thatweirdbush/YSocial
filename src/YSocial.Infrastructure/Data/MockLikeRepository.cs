@@ -29,6 +29,17 @@ public class MockLikeRepository : ILikeRepository
         return Task.FromResult(like);
     }
 
+    public Task<IReadOnlySet<Guid>> GetLikedTargetIdsAsync(UserId userId, IReadOnlyCollection<Guid> targetIds, LikeTargetType targetType, CancellationToken cancellationToken = default)
+    {
+        var wanted = targetIds.ToHashSet();
+        var liked = _likes.Values
+            .Where(l => l.UserId == userId && l.TargetType == targetType && wanted.Contains(l.TargetId))
+            .Select(l => l.TargetId)
+            .ToHashSet();
+
+        return Task.FromResult<IReadOnlySet<Guid>>(liked);
+    }
+
     public Task AddAsync(Like like, CancellationToken cancellationToken = default)
     {
         _likes.TryAdd(like.Id, like);

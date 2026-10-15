@@ -1,8 +1,11 @@
-﻿using FluentValidation;
+using FluentValidation;
 using MediatR;
+using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Application.CQRS.Validation;
+using YSocial.Application.Features.Access;
+using YSocial.Application.Features.Posts.Projection;
 using YSocial.Application.Models;
 using YSocial.Application.Models.Commons;
 using YSocial.Domain.Posts;
@@ -10,7 +13,11 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.GetPostsByUserId;
 
-public sealed record GetPostsByUserIdQuery(Guid UserId, int Page, int PageSize) : ResultQuery<PagedList<PostInfo>>;
+/// <summary>
+/// Root posts of a profile, newest first. Blocked either way / deleted / unknown = 404 (D14, D20);
+/// private profile the viewer may not open = 200 locked (D15).
+/// </summary>
+public sealed record GetPostsByUserIdQuery(Guid UserId, int Page, int PageSize) : ResultQuery<UserPostsPageDto>;
 
 internal sealed class GetPostsByUserIdQueryValidator : AbstractValidator<GetPostsByUserIdQuery>
 {
@@ -25,36 +32,40 @@ internal sealed class GetPostsByUserIdQueryValidator : AbstractValidator<GetPost
     }
 }
 
-internal sealed class GetPostsByUserIdQueryHandler(IPostRepository postRepository)
-    : IRequestHandler<GetPostsByUserIdQuery, Result<PagedList<PostInfo>>>
+internal sealed class GetPostsByUserIdQueryHandler(
+    IUserRepository userRepository,
+    IPostRepository postRepository,
+    IViewerAccessPolicy accessPolicy,
+    PostProjector projector,
+    IUserContext userContext)
+    : IRequestHandler<GetPostsByUserIdQuery, Result<UserPostsPageDto>>
 {
-    public async Task<Result<PagedList<PostInfo>>> Handle(
-        GetPostsByUserIdQuery request,
-        CancellationToken cancellationToken)
+    public async Task<Result<UserPostsPageDto>> Handle(GetPostsByUserIdQuery request, CancellationToken cancellationToken)
     {
-        var targetUserId = new UserId(request.UserId);
+        var viewerId = userContext.GetViewerId();
+        var targetId = new UserId(request.UserId);
 
-        var (posts, totalCount) = await postRepository.GetByUserIdPagedAsync(
-            targetUserId,
-            request.Page,
-            request.PageSize,
-            cancellationToken);
+        var target = await userRepository.GetByIdAsync(targetId, cancellationToken);
+        var context = await accessPolicy.GetContextAsync(viewerId, [targetId], cancellationToken);
 
-        var postInfos = posts.Select(post => new PostInfo(
-            post.Id.Value,
-            post.Content,
-            post.ImageUrl,
-            post.CreatedAt,
-            post.AuthorId.Value,
-            post.AuthorId.Value.ToString()
-        )).ToList();
+        if (target is null || !context.IsDiscoverable(targetId))
+        {
+            return Result<UserPostsPageDto>.NotFound("User not found.");
+        }
 
-        var response = new PagedList<PostInfo>(
-            postInfos,
-            request.Page,
-            request.PageSize,
-            totalCount);
+        if (!context.CanViewContent(targetId))
+        {
+            return Result<UserPostsPageDto>.Success(new UserPostsPageDto([], request.Page, request.PageSize, 0, Locked: true));
+        }
 
-        return Result<PagedList<PostInfo>>.Success(response);
+        // Filter BEFORE counting & slicing
+        var visible = context.FilterPosts(await postRepository.GetByAuthorIdAsync(targetId, cancellationToken))
+            .OrderByDescending(p => p.CreatedAt)
+            .ToList();
+
+        var slice = PagedResponse<PostDto>.Slice(visible, request.Page, request.PageSize);
+        var items = await projector.ProjectPostsAsync(viewerId, slice, cancellationToken);
+
+        return Result<UserPostsPageDto>.Success(new UserPostsPageDto(items, request.Page, request.PageSize, visible.Count, Locked: false));
     }
 }
