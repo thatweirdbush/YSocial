@@ -23,7 +23,7 @@ public class IdentitiesController : ApiController
     [HttpPost("register")]
     public async Task<IActionResult> RegisterAccount([FromBody] RegisterAccountRequest request)
     {
-        var command = new RegisterAccountCommand(request.Email, request.Password);
+        var command = new RegisterAccountCommand(request.Email, request.Password, request.Username, request.PhoneNumber);
 
         var result = await Mediator.Send(command);
 

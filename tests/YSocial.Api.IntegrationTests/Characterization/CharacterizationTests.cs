@@ -25,7 +25,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Register_Login_CreatePostWithImage_GetPost_Returns200()
     {
-        var register = await Client.PostAsJsonAsync("/api/identities/register", new { email = "newuser@example.com", password = "Password123!" });
+        var register = await Client.PostAsJsonAsync("/api/identities/register", new { email = "newuser@example.com", password = "Password123!", username = "new_user" });
         register.IsSuccessStatusCode.Should().BeTrue();
 
         var user = await LoginAsync("newuser@example.com", "Password123!");

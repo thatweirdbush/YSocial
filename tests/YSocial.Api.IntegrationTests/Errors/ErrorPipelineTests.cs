@@ -45,16 +45,16 @@ public class ErrorPipelineTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task ResultConflict_DuplicateEmail_Returns409()
     {
-        var response = await Client.PostAsJsonAsync("/api/identities/register", new { email = Seed.TestLogin, password = "Password123!" });
+        var response = await Client.PostAsJsonAsync("/api/identities/register", new { email = Seed.TestLogin, password = "Password123!", username = "someone_else" });
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
-        AssertProblem(await ProblemAsync(response), 409, "Conflict");
+        AssertProblem(await ProblemAsync(response), 409, "EmailTaken");
     }
 
     [Fact]
     public async Task ValidatorFailure_Returns400_WithErrorsCamelCase()
     {
-        var response = await Client.PostAsJsonAsync("/api/identities/register", new { email = "not-an-email", password = "x" });
+        var response = await Client.PostAsJsonAsync("/api/identities/register", new { email = "not-an-email", password = "x", username = "ok_name" });
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var body = await ProblemAsync(response);

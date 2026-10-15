@@ -334,7 +334,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Cors_AllowedOrigin_GetsHeaders` | `Cors_UnknownOrigin_NoAllowOrigin`
 - **DoD:** `dotnet run` serves `https://localhost:49895/swagger`; preflight from FE origin succeeds
 
-#### - [ ] T1.8 Register username & uniqueness
+#### - [x] T1.8 Register username & uniqueness
 - **Scope:** D11. `RegisterAccountCommand(Email, Password, Username, PhoneNumber?)`; validator = format only (pattern, lengths, email/password format) -> 400; handler = uniqueness only (`IUserRepository.IsUsernameTakenAsync` case-insensitive incl. soft-deleted -> 409 `UsernameTaken`; real `IsEmailUniqueAsync` -> 409 `EmailTaken`), checked BEFORE account creation (orphan path closed); username flows via `AccountCreatedEvent` payload to profile init
 - **Depends:** T1.5 (lane C order; logically T1.1b)
 - **Files:** `Features/Identities/RegisterAccount/`, `Features/Identities/EventHandlers/InitializeUserProfileHandler*`, `Domain/Identities/Events/AccountCreatedEvent.cs`, `Domain/Users/IUserRepository.cs`, `MockUserRepository.cs`, `Api/Models/Identities/*`

@@ -44,7 +44,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     }
 
     #region Methods
-    public static Account Create(string email, string? phoneNumber, PasswordHash passwordHash)
+    public static Account Create(string email, string? phoneNumber, PasswordHash passwordHash, string? username = null)
     {
         CheckRule(new EmailMustBeValidRule(email));
 
@@ -56,7 +56,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
         var account = new Account(email, phoneNumber, passwordHash);
 
-        account.AddDomainEvent(new AccountCreatedEvent(account.Id, account.Email));
+        account.AddDomainEvent(new AccountCreatedEvent(account.Id, account.Email, username ?? email.Split('@')[0]));
         return account;
     }
 
