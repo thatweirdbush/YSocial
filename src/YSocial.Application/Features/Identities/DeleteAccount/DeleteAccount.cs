@@ -8,7 +8,7 @@ namespace YSocial.Application.Features.Identities.DeleteAccount;
 
 public sealed record DeleteAccountCommand : ResultCommand<bool>;
 
-internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepository, IUserContext userContext)
+internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepository, IUserContext userContext, IAccountSessionLock sessionLock)
     : ICommandHandler<DeleteAccountCommand, Result<bool>>
 {
     public async Task<Result<bool>> Handle(DeleteAccountCommand command, CancellationToken cancellationToken)
@@ -25,6 +25,8 @@ internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepo
         {
             return Result<bool>.NotFound("Account not found.");
         }
+
+        await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
 
         account.Delete();
         accountRepository.Update(account);

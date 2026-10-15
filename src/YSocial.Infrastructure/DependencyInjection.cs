@@ -51,6 +51,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
+        services.AddSingleton<IAccountSessionLock, AccountSessionLock>();
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
         // Message & Notifications

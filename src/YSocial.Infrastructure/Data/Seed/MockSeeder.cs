@@ -13,9 +13,11 @@ namespace YSocial.Infrastructure.Data.Seed;
 /// </summary>
 internal static class MockSeeder
 {
-    // bcrypt is slow: hash once per process
-    private static readonly Lazy<PasswordHash> TestHash = new(() => PasswordHash.Create(new BCryptPasswordHasher().Hash(SeedIds.TestPassword)));
-    private static readonly Lazy<PasswordHash> AdminHash = new(() => PasswordHash.Create(new BCryptPasswordHasher().Hash(SeedIds.AdminPassword)));
+    // bcrypt is slow: hash once per process, low cost (mock seed data only)
+    private const int SeedWorkFactor = 4;
+
+    private static readonly Lazy<PasswordHash> TestHash = new(() => PasswordHash.Create(new BCryptPasswordHasher(SeedWorkFactor).Hash(SeedIds.TestPassword)));
+    private static readonly Lazy<PasswordHash> AdminHash = new(() => PasswordHash.Create(new BCryptPasswordHasher(SeedWorkFactor).Hash(SeedIds.AdminPassword)));
 
     public static void Seed()
     {

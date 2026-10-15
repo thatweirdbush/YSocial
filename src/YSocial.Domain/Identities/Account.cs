@@ -9,6 +9,7 @@ namespace YSocial.Domain.Identities;
 public class Account : AggregateRoot<AccountId>, ISoftDeletable
 {
     private const int DefaultRefreshTokenExpiryDays = 7;
+    public const int MaxActiveSessions = 5;
 
     #region Properties
     public string Email { get; private set; }
@@ -20,8 +21,9 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     public bool IsDeleted { get; private set; }
     public DateTime? DeletedAt { get; private set; }
 
-    private readonly List<RefreshToken> _refreshTokens = [];
-    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
+    // Copy-on-write: replaced wholesale (never mutated in place) so lock-free readers enumerate a stable snapshot
+    private volatile IReadOnlyList<RefreshToken> _refreshTokens = [];
+    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens;
 
     private readonly List<PasswordResetToken> _passwordResetTokens = [];
     public IReadOnlyCollection<PasswordResetToken> PasswordResetTokens => _passwordResetTokens.AsReadOnly();
@@ -68,12 +70,15 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
         RevokeAllRefreshTokens();
     }
 
-    public void Login(string plainPassword, IPasswordHasher passwordHasher)
+    public bool VerifyPassword(string plainPassword, IPasswordHasher passwordHasher)
+        => passwordHasher.Verify(PasswordHash.Value, plainPassword);
+
+    /// <summary>
+    /// Call ONLY after the password was verified (inactive state is revealed to credential holders only).
+    /// </summary>
+    public void EnsureCanLogin()
     {
         CheckRule(new AccountMustBeActiveRule(IsActive));
-
-        var isVerified = passwordHasher.Verify(PasswordHash.Value, plainPassword);
-        CheckRule(new InvalidCredentialsRule(isVerified));
     }
 
     public void GeneratePasswordResetToken(IPasswordHasher hasher, int expiryMinutes = 15)
@@ -118,12 +123,19 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
         ChangePassword(newPasswordHash);
     }
 
+    /// <summary>
+    /// Issues a refresh token; at the session cap the oldest active one is evicted (no error).
+    /// Callers MUST hold the account session lock.
+    /// </summary>
     public RefreshToken AddRefreshToken(string deviceId)
     {
         RemoveExpiredTokens();
 
-        var activeSessionCount = _refreshTokens.Count(t => t.IsActive);
-        CheckRule(new DeviceSessionLimitRule(activeSessionCount));
+        var active = _refreshTokens.Where(t => t.IsActive).OrderBy(t => t.CreatedAt).ToList();
+        foreach (var evicted in active.Take(Math.Max(0, active.Count - MaxActiveSessions + 1)))
+        {
+            evicted.Revoke();
+        }
 
         return AddRefreshTokenInternal(deviceId);
     }
@@ -150,7 +162,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
         var expiryTime = DateTime.UtcNow.AddDays(DefaultRefreshTokenExpiryDays);
 
         var refreshTokenEntity = RefreshToken.Create(Id, tokenValue, expiryTime, deviceId);
-        _refreshTokens.Add(refreshTokenEntity);
+        _refreshTokens = [.. _refreshTokens, refreshTokenEntity];
 
         return refreshTokenEntity;
     }
@@ -165,7 +177,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
     public void RemoveExpiredTokens()
     {
-        _refreshTokens.RemoveAll(t => !t.IsActive);
+        _refreshTokens = _refreshTokens.Where(t => t.IsActive).ToList();
     }
 
     public void Deactivate()

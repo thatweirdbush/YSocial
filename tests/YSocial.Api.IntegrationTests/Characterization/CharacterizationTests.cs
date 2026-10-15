@@ -158,7 +158,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    [Fact(Skip = "T1.4")]
+    [Fact]
     public async Task Logout_ActiveToken_Returns204()
     {
         var tokens = await AuthHelper.RequestTokensAsync(Client, Seed.TestLogin, Seed.Password);
@@ -168,7 +168,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
-    [Fact(Skip = "T1.4")]
+    [Fact]
     public async Task Login_WrongPassword_Returns401()
     {
         var response = await Client.PostAsJsonAsync("/api/identities/login", new { loginId = Seed.TestLogin, password = "wrong", deviceId = "x" });

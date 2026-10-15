@@ -11,5 +11,10 @@ public interface IAccountRepository : IRepository<Account, AccountId>
     Task<Account?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
     Task<Account?> GetByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default);
     Task<Account?> GetByIdentifierAsync(string loginId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Account currently holding the refresh token (any state), lock-free lookup.
+    /// </summary>
+    Task<Account?> GetByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default);
     Task<(Account? Account, IReadOnlyList<User> Profiles)> GetAccountWithProfilesByIdentifierAsync(string loginId, CancellationToken cancellationToken = default);
 }

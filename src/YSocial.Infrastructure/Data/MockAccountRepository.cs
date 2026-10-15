@@ -78,6 +78,13 @@ public class MockAccountRepository : IAccountRepository
         return Task.FromResult(account);
     }
 
+    public Task<Account?> GetByRefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
+    {
+        var account = _accounts.Values.FirstOrDefault(a => a.RefreshTokens.Any(t => t.Token == refreshToken));
+
+        return Task.FromResult(account);
+    }
+
     public async Task<(Account? Account, IReadOnlyList<User> Profiles)> GetAccountWithProfilesByIdentifierAsync(string loginId, CancellationToken cancellationToken = default)
     {
         var account = await GetByIdentifierAsync(loginId, cancellationToken);
