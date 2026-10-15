@@ -11,6 +11,9 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        // Read-side access policy (D14, D15, D20)
+        services.AddScoped<Features.Access.IViewerAccessPolicy, Features.Access.ViewerAccessPolicy>();
+
         // Fluent Validation
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 
