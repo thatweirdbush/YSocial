@@ -19,6 +19,9 @@ public class ApiFactory : WebApplicationFactory<Program>
             {
                 services.Remove(descriptor);
             }
+
+            // Test-only probe endpoints
+            services.AddControllers().AddApplicationPart(typeof(TestProbeController).Assembly);
         });
     }
 

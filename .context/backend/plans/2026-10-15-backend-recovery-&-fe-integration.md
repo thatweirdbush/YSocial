@@ -275,7 +275,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Probes (record in BG §12 as `Verified`):** non-author `PUT /api/posts/{id}` status/body | follow response content type with & without `Accept: application/json` | GUID JSON shape of register & create-post | `sub` -> `AccountId` readable
 - **DoD:** probes answered; skipped tests compile & reference owner task
 
-#### - [ ] T1.1a Error pipeline & `Result` codes
+#### - [x] T1.1a Error pipeline & `Result` codes
 - **Scope:** D1, §4.1 rows `Result`, `exception` (except rule classification), `framework`. `AddProblemDetails`; `GlobalExceptionHandler : IExceptionHandler` + `UseExceptionHandler`; `UseStatusCodePages` for empty 401/403/404; `InvalidModelStateResponseFactory` adds `code=ValidationFailed`; `ErrorCodes` catalog; optional `code` on `Result` factories with per-`ErrorType` defaults; `ApiController.ProcessErrorResponse` -> same ProblemDetails builder; bare-string 400 in `LikesController`/`SavedItemsController` removed
 - **Depends:** T0.2
 - **Files:** `src/YSocial.Api/Infrastructure/Errors/*` (new), `Program.cs`, `Controllers/ApiController.cs`, `LikesController.cs`, `SavedItemsController.cs`, `Application/CQRS/Results/*`, `Domain/Common/Errors/ErrorCodes.cs` (new)

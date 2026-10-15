@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using YSocial.Api.Infrastructure.Errors;
 using YSocial.Api.Infrastructure.Serialization;
 using YSocial.Api.Infrastructure.Swagger;
 using YSocial.Application;
@@ -21,10 +23,35 @@ builder.Services.Configure<RouteOptions>(options =>
     options.LowercaseUrls = true;
 });
 
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new EnumerationJsonConverterFactory());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Framework binding failures use the same envelope as validator failures
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(entry => entry.Value is { Errors.Count: > 0 })
+                .GroupBy(entry => ApiProblems.ToFieldKey(entry.Key))
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.SelectMany(entry => entry.Value!.Errors)
+                        .Select(error => string.IsNullOrEmpty(error.ErrorMessage) ? "The value is invalid." : error.ErrorMessage)
+                        .ToArray());
+
+            return ApiProblems.ToResult(context.HttpContext, StatusCodes.Status400BadRequest, "ValidationFailed",
+                "One or more validation errors occurred.", errors);
+        };
+    });
+
+builder.Services.AddProblemDetails(options =>
 {
-    options.JsonSerializerOptions.Converters.Add(new EnumerationJsonConverterFactory());
+    options.CustomizeProblemDetails = context => ApiProblems.Enrich(context.HttpContext, context.ProblemDetails);
 });
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -115,6 +142,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {

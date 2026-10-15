@@ -17,7 +17,7 @@ public class SavedItemsController : ApiController
     [HttpPost("toggle")]
     public async Task<IActionResult> ToggleSavedItem([FromBody] ToggleSavedItemRequest request)
     {
-        if (request.TargetType is null) return BadRequest("Invalid TargetType");
+        if (request.TargetType is null) return ValidationProblemFor(nameof(request.TargetType), "Invalid TargetType.");
 
         var command = new ToggleSavedItemCommand(request.TargetId, request.TargetType);
 
