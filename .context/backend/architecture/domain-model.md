@@ -1,35 +1,35 @@
 ---
 module: Backend Domain Model
-updated: 2026-10-14
+updated: 2026-10-15
 ---
 
 # DOMAIN MODEL
 
 - Pipeline, dispatch, auth & error semantics: `backend-guide.md`
-- FE endpoint view: `../integration/frontend-backend-mapping.md`
+- FE endpoint view, error codes, DTOs: `../integration/frontend-backend-mapping.md`
 - Paths BE-relative (`src/YSocial.Domain/...`)
-- **Runtime caveat:** several events below are declared & handled but never dispatched (see backend-guide §7.2); column **Live?** states whether behavior actually runs today
+- **Runtime state (2026-10-15):** every event with a handler is dispatched in the same request (BG §7); column **Live?** in §6 states which ones have an effect
 
 ## 1. Identity semantics (critical for FE)
 
 | Id | Meaning | Where it appears |
 |---|---|---|
-| `AccountId` | login identity (email/phone/password, sessions) | JWT `sub`; `RegisterAccount` response |
-| `UserId` | profile (public persona); 1 account has 1..N | JWT `user_id`; author of posts/comments; target of follow/block; every `{userId}`/`{targetId}` route |
-| `PostId`, `CommentId`, `LikeId`, `SavedItemId`, `NotificationId`, `UserRelationId`, `UserBlockId`, `RefreshTokenId` |  aggregate/entity ids | DTOs expose raw `Guid` (`PostInfo.Id`) except `CreatePostResponse` & `RegisterAccount` |
+| `AccountId` | login identity (email/phone/password, sessions) | JWT `sub`; `register` response; never a social route id |
+| `UserId` | profile (public persona); 1 account has 1..N | JWT `user_id`; author of posts/comments; target of follow/block; every `{userId}`/`{targetId}`/`{id}` user route; viewer identity of every read |
+| `PostId`, `CommentId`, `LikeId`, `SavedItemId`, `NotificationId`, `UserRelationId`, `UserBlockId`, `RefreshTokenId` | aggregate/entity ids | DTOs expose raw `Guid` (`PostDto.id`, `UserProfileDto.id`) |
 
 - All are strongly-typed Guid
 - Social graph, content & notifications are **per profile (`UserId`)**, not per account; switching profile changes actor
-- Username belongs to `User`, derived at register from email local part; not unique-checked; not editable (`UpdateProfileCommand` has no username)
+- Username belongs to `User`, chosen at register (format `^[a-z0-9._]{3,30}$`), unique case-insensitive INCLUDING soft-deleted profiles (never recycled); emails also stay reserved after soft-delete; not editable (`UpdateProfileCommand` has no username)
 - Source: `Domain/Identities/Account.cs`, `Domain/Users/User.cs`, `Infrastructure/Identity/JwtProvider.cs`
 
 ## 2. Aggregates & boundaries
 
 | Aggregate root | Children / value objects | Soft-delete | Repo contract | Notes |
 |---|---|---|---|---|
-| `Account` | `RefreshToken` (entity, `RefreshTokenId`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens live inside aggregate; `Email` unique via app check only |
-| `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User` |
-| `Post` | - | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount` |
+| `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens live inside aggregate (copy-on-write list); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
+| `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
+| `Post` | - | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
 | `Comment` | - | yes | `ICommentRepository` | nested via `ParentCommentId`; counts inline |
 | `Like` | - | no | `ILikeRepository` | polymorphic target (`LikeTargetType` Post/Comment) |
 | `SavedItem` | - | yes | `ISavedItemRepository` | polymorphic target (`SavedItemTargetType`) |
@@ -41,45 +41,69 @@ updated: 2026-10-14
 - Domain services (transient, stateless): `UserRelationManager` (follow/unfollow/block/unblock/close-friend; uses 3 repos), `CommentPostingService`, `LikeToggleService`, `SavedItemToggleService`, `UserProfileService`
 - **Soft-delete contract:** domain method sets `IsDeleted`; mock `Remove()` merely re-stores entity; `GetByIdAsync(id)` hides deleted, `GetByIdAsync(id, includeDeleted: true)` returns them
 - **Shared-kernel contract (`BB:Domain/Repositories/IRepository.cs`):** `IRepository<T,TId>` = `UnitOfWork`, `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove`, `T : IAggregateRoot`
-- **Base types (`BB:Domain`):** `Entity<TId>` equality by id (transient entities never equal), `ISoftDeletable` = `IsDeleted` + `DeletedAt` (+ `WhereNotDeleted`), `ValueObject`/`Enumeration<T>` are records (value equality); `EntityMustBeDeletedToRestoreRule` breaks when entity is NOT deleted
+- **Base types (`BB:Domain`):** `Entity<TId>` equality by id (transient entities never equal), `ISoftDeletable` = `IsDeleted` + `DeletedAt` (+ `WhereNotDeleted`), `ValueObject`/`Enumeration<T>` are records (value equality)
+- Kernel `EntityMustBeDeletedToRestoreRule` is NOT used: it cannot implement `IClassifiedRule`; replaced by `PostMustBeDeletedToRestoreRule` & `CommentMustBeDeletedToRestoreRule`
 
-## 3. Enumerations (serialized as integers in JSON)
+## 3. Enumerations (request bodies: integers; read DTOs: strings)
 
 | Type | Values | Exposed in API? |
 |---|---|---|
-| `FollowStatus` | None 0, Pending 1, Accepted 2 | follow response sends **name** string (`"Pending"`/`"Accepted"`) |
-| `PostVisibility` | Public 1, FollowersOnly 2, Private 3 | no input/output (always Public) |
-| `LikeTargetType` / `SavedItemTargetType` | Post 1, Comment 2 | request only (int) |
-| `LikeStatus` / `SavedItemStatus` | Liked 1, Unliked 0 / Saved 1, Unsaved 2 | internal; response: `isLiked`/`isSaved` bool |
+| `FollowStatus` | None 0, Pending 1, Accepted 2 | read DTOs & follow response: lowercase `none`/`pending`/`accepted` (`followStatus`) |
+| `PostVisibility` | Public 1, FollowersOnly 2, Private 3 | `PostDto.visibility` = `public`/`followersOnly`/`private`; no input (always Public) |
+| `LikeTargetType` / `SavedItemTargetType` | Post 1, Comment 2 | toggle request bodies only (int); idempotent routes encode the kind in the path |
+| `LikeStatus` / `SavedItemStatus` | Liked 1, Unliked 0 / Saved 1, Unsaved 2 | internal; toggle response: `isLiked`/`isSaved` bool |
 | `Gender` | Unspecified 0, Male 1, Female 2, Other 3 | `UpdateProfileRequest` (int) |
 | `ProfileType` | Personal 1, Business 2, Creator 3 | preserved on update, not settable |
 | `NotificationType` | FollowRequested 1, FollowAccepted 2, NewComment 3, NewLike 4 | SignalR payload `Type` = name string |
 | `UserRole` | Member 1, Moderator 2, Admin 3 | no (not in JWT; unused) |
 | `Country` | named list; only `Country.Vietnam` used (register default) | no |
+| `RuleViolationKind` | Invalid, Forbidden, NotFound, Conflict, Unauthorized | maps to 400/403/404/409/401 (§4) |
 
 - Source: `Domain/*/*.cs`; JSON converter `Api/Infrastructure/Serialization/EnumerationJsonConverterFactory.cs` (ints in/out; strings rejected)
+- `RuleViolationKind.Unauthorized` was added beyond the plan's 4 kinds: `InvalidCredentials`/`InvalidRefreshToken` rules must map to 401 (D3, D5)
 
 ## 4. Invariants & business rules (limits are code constants)
 
-| Area | Rule | Enforced by |
-|---|---|---|
-| Post | content non-empty, <= 2000 chars | `PostContentMustNotBeEmptyRule`, `PostContentLengthLimitRule` |
-| Post | only author edits/deletes/restores; restore only when deleted | `OnlyAuthorCanPerformActionOnPostRule`, `EntityMustBeDeletedToRestoreRule` |
-| Comment | content non-empty, <= 1000 chars | `CommentContent*Rule` |
-| Comment | post must allow comments | `PostMustAllowCommentsRule` |
-| Comment | edit: author only; delete/restore: author or post owner; restore: only deleter, post must not be deleted | `OnlyAuthor*`, `OnlyDeleterCanRestoreCommentRule`, `CannotRestoreCommentIfPostIsDeletedRule` |
-| Comment | parent must exist; **not checked** that parent belongs to same post or nesting depth | `AddCommentCommandHandler` |
-| Account | email contains `@`; phone regex if provided; password min 6 (validator) | `EmailMustBeValidRule`, `PhoneNumberMustBeValidRule`, `RegisterAccountCommandValidator` |
-| Account | must be active to login (no endpoint can deactivate) | `AccountMustBeActiveRule` |
-| Session | max 5 active refresh tokens | `DeviceSessionLimitRule` |
-| Reset OTP | 6 digits, 15 min, 1 active token (latest unexpired unused), 5 failed attempts max | `PasswordResetToken*`, `MaximumOtpAttemptsExceededRule` |
-| Profile | display name non-empty, <= 50, no forbidden word list (`badword1`, `badword2`, `sensitive`); bio <= 200; DOB in the past; username >= 3 chars | `User*Rule`, `UpdateProfileCommandValidator` |
-| Profile | account keeps >= 1 profile; cannot delete default profile; `SetDefault` needs >= 2 profiles | `AccountMustHaveAtLeastOneProfileRule`, `CannotDeleteDefaultUserRule` |
-| Follow | not self; target exists, not deleted; neither side blocked the other | `CannotFollowYourselfRule`, `CannotInteractWithDeletedUserRule`, `CannotFollowBlockedUserRule`, `TargetMustNotHaveBlockedObserverRule` |
-| Close friend | only while follow is Accepted | `UserRelationManager.ToggleCloseFriendAsync` (throws `BusinessRuleValidationException`) |
-| Block | not self; target existence **not** checked | `CannotBlockYourselfRule` |
+> Every rule is `internal sealed record ... : IClassifiedRule` (`Message`, `BrokenWhen`, explicit `Code` & `Kind`; `Domain/Common/Rules/`). `Code` comes from `Domain/Common/Errors/ErrorCodes.cs`; `AllRules_AreClassified` & `AllRuleCodes_ExistInCatalog` (reflection) forbid unclassified rules. Published code list: MAP §1
 
-- Failure -> HTTP: all are 500, except Comment (silent acceptance)
+| Area | Rule | Rule class(es) | Code | Kind |
+|---|---|---|---|---|
+| Post | content non-empty, <= 2000 chars | `PostContentMustNotBeEmptyRule`, `PostContentLengthLimitRule` | `PostContentInvalid` | Invalid |
+| Post | only author edits/deletes/restores | `OnlyAuthorCanPerformActionOnPostRule` | `NotPostAuthor` | Forbidden |
+| Post | restore only when deleted | `PostMustBeDeletedToRestoreRule` | `PostNotDeleted` | Invalid |
+| Comment | content non-empty, <= 1000 chars | `CommentContentMustNotBeEmptyRule`, `CommentContentLengthLimitRule` | `CommentContentInvalid` | Invalid |
+| Comment | post must allow comments | `PostMustAllowCommentsRule` | `CommentsDisabled` | Invalid |
+| Comment | parent must belong to same post (nesting depth unbounded) | `ParentCommentMustBelongToPostRule` | `ParentCommentMismatch` | Invalid |
+| Comment | edit: author only | `OnlyAuthorCanEditCommentRule` | `NotCommentAuthor` | Forbidden |
+| Comment | delete: author or post owner | `OnlyAuthorOrPostOwnerCanDeleteCommentRule` | `NotCommentAuthorOrPostOwner` | Forbidden |
+| Comment | restore: only the deleter | `OnlyDeleterCanRestoreCommentRule` | `NotCommentDeleter` | Forbidden |
+| Comment | restore only when deleted | `CommentMustBeDeletedToRestoreRule` | `CommentNotDeleted` | Invalid |
+| Comment | restore: post must not be deleted | `CannotRestoreCommentIfPostIsDeletedRule` | `PostDeleted` | Invalid |
+| Account | email contains `@`; phone regex if provided | `EmailMustBeValidRule`, `PhoneNumberMustBeValidRule` | `ValidationFailed` (no `errors` map) | Invalid |
+| Account | password min 6, username format (handler pre-checks) | `RegisterAccountCommandValidator` (FluentValidation, not a rule) | `ValidationFailed` + `errors` | - |
+| Account | must be active to login (checked AFTER the password) | `AccountMustBeActiveRule` | `AccountInactive` | Forbidden |
+| Account | credentials rejected | `InvalidCredentialsRule` (UNUSED: login returns `Result.Unauthorized`) | `InvalidCredentials` | Unauthorized |
+| Account | password hash non-empty | `PasswordHashMustNotBeEmptyRule` | `BusinessRuleViolated` | Invalid |
+| Session | refresh token value non-empty, not expired at creation, active when rotated | `RefreshTokenValueNotEmptyRule`, `RefreshTokenMustNotBeExpiredRule`, `RefreshTokenMustBeActiveRule` | `InvalidRefreshToken` | Unauthorized |
+| Session | max 5 active refresh tokens | NO rule: `Account.AddRefreshToken` evicts the oldest (`DeviceSessionLimitRule` removed) | - | - |
+| Reset OTP | 6 digits, 15 min, 1 active token (latest unexpired unused) | `PasswordResetTokenMustBeValidRule`, `InvalidOtpRule` (wrong OTP) | `InvalidOtp` | Invalid |
+| Reset OTP | 5 failed attempts max | `MaximumOtpAttemptsExceededRule` | `OtpAttemptsExceeded` | Invalid |
+| Profile | display name non-empty, <= 50, forbidden word list (`NoSensitiveWordsRule`); bio <= 200; DOB in the past; username >= 3 chars | `DisplayNameMustNotBeEmptyRule`, `DisplayNameLengthRule`, `NoSensitiveWordsRule`, `BioLengthRule`, `DateOfBirthMustBeInPastRule`, `UsernameMustBeMinimumLengthRule` | `ProfileFieldInvalid` | Invalid |
+| Profile | account keeps >= 1 profile; `SetDefault` needs >= 2 profiles | `AccountMustHaveAtLeastOneProfileRule` | `AccountRequiresProfile` | Invalid |
+| Profile | cannot delete default profile | `CannotDeleteDefaultUserRule` | `CannotDeleteDefaultProfile` | Invalid |
+| Profile | profile must belong to account | `UserMustBelongToAccountRule` | `ProfileNotOwned` | Forbidden |
+| Follow | not self | `CannotFollowYourselfRule` | `CannotFollowSelf` | Invalid |
+| Follow | target not deleted (missing target = `EntityNotFoundException`) | `CannotInteractWithDeletedUserRule` | `NotFound` | NotFound |
+| Follow | neither side blocked the other | `CannotFollowBlockedUserRule`, `TargetMustNotHaveBlockedObserverRule` | `NotFound` | NotFound |
+| Close friend | only while follow is Accepted | `CloseFriendRequiresAcceptedFollowRule` (replaced the string throw) | `CloseFriendRequiresAcceptedFollow` | Invalid |
+| Block | not self (target existence checked in handler -> 404) | `CannotBlockYourselfRule` | `CannotBlockSelf` | Invalid |
+| Notification | content non-empty; only recipient reads | `NotificationContentMustNotBeEmptyRule`, `OnlyRecipientCanReadNotificationRule` | `NotificationContentInvalid`, `NotNotificationRecipient` | Invalid, Forbidden |
+| Notification | not to yourself | `CannotSendNotificationToYourselfRule` (check commented out; self notifications exist) | `BusinessRuleViolated` | Invalid |
+| Likes | ids non-empty | `PostIdMustNotBeEmptyRule`, `UserIdMustNotBeEmptyRule` | `ValidationFailed` | Invalid |
+| Country | ISO code & name checks (5 rules) | `CountryISO*`, `CountryNameMustNotBeEmpty` | `BusinessRuleViolated` | Invalid |
+
+- Failure -> HTTP: via `Kind` (BG §5.2), never 500; hidden-entity rules (`Kind = NotFound`) answer a generic detail
+- Rule classes are renameable without contract change (codes are independent of class names)
 - `Source:` `Domain/*/Rules/*.cs`, `Domain/UserRelations/Services/UserRelationManager.cs`
 
 ## 5. State transitions
@@ -92,48 +116,54 @@ Pending|Accepted --Follow--> unchanged (idempotent, returns current status)
 Pending --Unfollow--> soft-deleted (no event)  == cancel request
 Accepted --Unfollow--> soft-deleted [UserUnfollowedEvent]
 soft-deleted --Follow--> restored, status re-evaluated vs target privacy NOW
-Pending --AcceptFollow--> Accepted   <- NO use case / endpoint (domain + tests only)
+Pending --accept (respond follow-request | target goes public)--> Accepted [UserFollowAcceptedEvent, FromRequest = true]
+Pending --decline (respond follow-request)--> soft-deleted (no event, no count change)
 ```
-- `IsCloseFriend` survives unfollow/refollow & persists dormant while status is not Accepted (effective only when Accepted; flag stays set after refollow lands in Pending)
-- `IsMuted`: no use case; `ToggleMute` unreachable
+- `IsCloseFriend` survives unfollow/refollow & persists dormant while status is not Accepted (effective only when Accepted; flag stays set after refollow lands in Pending); `RelationSetsDto.closeFriends` includes dormant flags of discoverable users
+- `IsMuted`: no use case (`ToggleMute` unreachable); profile `isMuted` is always false (T3.4 deferred)
 - `Unfollow` of non-existent edge = silent success (idempotent)
-- Private-account toggle: `User.UpdatePrivacySettings` no use case -> `IsPrivateProfile` only changeable via seed; **Pending can never be produced or resolved through API in practice**
-- Counters `FollowersCount/FollowingCount`: updated only by `UpdateFollowCountsHandler` on Accepted/Unfollowed events -> **never dispatched today** (backend-guide §7.2), counts stay 0; not exposed by any endpoint
+- **Privacy toggle:** `PUT users/profiles/me/privacy`: going public transitions ONLY `Pending` -> `Accepted` (events per edge; `acceptedCount` = transitions), accepted followers untouched; going private changes no edge; same value again -> 0
+- **Counters:** stored `FollowersCount`/`FollowingCount` updated by `UpdateFollowCountsHandler` on Accepted/Unfollowed events (live) but not exposed; profile `followersCount`/`followingCount` = accepted edges whose other party is discoverable to the viewer, computed on read (equal to the follow-list `totalCount`)
+- **Accept notification:** `UserFollowAcceptedEvent.FromRequest` true -> the REQUESTER is notified; plain follow of a public user -> the followed user is notified
 
 ### 5.2 Block
-- `Block`: idempotent (existing block returned), creates `UserBlock` + `UserBlockedEvent`; **does not touch relations directly**; auto-unfollow in both directions is event handler (`RemoveFollowsWhenUserBlockedEventHandler`) that **never runs** -> existing follows survive block
-- Follow attempts are rejected in both directions (observer-blocked-target message is explicit; target-blocked-observer message is generic)
-- `Unblock`: hard removes row, idempotent when absent; previously removed follows are not restored
-- **Not enforced anywhere else:** no block check on posts, comments, likes, saved, profile reads (`CommentPostingService` has commented "Future extension")
-- **Direction/leak:** no endpoint lists blocks or `blockedBy`; FE `isBlockedBy` has no BE source
+- `Block`: idempotent (existing block returned); target must exist & not be deleted (404; self -> 400 `CannotBlockSelf`); creates `UserBlock` + `UserBlockedEvent`; `RemoveFollowsWhenUserBlockedEventHandler` (live) soft-deletes follow edges in BOTH directions in the same request; previously removed follows are not restored on unblock
+- Follow attempts are rejected in both directions with `404 NotFound` (D14, no distinction)
+- `Unblock`: hard removes row, idempotent when absent; `UserUnblockedEvent` dispatches (no-op handler)
+- **Enforced everywhere (D14):** blocked either way = 404 for profile reads, user posts, follow lists of that user, post/thread reads, follow, like, bookmark & comment writes; ONLY exception = viewer's own block list (`GET users/me/blocks`, `isBlocked: true`); `isBlockedBy` is always false (any such read is 404)
+- Single definition: `IViewerAccessPolicy` (reads) & `InteractionGuard` (writes), see conventions/backend.md
 
 ### 5.3 Post
-- `Create` (Public, AllowComments true, no input for either) -> `PostCreatedEvent` (log-only handler)
-- `UpdateContent` (text only; `ImageUrl` immutable) -> `PostUpdatedEvent` (no handler)
-- `Delete` (author) -> soft; hidden from `GetById`, user list & saved list; `PostDeletedEvent` -> saved items soft-removed; comments & likes untouched
-- `Restore` (author, deleted) -> `PostRestoredEvent` (no handler); saved items are not restored
+- `Create` (Public, AllowComments true, no input for either; text-only allowed, optional single `imageUrl`) -> `PostCreatedEvent` (log-only handler)
+- `UpdateContent` (author; text only; `ImageUrl` immutable) -> `PostUpdatedEvent` (no handler); non-author who cannot see the post gets 404, who can see it gets 403
+- `Delete` (author) -> soft; hidden from every read; `PostDeletedEvent` -> saved items soft-removed in the same request; comments & likes untouched
+- `Restore` (author, deleted) -> `PostRestoredEvent` (no handler); not-deleted -> 400 `PostNotDeleted`; saved items are not restored
 - Delete already-deleted post -> `GetByIdAsync` hides it -> 404 (not idempotent)
 - `UpdateSettings(visibility, allowComments)` exists, **no use case**
+- **Read accessibility:** author discoverable & content visible & `Visibility` allows & not deleted (`IViewerAccessPolicy`, plan §4.4)
 
 ### 5.4 Comment
-- `Create` (post exists & not deleted) -> `CommentCreatedEvent` -> notification to **post author** (self-comment notifies self)
+- `Create` (post exists, accessible & not deleted; parent unknown/deleted/inaccessible -> 404, parent of another post -> 400 `ParentCommentMismatch`) -> `CommentCreatedEvent` -> notification to **post author** (self-comment notifies self)
 - `UpdateContent` (author) | `Delete` (author or post owner; soft; `DeletedBy` recorded; `CommentDeletedEvent` -> saved items soft-removed) | `Restore` (deleter only, post alive)
-- Replies are comments with `ParentCommentId` (unbounded nesting, same-post not enforced); **no query exists to read comments**
+- Replies are comments with `ParentCommentId` (unbounded nesting); read via `GET /api/threads/{id}` (post OR comment id; 1 level of `childReplies`); `commentsCount` = direct accessible children
+- **Accessibility:** root post accessible & author discoverable & not deleted
 
 ### 5.5 Like / SavedItem
-- `ToggleLike`: target must exist (non-deleted) -> existing like => hard remove, else create; response `{ isLiked }`; `LikeCreated` -> `+1` count & notification to target author (self-like notifies self); `LikeRemoved` -> `-1` **lost** (backend-guide §7.2)
-- Likes allowed on own content; blocked/private/visibility state of target is not considered
-- `ToggleSavedItem`: existing active => soft-remove (`SavedItemRemovedEvent` -> `-1`), else **new** row (soft-deleted row is never reused); posts & comments can be saved, **only posts are listable** (`GetSavedPosts`: per-item lookup, no pagination, skips deleted posts)
-- Both are **toggle (non-idempotent) APIs**: retried request flips state back
+- **Idempotent set** (`SetLike`, `SetSavedItem`; PUT/DELETE routes): target must exist & pass `InteractionGuard` (else 404); no-op when already in state
+- **Toggle** (`ToggleLike`, `ToggleSavedItem`; kept until FE CP2, same guard): existing like => hard remove, else create; response `{ isLiked }`/`{ isSaved }`
+- `LikeCreated` -> `+1` count & notification to target author (self-like notifies self); `LikeRemoved` -> `-1` (live since the removed-events queue)
+- Likes/saves of own content are allowed (even when private); a like on a target that became inaccessible can no longer be removed by the actor via the route (404)
+- Saved: existing active => soft-remove (`SavedItemRemovedEvent` -> `-1`), else **new** row (soft-deleted row is never reused); posts & comments can be saved, **only posts are listable** (`GET /api/saveditems/posts`, paged, newest saved first, inaccessible posts excluded BEFORE paging & counting)
 
 ### 5.6 Account / Profile
-- `Register` -> `Account.Create` + `AccountCreatedEvent` -> first profile created (default, username = email local part)
-- `Login` -> verify password -> `AddRefreshToken(deviceId)`
-- `SwitchProfile(profileId, refreshToken)` -> rotates refresh token, issues new JWT for chosen profile (profile must belong to JWT's account)
-- `DeleteProfile` soft-deletes non-default profile; `DeleteAccount` soft-deletes account & (via event) every profile, **posts/relations/comments remain**
-- No create-profile use case; `ProfileType`/privacy/username immutable via API
+- `Register` -> uniqueness checks (email, username) -> `Account.Create` + `AccountCreatedEvent(username)` -> first profile created (default)
+- `Login` -> verify password -> `EnsureCanLogin` -> `AddRefreshToken(deviceId, userId)` (evicts the oldest at 5)
+- `Refresh` -> rotate (old revoked, `ReplacedByTokenId`), same profile; `Logout` -> revoke token (+ active successors)
+- `SwitchProfile(profileId, refreshToken)` -> rotates refresh token bound to the chosen profile, issues new JWT (profile must belong to JWT's account, else 403)
+- `DeleteProfile` soft-deletes non-default profile; `DeleteAccount` soft-deletes account & (via event) every profile; posts/relations/comments remain but are hidden (D20)
+- No create-profile use case; `ProfileType`/username immutable via API; privacy via the dedicated endpoint
 
-## 6. Domain events (declared vs live)
+## 6. Domain events
 
 | Event | Raised by | Handlers | Live? |
 |---|---|---|---|
@@ -141,53 +171,61 @@ Pending --AcceptFollow--> Accepted   <- NO use case / endpoint (domain + tests o
 | `AccountDeletedEvent` | `Account.Delete` | `RemoveUserWhenAccountDeletedEventHandler` | yes |
 | `AccountDeactivatedEvent` | `Account.Deactivate` (unreachable) | - | no |
 | `PasswordResetTokenGeneratedEvent` | `Account.GeneratePasswordResetToken` | email/SMS mock senders (OTP logged) | yes |
-| `UserProfileCreatedEvent` | `User.Create` | - | n/a |
+| `UserProfileCreatedEvent` | `User.Create` | - | yes (no handler) |
 | `PostCreatedEvent` | `Post.Create` | `InitializePostStatsHandler` (log) | yes |
-| `PostUpdatedEvent`, `PostRestoredEvent` | Post | - | n/a |
+| `PostUpdatedEvent`, `PostRestoredEvent` | Post | - | yes (no handler) |
 | `PostDeletedEvent` | `Post.Delete` | `RemoveSavedItemsWhenPostDeletedEventHandler` | yes |
 | `CommentCreatedEvent` | `Comment.Create` | `CreateNotificationWhenCommentCreatedHandler` | yes |
 | `CommentDeletedEvent` | `Comment.Delete` | `RemoveSavedItemsWhenCommentDeletedEventHandler` | yes |
-| `CommentUpdatedEvent`, `CommentRestoredEvent` | Comment | - | n/a |
+| `CommentUpdatedEvent`, `CommentRestoredEvent` | Comment | - | yes (no handler) |
 | `LikeCreatedEvent` | `Like.Create` | `UpdateLikeCount...`, `CreateNotificationWhenLikedHandler` | yes |
-| `LikeRemovedEvent` | `Like.Remove` | `UpdateLikeCount...` | no (lost) |
+| `LikeRemovedEvent` | `Like.Remove` | `UpdateLikeCount...` | yes |
 | `SavedItemCreatedEvent` / `SavedItemRemovedEvent` | SavedItem | `UpdateSavedCount...` | yes |
-| `UserFollowRequestedEvent` | `UserRelation.RequestFollow` | `CreateNotificationWhenFollowRequested...`, `UserFollowRequestedEventHandler` (no-op) | no |
-| `UserFollowAcceptedEvent` | `RequestFollow`, `AcceptFollow` | `CreateNotificationWhenFollowAccepted...`, `UpdateFollowCountsHandler` | no |
-| `UserUnfollowedEvent` | `UserRelation.Delete` (Accepted only) | `UpdateFollowCountsHandler` | no |
-| `UserBlockedEvent` | `UserBlock.Create` | `RemoveFollowsWhenUserBlockedEventHandler` | no |
-| `UserUnblockedEvent` | `UserBlock.Unblock` | `ClearCacheWhenUserUnblocked...` (no-op) | no |
+| `UserFollowRequestedEvent` | `UserRelation.RequestFollow` | `CreateNotificationWhenFollowRequested...`, `UserFollowRequestedEventHandler` (no-op) | yes |
+| `UserFollowAcceptedEvent` | `RequestFollow`, `AcceptFollow` (`FromRequest`) | `CreateNotificationWhenFollowAccepted...`, `UpdateFollowCountsHandler` | yes |
+| `UserUnfollowedEvent` | `UserRelation.Delete` (Accepted only) | `UpdateFollowCountsHandler` | yes |
+| `UserBlockedEvent` | `UserBlock.Create` | `RemoveFollowsWhenUserBlockedEventHandler` | yes |
+| `UserUnblockedEvent` | `UserBlock.Unblock` | `ClearCacheWhenUserUnblocked...` (no-op) | yes |
 
-- Semantic quirk: `CreateNotificationWhenFollowAccepted` fires for any accepted follow (also direct follows of public users), message "X started following you", recipient = target; if `AcceptFollow` were exposed requester would not be notified
+- "yes" = dispatched in the same request (all 9 aggregate sets scanned; hard-removed Like/UserBlock/Notification events kept in a removed-events queue; BG §7.2)
+- A failed request discards its pending events (nothing dispatched, no leak into later requests)
 - Event class hierarchy (`DomainEvent : INotification`)
+- Notification semantics: a plain follow of a public user notifies the followed user ("X started following you"); an accepted request notifies the requester
 
 ## 7. Repository contracts of interest
 
-| Contract | Extra members | Live notes |
+> Set-based members accept id collections (EF-friendly, fixed number of calls per page); no `Task.WhenAll` over the same repo in new code
+
+| Contract | Extra members | Notes |
 |---|---|---|
-| `IPostRepository` | `GetByAuthorIdAsync`, `GetByUserIdPagedAsync(userId,page,pageSize,ct)` | only paged 1 is used (no visibility/block filter, creation-time desc) |
-| `IUserRepository` | `IsEmailUniqueAsync` (mock: always true), `GetByAccountIdAsync`, `GetByIdAndAccountIdAsync`, `GetByUsernameAsync`, `GetUsersByIdsAsync` | `GetByUsernameAsync` unused |
-| `IAccountRepository` | `GetByEmail/Phone/Identifier`, `GetAccountWithProfilesByIdentifierAsync` | heuristic in mock (see backend-guide §6.4) |
-| `IUserRelationRepository` | `GetRelationAsync(observer,target[,includeDeleted])` | no list/count/by-target queries -> followers/following lists impossible without new members |
-| `IUserBlockRepository` | `IsBlockedAsync`, `GetBlockAsync`, `GetBlocksBetweenAsync` (both directions, 1 scan) | no "blocked by me" list |
-| `ISavedItemRepository` | `GetSavedItemsByUserAsync`, `RemoveByTargetAsync` | no paging |
-| `INotificationRepository` | `GetByRecipientIdAsync(recipient,page,pageSize)` | unused |
-| `ILikeRepository`, `ICommentRepository` | `GetByUserAndTargetAsync` / none | comments: **no by-post query** |
+| `IPostRepository` | `GetByAuthorIdAsync`, `GetByIdsAsync(ids)` (non-deleted only), `GetByUserIdPagedAsync` | user posts handler filters via access policy then pages in memory; `GetByUserIdPagedAsync` is UNUSED |
+| `IUserRepository` | `IsEmailUniqueAsync` (all accounts incl. deleted), `IsUsernameTakenAsync` (case-insensitive, incl. soft-deleted), `GetByAccountIdAsync`, `GetByIdAndAccountIdAsync`, `GetByUsernameAsync` (case-insensitive, not deleted), `GetUsersByIdsAsync` (incl. deleted flag) | username & email stay reserved |
+| `IAccountRepository` | `GetByEmail/Phone/Identifier`, `GetAccountWithProfilesByIdentifierAsync`, `GetByRefreshTokenAsync` (lock-free, any token state) | identifier heuristic in mock (BG §6.4) |
+| `IUserRelationRepository` | `GetRelationAsync(observer,target[,includeDeleted])`, `GetRelationsAsync(observer, targetIds)` (incl. soft-deleted, dormant flags), `GetByObserverAsync(observer)` (incl. soft-deleted), `GetAcceptedEdgesAsync(userIds)` (active accepted, both directions), `GetPendingRequestsAsync(target)` (unordered) | callers filter by access policy, order & page |
+| `IUserBlockRepository` | `IsBlockedAsync`, `GetBlockAsync`, `GetBlocksBetweenAsync`, `GetByObserverAsync(observer)`, `GetBlockedEitherWayAsync(userId, candidateIds)` (single set query, both directions) | block list = observer's own blocks |
+| `ISavedItemRepository` | `GetByUserAndTargetAsync`, `GetSavedTargetIdsAsync(user, targetIds, type)`, `GetSavedItemsByUserAsync` (list, handler pages), `RemoveByTargetAsync` | viewer flags in 1 call per page |
+| `ILikeRepository` | `GetByUserAndTargetAsync`, `GetLikedTargetIdsAsync(user, targetIds, type)` | viewer flags in 1 call per page |
+| `ICommentRepository` | `GetTopLevelCommentsByPostIdsAsync(postIds)`, `GetChildCommentsByParentIdsAsync(parentIds)` (both return `CommentChildRow(ParentKey, CommentId, AuthorId)`), `GetTopLevelByPostIdAsync(postId)`, `GetChildrenAsync(parentIds)` | typed on purpose: post ids & comment ids never mixed |
+| `INotificationRepository` | `GetByRecipientIdAsync(recipient,page,pageSize)` | UNUSED (no HTTP list) |
 
 - Unit of Work: `IUnitOfWork` (BuildingBlocks) implemented by `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`; mock repos return `UnitOfWork => null!`
 
-## 8. Feature-specific findings (follow, soft-delete, privacy, visibility, ownership)
+## 8. Feature-specific status (follow, soft-delete, privacy, visibility, ownership)
 
 | Topic | Implemented? | Evidence / gap |
 |---|---|---|
-| Follow / unfollow | yes (state machine §5.1) | `FollowUserCommand` -> `Result<string>` status name; unfollow 204 |
-| Follow requests (private account) | domain only | no setter for privacy, no accept/decline/list use case |
+| Follow / unfollow | yes (state machine §5.1) | `FollowUserCommand` -> `{followStatus}`; unfollow 204 |
+| Follow requests (private account) | yes | list, count, respond, privacy toggle (MAP §2.6) |
 | Soft-delete & restore (post, comment) | yes | restore permissions differ (post: author; comment: author-or-owner & must be deleter) |
 | Soft-delete & restore (follow edge) | yes (restore by re-follow) | `includeDeleted: true` in `FollowUserAsync` |
-| Block checks both directions | on **follow only** | everywhere else absent |
-| Account privacy | flag exists | never read except in follow; no read-path effect |
-| Post visibility | enum + field | never set (always Public), never enforced on reads |
-| Ownership checks | writes only | reads are anonymous & unfiltered |
-| Deleted-user handling | follow only | posts/likes/comments by deleted profiles stay readable |
+| Block checks both directions | yes, everywhere (D14) | reads (`IViewerAccessPolicy`) & writes (`InteractionGuard`, `UserRelationManager`) |
+| Account privacy | yes | read effect: locked lists, profile still 200 (D15) |
+| Post visibility | enforced on reads | field exists, never set (always Public); `followersOnly`/`private` honored if present |
+| Ownership checks | writes (rules) & reads (policy) | gap: delete/restore of hidden content answers 403, not 404 (BG §6.3) |
+| Deleted-user handling | yes (D20) | content of soft-deleted profiles hidden from all reads |
+| Mute | no | `ToggleMute` domain only (T3.4 deferred) |
 
-## 9. Next investigations
-- Runtime confirm of §5.1/§5.2 event loss: follow user, `GET` nothing exposes counts -> verify via debug log of `FollowersCount` or one-off test against `MockDataStore.GetAllDomainEvents` (no BE source change needed beyond test project)
+## 9. Open items
+- Mute use case & endpoints (T3.4), feed (T4.1), notifications HTTP + payload (T4.2): deferred, FE stays on mocks
+- `Post.UpdateSettings` & audience (`CloseFriends`) have no use case (D17)
+- Remove unused members when EF lands: `IPostRepository.GetByUserIdPagedAsync`, `INotificationRepository.GetByRecipientIdAsync`, `InvalidCredentialsRule`

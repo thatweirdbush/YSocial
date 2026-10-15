@@ -3,23 +3,23 @@
 ## Conventions (`.context/conventions/`)
 - [Agentic Rules & Workflows](conventions/00-agentic-rules.md) - Persona, Superpowers workflows, Task Closure protocol, Systematic Debugging (Rule of Two Failures), architecture guardrails
 - [Document Standards](conventions/01-doc-standards.md) - Token optimization rules, ASCII syntax, concise style, no emojis
-- [BE Conventions](conventions/backend.md) - C# .NET 8 DDD, CQRS (MediatR), StronglyTypedIds, Domain/Application rules
+- [BE Conventions](conventions/backend.md) - C# .NET 8 DDD, CQRS (MediatR), StronglyTypedIds, classified rules & Result codes, viewer access policy (read gate) & InteractionGuard (write gate), projectors, set-based repo members, pagination & relation-search rules
 - [FE Conventions](conventions/frontend.md) - Next.js 15 App Router, React Server vs Client Components, Tailwind CSS, TypeScript guidelines, API integration patterns
 
 ## Feature Specs (`.context/features/`)
-- [Identities Spec](features/identities.md) - Account registration, JWT auth, Refresh Token session limits & OTP password reset
+- [Identities Spec](features/identities.md) - Design decisions: registration (username), JWT + rotating profile-bound refresh tokens, session cap eviction, OTP password reset; endpoints in FE-BE Mapping
 - [Post Creator Spec](features/post-creator.md) - Dynamic post creation engine, Zustand draft persistence, Radix UI popovers, memory-safe media upload previews (`URL.revokeObjectURL`), multi-tier Escape key shield logic
-- [User Profile & Relations Spec](features/user-profile-and-relations.md) - User profiles, follow states (Pending vs Accepted), Close Friends toggle, soft-deleted relation restore, self-block prevention with auto-purging active follows
+- [User Profile & Relations Spec](features/user-profile-and-relations.md) - Profile UI (SSR/CSR), relation design decisions (follow states, close friends, soft-delete restore, total blocks D14, follow requests), safety guards; endpoints in FE-BE Mapping
 - [FE Roadmap](features/frontend-roadmap.md) - FE audit (2026-10-01) & prioritized 8-phase checklist (Foundation -> Post Detail -> Search -> Social graph -> Notifications -> Settings -> DMs -> Engagement -> Polish), mock data ONLY, no BE
 - [Post Detail Spec](features/post-detail.md) - `/posts/[id]` thread + 1-level replies, mock `post-service` + normalized Zustand `post-store` (like/bookmark/reply sync), Vitest/RTL setup, design decisions & pitfalls
 - [Search & Tags Spec](features/search.md) - `/search` explore + Top/Users/Posts/Hashtag tabs, ARIA combobox suggestions, persisted recent searches, `/tags/[tag]`, linkified `#tag`/`@mention`, mock `user-service` + `user-store` (follow sync), diacritics-insensitive matching
 - [Feed & Post Interaction Spec](features/feed-post-interaction.md) - "N bài mới" pill (simulated push stream, per-tab consumed buffer), owner actions (edit/delete/pin/hide likes, service-enforced ownership, field-scoped rollback, tombstones), author hover card, viewer-scoped follow graph & `user-store`, shared `src/mocks/` seeds
 - [Profile Core Spec](features/profile.md) - `/@username` on mocks: server-resolved route + real 404 (session cookie bridge), SSR-safe auth hydration, viewer/actor identity split, graph-derived counts & fans, profile tab controller, followers dialog, share link + QR
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
-- [BE Unit Test Spec](features/backend-unit-test.md) - xUnit, NSubstitute & FluentAssertions test matrix: Domain entities, Business Rules, Services, Application CQRS Command/Event Handlers
+- [BE Test Spec](features/backend-unit-test.md) - 3 test layers (Domain 54, Application 32, API integration 328): WebApplicationFactory harness, in-place store reset & deterministic seed, race/probe tests, Domain/Application matrix (existing vs backlog)
 
 ## Backend Audit (`.context/backend/`)
-- [BE Guide](backend/architecture/backend-guide.md) - actual request lifecycle, behavior order, DI, exceptions->500, JWT/`IUserContext`, in-memory UoW & event-dispatch defects, tech debt, deviations from older docs
-- [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules, follow/block/post state machines, events (live vs never dispatched), repo contracts
-- [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - endpoint matrix by feature, FE roadmap coverage, ranked integration risks, recommended order, open contract decisions
-- [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (errors, auth lifecycle, event dispatch, read MVP, graph), decisions D1-D20, error catalog & read DTO contracts, dependencies, tests, FE checkpoints, risks
+- [BE Guide](backend/architecture/backend-guide.md) - request lifecycle & behavior order, DI, error pipeline (ProblemDetails + `code`), auth lifecycle (refresh/logout/switch, session lock), UoW & event dispatch semantics, concurrency & non-production statement, debt list with statuses (T4.3 security hardening OPEN), probes ledger
+- [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules with code & kind, follow/block/post state machines, events (all live), repo contracts (set-based members)
+- [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - owner of the FE contract: endpoint matrix with statuses, published error codes, DTO shapes, FE coverage, risk status (closed vs open), checkpoints CP0-CP4 & FE follow-ups, decided D-ids
+- [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (T0-T3.3 done; T3.4, T4.1-T4.3 deferred), decisions D1-D20, session synchronization & access policy (error catalog & DTOs moved to MAP/BG), dependencies, tests, FE checkpoints, risks

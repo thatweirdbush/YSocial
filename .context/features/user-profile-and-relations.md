@@ -1,7 +1,7 @@
 ---
 module: User Profile & Relations
-description: Full-stack spec for User Profile UI, Data Contracts, CQRS Handlers & Relation APIs
-updated: 2026-10-02
+description: Profile UI, relation design decisions & safety guards (endpoints, statuses & DTOs live in MAP)
+updated: 2026-10-15
 ---
 
 # 1. ARCHITECTURE & API CONTRACTS
@@ -27,54 +27,41 @@ graph TD
 ```
 
 ## 1.3 Endpoints & Contracts
-| Endpoint | Payload / Result |
-|---|---|
-| `GET /api/users/@{username}` | -> `UserProfile` |
-| `PATCH /api/users/profile` | Payload `UpdateProfileRequest` |
-| `POST /api/users/{targetId}/follow` | `200 OK` + `{ followStatus: "Pending" \| "Accepted" }` |
-| `DELETE /api/users/{targetId}/follow` | Unfollow target |
-| `PATCH /api/users/{targetId}/close-friend` | Payload `{ isCloseFriend: boolean }` |
-| `POST /api/users/{targetId}/block` | Block target |
-| `DELETE /api/users/{targetId}/block` | Unblock target |
+> Single owner: `.context/backend/integration/frontend-backend-mapping.md` (endpoint matrix MAP §2.2, §2.6, `UserProfileDto` & list DTOs MAP §3, error codes MAP §1.1). Not repeated here
 
-```typescript
-export interface UserProfile {
-  id: string;
-  displayName: string;
-  username: string;
-  bio?: string;
-  avatarUrl?: string;
-  coverUrl?: string;
-  followersCount: number;
-  followingCount: number;
-  isFollowing: boolean;
-  isVerified?: boolean;
-}
-```
+- **Profile read:** by id & by username (case-insensitive), anonymous allowed; blocked either way / deleted / unknown = 404 -> SSR calls `notFound()`; private profile = 200 with the same field set (counts visible, content `locked`)
+- **Follow state:** `followStatus` `none | pending | accepted` (lowercase), `isFollowing` derived; `{followStatus}` in the follow response
+- **Counts:** computed on read from accepted edges whose other party is discoverable to the viewer (equal to the follow-list totals)
+- **Edit:** `PUT /api/users/profiles/me` returns the updated `UserProfileDto` (no username/email/privacy); privacy has its own endpoint
 
 ---
 
 # 2. IMPLEMENTATION RULES
 
-## 2.1 Backend CQRS Commands (`Features/UserRelations`)
+## 2.1 Backend CQRS (`Features/UserRelations`, `Features/UserBlocks`, `Features/Users`)
 All commands implicitly extract `ObserverId` via `IUserContext`.
 
-### Commands
+### Commands & queries
 - `FollowUserCommand(Guid TargetId)` -> `UserRelationManager.FollowUserAsync()`
 - `UnfollowUserCommand(Guid TargetId)` -> `UserRelationManager.UnfollowUserAsync()`
-- `ToggleCloseFriendCommand(Guid TargetId, bool IsCloseFriend)` -> mutates close-friend flag
-- `BlockUserCommand(Guid TargetId)` -> `UserRelationManager.BlockUserAsync()`
+- `ToggleCloseFriendCommand(Guid TargetId, bool IsCloseFriend)` -> mutates close-friend flag (only while follow is Accepted)
+- `RespondFollowRequestCommand(Guid RequesterId, string Decision)` -> accept (`AcceptFollow`, notifies requester) | decline (soft-delete edge, no event)
+- `UpdatePrivacyCommand(bool IsPrivate)` -> going public accepts only pending requests; returns `{acceptedCount}`
+- `BlockUserCommand(Guid TargetId)` -> `UserRelationManager.BlockUserAsync()` (target must exist)
 - `UnblockUserCommand(Guid TargetId)` -> removes `UserBlock` entity from repo
+- Queries: `GetUserProfile*`, `GetMe`, `GetFollowList` (followers/following), `GetFollowRequests` (+ count), `GetRelationSets`, `GetBlocks`; all filtered by `IViewerAccessPolicy`, paged after filtering
 
 ### Domain & Architecture Rules
-- **Aggregate segregation:** `UserBlock` = standalone Aggregate Root (separate from `UserRelation`) for fast `AnyAsync` block checks
+- **Aggregate segregation:** `UserBlock` = standalone Aggregate Root (separate from `UserRelation`) for fast block checks
 - **Soft-delete restoration:** unfollow sets `IsDeleted = true` to preserve metadata (`IsCloseFriend`). Re-follow restores soft-deleted entity, NEVER creates duplicate record
-- **Idempotency:** follow on already-followed account fails silently (returns `Success`, no DB mutation)
-- **Query batching:** bidirectional block validation uses `GetBlocksBetweenAsync` via `Task.WhenAll()` -> A->B & B->A checks in single query round-trip
+- **Idempotency:** follow on already-followed account fails silently (returns current status, no mutation)
+- **Query batching:** bidirectional block validation uses `GetBlocksBetweenAsync` (A->B & B->A in 1 query); read paths use set-based members (`GetBlockedEitherWayAsync`, `GetRelationsAsync`, ...), never per-item lookups (conventions/backend.md)
+- **Blocks are total (D14):** blocked either way = 404 for every discovery, content & interaction path; own block list is the only exception
 
-### Event-Driven Pipeline
-- `UpdateFollowCountsHandler`: listens `UserFollowAcceptedEvent` / `UserUnfollowedEvent` -> atomically mutates `FollowersCount` & `FollowingCount` on `User` aggregates (`Count >= 0`)
-- `RemoveFollowsWhenUserBlockedEventHandler`: listens `UserBlockedEvent` -> immediately purges active bidirectional follow relations between both accounts
+### Event-Driven Pipeline (live: events dispatch in the same request, BG §7)
+- `UpdateFollowCountsHandler`: listens `UserFollowAcceptedEvent` / `UserUnfollowedEvent` -> mutates stored `FollowersCount` & `FollowingCount` on `User` aggregates (`Count >= 0`); stored counters are NOT exposed (API counts are computed on read)
+- `RemoveFollowsWhenUserBlockedEventHandler`: listens `UserBlockedEvent` -> purges active bidirectional follow relations between both profiles
+- `CreateNotificationWhenFollow*`: follow requested/accepted notifications (accepted request notifies the requester)
 
 ## 2.2 Visual Spec (Luxury Minimalist Zinc)
 - Name: `text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50`
@@ -101,11 +88,12 @@ All commands implicitly extract `ObserverId` via `IUserContext`.
 
 ---
 
-# 4. VERIFICATION (Backlog)
+# 4. VERIFICATION
 
-- [ ] **SSR Route:** `/@anquoc.dev` renders Server Page & OG meta tags
-- [ ] **404 Handling:** invalid username -> `not-found.tsx`
-- [ ] **XSS Shield:** bio with `javascript:alert(1)` renders as safe plain text
-- [ ] **Hydration:** zero React hydration warnings on relative timestamps after reload
-- [ ] **CQRS Test:** `FollowUserCommand` returns updated `FollowStatus` & updates follower counts
-- [ ] **Block Flow:** blocking user immediately clears existing follow relations
+- [ ] **SSR Route:** `/@anquoc.dev` renders Server Page & OG meta tags (FE, on mocks)
+- [ ] **404 Handling:** invalid username -> `not-found.tsx` (FE; BE answers 404 for unknown/blocked/deleted)
+- [ ] **XSS Shield:** bio with `javascript:alert(1)` renders as safe plain text (FE)
+- [ ] **Hydration:** zero React hydration warnings on relative timestamps after reload (FE)
+- [x] **BE follow contract:** `Follow_ReturnsJsonFollowStatusLowercase`, `FollowPublicUser_IncrementsCounts` (`tests/YSocial.Api.IntegrationTests`)
+- [x] **BE block flow:** `Block_RemovesFollowsBothDirections_CountsInSameRequest`
+- [x] **BE profile/relations suite:** `Users/ProfileReadTests`, `Relations/*` (privacy, requests, lists)

@@ -1,28 +1,53 @@
 ---
 module: Backend Testing
-description: Unit Test Spec & Test Matrix for project
-stack: xUnit / NSubstitute / FluentAssertions / .NET 8
-updated: 2026-10-02
+description: Test layers (Domain/Application unit, API integration), harness rules & test matrix
+stack: xUnit / NSubstitute / FluentAssertions / Mvc.Testing / .NET 8
+updated: 2026-10-15
 ---
 
 # 1. INFRASTRUCTURE & STANDARDS
 
 ## 1.1 Projects & Visibility
-- **Domain tests:** `tests/YSocial.Domain.UnitTests/YSocial.Domain.UnitTests.csproj` (`net8.0`)
-  - Packages: `xunit`, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `NSubstitute`, `FluentAssertions`
-- **Application tests:** `tests/YSocial.Application.UnitTests/YSocial.Application.UnitTests.csproj`
-- **Visibility:** MUST add `[assembly: InternalsVisibleTo("YSocial.Domain.UnitTests")]` to `YSocial.Domain.csproj` & `YSocial.Application.csproj` to direct testing of `internal sealed record` BusinessRules
+
+| Project | Layer | Tests (2026-10-15, all passing) |
+|---|---|---|
+| `tests/YSocial.Domain.UnitTests` (`net8.0`) | Domain: aggregates, rules, services (mock repos) | 54 |
+| `tests/YSocial.Application.UnitTests` (`net8.0`) | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock | 32 |
+| `tests/YSocial.Api.IntegrationTests` (`net8.0`) | real HTTP pipeline over `WebApplicationFactory<Program>` (see 1.3) | 328 |
+
+- **Packages (all 3):** `xunit` 2.7.1, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `NSubstitute`, `FluentAssertions` 8.3.0; integration adds `Microsoft.AspNetCore.Mvc.Testing` 8.0.26
+- **Visibility:** MUST add `[assembly: InternalsVisibleTo("YSocial.<Layer>.UnitTests")]` / `("YSocial.Api.IntegrationTests")` to `YSocial.Domain.csproj`, `YSocial.Application.csproj` & `YSocial.Infrastructure.csproj` for direct testing of `internal sealed record` rules, handlers & mock repos
+- **Matrix status:** tables in sections 2-3 mix EXISTING tests & TARGET backlog; the "Existing" lines list what is really in the project; most handler behavior is covered end-to-end by the integration layer instead of per-handler unit tests
 
 ## 1.2 Data & Execution Conventions
 - **StronglyTypedIds:** instantiate source-generated structs via constructor: `new UserId(Guid.NewGuid())`, or fixed GUIDs `new UserId(Guid.Parse("..."))` for assertions. NEVER use `UserId.New()`
 - **AAA:** Arrange - Act - Assert for all test methods
 - **Method Naming:** `[MethodName]_[Scenario]_[ExpectedResult]`
 
+## 1.3 API integration layer (`YSocial.Api.IntegrationTests`)
+
+> Acceptance of every contract (status, `code`, DTO shape, access rules) = tests over the real HTTP pipeline; Swagger is NOT the source of truth
+
+- **Host:** `ApiFactory : WebApplicationFactory<Program>` (`public partial class Program;`); removes the hosted `ProcessNotificationOutboxJob` (it mutates shared state; outbox tests call processing directly); adds test-only `TestProbeController` (generic error mapping, fail-after-event probe); client base `https://localhost`, no auto-redirect
+- **Fixture & base:** one host per run (`ApiFixture` via `[CollectionDefinition("Api")]` `ICollectionFixture`); every test class derives `ApiTestBase` (`[Collection("Api")]`), whose ctor calls `MockDataStore.ResetForTests()` -> each test starts from the identical seed; `LoginAsync(loginId)` returns a bearer client (`AuthHelper`; `Seed.*` constants name the seed logins, credentials live in `SeedIds` and are NOT repeated in docs)
+- **Serialized:** `[assembly: CollectionBehavior(DisableTestParallelization = true)]` (the static in-memory store is shared by the whole assembly)
+- **Reset rule:** `MockDataStore.ResetForTests()` clears every static collection IN PLACE (`Clear()`, NEVER reassign: singleton repos & `MockNotificationOutboxStore` hold references), also clears the removed-events queue & outbox, then reseeds; any new static mutable state MUST be added to the reset
+- **Deterministic seed:** `SeedIds` (fixed GUIDs, `BaseTime`) + `MockSeeder` (reflection on private setters allowed ONLY there; bcrypt work factor 4); tests may reference seed ids directly
+- **Characterization & probe tests** (`Characterization/`): pinned behavior that must survive the recovery + the probes of BG §12; target-behavior tests started as `[Fact(Skip = "T1.x")]` and were un-skipped by their owner task (0 skipped now)
+- **Layout (by area):** `Characterization`, `Config` (CORS), `Contract` (Swagger), `Errors` (pipeline, `RuleCodesTests`), `Events` (dispatch), `Identities` (register, session, refresh, race tests), `Interactions` (like/bookmark, write enforcement), `Pagination`, `Posts`, `Relations` (follow lists, requests, privacy), `Smoke`, `Status` (status codes), `Threads`, `Users` (profile reads)
+- **Race tests:** parallel requests released by a barrier, repeated (e.g. 50x); assert exactly 1 winner / no active token left / active <= 5
+- **Naming:** `[Subject]_[Scenario]_[Expected]` (e.g. `Refresh_RotatedToken_Returns401`)
+- **Contract guards elsewhere:** `RuleClassificationTests` (Domain: `AllRules_AreClassified`, `AllRuleCodes_ExistInCatalog`, `CodesSnapshot_MatchesApprovedList`), `SwaggerTests` (Api: `Swagger_Builds`, response schemas, `ProblemDetails` errors, DTO schemas)
+
 ---
 
 # 2. DOMAIN TEST MATRIX (`YSocial.Domain.UnitTests`)
 
 ## 2.1 Identities
+
+- **Existing (`Identities/AccountTests.cs`, 9):** `EnsureCanLogin_InactiveAccount_Throws`, `VerifyPassword_ReflectsHasher`, `AddRefreshToken_SixthActive_EvictsOldest`, `AddRefreshToken_ManyLogins_NeverMoreThanFiveActive`, `AddRefreshToken_KeepsRotatedAncestorsOfLiveFamily`, `RotateRefreshToken_KeepsProfile_RecordsSuccessor`, `RotateRefreshToken_WithNewProfile_SwitchesBinding`, `RotateRefreshToken_Rotated_Throws`, `RevokeRefreshToken_Rotated_RevokesWholeFamily`
+- **Existing (`Common/RuleClassificationTests.cs`, 3):** rule classification & code snapshot (see 1.3)
+- Table below = target backlog (corrected to current behavior)
 
 ### `Identities/AccountTests.cs`
 | # | Test Name | Note |
@@ -31,9 +56,9 @@ updated: 2026-10-02
 | 2 | `Create_ShouldRaiseAccountCreatedEvent_WhenCreated` | DomainEvents contains `AccountCreatedEvent` |
 | 3 | `Create_ShouldThrowBusinessRuleException_WhenEmailInvalid` | Invalid email format |
 | 4 | `Create_ShouldValidatePhoneNumber_WhenPhoneProvided` | Phone validation |
-| 5 | `Login_ShouldSucceed_WhenCredentialsValid` | Happy path, no throw |
-| 6 | `Login_ShouldThrowBusinessRuleException_WhenAccountInactive` | IsActive=false |
-| 7 | `Login_ShouldThrowBusinessRuleException_WhenPasswordWrong` | Verify returns false |
+| 5 | `VerifyPassword_ShouldReturnTrue_WhenCredentialsValid` | Happy path |
+| 6 | `EnsureCanLogin_ShouldThrowBusinessRuleException_WhenAccountInactive` | IsActive=false (`AccountMustBeActiveRule`, called AFTER password verify; 403 `AccountInactive`) |
+| 7 | `VerifyPassword_ShouldReturnFalse_WhenPasswordWrong` | login failure is `Result.Unauthorized` in the handler (no exception) |
 | 8 | `ChangePassword_ShouldUpdateHash_WhenCalled` | PasswordHash changed |
 | 9 | `ChangePassword_ShouldRevokeAllRefreshTokens_WhenCalled` | All active tokens revoked |
 | 10 | `GeneratePasswordResetToken_ShouldAddToken_WhenCalled` | PasswordResetTokens.Count increases |
@@ -41,11 +66,11 @@ updated: 2026-10-02
 | 12 | `ResetPassword_ShouldChangePassword_WhenOtpValid` | PasswordHash changed, token MarkAsUsed |
 | 13 | `ResetPassword_ShouldThrowBusinessRuleException_WhenNoActiveToken` | No active token |
 | 14 | `ResetPassword_ShouldThrowBusinessRuleException_WhenMaxAttemptsReached` | Max attempts exceeded |
-| 15 | `ResetPassword_ShouldIncrementAttempt_WhenOtpWrong` | AttemptCount increases |
-| 16 | `AddRefreshToken_ShouldReturnToken_WhenUnderSessionLimit` | Happy path |
-| 17 | `AddRefreshToken_ShouldThrowBusinessRuleException_WhenSessionLimitReached` | `DeviceSessionLimitRule` |
+| 15 | `ResetPassword_ShouldIncrementAttempt_WhenOtpWrong` | AttemptCount increases; `InvalidOtpRule` |
+| 16 | `AddRefreshToken_ShouldReturnToken_WhenUnderSessionLimit` | Happy path, token bound to `UserId` |
+| 17 | `AddRefreshToken_ShouldEvictOldest_WhenSessionLimitReached` | EXISTING as `AddRefreshToken_SixthActive_EvictsOldest` (`DeviceSessionLimitRule` removed) |
 | 18 | `RotateRefreshToken_ShouldRevokeOldAndCreateNew_WhenTokenActive` | Old revoked, new created |
-| 19 | `RotateRefreshToken_ShouldThrowBusinessRuleException_WhenTokenNotActive` | `RefreshTokenMustBeActiveRule` |
+| 19 | `RotateRefreshToken_ShouldThrowBusinessRuleException_WhenTokenNotActive` | `RefreshTokenMustBeActiveRule` (401 `InvalidRefreshToken`) |
 | 20 | `RevokeRefreshToken_ShouldRevoke_WhenTokenExists` | Token.RevokedAt set |
 | 21 | `RevokeRefreshToken_ShouldDoNothing_WhenTokenNotFound` | Idempotent |
 | 22 | `RevokeAllRefreshTokens_ShouldRevokeAll_WhenMultipleActive` | All tokens revoked |
@@ -82,6 +107,8 @@ updated: 2026-10-02
 ---
 
 ## 2.2 Users
+
+- Target backlog (no tests in the project yet; covered end-to-end by `Users/ProfileReadTests` & `Identities/*`)
 
 ### `Users/UserTests.cs`
 | # | Test Name | Note |
@@ -128,6 +155,9 @@ updated: 2026-10-02
 
 ## 2.3 User Relations & User Blocks
 
+- **Existing:** `UserRelations/UserRelationTests.cs` (16), `Services/UserRelationManagerTests.cs` (20), `Rules/*Tests.cs` (3 files x 2); rows below match them (names differ slightly: e.g. `...WhenTargetIsDeleted`, `...ThrowEntityNotFoundException...`)
+- `UserBlocks/UserBlockTests.cs` = target backlog
+
 ### `UserRelations/UserRelationTests.cs`
 | # | Test Name | Note |
 |---|-----------|------|
@@ -155,8 +185,8 @@ updated: 2026-10-02
 | 3 | `FollowUserAsync_ShouldThrowBusinessRuleException_WhenFollowingSelf` | `CannotFollowYourselfRule` |
 | 4 | `FollowUserAsync_ShouldThrowEntityNotFound_WhenTargetNotFound` | `EntityNotFoundException` |
 | 5 | `FollowUserAsync_ShouldThrowBusinessRuleException_WhenTargetDeleted` | `CannotInteractWithDeletedUserRule` |
-| 6 | `FollowUserAsync_ShouldThrowBusinessRuleException_WhenObserverBlockedTarget` | `CannotFollowBlockedUserRule` |
-| 7 | `FollowUserAsync_ShouldThrowBusinessRuleException_WhenTargetBlockedObserver` | `TargetMustNotHaveBlockedObserverRule` |
+| 6 | `FollowUserAsync_ShouldThrowBusinessRuleException_WhenObserverBlockedTarget` | `CannotFollowBlockedUserRule` (Kind NotFound -> 404) |
+| 7 | `FollowUserAsync_ShouldThrowBusinessRuleException_WhenTargetBlockedObserver` | `TargetMustNotHaveBlockedObserverRule` (Kind NotFound -> 404) |
 | 8 | `FollowUserAsync_ShouldSetPending_WhenTargetIsPrivate` | Private profile -> FollowStatus.Pending |
 | 9 | `FollowUserAsync_ShouldSetAccepted_WhenTargetIsPublic` | Public profile -> FollowStatus.Accepted |
 | 10 | `UnfollowUserAsync_ShouldSoftDelete_WhenRelationExists` | `relation.Delete()` called |
@@ -168,8 +198,8 @@ updated: 2026-10-02
 | 16 | `UnblockUserAsync_ShouldDoNothing_WhenNotBlocked` | No exception |
 | 17 | `UnblockUserAsync_ShouldThrowBusinessRuleException_WhenUnblockingSelf` | `CannotBlockYourselfRule` |
 | 18 | `ToggleCloseFriendAsync_ShouldToggle_WhenFollowingAccepted` | ToggleCloseFriend called |
-| 19 | `ToggleCloseFriendAsync_ShouldThrowBusinessRuleException_WhenNotFollowing` | `BusinessRuleValidationException` |
-| 20 | `ToggleCloseFriendAsync_ShouldThrowBusinessRuleException_WhenRelationNull` | `BusinessRuleValidationException` |
+| 19 | `ToggleCloseFriendAsync_ShouldThrowBusinessRuleException_WhenNotFollowing` | `CloseFriendRequiresAcceptedFollowRule` (400 `CloseFriendRequiresAcceptedFollow`) |
+| 20 | `ToggleCloseFriendAsync_ShouldThrowBusinessRuleException_WhenRelationNull` | `CloseFriendRequiresAcceptedFollowRule` |
 
 ### `UserBlocks/UserBlockTests.cs`
 | # | Test Name | Note |
@@ -179,8 +209,9 @@ updated: 2026-10-02
 | 3 | `Create_ShouldThrowBusinessRuleException_WhenBlockingSelf` | `CannotBlockYourselfRule` |
 | 4 | `Unblock_ShouldRaiseUserUnblockedEvent_WhenCalled` | DomainEvent |
 
-### Business Rules Direct Tests (~25 rule files)
-- Each rule test class MUST implement 2 boundary tests:
+### Business Rules Direct Tests (~48 rule files)
+- Only 3 rule test classes exist (UserRelations); all rules are covered by the classification reflection tests + API tests
+- Each rule test class SHOULD implement 2 boundary tests:
   - `BrokenWhen_ShouldReturnTrue_When[ViolationCondition]`
   - `BrokenWhen_ShouldReturnFalse_When[ValidCondition]`
 
@@ -188,24 +219,32 @@ updated: 2026-10-02
 
 # 3. APPLICATION TEST MATRIX (`YSocial.Application.UnitTests`)
 
-## 3.1 Command Handlers (CQRS)
-Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert returned `Result` / `Result<T>`.
+## 3.1 Existing (32)
+- `Access/ViewerAccessPolicyTests` (16): owner/anonymous/pending/accepted vs private, block either direction, deleted author, FollowersOnly & Private posts, dormant close-friend flag, comment under inaccessible root, filter helpers, `GetContext_CallsEachRepoOnce_For50Candidates`
+- `Posts/PostProjectorTests` (8): post/comment kind & parent, viewer flags per kind, anonymous = no viewer lookups, fixed repo calls per page, dropped inaccessible items, direct-children counting (`CommentCount_PostIdAndCommentIdQueriesNeverMix`)
+- `Cqrs/EventDispatchUnitTests` (6): dispatcher max passes, drain-until-empty, failure discards remaining; `TransactionBehavior` success commits, failed `Result`/exception skips commit & discards
+- `Identity/AccountSessionLockTests` (2): same account serialized & different accounts parallel, double dispose releases once
 
-- **Identities:** `RegisterAccountCommandHandler`, `LoginCommandHandler`, `ForgotPasswordCommandHandler`, `ResetPasswordCommandHandler`, `DeleteAccountCommandHandler`, `LogoutUserCommandHandler`
-- **Users:** `DeleteProfileCommandHandler`, `SetDefaultProfileCommandHandler`, `SwitchProfileCommandHandler`, `UpdateProfileCommandHandler`
-- **User Relations:** `FollowUserCommandHandler`, `UnfollowUserCommandHandler`, `ToggleCloseFriendCommandHandler`
+## 3.2 Command handlers (CQRS) - target backlog
+Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert returned `Result` / `Result<T>`. Handler behavior is currently verified end-to-end by the integration layer (1.3)
+
+- **Identities:** `RegisterAccountCommandHandler`, `LoginCommandHandler`, `ForgotPasswordCommandHandler`, `ResetPasswordCommandHandler`, `DeleteAccountCommandHandler`, `LogoutUserCommandHandler`, `RefreshTokenCommandHandler`
+- **Users:** `DeleteProfileCommandHandler`, `SetDefaultProfileCommandHandler`, `SwitchProfileCommandHandler`, `UpdateProfileCommandHandler`, `UpdatePrivacyCommandHandler`
+- **User Relations:** `FollowUserCommandHandler`, `UnfollowUserCommandHandler`, `ToggleCloseFriendCommandHandler`, `RespondFollowRequestCommandHandler`
 - **User Blocks:** `BlockUserCommandHandler`, `UnblockUserCommandHandler`
 
-## 3.2 Event Handlers
+## 3.3 Event handlers - target backlog
 - `InitializeUserProfileHandler`: generates default profile on `AccountCreatedEvent`
 - `RemoveUserWhenAccountDeletedEventHandler`: clears profiles on account deletion
-- `UpdateFollowCountsHandler`: mutates follower/following count on relation update
-- `RemoveFollowsWhenUserBlockedEventHandler`: purges active follow relations on `UserBlockedEvent`
+- `UpdateFollowCountsHandler`: mutates follower/following count on relation update (API: `FollowPublicUser_IncrementsCounts`, `Unfollow_DecrementsCounts`)
+- `RemoveFollowsWhenUserBlockedEventHandler`: purges active follow relations on `UserBlockedEvent` (API: `Block_RemovesFollowsBothDirections_CountsInSameRequest`)
 
 ---
 
 # 4. VERIFICATION PLAN
 
-- [ ] **Build:** `dotnet build YSocial.sln --configuration Release`
-- [ ] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests --verbosity normal`
-- [ ] **Application:** `dotnet test tests/YSocial.Application.UnitTests --verbosity normal`
+- [x] **Build:** `dotnet build YSocial.sln` (0 errors, 2 baseline CS1998 warnings in Application EventHandlers)
+- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (54 pass)
+- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (32 pass)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (328 pass, serialized, identical seed per test)
+- [x] **All:** `dotnet test YSocial.sln`

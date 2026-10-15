@@ -91,90 +91,16 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 
 ### 4.1 Error catalog & HTTP mapping (D1, D2)
 
-- **Catalog:** `Domain/Common/Errors/ErrorCodes.cs` (public `const string`, owned by Domain so rules & Application share it); MAP §1 owns the published list after T1.1b
-- **Rule classification:** `public interface IClassifiedRule : IBusinessRule { string Code { get; } RuleViolationKind Kind { get; } }`, `public enum RuleViolationKind { Invalid, Forbidden, NotFound, Conflict }` in `Domain/Common/Rules/`
-- **Result codes:** `Result.Fail/NotFound/Conflict/Validation/Unauthorized/Forbidden(message, code?)`; `code` default per `ErrorType` (table below)
+> Frozen: content moved to its owner docs (single owner per fact, §7)
 
-| Source | Condition | HTTP | Default `code` |
-|---|---|---|---|
-| `Result` | `ErrorType.Validation` | 400 | `ValidationFailed` |
-| `Result` | `ErrorType.Business` | 400 | `BusinessRuleViolated` |
-| `Result` | `ErrorType.Unauthorized` | 401 | `Unauthenticated` |
-| `Result` | `ErrorType.Forbidden` | 403 | `Forbidden` |
-| `Result` | `ErrorType.NotFound` | 404 | `NotFound` |
-| `Result` | `ErrorType.Conflict` | 409 | `Conflict` |
-| `Result` | failure with `ErrorType.None` (bug) | 500 | `InternalError` |
-| exception | `FluentValidation.ValidationException` | 400 | `ValidationFailed` + `errors` |
-| exception | `BusinessRuleValidationException` + `IClassifiedRule` | Kind: Invalid 400, Forbidden 403, NotFound 404, Conflict 409 | rule `Code` |
-| exception | `BusinessRuleValidationException` unclassified / string ctor | 400 | `BusinessRuleViolated` |
-| exception | `EntityNotFoundException` | 404 | `NotFound` |
-| exception | any other | 500 | `InternalError` (`detail` generic outside Development) |
-| framework | model binding / malformed JSON / bad enum int | 400 | `ValidationFailed` + `errors` |
-| framework | JWT missing/invalid on `[Authorize]` | 401 | `Unauthenticated` |
-| framework | authorization denied | 403 | `Forbidden` |
-| framework | route not matched / `{id:guid}` mismatch | 404 | `NotFound` |
-
-Initial specific codes (non-exhaustive; T1.1b completes per rule, MAP §1 publishes):
-
-| Area | Code -> HTTP |
-|---|---|
-| Auth | `InvalidCredentials` 401, `InvalidRefreshToken` 401, `AccountInactive` 403, `InvalidOtp` 400, `OtpAttemptsExceeded` 400 |
-| Account/profile | `EmailTaken` 409, `UsernameTaken` 409, `ProfileNotOwned` 403, `CannotDeleteDefaultProfile` 400, `AccountRequiresProfile` 400, `ProfileFieldInvalid` 400 |
-| Post | `NotPostAuthor` 403, `PostNotDeleted` 400, `PostContentInvalid` 400 |
-| Comment | `NotCommentAuthor` 403, `NotCommentAuthorOrPostOwner` 403, `NotCommentDeleter` 403, `CommentsDisabled` 400, `PostDeleted` 400, `ParentCommentMismatch` 400, `CommentContentInvalid` 400 |
-| Graph | `CannotFollowSelf` 400, `CannotBlockSelf` 400, `CloseFriendRequiresAcceptedFollow` 400, block either way -> `NotFound` 404 (D14), missing/deleted target -> `NotFound` 404 |
-| Notification | `NotNotificationRecipient` 403 |
+- **Published error-code list (34) & per-endpoint statuses:** `../integration/frontend-backend-mapping.md` §1.1, §2
+- **Mapping tables (`Result`, exceptions, framework -> HTTP + `code`) & envelope mechanism:** `../architecture/backend-guide.md` §5
+- **`IClassifiedRule`, `RuleViolationKind` (5 values: `Unauthorized` added by ruling), `Result` codes:** `../../conventions/backend.md` §3.1; rule table with code & kind: `../architecture/domain-model.md` §4
+- **Catalog source:** `Domain/Common/Errors/ErrorCodes.cs`
 
 ### 4.2 Read DTO contracts (D7, D9, D12, D14, D15)
 
-```yaml
-PostDto:                       # used for posts AND comments (FE PostItem)
-  id: guid
-  kind: post | comment
-  postId: guid                 # root post id; == id when kind=post
-  parentId: guid?              # kind=comment ONLY: parent comment id, or postId for top-level comment; absent for posts
-  content: string
-  imageUrl: string?            # posts only; always absent for comments
-  createdAt: datetime
-  isEdited: bool               # UpdatedAt != null
-  likesCount: int              # Post.LikeCount | Comment.LikeCount; stored aggregate, NOT viewer-filtered
-                               # (accepted exception §4.4: number only, no identities)
-  commentsCount: int           # DIRECT children only: post -> top-level comments (PostId match & ParentCommentId null);
-                               # comment -> comments with ParentCommentId match; same §4.4 filter as thread replies
-  isLikedByCurrentUser: bool   # like target type = kind; false for anonymous
-  isBookmarkedByCurrentUser: bool   # saved target type = kind; false for anonymous
-  user: { id, username, displayName, avatarUrl?, isVerified: false }
-  visibility: public | followersOnly | private   # comments inherit root post; MVP always public (D17)
-ThreadDto:                     # FE PostThread
-  post: PostDto                # requested item (post or comment)
-  parent: PostDto?             # kind=comment: parent comment, or root post for top-level comment;
-                               # null when parent inaccessible (§4.4) - never a stub revealing it exists
-  replies: PostDto[]           # direct accessible children, newest first
-  childReplies: { [replyId]: PostDto[] }   # 1 level below replies, newest first, same filter
-UserProfileDto:                # FE UserProfile; SAME field set for every viewer incl. owner (no email, no profiles)
-  id, username, displayName, bio?, avatarUrl?, coverUrl?
-  followersCount, followingCount   # computed on read: accepted edges whose other party is discoverable to viewer
-                                   # (= totalCount of followers/following lists); stored counters not exposed
-  isPrivate, isVerified: false
-  followStatus: none | pending | accepted    # viewer -> target edge
-  isFollowing: bool            # followStatus == accepted
-  viewerMarkedCloseFriend: bool   # flag set by viewer, dormant included
-  isMuted: bool                # viewer muted target (false until T3.4)
-  isBlocked: bool              # viewer blocked target; true ONLY in viewer's own block list (D14 exception)
-  isBlockedBy: bool            # target blocked viewer; ALWAYS false (any such read is 404); kept for FE type compat
-  # private & non-owner & not accepted (D15): identical field set, values as above; isPrivate=true,
-  #   followStatus none|pending, isFollowing=false; NO extra/hidden fields; content lists answer locked
-MeDto:                         # ONLY GET /api/users/me (owner); never embedded in other responses
-  profile: UserProfileDto
-  email: string
-  profiles: [{ id, username, displayName, avatarUrl?, isDefault }]   # account's profiles, switcher
-PagedResponse<T>: { items: T[], page, pageSize, totalCount, hasNextPage }
-UserPostsPageDto: PagedResponse<PostDto> + { locked: bool }
-FollowListPageDto: PagedResponse<UserProfileDto> + { locked: bool }
-RelationSetsDto: { blocked: guid[], muted: guid[], closeFriends: guid[], isPrivate, requestCount }   # no blockedBy (D14)
-```
-
-- **Status outcomes per profile/content read:** accessible -> 200 data | private & not permitted -> 200 `locked: true` (lists) / 200 profile | blocked either way, deleted, unknown, inaccessible post -> 404 `NotFound`. Response NEVER mixes `locked` with 404 semantics
+> Frozen: DTO shapes (`PostDto`, `ThreadDto`, `UserProfileDto`, `MeDto`, `PagedResponse`, `UserPostsPageDto`, `FollowListPageDto`, `RelationSetsDto`, `FollowRequestCountDto`, `PrivacyUpdatedDto`) & status outcomes (200 / `locked` / 404) now live in `../integration/frontend-backend-mapping.md` §3
 
 ### 4.3 Session synchronization (D4, D5, D6)
 
@@ -405,14 +331,14 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Follow_PrivateTarget_Pending` | `Accept_MakesAccepted_IncrementsCounts` | `Decline_RemovesEdge_NoCountChange` | `GoPublic_AcceptsOnlyPending_CountEqualsTransitions` (2 accepted + 3 pending -> 3) | `GoPublic_Twice_SecondReturns0` | `GoPrivate_KeepsAcceptedFollowers` | `RespondMissingRequest_404` | `Requests_RequireAuth` | `Requests_DefaultPageSize20_NewestFirst` | `Requests_PageSize51_400` | `Requests_Query_MatchesUsernameOrDisplayName_DiacriticsInsensitive` | `Requests_Query51Chars_400` | `Requests_DeletedRequester_ExcludedFromListAndCount`
 - **DoD:** FE `setPrivateAccount`, `fetchFollowRequests`, `fetchFollowRequestCount`, `respondFollowRequest` covered; `Pending` reachable via API
 
-#### - [ ] T3.2 Followers/following lists & relation sets
+#### - [x] T3.2 Followers/following lists & relation sets
 - **Scope:** `GET /api/users/{id}/followers|following?page&pageSize&query` -> `FollowListPageDto` (accepted only, default 20, bounds 1..50, D14 404 if blocked either way, D15 locked, items filtered by §4.4 BEFORE paging, when not locked & no `query`: `totalCount` == profile counts of T2.2; when locked: `totalCount` 0 while profile still shows counts (D15, FE counts visible but not clickable); search rule of T3.1, order newest edge first); items projected by T2.2 `UserProfileProjector`; `GET /api/users/me/relation-sets` -> `RelationSetsDto` (no `blockedBy`); `GET /api/users/me/blocks?page` (D14 exception: `isBlocked: true`)
 - **Depends:** T3.1
 - **Files:** `Features/UserRelations/{GetFollowList,GetRelationSets}/`, `Features/UserBlocks/GetBlocks/`, repo list members, `UserRelationsController.cs`, `UserBlocksController.cs`
 - **Tests:** `Followers_ExcludesPendingAndBlockedUsers` | `Followers_PrivateLocked` | `Followers_TargetBlockedViewer_404` | `Following_QueryFilter` | `RelationSets_IncludesDormantCloseFriend` | `RelationSets_NoBlockedBy` | `MyBlocks_ListsBlockedUsers_IsBlockedTrue`
 - **DoD:** FE `fetchFollowList`, `fetchRelationSets`, `fetchBlockedUsers`, `fetchCloseFriendCandidates` covered
 
-#### - [ ] T3.3 Interaction enforcement on writes
+#### - [x] T3.3 Interaction enforcement on writes
 - **Scope:** D14. like/bookmark/comment/reply require `CanViewPost` on target's root post (else 404); block either way on author -> 404; block target existence checked (404); close-friend & follow paths already coded in T1.1b
 - **Depends:** T2.1, T2.5, T1.10
 - **Files:** `Features/Likes/*`, `Features/SavedItems/*`, `Features/Comments/AddComment/`, `Domain/Comments/Services/CommentPostingService.cs`, `Features/UserBlocks/Block/`
@@ -425,6 +351,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Files:** `Features/UserRelations/{SetMute,GetMutes}/` (new), `Domain/UserRelations/UserRelation.cs` (if needed), `UserRelationsController.cs`
 - **Tests:** `PutMute_Twice_Idempotent` | `DeleteMute_NotMuted_204` | `Mutes_Paged` | `Profile_IsMutedTrue`
 - **DoD:** FE `setMuted`, `fetchMutedUsers` covered
+- **Status:** deferred (session 2026-10-15): optional, FE keeps mute on mocks; profile `isMuted` stays false
 
 #### - [ ] T4.1 Feed (optional, recommended next)
 - **Scope:** `GET /api/feed?tab=following|forYou&page` (following = accepted followees + self root posts; forYou = all viewable root posts); policy before paging; muted excluded when T3.4 done; offset vs cursor decided here (D16 alt)
@@ -432,6 +359,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Files:** `Features/Feed/GetFeed/` (new), `IPostRepository` (by authors, paged), `FeedController.cs` (new)
 - **Tests:** `Feed_Following_OnlyAcceptedAndSelf` | `Feed_ForYou_ExcludesHiddenBlocked` | `Feed_NewestFirst_Paged`
 - **DoD:** FE `fetchFeed(tab, page)` covered
+- **Status:** deferred (session 2026-10-15): optional, FE keeps the feed on mocks
 
 #### - [ ] T4.2 Notifications (optional)
 - **Scope:** HTTP list/unread count/mark read (`MarkNotificationAsRead` -> `Result`, `403 NotNotificationRecipient`); SignalR payload aligned to FE (`createdAt, isRead, senderName, senderAvatar, targetId`, type `NewFollow`); skip self-notifications; outbox removes processed messages
@@ -439,6 +367,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Files:** `Features/Notifications/*`, `NotificationsController.cs` (new), `Infrastructure/Notifications/*`, `Domain/Notifications/Notification.cs`
 - **Tests:** `Notifications_List_NewestFirst_Paged` | `MarkRead_OtherRecipient_403` | `SelfLike_NoNotification` | `Outbox_ProcessedMessageRemoved`
 - **DoD:** FE `/notifications` list & realtime payload render without blanks
+- **Status:** deferred (session 2026-10-15): optional, FE keeps notifications on mocks; payload mismatch & missing HTTP API stay open
 
 #### - [ ] T4.3 Security hardening (required before any shared deployment)
 - **Scope:** redaction of passwords, OTP, access & refresh tokens, reset tokens in BOTH `LoggingBehavior` (request & response objects) & `MockEmailSender`/`MockSmsSender` logs (OTP never logged outside Development, masked in Development); JWT secret required outside Development (no fallback); seed + admin-token logging Development-only
@@ -446,6 +375,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Files:** `Application/CQRS/Behaviors/Logging/*`, `Infrastructure/*/Mock*Sender.cs`, `Infrastructure/Identity/JwtProvider.cs`, `Program.cs`, `MockDataStore.cs`
 - **Tests:** `Login_PipelineLogs_NoPasswordOrTokens` (captured logger) | `RefreshToken_PipelineLogs_NoTokens` | `ForgotPassword_SenderLogs_NoOtp` | `ResetPassword_PipelineLogs_NoOtpOrPassword` | `Production_MissingJwtSecret_FailsStartup`
 - **DoD:** BG §10.7, §10.8, §10.13 resolved
+- **Status:** deferred (session 2026-10-15): NOT done, REQUIRED before any shared deployment (BG §10.7, §10.8, §10.13 stay OPEN)
 
 ## 6. FE integration checkpoints
 
