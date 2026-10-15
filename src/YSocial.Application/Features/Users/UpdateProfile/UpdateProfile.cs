@@ -3,6 +3,8 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Users.Projection;
+using YSocial.Application.Models;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Users.UpdateProfile;
@@ -13,7 +15,7 @@ public sealed record UpdateProfileCommand(
     string? AvatarUrl,
     string? CoverUrl,
     Gender Gender,
-    DateTime? DateOfBirth) : ResultCommand<bool>;
+    DateTime? DateOfBirth) : ResultCommand<UserProfileDto>;
 
 internal sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProfileCommand>
 {
@@ -37,17 +39,18 @@ internal sealed class UpdateProfileCommandValidator : AbstractValidator<UpdatePr
 
 internal sealed class UpdateProfileCommandHandler(
     IUserRepository userRepository,
-    IUserContext userContext)
-    : ICommandHandler<UpdateProfileCommand, Result<bool>>
+    IUserContext userContext,
+    UserProfileProjector projector)
+    : ICommandHandler<UpdateProfileCommand, Result<UserProfileDto>>
 {
-    public async Task<Result<bool>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
+    public async Task<Result<UserProfileDto>> Handle(UpdateProfileCommand request, CancellationToken cancellationToken)
     {
         var userId = new UserId(userContext.UserId);
         var user = await userRepository.GetByIdAsync(userId, cancellationToken);
 
         if (user is null)
         {
-            return Result<bool>.Fail("User profile not found.", ErrorType.NotFound);
+            return Result<UserProfileDto>.NotFound("User profile not found.");
         }
 
         var profileInfo = new UserProfileInfo(
@@ -63,6 +66,8 @@ internal sealed class UpdateProfileCommandHandler(
 
         userRepository.Update(user);
 
-        return Result<bool>.Success(true);
+        var profiles = await projector.ProjectAsync(user.Id, [user], cancellationToken: cancellationToken);
+
+        return Result<UserProfileDto>.Success(profiles[0]);
     }
 }

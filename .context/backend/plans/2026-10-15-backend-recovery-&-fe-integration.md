@@ -362,7 +362,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests (unit matrix):** owner sees own private | anonymous vs private -> locked | pending -> locked | accepted -> visible | block A->B & B->A -> undiscoverable for both | deleted author -> undiscoverable | FollowersOnly post vs non-follower -> hidden | dormant close-friend flag grants nothing | comment under inaccessible root post -> inaccessible | comment by blocked author under accessible post -> inaccessible | `GetContextAsync` calls each repo once for 50 candidates
 - **DoD:** rules mirror FE `mocks/visibility.ts` except D14 (404 instead of blocked states); §4.4 is the only accessibility definition in code
 
-#### - [ ] T2.2 Profile reads & `me`
+#### - [x] T2.2 Profile reads & `me`
 - **Scope:** `GET /api/users/{id:guid}`, `GET /api/users/by-username/{username}` (anonymous allowed) -> `UserProfileDto` (§4.2, same field set for every viewer, never `email`/`profiles`); `GET /api/users/me` ([Authorize]) -> `MeDto` (ONLY place exposing `email` & account profiles); blocked either way / deleted / unknown -> 404 (D14, D20); private non-accepted -> 200 same field set (D15); `followersCount`/`followingCount` computed on read with §4.4 filter (`UserProfileProjector`, batch for N profiles, reused by T3.1/T3.2 lists); `PUT /api/users/profiles/me` -> 200 `UserProfileDto` (D7)
 - **Depends:** T2.1, T1.9
 - **Files:** `Features/Users/{GetUserProfile,GetMe}/` (new), `Application/Models/{UserProfileDto,MeDto}.cs`, `Application/Features/Users/Projection/UserProfileProjector.cs` (new), `Features/Users/UpdateProfile/`, `UsersController.cs`
