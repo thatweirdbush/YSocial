@@ -9,7 +9,7 @@ namespace YSocial.Application.CQRS.Behaviors.Logging;
 /// Marks a property whose value must never reach a log (passwords, OTPs, tokens...).
 /// Property names containing password, otp, token or secret are redacted even without the attribute.
 /// </summary>
-[AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
+[AttributeUsage(AttributeTargets.Property)]
 public sealed class SensitiveDataAttribute : Attribute;
 
 /// <summary>

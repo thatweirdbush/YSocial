@@ -39,20 +39,20 @@ internal sealed class RestoreCommentCommandHandler(
 
         if (comment is null)
         {
-            return Result.NotFound($"Comment with ID {command.CommentId} not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         // We also need the post to check if the user is the post owner
         var post = await postRepository.GetByIdAsync(comment.PostId, includeDeleted: true, cancellationToken);
         if (post is null)
         {
-            return Result.NotFound("Associated post not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
         if (await guard.IsCommentHiddenFromAsync(editorId, comment, post, cancellationToken))
         {
-            return Result.NotFound("Comment not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         comment.Restore(editorId, post.AuthorId, post.IsDeleted);

@@ -39,19 +39,19 @@ internal sealed class DeleteCommentCommandHandler(
 
         if (comment is null)
         {
-            return Result.NotFound($"Comment with ID {command.CommentId} not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         var post = await postRepository.GetByIdAsync(comment.PostId, cancellationToken);
         if (post is null)
         {
-            return Result.NotFound("Associated post not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
         if (await guard.IsCommentHiddenFromAsync(editorId, comment, post, cancellationToken))
         {
-            return Result.NotFound("Comment not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         comment.Delete(editorId, post.AuthorId);

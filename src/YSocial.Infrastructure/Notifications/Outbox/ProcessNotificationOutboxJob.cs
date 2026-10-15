@@ -22,7 +22,7 @@ public sealed class ProcessNotificationOutboxJob(
                 using var scope = serviceProvider.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<NotificationOutboxProcessor>().ProcessBatchAsync(cancellationToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogError(ex, "Critical error in Notification Outbox Job scanning cycle.");
             }

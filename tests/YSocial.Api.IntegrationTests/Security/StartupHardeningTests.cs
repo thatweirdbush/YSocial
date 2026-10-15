@@ -35,6 +35,18 @@ public class StartupHardeningTests
         act.Should().Throw<Exception>().Which.ToString().Should().Contain("Jwt:SecretKey");
     }
 
+    [Theory]
+    [InlineData("development-only-signing-key-0123456789-not-a-secret")]
+    [InlineData("super-secret-key-that-should-be-long-enough-for-hs256!")]
+    public void Production_PubliclyKnownJwtSecret_FailsStartup(string secret)
+    {
+        using var factory = Production(secret);
+
+        var act = () => factory.CreateClient();
+
+        act.Should().Throw<Exception>().Which.ToString().Should().Contain("publicly known");
+    }
+
     [Fact]
     public void Production_ShortJwtSecret_FailsStartup()
     {

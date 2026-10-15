@@ -46,7 +46,7 @@ public sealed class NotificationOutboxProcessor(
                 message.MarkAsProcessed();
                 delivered++;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
                 logger.LogError(ex, "Error processing outbox message {MessageId} (attempt {Attempt})", message.Id, message.Attempts + 1);
                 message.MarkAsFailed(ex.Message);

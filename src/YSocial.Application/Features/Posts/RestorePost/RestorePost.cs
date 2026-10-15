@@ -36,13 +36,13 @@ internal sealed class RestorePostCommandHandler(IPostRepository postsRepository,
 
         if (post is null)
         {
-            return Result.NotFound($"Post with ID {command.PostId} not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
         if (await guard.IsPostHiddenFromAsync(editorId, post, cancellationToken))
         {
-            return Result.NotFound("Post not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         post.Restore(editorId);

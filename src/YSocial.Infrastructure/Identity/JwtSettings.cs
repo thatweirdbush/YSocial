@@ -11,6 +11,7 @@ public sealed record JwtSettings(string SecretKey, string Issuer, string Audienc
     public const int MinSecretLength = 32;
     public const string DevelopmentSecretKey = "development-only-signing-key-0123456789-not-a-secret";
     private const int DefaultAccessTokenMinutes = 15;
+    private static readonly string[] KnownKeys = [DevelopmentSecretKey, "super-secret-key-that-should-be-long-enough-for-hs256!"];
 
     public static JwtSettings FromConfiguration(IConfiguration configuration, bool isDevelopment)
     {
@@ -23,6 +24,11 @@ public sealed record JwtSettings(string SecretKey, string Issuer, string Audienc
         if (string.IsNullOrWhiteSpace(secretKey))
         {
             throw new InvalidOperationException("Jwt:SecretKey is required (no default): set it through configuration or the environment.");
+        }
+
+        if (!isDevelopment && KnownKeys.Contains(secretKey))
+        {
+            throw new InvalidOperationException("Jwt:SecretKey is a publicly known development key: set a private one.");
         }
 
         if (secretKey.Length < MinSecretLength)

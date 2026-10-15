@@ -75,6 +75,22 @@ public class HiddenTargetOwnershipTests(ApiFixture fixture) : ApiTestBase(fixtur
         await AssertCodeAsync(await admin.PutAsync($"/api/posts/{TestPost}/restore", null), HttpStatusCode.Forbidden, "NotPostAuthor");
     }
 
+    [Fact]
+    public async Task NotFoundDetail_IsIdenticalForUnknownHiddenAndDeletedTargets()
+    {
+        MakePrivate(SeedIds.TestUser);
+        var admin = await AdminAsync();
+
+        var unknown = await (await admin.DeleteAsync($"/api/posts/{Guid.NewGuid()}")).ReadJsonAsync();
+        var hidden = await (await admin.DeleteAsync($"/api/posts/{TestPost}")).ReadJsonAsync();
+        var unknownRestore = await (await admin.PutAsync($"/api/posts/{Guid.NewGuid()}/restore", null)).ReadJsonAsync();
+        var unknownComment = await (await admin.DeleteAsync($"/api/comments/{Guid.NewGuid()}")).ReadJsonAsync();
+
+        new[] { hidden, unknownRestore, unknownComment }.Select(b => b.GetProperty("detail").GetString())
+            .Should().OnlyContain(d => d == unknown.GetProperty("detail").GetString());
+        unknown.GetProperty("detail").GetString().Should().NotContain(TestPost.ToString());
+    }
+
     #endregion
 
     #region Comments

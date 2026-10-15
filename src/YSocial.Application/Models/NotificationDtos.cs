@@ -7,7 +7,7 @@ namespace YSocial.Application.Models;
 /// <summary>
 /// One notification, same shape for <c>GET /api/notifications</c> and the SignalR <c>ReceiveNotification</c> push.
 /// <see cref="Type"/> = NewLike | NewComment | NewFollow | FollowRequested | FollowAccepted; <see cref="Kind"/> = like | reply | follow (FE grouping).
-/// <see cref="TargetId"/> = post or comment id (like, comment) or the follower id (follow types).
+/// <see cref="TargetId"/> = ROOT POST id (like, comment: the FE route is /posts/{id}) or the follower id (follow types).
 /// </summary>
 public sealed record NotificationDto(
     Guid Id,
@@ -20,6 +20,7 @@ public sealed record NotificationDto(
     Guid? TargetId,
     Guid SenderId,
     string? SenderName,
+    string? SenderUsername,
     string? SenderAvatar)
 {
     public static NotificationDto From(Notification notification, User? sender) => new(
@@ -33,6 +34,7 @@ public sealed record NotificationDto(
         notification.TargetId,
         notification.SenderId.Value,
         sender?.ProfileInfo.DisplayName,
+        sender?.Username,
         sender?.ProfileInfo.AvatarUrl);
 
     private static string KindOf(NotificationType type)

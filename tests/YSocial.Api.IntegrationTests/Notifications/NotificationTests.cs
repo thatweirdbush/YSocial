@@ -70,13 +70,41 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
         page.GetProperty("unreadCount").GetInt32().Should().Be(2);
         var like = page.GetProperty("items")[1];
         like.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(
-            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderAvatar"]);
+            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderUsername", "senderAvatar"]);
         like.GetProperty("kind").GetString().Should().Be("like");
         like.GetProperty("isRead").GetBoolean().Should().BeFalse();
         like.GetProperty("targetId").GetGuid().Should().Be(TestPost);
         like.GetProperty("senderId").GetGuid().Should().Be(SeedIds.DemoUser.Value);
         like.GetProperty("senderName").GetString().Should().NotBeNullOrEmpty();
         page.GetProperty("items")[0].GetProperty("kind").GetString().Should().Be("reply");
+    }
+
+    [Fact]
+    public async Task CommentAndCommentLike_TargetIsRootPost_SenderUsernameSet()
+    {
+        var test = await LoginAsync(Seed.TestLogin);
+        var demo = await LoginAsync(Seed.DemoLogin);
+        var comment = await test.AddCommentAsync(TestPost, "mine");
+        await demo.AddCommentAsync(TestPost, "reply");
+        (await demo.PutAsync($"/api/comments/{comment}/like", null)).EnsureSuccessStatusCode();
+
+        var items = (await (await test.GetAsync(List)).ReadJsonAsync()).GetProperty("items").EnumerateArray().ToList();
+
+        items.Should().HaveCount(2);
+        items.Should().OnlyContain(i => i.GetProperty("targetId").GetGuid() == TestPost);
+        items.Should().OnlyContain(i => i.GetProperty("senderUsername").GetString() == "demo_user");
+    }
+
+    [Fact]
+    public async Task MarkAllRead_SkipsHiddenSenders()
+    {
+        var (test, _) = await LikeAndCommentAsync();
+        await test.PostAsync($"/api/users/{SeedIds.DemoUser.Value}/blocks", null);
+
+        await test.PutAsync($"{List}/read-all", null);
+        await test.DeleteAsync($"/api/users/{SeedIds.DemoUser.Value}/blocks");
+
+        (await (await test.GetAsync($"{List}/unread-count")).ReadJsonAsync()).GetProperty("count").GetInt32().Should().Be(2);
     }
 
     [Fact]

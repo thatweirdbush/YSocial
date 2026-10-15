@@ -29,7 +29,7 @@ public class NotificationOutboxProcessorTests
     }
 
     private static NotificationEnvelope Envelope(Guid recipientId)
-        => new(recipientId, new NotificationDto(Guid.NewGuid(), "NewLike", "like", "New Like", "x liked your post.", DateTime.UtcNow, false, Guid.NewGuid(), Guid.NewGuid(), "X", null));
+        => new(recipientId, new NotificationDto(Guid.NewGuid(), "NewLike", "like", "New Like", "x liked your post.", DateTime.UtcNow, false, Guid.NewGuid(), Guid.NewGuid(), "X", "x_user", null));
 
     private void Enqueue(NotificationEnvelope envelope)
     {
@@ -100,7 +100,7 @@ public class NotificationOutboxProcessorTests
 
         using var doc = JsonDocument.Parse(json);
         doc.RootElement.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(
-            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderAvatar"]);
+            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderUsername", "senderAvatar"]);
         await Task.CompletedTask;
     }
 }

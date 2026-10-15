@@ -13,6 +13,7 @@ public sealed record MarkAllNotificationsAsReadCommand : ResultCommand;
 
 internal sealed class MarkAllNotificationsAsReadCommandHandler(
     INotificationRepository notificationRepository,
+    AccessibleNotifications notifications,
     IUserContext userContext) : ICommandHandler<MarkAllNotificationsAsReadCommand, Result>
 {
     public async Task<Result> Handle(MarkAllNotificationsAsReadCommand request, CancellationToken cancellationToken)
@@ -22,7 +23,7 @@ internal sealed class MarkAllNotificationsAsReadCommandHandler(
             return Result.Unauthorized();
         }
 
-        foreach (var notification in (await notificationRepository.GetByRecipientAsync(viewerId, cancellationToken)).Where(n => !n.IsRead))
+        foreach (var (notification, _) in (await notifications.LoadAsync(viewerId, cancellationToken)).Where(n => !n.Notification.IsRead))
         {
             notification.MarkAsRead(viewerId);
             notificationRepository.Update(notification);

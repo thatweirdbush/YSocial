@@ -111,6 +111,7 @@ public class PostsController : ApiController
     [Authorize]
     [ProducesResponseType(typeof(SharePostLinkResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SharePostLink(Guid id, CancellationToken cancellationToken)
     {

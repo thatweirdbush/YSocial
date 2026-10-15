@@ -25,7 +25,7 @@ internal sealed class CreateNotificationWhenCommentCreatedHandler(
             NotificationType.NewComment,
             "New Comment",
             $"{commenter.Username} commented on your post.",
-            notification.CommentId.Value,
+            post.Id.Value,
             cancellationToken);
     }
 }

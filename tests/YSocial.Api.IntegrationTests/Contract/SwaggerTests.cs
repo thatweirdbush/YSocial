@@ -152,6 +152,6 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
             .EnumerateObject().Select(p => p.Name);
 
         properties.Should().BeEquivalentTo(
-            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderAvatar"]);
+            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderUsername", "senderAvatar"]);
     }
 }
