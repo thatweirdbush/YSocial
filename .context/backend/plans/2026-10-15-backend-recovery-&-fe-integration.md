@@ -341,7 +341,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Register_WithUsername_ProfileHasUsername` | `Register_InvalidUsernameFormat_Returns400_NotChecksUniqueness` | `Register_DuplicateUsernameCaseInsensitive_Returns409` | `Register_DuplicateEmail_Returns409` | `Register_Failure_LeavesNoOrphanAccount`
 - **DoD:** BG §10.10 resolved
 
-#### - [ ] T1.9 Status code & response-shape cleanup (touched MVP endpoints)
+#### - [x] T1.9 Status code & response-shape cleanup (touched MVP endpoints)
 - **Scope:** D7 (no-payload), D8. `Result<bool>` -> `Result` (204): DeletePost, RestorePost, DeleteComment, RestoreComment, DeleteProfile, SetDefaultProfile, DeleteAccount (UpdatePost/UpdateComment/UpdateProfile move to DTO in T2.3/T2.5/T2.2); register -> 201 `{accountId}`; follow -> `{ followStatus }`; `ApiController.Created...` helper; per-action `[Authorize]` on `UsersController` WRITE actions only, NEVER controller-level (T2.2 reads stay anonymous)
 - **Depends:** T1.8
 - **Files:** listed features, `IdentitiesController`, `PostsController`, `CommentsController`, `UsersController`, `UserRelationsController`, `ApiController.cs`

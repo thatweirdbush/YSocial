@@ -8,7 +8,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.DeletePost;
 
-public sealed record DeletePostCommand(Guid PostId) : ResultCommand<bool>;
+public sealed record DeletePostCommand(Guid PostId) : ResultCommand;
 
 internal sealed class DeletePostCommandValidator : AbstractValidator<DeletePostCommand>
 {
@@ -19,13 +19,13 @@ internal sealed class DeletePostCommandValidator : AbstractValidator<DeletePostC
 }
 
 internal sealed class DeletePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)
-    : ICommandHandler<DeletePostCommand, Result<bool>>
+    : ICommandHandler<DeletePostCommand, Result>
 {
-    public async Task<Result<bool>> Handle(DeletePostCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(DeletePostCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result.Unauthorized();
         }
 
         var postId = new PostId(command.PostId);
@@ -33,13 +33,13 @@ internal sealed class DeletePostCommandHandler(IPostRepository postsRepository, 
 
         if (post is null)
         {
-            return Result<bool>.NotFound($"Post with ID {command.PostId} not found.");
+            return Result.NotFound($"Post with ID {command.PostId} not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
         post.Delete(editorId);
         postsRepository.Update(post);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

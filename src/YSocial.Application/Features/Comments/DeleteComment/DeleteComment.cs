@@ -9,7 +9,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Comments.DeleteComment;
 
-public sealed record DeleteCommentCommand(Guid CommentId) : ResultCommand<bool>;
+public sealed record DeleteCommentCommand(Guid CommentId) : ResultCommand;
 
 internal sealed class DeleteCommentCommandValidator : AbstractValidator<DeleteCommentCommand>
 {
@@ -23,13 +23,13 @@ internal sealed class DeleteCommentCommandHandler(
     ICommentRepository commentRepository, 
     IPostRepository postRepository,
     IUserContext userContext)
-    : ICommandHandler<DeleteCommentCommand, Result<bool>>
+    : ICommandHandler<DeleteCommentCommand, Result>
 {
-    public async Task<Result<bool>> Handle(DeleteCommentCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(DeleteCommentCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result.Unauthorized();
         }
 
         var commentId = new CommentId(command.CommentId);
@@ -37,19 +37,19 @@ internal sealed class DeleteCommentCommandHandler(
 
         if (comment is null)
         {
-            return Result<bool>.NotFound($"Comment with ID {command.CommentId} not found.");
+            return Result.NotFound($"Comment with ID {command.CommentId} not found.");
         }
 
         var post = await postRepository.GetByIdAsync(comment.PostId, cancellationToken);
         if (post is null)
         {
-            return Result<bool>.NotFound("Associated post not found.");
+            return Result.NotFound("Associated post not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
         comment.Delete(editorId, post.AuthorId);
         commentRepository.Remove(comment);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

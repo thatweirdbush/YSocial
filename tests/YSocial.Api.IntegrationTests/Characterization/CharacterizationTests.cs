@@ -49,8 +49,8 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         first.StatusCode.Should().Be(HttpStatusCode.OK);
         second.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await first.Content.ReadAsStringAsync()).Trim('"').Should().Be("Accepted");
-        (await second.Content.ReadAsStringAsync()).Trim('"').Should().Be("Accepted");
+        (await JsonAsync(first)).GetProperty("followStatus").GetString().Should().Be("accepted");
+        (await JsonAsync(second)).GetProperty("followStatus").GetString().Should().Be("accepted");
 
         var edges = MockDataStore.UserRelations.Values
             .Where(r => r.ObserverId == SeedIds.TestUser && r.TargetId == SeedIds.DemoUser)

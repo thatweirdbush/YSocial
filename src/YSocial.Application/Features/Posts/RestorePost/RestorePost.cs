@@ -8,7 +8,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.RestorePost;
 
-public sealed record RestorePostCommand(Guid PostId) : ResultCommand<bool>;
+public sealed record RestorePostCommand(Guid PostId) : ResultCommand;
 
 internal sealed class RestorePostCommandValidator : AbstractValidator<RestorePostCommand>
 {
@@ -19,13 +19,13 @@ internal sealed class RestorePostCommandValidator : AbstractValidator<RestorePos
 }
 
 internal sealed class RestorePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)
-    : ICommandHandler<RestorePostCommand, Result<bool>>
+    : ICommandHandler<RestorePostCommand, Result>
 {
-    public async Task<Result<bool>> Handle(RestorePostCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RestorePostCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result.Unauthorized();
         }
 
         var postId = new PostId(command.PostId);
@@ -35,13 +35,13 @@ internal sealed class RestorePostCommandHandler(IPostRepository postsRepository,
 
         if (post is null)
         {
-            return Result<bool>.NotFound($"Post with ID {command.PostId} not found.");
+            return Result.NotFound($"Post with ID {command.PostId} not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
         post.Restore(editorId);
         postsRepository.Update(post);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

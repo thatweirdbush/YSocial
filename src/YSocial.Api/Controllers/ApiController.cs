@@ -44,6 +44,23 @@ namespace YSocial.Api.Controllers
             return ProcessErrorResponse(result);
         }
 
+
+        /// <summary>
+        /// 201 with a body & optional Location (D7)
+        /// </summary>
+        protected IActionResult HandleCreated<T>(Result<T> result, Func<T, object> body, Func<T, string?>? location = null)
+        {
+            if (!result.IsSuccess)
+                return HandleResult(result);
+
+            var created = body(result.Value);
+            var locationUri = location?.Invoke(result.Value);
+
+            return locationUri is null
+                ? StatusCode(StatusCodes.Status201Created, created)
+                : Created(locationUri, created);
+        }
+
         /// <summary>
         /// 400 problem with a field error (e.g. bad enum), same envelope as validation failures
         /// </summary>

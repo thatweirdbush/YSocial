@@ -27,7 +27,7 @@ public class IdentitiesController : ApiController
 
         var result = await Mediator.Send(command);
 
-        return HandleResult(result);
+        return HandleCreated(result, accountId => new { accountId = accountId.Value });
     }
 
     [HttpPost("login")]
@@ -86,6 +86,7 @@ public class IdentitiesController : ApiController
     }
 
     [HttpDelete("account")]
+    [Authorize]
     public async Task<IActionResult> DeleteAccount()
     {
         var command = new DeleteAccountCommand();
