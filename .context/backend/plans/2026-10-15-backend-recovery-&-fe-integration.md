@@ -327,7 +327,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `CreatePost_TextOnly_Returns2xx` | `CreatePost_EmptyContent_Returns400_ValidationFailed` | `CreatePost_ContentOver2000_Returns400` | `CreatePost_InvalidImageUrl_Returns400` | regression `CreatePost_WithImage_Returns2xx`
 - **DoD:** text-only create succeeds; status assertions `2xx` until T2.3 fixes 201
 
-#### - [ ] T1.7 Dev integration config
+#### - [x] T1.7 Dev integration config
 - **Scope:** D19. `launchSettings` https `49895`; CORS from `Cors:AllowedOrigins` (dev `http://localhost:3000`), remove `SetIsOriginAllowed(_ => true)`; `appsettings.Development.json` non-secret dev values
 - **Depends:** none
 - **Files:** `Properties/launchSettings.json`, `Program.cs` (CORS block only), `appsettings*.json`
