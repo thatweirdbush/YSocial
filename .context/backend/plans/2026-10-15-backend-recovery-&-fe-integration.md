@@ -348,7 +348,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** 1 status test per changed endpoint | `Follow_ReturnsJsonFollowStatusLowercase` | `UpdateProfile_Anonymous_Returns401`
 - **DoD:** endpoints listed in scope return no bare `true`/string; untouched non-MVP endpoints (e.g. share-link) out of scope
 
-#### - [ ] T1.10 Idempotent like/bookmark resource routes
+#### - [x] T1.10 Idempotent like/bookmark resource routes
 - **Scope:** D10. `SetLikeCommand(targetId, targetType, liked)` & `SetSavedItemCommand(targetId, targetType, saved)` reusing toggle services (no-op when already in state); routes WITHOUT bodies, declared in `LikesController`/`SavedItemsController` via absolute route templates (`[HttpPut("/api/posts/{id:guid}/like")]`) so `PostsController`/`CommentsController` stay free for lane E -> 204
 - **Depends:** T1.3 (counts), T1.9 (controller files)
 - **Files:** `Features/Likes/SetLike/` (new), `Features/SavedItems/SetSavedItem/` (new), `LikesController.cs`, `SavedItemsController.cs`
