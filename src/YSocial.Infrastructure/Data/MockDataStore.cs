@@ -35,7 +35,10 @@ public class MockDataStore : DbContext, IDataStorage, IDomainEventsProvider, IPe
 
     static MockDataStore()
     {
-        SeedMockData();
+        if (MockSeedOptions.Enabled)
+        {
+            SeedMockData();
+        }
     }
 
     private static void SeedMockData() => MockSeeder.Seed();

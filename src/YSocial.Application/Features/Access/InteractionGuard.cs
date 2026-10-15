@@ -40,4 +40,31 @@ internal sealed class InteractionGuard(
 
         return context.IsCommentAccessible(comment, root);
     }
+
+    /// <summary>
+    /// Post delete/restore by a non-author: a deleted or inaccessible post "does not exist" for them (404 BEFORE the ownership 403).
+    /// </summary>
+    public async Task<bool> IsPostHiddenFromAsync(UserId actorId, Post post, CancellationToken cancellationToken = default)
+    {
+        if (post.AuthorId == actorId) return false;
+        if (post.IsDeleted) return true;
+
+        var context = await accessPolicy.GetContextAsync(actorId, [post.AuthorId], cancellationToken);
+
+        return !context.IsPostAccessible(post);
+    }
+
+    /// <summary>
+    /// Comment delete/restore: participants (comment author, post owner) always reach the ownership rules; anyone else
+    /// needs an accessible, live comment, otherwise it "does not exist" (404 BEFORE the ownership 403).
+    /// </summary>
+    public async Task<bool> IsCommentHiddenFromAsync(UserId actorId, Comment comment, Post root, CancellationToken cancellationToken = default)
+    {
+        if (actorId == comment.AuthorId || actorId == root.AuthorId) return false;
+        if (comment.IsDeleted || root.IsDeleted) return true;
+
+        var context = await accessPolicy.GetContextAsync(actorId, [root.AuthorId, comment.AuthorId], cancellationToken);
+
+        return !context.IsCommentAccessible(comment, root);
+    }
 }

@@ -84,6 +84,7 @@ public static class DependencyInjection
 
         // Other services
         services.AddSignalR();
+        services.AddScoped<NotificationOutboxProcessor>();
         services.AddHostedService<ProcessNotificationOutboxJob>();
 
         return services;

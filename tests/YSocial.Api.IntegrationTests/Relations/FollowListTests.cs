@@ -266,7 +266,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         closeEdge.ToggleCloseFriend(true);
         closeEdge.Delete();                       // unfollowed -> flag dormant but still listed
         var muteEdge = AddEdge(SeedIds.TestUser, muted.Id);
-        muteEdge.ToggleMute(true);
+        muteEdge.SetMuted(true);
         AddBlock(SeedIds.TestUser, blocked.Id);
         AddEdge(requester.Id, SeedIds.TestUser, accepted: false);
         MakePrivate(SeedIds.TestUser);

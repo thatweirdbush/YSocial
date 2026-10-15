@@ -3,6 +3,7 @@ using YSocial.Api.Models.Users;
 using YSocial.Application.Features.UserBlocks.GetBlocks;
 using YSocial.Application.Features.UserRelations.GetFollowList;
 using YSocial.Application.Features.UserRelations.GetFollowRequests;
+using YSocial.Application.Features.UserRelations.GetMutes;
 using YSocial.Application.Features.UserRelations.GetRelationSets;
 using YSocial.Application.Features.Users.DeleteProfile;
 using YSocial.Application.Features.Users.GetMe;
@@ -23,8 +24,8 @@ public class UsersController : ApiController
     [Authorize]
     [ProducesResponseType(typeof(MeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetMe()
-        => HandleResult(await Mediator.Send(new GetMeQuery()));
+    public async Task<IActionResult> GetMe(CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new GetMeQuery(), cancellationToken));
 
     /// <summary>
     /// Public profile by id (anonymous allowed); blocked/deleted/unknown = 404
@@ -33,8 +34,8 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetProfileById(Guid id)
-        => HandleResult(await Mediator.Send(new GetUserProfileByIdQuery(id)));
+    public async Task<IActionResult> GetProfileById(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new GetUserProfileByIdQuery(id), cancellationToken));
 
     /// <summary>
     /// Public profile by username (case-insensitive, anonymous allowed)
@@ -43,8 +44,8 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetProfileByUsername(string username)
-        => HandleResult(await Mediator.Send(new GetUserProfileByUsernameQuery(username)));
+    public async Task<IActionResult> GetProfileByUsername(string username, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new GetUserProfileByUsernameQuery(username), cancellationToken));
 
     /// <summary>
     /// Pending follow requests addressed to the caller, newest first (search by username or display name)
@@ -54,8 +55,8 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(FollowListPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetFollowRequests([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null)
-        => HandleResult(await Mediator.Send(new GetFollowRequestsQuery(page, pageSize, query)));
+    public async Task<IActionResult> GetFollowRequests([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetFollowRequestsQuery(page, pageSize, query), cancellationToken));
 
     /// <summary>
     /// Number of pending follow requests (same access filter as the list)
@@ -64,8 +65,8 @@ public class UsersController : ApiController
     [Authorize]
     [ProducesResponseType(typeof(FollowRequestCountDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetFollowRequestCount()
-        => HandleResult(await Mediator.Send(new GetFollowRequestCountQuery()));
+    public async Task<IActionResult> GetFollowRequestCount(CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new GetFollowRequestCountQuery(), cancellationToken));
 
     /// <summary>
     /// Accepted followers of a user, newest first (anonymous allowed); private and not permitted = 200 locked; blocked/deleted = 404
@@ -74,8 +75,8 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(FollowListPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetFollowers(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null)
-        => HandleResult(await Mediator.Send(new GetFollowListQuery(id, Followers: true, page, pageSize, query)));
+    public async Task<IActionResult> GetFollowers(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetFollowListQuery(id, Followers: true, page, pageSize, query), cancellationToken));
 
     /// <summary>
     /// Accepted followees of a user, newest first (same rules as followers)
@@ -84,8 +85,8 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(FollowListPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetFollowing(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null)
-        => HandleResult(await Mediator.Send(new GetFollowListQuery(id, Followers: false, page, pageSize, query)));
+    public async Task<IActionResult> GetFollowing(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetFollowListQuery(id, Followers: false, page, pageSize, query), cancellationToken));
 
     /// <summary>
     /// Own blocked, muted and close-friend id sets, privacy flag and pending request count
@@ -94,8 +95,8 @@ public class UsersController : ApiController
     [Authorize]
     [ProducesResponseType(typeof(RelationSetsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetRelationSets()
-        => HandleResult(await Mediator.Send(new GetRelationSetsQuery()));
+    public async Task<IActionResult> GetRelationSets(CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new GetRelationSetsQuery(), cancellationToken));
 
     /// <summary>
     /// Own block list, newest block first (items carry isBlocked: true)
@@ -105,8 +106,19 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(PagedResponse<UserProfileDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetBlocks([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
-        => HandleResult(await Mediator.Send(new GetBlocksQuery(page, pageSize)));
+    public async Task<IActionResult> GetBlocks([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetBlocksQuery(page, pageSize), cancellationToken));
+
+    /// <summary>
+    /// Own muted users, newest mute first (search by username or display name)
+    /// </summary>
+    [HttpGet("me/mutes")]
+    [Authorize]
+    [ProducesResponseType(typeof(PagedResponse<UserProfileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetMutes([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetMutesQuery(page, pageSize, query), cancellationToken));
 
     /// <summary>
     /// Switch the private-account flag; going public accepts the pending requests
@@ -116,8 +128,8 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(PrivacyUpdatedDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdatePrivacy([FromBody] UpdatePrivacyRequest request)
-        => HandleResult(await Mediator.Send(new UpdatePrivacyCommand(request.IsPrivate)));
+    public async Task<IActionResult> UpdatePrivacy([FromBody] UpdatePrivacyRequest request, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new UpdatePrivacyCommand(request.IsPrivate), cancellationToken));
 
     [HttpPut("profiles/switch")]
     [Authorize]
@@ -125,11 +137,11 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> SwitchProfile([FromBody] SwitchProfileRequest request)
+    public async Task<IActionResult> SwitchProfile([FromBody] SwitchProfileRequest request, CancellationToken cancellationToken)
     {
         var command = new SwitchProfileCommand(request.ProfileId, request.RefreshToken);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -139,7 +151,7 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken cancellationToken)
     {
         var command = new UpdateProfileCommand(
             request.DisplayName,
@@ -149,7 +161,7 @@ public class UsersController : ApiController
             request.Gender,
             request.DateOfBirth);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -160,11 +172,11 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> SetDefaultProfile(Guid id)
+    public async Task<IActionResult> SetDefaultProfile(Guid id, CancellationToken cancellationToken)
     {
         var command = new SetDefaultProfileCommand(id);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -175,11 +187,11 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteProfile(Guid id)
+    public async Task<IActionResult> DeleteProfile(Guid id, CancellationToken cancellationToken)
     {
         var command = new DeleteProfileCommand(id);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }

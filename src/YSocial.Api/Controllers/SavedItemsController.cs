@@ -20,29 +20,29 @@ public class SavedItemsController : ApiController
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> BookmarkPost(Guid id)
-        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Post, true)));
+    public async Task<IActionResult> BookmarkPost(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Post, true), cancellationToken));
 
     [HttpDelete("/api/posts/{id:guid}/bookmark")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UnbookmarkPost(Guid id)
-        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Post, false)));
+    public async Task<IActionResult> UnbookmarkPost(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Post, false), cancellationToken));
 
     [HttpPut("/api/comments/{id:guid}/bookmark")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> BookmarkComment(Guid id)
-        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, true)));
+    public async Task<IActionResult> BookmarkComment(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, true), cancellationToken));
 
     [HttpDelete("/api/comments/{id:guid}/bookmark")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> UnbookmarkComment(Guid id)
-        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, false)));
+    public async Task<IActionResult> UnbookmarkComment(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, false), cancellationToken));
 
     #endregion
 
@@ -51,13 +51,13 @@ public class SavedItemsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ToggleSavedItem([FromBody] ToggleSavedItemRequest request)
+    public async Task<IActionResult> ToggleSavedItem([FromBody] ToggleSavedItemRequest request, CancellationToken cancellationToken)
     {
         if (request.TargetType is null) return ValidationProblemFor(nameof(request.TargetType), "Invalid TargetType.");
 
         var command = new ToggleSavedItemCommand(request.TargetId, request.TargetType);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -66,11 +66,11 @@ public class SavedItemsController : ApiController
     [ProducesResponseType(typeof(PagedResponse<PostDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetSavedPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetSavedPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
     {
         var query = new GetSavedPostsQuery(page, pageSize);
 
-        var result = await Mediator.Send(query);
+        var result = await Mediator.Send(query, cancellationToken);
 
         return HandleResult(result);
     }

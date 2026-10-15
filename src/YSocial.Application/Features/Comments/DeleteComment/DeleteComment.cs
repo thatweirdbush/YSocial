@@ -3,6 +3,7 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
@@ -22,6 +23,7 @@ internal sealed class DeleteCommentCommandValidator : AbstractValidator<DeleteCo
 internal sealed class DeleteCommentCommandHandler(
     ICommentRepository commentRepository,
     IPostRepository postRepository,
+    InteractionGuard guard,
     IUserContext userContext)
     : ICommandHandler<DeleteCommentCommand, Result>
 {
@@ -47,6 +49,11 @@ internal sealed class DeleteCommentCommandHandler(
         }
 
         var editorId = new UserId(userContext.UserId);
+        if (await guard.IsCommentHiddenFromAsync(editorId, comment, post, cancellationToken))
+        {
+            return Result.NotFound("Comment not found.");
+        }
+
         comment.Delete(editorId, post.AuthorId);
         commentRepository.Remove(comment);
 

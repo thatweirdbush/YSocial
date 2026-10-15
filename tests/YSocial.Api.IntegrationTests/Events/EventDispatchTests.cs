@@ -124,7 +124,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task FollowPublicUser_CreatesFollowAcceptedNotification()
+    public async Task FollowPublicUser_CreatesNewFollowNotification()
     {
         var test = await LoginAsync(Seed.TestLogin);
 
@@ -132,7 +132,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         var notification = MockDataStore.Notifications.Values.Should().ContainSingle().Subject;
         notification.RecipientId.Should().Be(SeedIds.DemoUser);
-        notification.Type.Should().Be(NotificationType.FollowAccepted);
+        notification.Type.Should().Be(NotificationType.NewFollow);
     }
 
     [Fact]

@@ -10,12 +10,21 @@ using YSocial.Application;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Infrastructure;
 using YSocial.Infrastructure.Data;
+using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Notifications;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// The seed holds well-known passwords: Development only. MUST run before MockDataStore is first touched
+MockSeedOptions.Enabled = builder.Environment.IsDevelopment();
+
+// Signing key: required outside Development (no fallback), a missing or short Jwt:SecretKey fails the startup
+var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration, builder.Environment.IsDevelopment());
+builder.Services.AddSingleton(jwtSettings);
 
 builder.Services.Configure<RouteOptions>(options =>
 {
@@ -55,19 +64,15 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secretKey = builder.Configuration["Jwt:SecretKey"] ?? "super-secret-key-that-should-be-long-enough-for-hs256!";
-        var issuer = builder.Configuration["Jwt:Issuer"] ?? "YSocialApi";
-        var audience = builder.Configuration["Jwt:Audience"] ?? "YSocialClient";
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
         };
 
         options.Events = new JwtBearerEvents

@@ -63,7 +63,16 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         ["/api/comments/{id}/like", "put", "204", ""],
         ["/api/posts/{id}/bookmark", "put", "204", ""],
         ["/api/comments/{id}/bookmark", "delete", "204", ""],
-        ["/api/identities/logout", "post", "204", ""]
+        ["/api/identities/logout", "post", "204", ""],
+        ["/api/users/{targetId}/relations/mute", "put", "204", ""],
+        ["/api/users/{targetId}/relations/mute", "delete", "204", ""],
+        ["/api/users/me/mutes", "get", "200", "UserProfileDtoPagedResponse"],
+        ["/api/feed", "get", "200", "PostDtoPagedResponse"],
+        ["/api/notifications", "get", "200", "NotificationPageDto"],
+        ["/api/notifications/unread-count", "get", "200", "UnreadCountDto"],
+        ["/api/notifications/{id}/read", "put", "204", ""],
+        ["/api/notifications/read-all", "put", "204", ""],
+        ["/api/posts/{id}/share-link", "post", "200", "SharePostLinkResponse"]
     ];
 
     [Fact]
@@ -132,5 +141,17 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
             "id", "username", "displayName", "bio", "avatarUrl", "coverUrl", "followersCount", "followingCount", "isPrivate",
             "isVerified", "followStatus", "isFollowing", "viewerMarkedCloseFriend", "isMuted", "isBlocked", "isBlockedBy"
         ]);
+    }
+
+    [Fact]
+    public async Task Swagger_NotificationDto_MatchesContract()
+    {
+        var document = await SwaggerAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("NotificationDto").GetProperty("properties")
+            .EnumerateObject().Select(p => p.Name);
+
+        properties.Should().BeEquivalentTo(
+            ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderAvatar"]);
     }
 }

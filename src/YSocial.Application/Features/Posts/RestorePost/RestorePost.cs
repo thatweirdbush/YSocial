@@ -3,6 +3,7 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
@@ -18,7 +19,7 @@ internal sealed class RestorePostCommandValidator : AbstractValidator<RestorePos
     }
 }
 
-internal sealed class RestorePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)
+internal sealed class RestorePostCommandHandler(IPostRepository postsRepository, InteractionGuard guard, IUserContext userContext)
     : ICommandHandler<RestorePostCommand, Result>
 {
     public async Task<Result> Handle(RestorePostCommand command, CancellationToken cancellationToken)
@@ -39,6 +40,11 @@ internal sealed class RestorePostCommandHandler(IPostRepository postsRepository,
         }
 
         var editorId = new UserId(userContext.UserId);
+        if (await guard.IsPostHiddenFromAsync(editorId, post, cancellationToken))
+        {
+            return Result.NotFound("Post not found.");
+        }
+
         post.Restore(editorId);
         postsRepository.Update(post);
 

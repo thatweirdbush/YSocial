@@ -79,7 +79,9 @@ public static class ApiProblems
         StatusCodes.Status401Unauthorized => ErrorCodes.Unauthenticated,
         StatusCodes.Status403Forbidden => ErrorCodes.Forbidden,
         StatusCodes.Status404NotFound => ErrorCodes.NotFound,
+        StatusCodes.Status405MethodNotAllowed => ErrorCodes.MethodNotAllowed,
         StatusCodes.Status409Conflict => ErrorCodes.Conflict,
+        StatusCodes.Status415UnsupportedMediaType => ErrorCodes.UnsupportedMediaType,
         _ => ErrorCodes.InternalError
     };
 
@@ -89,7 +91,9 @@ public static class ApiProblems
         StatusCodes.Status401Unauthorized => "Unauthorized",
         StatusCodes.Status403Forbidden => "Forbidden",
         StatusCodes.Status404NotFound => "Not Found",
+        StatusCodes.Status405MethodNotAllowed => "Method Not Allowed",
         StatusCodes.Status409Conflict => "Conflict",
+        StatusCodes.Status415UnsupportedMediaType => "Unsupported Media Type",
         StatusCodes.Status500InternalServerError => "Internal Server Error",
         _ => "Error"
     };
@@ -100,7 +104,9 @@ public static class ApiProblems
         StatusCodes.Status401Unauthorized => "https://tools.ietf.org/html/rfc9110#section-15.5.2",
         StatusCodes.Status403Forbidden => "https://tools.ietf.org/html/rfc9110#section-15.5.4",
         StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
+        StatusCodes.Status405MethodNotAllowed => "https://tools.ietf.org/html/rfc9110#section-15.5.6",
         StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+        StatusCodes.Status415UnsupportedMediaType => "https://tools.ietf.org/html/rfc9110#section-15.5.16",
         _ => "https://tools.ietf.org/html/rfc9110#section-15.6.1"
     };
 }

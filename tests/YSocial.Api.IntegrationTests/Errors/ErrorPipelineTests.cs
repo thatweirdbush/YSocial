@@ -175,7 +175,11 @@ public class ErrorPipelineTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Unhandled_Returns500_InternalError_NoDetailOutsideDev()
     {
-        using var production = Factory.WithWebHostBuilder(b => b.UseEnvironment("Production"));
+        using var production = Factory.WithWebHostBuilder(b =>
+        {
+            b.UseEnvironment("Production");
+            b.UseSetting("Jwt:SecretKey", "production-test-secret-0123456789-abcdefghij");
+        });
         var client = production.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
 
         var response = await client.GetAsync("/api/testprobe/throw/boom");

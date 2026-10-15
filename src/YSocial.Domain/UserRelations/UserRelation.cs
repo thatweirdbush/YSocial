@@ -12,6 +12,7 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
     public FollowStatus FollowStatus { get; private set; }
     public bool IsCloseFriend { get; private set; }
     public bool IsMuted { get; private set; }
+    public DateTime? MutedAt { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
 
@@ -78,10 +79,15 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void ToggleMute(bool isMuted)
+    /// <summary>
+    /// Idempotent. Never touches <see cref="UpdatedAt"/> (follow lists order by it) nor the follow state or deletion flag.
+    /// </summary>
+    public void SetMuted(bool isMuted)
     {
+        if (IsMuted == isMuted) return;
+
         IsMuted = isMuted;
-        UpdatedAt = DateTime.UtcNow;
+        MutedAt = isMuted ? DateTime.UtcNow : null;
     }
 
     public void Delete()

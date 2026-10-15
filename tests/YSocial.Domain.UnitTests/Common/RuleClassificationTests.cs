@@ -50,11 +50,11 @@ public class RuleClassificationTests
         string[] approved =
         [
             "AccountInactive", "AccountRequiresProfile", "BusinessRuleViolated", "CannotBlockSelf", "CannotDeleteDefaultProfile",
-            "CannotFollowSelf", "CloseFriendRequiresAcceptedFollow", "CommentContentInvalid", "CommentNotDeleted", "CommentsDisabled",
-            "Conflict", "EmailTaken", "Forbidden", "InternalError", "InvalidCredentials", "InvalidOtp", "InvalidRefreshToken",
+            "CannotFollowSelf", "CannotMuteSelf", "CloseFriendRequiresAcceptedFollow", "CommentContentInvalid", "CommentNotDeleted", "CommentsDisabled",
+            "Conflict", "EmailTaken", "Forbidden", "InternalError", "InvalidCredentials", "InvalidOtp", "InvalidRefreshToken", "MethodNotAllowed",
             "NotCommentAuthor", "NotCommentAuthorOrPostOwner", "NotCommentDeleter", "NotFound", "NotNotificationRecipient",
             "NotPostAuthor", "NotificationContentInvalid", "OtpAttemptsExceeded", "ParentCommentMismatch", "PostContentInvalid",
-            "PostDeleted", "PostNotDeleted", "ProfileFieldInvalid", "ProfileNotOwned", "Unauthenticated", "UsernameTaken",
+            "PostDeleted", "PostNotDeleted", "ProfileFieldInvalid", "ProfileNotOwned", "Unauthenticated", "UnsupportedMediaType", "UsernameTaken",
             "ValidationFailed"
         ];
 

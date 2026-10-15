@@ -13,6 +13,7 @@ public abstract class ApiTestBase
     {
         Factory = fixture.Factory;
         MockDataStore.ResetForTests();
+        Factory.Logs.Clear();
         Client = Factory.CreateApiClient();
     }
 

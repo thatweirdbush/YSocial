@@ -202,20 +202,58 @@ public sealed class UserRelationTests
 
     #endregion
 
-    #region ToggleMute
+    #region SetMuted
 
     [Fact]
-    public void ToggleMute_ShouldSetTrue_WhenCalled()
+    public void SetMuted_ShouldSetFlagAndMutedAt_WithoutTouchingUpdatedAt()
     {
         // Arrange
         var relation = CreateRelation();
 
         // Act
-        relation.ToggleMute(isMuted: true);
+        relation.SetMuted(isMuted: true);
 
         // Assert
         relation.IsMuted.Should().BeTrue();
-        relation.UpdatedAt.Should().NotBeNull();
+        relation.MutedAt.Should().NotBeNull();
+        relation.UpdatedAt.Should().BeNull();
+        relation.FollowStatus.Should().Be(FollowStatus.None);
+        relation.IsDeleted.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SetMuted_ShouldBeIdempotent_AndClearMutedAtOnUnmute()
+    {
+        // Arrange
+        var relation = CreateRelation();
+        relation.SetMuted(true);
+        var mutedAt = relation.MutedAt;
+
+        // Act
+        relation.SetMuted(true);
+
+        // Assert
+        relation.MutedAt.Should().Be(mutedAt);
+
+        relation.SetMuted(false);
+        relation.IsMuted.Should().BeFalse();
+        relation.MutedAt.Should().BeNull();
+    }
+
+    [Fact]
+    public void SetMuted_ShouldKeepSoftDeletedEdgeDeleted()
+    {
+        // Arrange
+        var relation = CreateRelation();
+        relation.RequestFollow(isTargetPrivate: false);
+        relation.Delete();
+
+        // Act
+        relation.SetMuted(true);
+
+        // Assert
+        relation.IsDeleted.Should().BeTrue();
+        relation.IsMuted.Should().BeTrue();
     }
 
     #endregion

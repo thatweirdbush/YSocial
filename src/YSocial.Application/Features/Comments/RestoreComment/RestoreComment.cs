@@ -3,6 +3,7 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
@@ -22,6 +23,7 @@ internal sealed class RestoreCommentCommandValidator : AbstractValidator<Restore
 internal sealed class RestoreCommentCommandHandler(
     ICommentRepository commentRepository,
     IPostRepository postRepository,
+    InteractionGuard guard,
     IUserContext userContext)
     : ICommandHandler<RestoreCommentCommand, Result>
 {
@@ -48,6 +50,11 @@ internal sealed class RestoreCommentCommandHandler(
         }
 
         var editorId = new UserId(userContext.UserId);
+        if (await guard.IsCommentHiddenFromAsync(editorId, comment, post, cancellationToken))
+        {
+            return Result.NotFound("Comment not found.");
+        }
+
         comment.Restore(editorId, post.AuthorId, post.IsDeleted);
         commentRepository.Update(comment);
 

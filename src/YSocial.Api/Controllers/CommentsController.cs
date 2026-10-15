@@ -20,7 +20,7 @@ public class CommentsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Add([FromBody] AddCommentRequest request)
+    public async Task<IActionResult> Add([FromBody] AddCommentRequest request, CancellationToken cancellationToken)
     {
         var parentId = request.ParentCommentId != Guid.Empty ?
             request.ParentCommentId :
@@ -28,7 +28,7 @@ public class CommentsController : ApiController
 
         var command = new AddCommentCommand(request.PostId, request.Content, parentId);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleCreated(result, comment => comment, comment => $"/api/threads/{comment.Id}");
     }
@@ -39,11 +39,11 @@ public class CommentsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCommentRequest request)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCommentRequest request, CancellationToken cancellationToken)
     {
         var command = new UpdateCommentCommand(id, request.Content);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -53,11 +53,11 @@ public class CommentsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var command = new DeleteCommentCommand(id);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -68,11 +68,11 @@ public class CommentsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Restore(Guid id)
+    public async Task<IActionResult> Restore(Guid id, CancellationToken cancellationToken)
     {
         var command = new RestoreCommentCommand(id);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }

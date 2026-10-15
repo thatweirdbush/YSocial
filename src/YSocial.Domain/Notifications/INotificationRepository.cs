@@ -5,5 +5,8 @@ namespace YSocial.Domain.Notifications;
 
 public interface INotificationRepository : IRepository<Notification, NotificationId>
 {
-    Task<IReadOnlyList<Notification>> GetByRecipientIdAsync(UserId recipientId, int page, int pageSize, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Every notification of the recipient (unordered; callers filter by sender access, order & page).
+    /// </summary>
+    Task<IReadOnlyList<Notification>> GetByRecipientAsync(UserId recipientId, CancellationToken cancellationToken = default);
 }

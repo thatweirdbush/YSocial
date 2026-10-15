@@ -11,6 +11,6 @@ public class ThreadsController : ApiController
     [ProducesResponseType(typeof(ThreadDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetThread(Guid id)
-        => HandleResult(await Mediator.Send(new GetThreadQuery(id)));
+    public async Task<IActionResult> GetThread(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new GetThreadQuery(id), cancellationToken));
 }

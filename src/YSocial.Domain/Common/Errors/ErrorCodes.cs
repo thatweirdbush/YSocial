@@ -13,6 +13,8 @@ public static class ErrorCodes
     public const string NotFound = nameof(NotFound);
     public const string Conflict = nameof(Conflict);
     public const string InternalError = nameof(InternalError);
+    public const string MethodNotAllowed = nameof(MethodNotAllowed);
+    public const string UnsupportedMediaType = nameof(UnsupportedMediaType);
     #endregion
 
     #region Auth
@@ -53,6 +55,7 @@ public static class ErrorCodes
     public const string CannotFollowSelf = nameof(CannotFollowSelf);
     public const string CannotBlockSelf = nameof(CannotBlockSelf);
     public const string CloseFriendRequiresAcceptedFollow = nameof(CloseFriendRequiresAcceptedFollow);
+    public const string CannotMuteSelf = nameof(CannotMuteSelf);
     #endregion
 
     #region Notification

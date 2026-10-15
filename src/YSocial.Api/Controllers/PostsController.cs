@@ -22,11 +22,11 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetPostById(Guid id)
+    public async Task<IActionResult> GetPostById(Guid id, CancellationToken cancellationToken)
     {
         var query = new GetPostQuery(id);
 
-        var result = await Mediator.Send(query);
+        var result = await Mediator.Send(query, cancellationToken);
 
         return HandleResult(result);
     }
@@ -36,11 +36,11 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> Create([FromBody] CreatePostRequest request)
+    public async Task<IActionResult> Create([FromBody] CreatePostRequest request, CancellationToken cancellationToken)
     {
         var command = new CreatePostCommand(request.Content, request.ImageUrl);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
         return HandleCreated(result, post => post, post => $"/api/posts/{post.Id}");
     }
 
@@ -51,11 +51,11 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePostRequest request)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePostRequest request, CancellationToken cancellationToken)
     {
         var command = new UpdatePostCommand(id, request.Content);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -66,11 +66,11 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Delete(Guid id)
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         var command = new DeletePostCommand(id);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -82,11 +82,11 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Restore(Guid id)
+    public async Task<IActionResult> Restore(Guid id, CancellationToken cancellationToken)
     {
         var command = new RestorePostCommand(id);
 
-        var result = await Mediator.Send(command);
+        var result = await Mediator.Send(command, cancellationToken);
 
         return HandleResult(result);
     }
@@ -95,28 +95,27 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(UserPostsPageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetPostsByUserId(Guid userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetPostsByUserId(Guid userId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
     {
         var query = new GetPostsByUserIdQuery(userId, page, pageSize);
 
-        var result = await Mediator.Send(query);
+        var result = await Mediator.Send(query, cancellationToken);
 
         return HandleResult(result);
     }
 
+    /// <summary>
+    /// FE link of a post the caller may see (<c>{FrontendUrl}/posts/{id}</c>); the legacy <c>username</c> query is ignored
+    /// </summary>
     [HttpPost("{id:guid}/share-link")]
     [Authorize]
     [ProducesResponseType(typeof(SharePostLinkResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> SharePostLink(Guid id, [FromQuery] string username)
+    public async Task<IActionResult> SharePostLink(Guid id, CancellationToken cancellationToken)
     {
         var baseUrl = _configuration["App:FrontendUrl"] ?? "https://ysocial.com";
 
-        var command = new SharePostLinkCommand(id, username, baseUrl);
-
-        var result = await Mediator.Send(command);
-
-        return HandleResult(result);
+        return HandleResult(await Mediator.Send(new SharePostLinkQuery(id, baseUrl), cancellationToken));
     }
 }
