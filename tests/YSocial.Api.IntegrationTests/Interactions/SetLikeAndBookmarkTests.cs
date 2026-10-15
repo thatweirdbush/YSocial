@@ -20,7 +20,7 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var response = await client.PostAsJsonAsync("/api/comments", new { postId = SeedIds.DemoPost.Value, content = "hello", parentCommentId = (Guid?)null });
         response.EnsureSuccessStatusCode();
-        return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetGuid();
+        return (await response.ReadJsonAsync()).AsId();
     }
 
     private static int ActiveSaved() => MockDataStore.SavedItems.Values.Count(s => !s.IsDeleted);

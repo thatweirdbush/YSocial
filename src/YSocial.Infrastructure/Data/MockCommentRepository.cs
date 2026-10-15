@@ -43,6 +43,25 @@ public class MockCommentRepository : ICommentRepository
         return Task.FromResult<IReadOnlyList<CommentChildRow>>(rows);
     }
 
+    public Task<IReadOnlyList<Comment>> GetTopLevelByPostIdAsync(PostId postId, CancellationToken cancellationToken = default)
+    {
+        var comments = _comments.Values
+            .Where(c => !c.IsDeleted && c.ParentCommentId is null && c.PostId == postId)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<Comment>>(comments);
+    }
+
+    public Task<IReadOnlyList<Comment>> GetChildrenAsync(IReadOnlyCollection<CommentId> parentIds, CancellationToken cancellationToken = default)
+    {
+        var wanted = parentIds.ToHashSet();
+        var comments = _comments.Values
+            .Where(c => !c.IsDeleted && c.ParentCommentId is { } parent && wanted.Contains(parent))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<Comment>>(comments);
+    }
+
     public Task AddAsync(Comment comment, CancellationToken cancellationToken = default)
     {
         _comments.TryAdd(comment.Id, comment);

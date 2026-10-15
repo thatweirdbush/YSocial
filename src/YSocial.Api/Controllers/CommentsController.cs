@@ -27,7 +27,7 @@ public class CommentsController : ApiController
 
         var result = await Mediator.Send(command);
 
-        return HandleResult(result);
+        return HandleCreated(result, comment => comment, comment => $"/api/threads/{comment.Id}");
     }
 
     [HttpPut("{id:guid}")]

@@ -16,6 +16,16 @@ public interface ICommentRepository : IRepository<Comment, CommentId>
     /// Direct replies of the comments: <c>ParentCommentId</c> in set, not deleted. Rows are keyed by the parent comment id.
     /// </summary>
     Task<IReadOnlyList<CommentChildRow>> GetChildCommentsByParentIdsAsync(IReadOnlyCollection<CommentId> parentIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Direct (top-level) comments of one post, not deleted, unordered.
+    /// </summary>
+    Task<IReadOnlyList<Comment>> GetTopLevelByPostIdAsync(PostId postId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Direct replies of the comments (set-based), not deleted, unordered.
+    /// </summary>
+    Task<IReadOnlyList<Comment>> GetChildrenAsync(IReadOnlyCollection<CommentId> parentIds, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

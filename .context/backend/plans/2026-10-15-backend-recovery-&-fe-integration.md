@@ -383,7 +383,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `UserPosts_PrivateNonFollower_LockedEmpty` | `UserPosts_Owner_SeesAll` | `UserPosts_BlockedEitherWay_404` | `UserPosts_TotalCountAfterFilter` | `UserPosts_BeyondLastPage_EmptyWithMetadata` | `SavedPosts_Paged_NewestSavedFirst` | `SavedPosts_ExcludesDeletedHiddenBlocked_BeforePaging` | `SavedPosts_AuthorWentPrivate_NonFollower_Excluded`
 - **DoD:** FE `fetchUserPosts(.., "threads", page)` & `fetchSavedPosts(page)` map 1:1 (`nextPage = hasNextPage ? page + 1 : undefined`)
 
-#### - [ ] T2.5 Thread read & comment writes
+#### - [x] T2.5 Thread read & comment writes
 - **Scope:** D12, D13. `GET /api/threads/{id}` -> `ThreadDto` (§4.2) via `PostProjector`; requested item inaccessible (§4.4) -> 404; `parent` included only if accessible, else `null`; replies & `childReplies` (1 level) filtered by §4.4, newest first; id resolution: try `PostId` then `CommentId` (typed lookups); AddComment: parent unknown/soft-deleted/inaccessible -> `404 NotFound`, parent on other post -> `400 ParentCommentMismatch` (`ParentCommentMustBelongToPostRule`); `POST /api/comments` -> 201 `PostDto` (`Location: /api/threads/{id}`); `PUT /api/comments/{id}` -> 200 `PostDto`
 - **Depends:** T2.3, T1.10 (comment like flags via new routes in tests)
 - **Files:** `Features/Threads/GetThread/` (new), `Features/Comments/{AddComment,UpdateComment}/`, `ICommentRepository` (`GetChildrenAsync(parentIds)`), `Domain/Comments/Rules/` (new rule), `ThreadsController.cs` (new), `CommentsController.cs`

@@ -31,7 +31,7 @@ public class StatusCodeTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var response = await client.PostAsJsonAsync("/api/comments", new { postId = SeedIds.DemoPost.Value, content = "hello", parentCommentId = (Guid?)null });
         response.EnsureSuccessStatusCode();
-        return JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetGuid();
+        return (await response.ReadJsonAsync()).AsId();
     }
 
     [Fact]

@@ -86,7 +86,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
         var test = await LoginAsync(Seed.TestLogin);
         var add = await demo.PostAsJsonAsync("/api/comments", new { postId = SeedIds.DemoPost.Value, content = "hi", parentCommentId = (Guid?)null });
         add.EnsureSuccessStatusCode();
-        var commentId = JsonDocument.Parse(await add.Content.ReadAsStringAsync()).RootElement.GetGuid();
+        var commentId = (await add.ReadJsonAsync()).AsId();
         var body = new { targetId = commentId, targetType = 2 };
 
         (await test.PostAsJsonAsync("/api/likes/toggle", body)).EnsureSuccessStatusCode();
