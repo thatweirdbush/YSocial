@@ -22,4 +22,4 @@
 - [BE Guide](backend/architecture/backend-guide.md) - actual request lifecycle, behavior order, DI, exceptions->500, JWT/`IUserContext`, in-memory UoW & event-dispatch defects, tech debt, deviations from older docs
 - [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules, follow/block/post state machines, events (live vs never dispatched), repo contracts
 - [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - endpoint matrix by feature, FE roadmap coverage, ranked integration risks, recommended order, open contract decisions
-- [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (errors, auth lifecycle, event dispatch, read MVP, graph), contract decisions D1-D20 with defaults, dependencies, tests, FE checkpoints, risks
+- [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (errors, auth lifecycle, event dispatch, read MVP, graph), decisions D1-D20, error catalog & read DTO contracts, dependencies, tests, FE checkpoints, risks
