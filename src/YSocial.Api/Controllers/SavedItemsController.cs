@@ -19,24 +19,40 @@ public class SavedItemsController : ApiController
     #region Idempotent routes (D10): absolute templates, no bodies
 
     [HttpPut("/api/posts/{id:guid}/bookmark")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> BookmarkPost(Guid id)
         => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Post, true)));
 
     [HttpDelete("/api/posts/{id:guid}/bookmark")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UnbookmarkPost(Guid id)
         => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Post, false)));
 
     [HttpPut("/api/comments/{id:guid}/bookmark")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> BookmarkComment(Guid id)
         => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, true)));
 
     [HttpDelete("/api/comments/{id:guid}/bookmark")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UnbookmarkComment(Guid id)
         => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, false)));
 
     #endregion
 
     [HttpPost("toggle")]
+    [ProducesResponseType(typeof(ToggleSavedItemResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ToggleSavedItem([FromBody] ToggleSavedItemRequest request)
     {
         if (request.TargetType is null) return ValidationProblemFor(nameof(request.TargetType), "Invalid TargetType.");
@@ -49,6 +65,9 @@ public class SavedItemsController : ApiController
     }
 
     [HttpGet("posts")]
+    [ProducesResponseType(typeof(PagedResponse<PostDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetSavedPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         var query = new GetSavedPostsQuery(page, pageSize);

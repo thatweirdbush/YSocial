@@ -12,9 +12,10 @@ namespace YSocial.Api.Controllers;
 public class UserRelationsController : ApiController
 {
     [HttpPost("follow")]
-    [ProducesResponseType(StatusCodes.Status200OK, Type = typeof(string))]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(FollowUserResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> FollowUser(Guid targetId, CancellationToken cancellationToken)
     {
         var command = new FollowUserCommand(targetId);
@@ -26,7 +27,7 @@ public class UserRelationsController : ApiController
 
     [HttpDelete("follow")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UnfollowUser(Guid targetId, CancellationToken cancellationToken)
     {
         var command = new UnfollowUserCommand(targetId);
@@ -38,7 +39,8 @@ public class UserRelationsController : ApiController
 
     [HttpPatch("close-friend")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ToggleCloseFriend(Guid targetId, [FromBody] ToggleCloseFriendRequest request, CancellationToken cancellationToken)
     {
         var command = new ToggleCloseFriendCommand(targetId, request.IsCloseFriend);

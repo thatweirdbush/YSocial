@@ -8,6 +8,7 @@ namespace YSocial.Api.Controllers
     //[Authorize(AuthenticationSchemes = "Bearer")]
     [Route("api/[controller]")]
     [ApiController]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public abstract class ApiController : ControllerBase
     {
         private IMediator? _mediator;

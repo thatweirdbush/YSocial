@@ -11,7 +11,9 @@ public class UserBlocksController : ApiController
 {
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> BlockUser(Guid targetId, CancellationToken cancellationToken)
     {
         var command = new BlockUserCommand(targetId);
@@ -23,7 +25,7 @@ public class UserBlocksController : ApiController
 
     [HttpDelete]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UnblockUser(Guid targetId, CancellationToken cancellationToken)
     {
         var command = new UnblockUserCommand(targetId);

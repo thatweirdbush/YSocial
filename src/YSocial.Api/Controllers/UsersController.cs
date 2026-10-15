@@ -17,6 +17,8 @@ public class UsersController : ApiController
     /// </summary>
     [HttpGet("me")]
     [Authorize]
+    [ProducesResponseType(typeof(MeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetMe()
         => HandleResult(await Mediator.Send(new GetMeQuery()));
 
@@ -24,6 +26,9 @@ public class UsersController : ApiController
     /// Public profile by id (anonymous allowed); blocked/deleted/unknown = 404
     /// </summary>
     [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfileById(Guid id)
         => HandleResult(await Mediator.Send(new GetUserProfileByIdQuery(id)));
 
@@ -31,11 +36,18 @@ public class UsersController : ApiController
     /// Public profile by username (case-insensitive, anonymous allowed)
     /// </summary>
     [HttpGet("by-username/{username}")]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetProfileByUsername(string username)
         => HandleResult(await Mediator.Send(new GetUserProfileByUsernameQuery(username)));
 
     [HttpPut("profiles/switch")]
     [Authorize]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SwitchProfile([FromBody] SwitchProfileRequest request)
     {
         var command = new SwitchProfileCommand(request.ProfileId, request.RefreshToken);
@@ -47,6 +59,9 @@ public class UsersController : ApiController
 
     [HttpPut("profiles/me")]
     [Authorize]
+    [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         var command = new UpdateProfileCommand(
@@ -64,6 +79,10 @@ public class UsersController : ApiController
 
     [HttpPatch("profiles/{id:guid}/default")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SetDefaultProfile(Guid id)
     {
         var command = new SetDefaultProfileCommand(id);
@@ -75,6 +94,10 @@ public class UsersController : ApiController
 
     [HttpDelete("profiles/{id:guid}")]
     [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteProfile(Guid id)
     {
         var command = new DeleteProfileCommand(id);

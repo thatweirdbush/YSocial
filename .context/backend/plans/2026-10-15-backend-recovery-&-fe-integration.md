@@ -390,7 +390,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `Thread_ByPostId_RepliesNewestFirst` | `Thread_ByCommentId_ParentIsParentComment` | `Thread_ByTopLevelCommentId_ParentIsRootPost` | `Thread_ExcludesDeletedAndBlockedReplies` | `Thread_ReplyCommentsCount_MatchesChildReplies` | `Thread_HiddenRoot_404` | `Thread_CommentUnderBlockedAuthorParent_ParentNull` | `Thread_HiddenRepliesNotCounted` | `AddComment_ParentFromOtherPost_400_ParentCommentMismatch` | `AddComment_ParentSoftDeleted_404_NotFound` | `AddComment_ParentUnknown_404` | `AddComment_201_PostDtoKindComment` | `UpdateComment_200_PostDto`
 - **DoD:** FE `fetchPostThread(id)` & `createReply` map 1:1; `/posts/[replyId]` resolvable
 
-#### - [ ] T2.6 Contract snapshot & verification
+#### - [x] T2.6 Contract snapshot & verification
 - **Scope:** `[ProducesResponseType]` with real DTOs + `ProblemDetails` on all MVP endpoints; regenerate `ysocial-clients/web-app/docs/swagger.json` (copy only); verify generated schemas against §4.2 & integration responses
 - **Depends:** T2.2, T2.3, T2.4, T2.5 (ALL complete)
 - **Files:** controllers, `Program.cs` (Swagger), FE `docs/swagger.json`, `tests/.../Contract/SwaggerTests.cs`

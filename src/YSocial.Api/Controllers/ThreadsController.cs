@@ -9,8 +9,9 @@ public class ThreadsController : ApiController
     /// Thread of a post or comment id (anonymous allowed); deleted/hidden/blocked = 404
     /// </summary>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ThreadDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetThread(Guid id)
         => HandleResult(await Mediator.Send(new GetThreadQuery(id)));
 }
