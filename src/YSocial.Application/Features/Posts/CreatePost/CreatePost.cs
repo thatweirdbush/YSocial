@@ -12,16 +12,25 @@ public sealed record CreatePostCommand(string Content, string? ImageUrl) : Resul
 
 internal sealed partial class CreatePostCommandValidator : AbstractValidator<CreatePostCommand>
 {
+    private const int MaxContentLength = 2000;
+    private const int MaxImageUrlLength = 2048;
+
     public CreatePostCommandValidator()
     {
         RuleFor(command => command.Content)
-            .NotNull()
-            .NotEmpty();
+            .NotEmpty()
+            .MaximumLength(MaxContentLength);
 
+        // Optional single media URL (no upload endpoint, D18)
         RuleFor(command => command.ImageUrl)
-            .NotNull()
-            .NotEmpty();
+            .MaximumLength(MaxImageUrlLength)
+            .Must(BeAbsoluteHttpUrl)
+            .WithMessage("'Image Url' must be an absolute http(s) URL.")
+            .When(command => command.ImageUrl is not null);
     }
+
+    private static bool BeAbsoluteHttpUrl(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 }
 
 internal sealed class CreatePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)

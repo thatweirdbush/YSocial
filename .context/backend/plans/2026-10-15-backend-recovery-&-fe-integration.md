@@ -320,7 +320,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Race tests (parallel requests released by barrier, repeated 50x):** `Refresh_ConcurrentSameToken_ExactlyOne200` | `RefreshAndLogout_SameToken_BothOrders_NoActiveTokenLeft` (logout 204 always) | `Logout_RotatedToken_RevokesSuccessor` | `SwitchAndRefresh_SameToken_ExactlyOneRotation` | `ResetPasswordAndRefresh_NoActiveTokenSurvives` | `LoginAndRefresh_AtCap_ActiveNeverAbove5` | unit `AccountSessionLock_SameAccountSerialized_DifferentAccountsParallel`
 - **DoD:** FE `api-client.ts` refresh contract satisfied (route, body, fields); all 6 mutation paths of §4.3 use 1 lock; MAP §1 records cross-tab requirement (§6)
 
-#### - [ ] T1.6 Text-only post creation
+#### - [x] T1.6 Text-only post creation
 - **Scope:** D18. Remove `ImageUrl` NotNull/NotEmpty; when present: absolute http(s) URL, max 2048; `Content` non-empty & max 2000 in validator (field-level `errors`)
 - **Depends:** T1.1b (400 assertions use its contract)
 - **Files:** `Features/Posts/CreatePost/CreatePost.cs`

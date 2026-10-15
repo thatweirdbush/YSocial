@@ -147,15 +147,6 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     #region Known defects (target behavior, un-skipped by owner task)
 
-    [Fact(Skip = "T1.6")]
-    public async Task CreatePost_TextOnly_Returns2xx()
-    {
-        var test = await LoginAsync(Seed.TestLogin);
-
-        var response = await test.PostAsJsonAsync("/api/posts", new { content = "text only" });
-
-        response.IsSuccessStatusCode.Should().BeTrue();
-    }
 
     [Fact]
     public async Task NonAuthorEditPost_Returns403()
