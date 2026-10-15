@@ -4,11 +4,9 @@ using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Application.CQRS.Validation;
-using YSocial.Application.Features.Access;
 using YSocial.Application.Features.Users.Projection;
 using YSocial.Application.Models;
 using YSocial.Application.Models.Commons;
-using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.UserRelations.GetFollowRequests;
@@ -34,9 +32,7 @@ internal sealed class GetFollowRequestsQueryValidator : AbstractValidator<GetFol
 }
 
 internal sealed class GetFollowRequestsQueryHandler(
-    IUserRepository userRepository,
-    IUserRelationRepository relationRepository,
-    IViewerAccessPolicy accessPolicy,
+    AccessibleFollowRequests requests,
     UserProfileProjector projector,
     IUserContext userContext)
     : IRequestHandler<GetFollowRequestsQuery, Result<FollowListPageDto>>,
@@ -49,7 +45,7 @@ internal sealed class GetFollowRequestsQueryHandler(
             return Result<FollowListPageDto>.Unauthorized();
         }
 
-        var requesters = await LoadAccessibleRequestersAsync(viewerId, cancellationToken);
+        var requesters = await requests.LoadAsync(viewerId, cancellationToken);
 
         // Search after the access filter, before counting & paging
         var matched = RelationSearch.Filter(requesters.Select(r => r.User), request.Query);
@@ -73,23 +69,8 @@ internal sealed class GetFollowRequestsQueryHandler(
             return Result<FollowRequestCountDto>.Unauthorized();
         }
 
-        var requesters = await LoadAccessibleRequestersAsync(viewerId, cancellationToken);
+        var requesters = await requests.LoadAsync(viewerId, cancellationToken);
 
         return Result<FollowRequestCountDto>.Success(new FollowRequestCountDto(requesters.Count));
-    }
-
-    private async Task<IReadOnlyList<(User User, UserRelation Edge)>> LoadAccessibleRequestersAsync(UserId viewerId, CancellationToken cancellationToken)
-    {
-        var edges = await relationRepository.GetPendingRequestsAsync(viewerId, cancellationToken);
-        var requesterIds = edges.Select(e => e.ObserverId).Distinct().ToList();
-
-        var users = await userRepository.GetUsersByIdsAsync(requesterIds, cancellationToken);
-        var context = await accessPolicy.GetContextAsync(viewerId, requesterIds, cancellationToken);
-        var accessible = context.FilterUsers(users).ToDictionary(u => u.Id);
-
-        return edges
-            .Where(e => accessible.ContainsKey(e.ObserverId))
-            .Select(e => (accessible[e.ObserverId], e))
-            .ToList();
     }
 }

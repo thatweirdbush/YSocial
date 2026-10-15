@@ -50,6 +50,13 @@ public class MockUserBlockRepository : IUserBlockRepository
         return Task.FromResult((user1BlockedUser2, user2BlockedUser1));
     }
 
+    public Task<IReadOnlyList<UserBlock>> GetByObserverAsync(UserId observerId, CancellationToken cancellationToken = default)
+    {
+        var blocks = _blocks.Values.Where(b => b.ObserverId == observerId).ToList();
+
+        return Task.FromResult<IReadOnlyList<UserBlock>>(blocks);
+    }
+
     public Task<IReadOnlySet<UserId>> GetBlockedEitherWayAsync(UserId userId, IReadOnlyCollection<UserId> candidateIds, CancellationToken cancellationToken = default)
     {
         var candidates = candidateIds.ToHashSet();

@@ -15,3 +15,13 @@ public sealed record FollowRequestCountDto(int Count);
 /// Result of switching the privacy setting: pending requests accepted by going public.
 /// </summary>
 public sealed record PrivacyUpdatedDto(int AcceptedCount);
+
+/// <summary>
+/// Viewer's own relation id sets (no <c>blockedBy</c>, D14). Close-friend and muted flags include dormant ones (edge unfollowed).
+/// </summary>
+public sealed record RelationSetsDto(
+    IReadOnlyList<Guid> Blocked,
+    IReadOnlyList<Guid> Muted,
+    IReadOnlyList<Guid> CloseFriends,
+    bool IsPrivate,
+    int RequestCount);

@@ -49,6 +49,13 @@ public class MockUserRelationRepository : IUserRelationRepository
         return Task.FromResult<IReadOnlyList<UserRelation>>(relations);
     }
 
+    public Task<IReadOnlyList<UserRelation>> GetByObserverAsync(UserId observerId, CancellationToken cancellationToken = default)
+    {
+        var relations = _relations.Values.Where(r => r.ObserverId == observerId).ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRelation>>(relations);
+    }
+
     public Task<IReadOnlyList<UserRelation>> GetAcceptedEdgesAsync(IReadOnlyCollection<UserId> userIds, CancellationToken cancellationToken = default)
     {
         var users = userIds.ToHashSet();

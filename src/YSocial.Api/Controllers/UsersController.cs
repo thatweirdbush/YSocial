@@ -3,7 +3,10 @@ using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Models.Users;
 using YSocial.Application.Features.Users.DeleteProfile;
 using YSocial.Application.Features.Users.GetMe;
+using YSocial.Application.Features.UserBlocks.GetBlocks;
+using YSocial.Application.Features.UserRelations.GetFollowList;
 using YSocial.Application.Features.UserRelations.GetFollowRequests;
+using YSocial.Application.Features.UserRelations.GetRelationSets;
 using YSocial.Application.Features.Users.GetUserProfile;
 using YSocial.Application.Features.Users.SetDefaultProfile;
 using YSocial.Application.Features.Users.SwitchProfile;
@@ -64,6 +67,47 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetFollowRequestCount()
         => HandleResult(await Mediator.Send(new GetFollowRequestCountQuery()));
+
+    /// <summary>
+    /// Accepted followers of a user, newest first (anonymous allowed); private and not permitted = 200 locked; blocked/deleted = 404
+    /// </summary>
+    [HttpGet("{id:guid}/followers")]
+    [ProducesResponseType(typeof(FollowListPageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetFollowers(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null)
+        => HandleResult(await Mediator.Send(new GetFollowListQuery(id, Followers: true, page, pageSize, query)));
+
+    /// <summary>
+    /// Accepted followees of a user, newest first (same rules as followers)
+    /// </summary>
+    [HttpGet("{id:guid}/following")]
+    [ProducesResponseType(typeof(FollowListPageDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetFollowing(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null)
+        => HandleResult(await Mediator.Send(new GetFollowListQuery(id, Followers: false, page, pageSize, query)));
+
+    /// <summary>
+    /// Own blocked, muted and close-friend id sets, privacy flag and pending request count
+    /// </summary>
+    [HttpGet("me/relation-sets")]
+    [Authorize]
+    [ProducesResponseType(typeof(RelationSetsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetRelationSets()
+        => HandleResult(await Mediator.Send(new GetRelationSetsQuery()));
+
+    /// <summary>
+    /// Own block list, newest block first (items carry isBlocked: true)
+    /// </summary>
+    [HttpGet("me/blocks")]
+    [Authorize]
+    [ProducesResponseType(typeof(PagedResponse<UserProfileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetBlocks([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        => HandleResult(await Mediator.Send(new GetBlocksQuery(page, pageSize)));
 
     /// <summary>
     /// Switch the private-account flag; going public accepts the pending requests

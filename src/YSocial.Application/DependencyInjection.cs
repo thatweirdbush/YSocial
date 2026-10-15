@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<Features.Users.Projection.UserProfileProjector>();
         services.AddScoped<Features.Posts.Projection.PostProjector>();
         services.AddScoped<Features.Access.InteractionGuard>();
+        services.AddScoped<Features.UserRelations.GetFollowRequests.AccessibleFollowRequests>();
 
         // Fluent Validation
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
