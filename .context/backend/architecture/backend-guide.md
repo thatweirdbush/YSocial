@@ -133,7 +133,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **No revocation check:** issued access tokens stay valid after logout/rotation/account delete/password change until expiry (D6, accepted; <= 15 min window); no per-request account or user lookup
 - **SignalR:** token accepted from query `access_token` only for paths starting `/hubs`
 - **Dev only:** `Program.cs` logs admin JWT & sample posts, injects the token into Swagger UI (`/swagger-custom.js`) and seeds the mock data (`MockSeedOptions.Enabled = IsDevelopment()`) ONLY under Development; value not recorded here
-- **Secret:** no fallback outside Development (`JwtSettings`, §4); `Production_MissingJwtSecret_FailsStartup` pins it; `appsettings.Development.json` is git-ignored, so the Development key lives in code
+- **Secret:** no fallback outside Development (`JwtSettings`, §4; the shipped dev key and the old hard-coded key are rejected there); `Production_MissingJwtSecret_FailsStartup` pins it; `appsettings.Development.json` is git-ignored, so the Development key lives in code
 
 ### 6.2 `IUserContext` (`Infrastructure/Identity/UserContext.cs`)
 - `UserId` <- claim `user_id`; `AccountId` <- claim `sub`; `Email`; `IsAuthenticated`
@@ -235,7 +235,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Create:** handlers (`CreateNotificationWhenLiked`, `...CommentCreated`, `...FollowRequested`, `...FollowAccepted`) call `NotificationPublisher.PublishAsync`: self notifications are SKIPPED (no row, no outbox message), otherwise `Notification` is stored & a `NotificationEnvelope(RecipientId, NotificationDto)` is enqueued
 - **Push:** `ProcessNotificationOutboxJob` runs 1 `NotificationOutboxProcessor.ProcessBatchAsync` per second (20 messages, oldest first): `ReceiveNotification` with the `NotificationDto` to `Clients.User(recipientId)` (hub user id = claim `user_id`); delivered messages are REMOVED from the in-memory list; failures stay with `Attempts++` and are dropped after `MaxAttempts` (5) with an error log
 - **Types:** `NewLike`, `NewComment`, `NewFollow` (plain follow of a public user, notifies the followed user), `FollowRequested`, `FollowAccepted` (accepted request, notifies the REQUESTER); `kind` = like | reply | follow for FE grouping
-- **`NotificationDto.targetId`:** liked post/comment id, new comment id, or the follower id (follow types); no preview text (deferred)
+- **`NotificationDto.targetId`:** ROOT post id for like/comment (FE route `/posts/{id}`; a comment like resolves the comment's post), the follower id for follow types; `senderUsername` + `senderName`; no preview text (deferred)
 - **HTTP:** `GET /api/notifications` (newest first, `unreadCount`), `GET .../unread-count`, `PUT .../{id}/read` (403 `NotNotificationRecipient`, 404 unknown), `PUT .../read-all`; `AccessibleNotifications` drops notifications of blocked/deleted senders BEFORE counting & paging (list, `totalCount`, `unreadCount`, count endpoint share it)
 - **Domain:** `Notification.Create` enforces `CannotSendNotificationToYourselfRule` (handlers pre-check, so dispatch never throws); `TargetId` replaced the untyped `MetaData`
 - **Limits:** in-memory, lost on restart; push reaches only the active profile connection; retrying a failed push has no backoff
@@ -283,7 +283,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Remaining blockers for a real deployment are architectural, not hardening:** persistence (EF + transactions + concurrency tokens), per-scope event tracking, multi-instance session lock, access-token revocation (items 9, §6.1, §6.4)
 
 ## 11. Tests
-- 3 projects, 514 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 41, `Api.IntegrationTests` 413
+- 3 projects, 519 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 41, `Api.IntegrationTests` 418
 - Layers, harness, reset rules & per-area coverage: `.context/features/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over the real HTTP pipeline (Swagger is NOT source of truth)
 

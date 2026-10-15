@@ -13,7 +13,7 @@ updated: 2026-10-15
 |---|---|---|
 | `tests/YSocial.Domain.UnitTests` (`net8.0`) | Domain: aggregates, rules, services (mock repos) | 60 |
 | `tests/YSocial.Application.UnitTests` (`net8.0`) | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction, notification outbox | 41 |
-| `tests/YSocial.Api.IntegrationTests` (`net8.0`) | real HTTP pipeline over `WebApplicationFactory<Program>` (see 1.3) | 413 |
+| `tests/YSocial.Api.IntegrationTests` (`net8.0`) | real HTTP pipeline over `WebApplicationFactory<Program>` (see 1.3) | 418 |
 
 - **Packages (all 3):** `xunit` 2.7.1, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `NSubstitute`, `FluentAssertions` 8.3.0; integration adds `Microsoft.AspNetCore.Mvc.Testing` 8.0.26
 - **Visibility:** MUST add `[assembly: InternalsVisibleTo("YSocial.<Layer>.UnitTests")]` / `("YSocial.Api.IntegrationTests")` to `YSocial.Domain.csproj`, `YSocial.Application.csproj` & `YSocial.Infrastructure.csproj` for direct testing of `internal sealed record` rules, handlers & mock repos
@@ -254,5 +254,5 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 - [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
 - [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (60 pass)
 - [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (41 pass)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (413 pass, serialized, identical seed per test)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (418 pass, serialized, identical seed per test)
 - [x] **All:** `dotnet test YSocial.sln`

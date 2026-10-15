@@ -16,7 +16,7 @@
 - [Feed & Post Interaction Spec](features/feed-post-interaction.md) - "N bài mới" pill (simulated push stream, per-tab consumed buffer), owner actions (edit/delete/pin/hide likes, service-enforced ownership, field-scoped rollback, tombstones), author hover card, viewer-scoped follow graph & `user-store`, shared `src/mocks/` seeds
 - [Profile Core Spec](features/profile.md) - `/@username` on mocks: server-resolved route + real 404 (session cookie bridge), SSR-safe auth hydration, viewer/actor identity split, graph-derived counts & fans, profile tab controller, followers dialog, share link + QR
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
-- [BE Test Spec](features/backend-unit-test.md) - 3 test layers (Domain 60, Application 41, API integration 413): WebApplicationFactory harness, in-place store reset & deterministic seed, race/probe tests, Domain/Application matrix (existing vs backlog)
+- [BE Test Spec](features/backend-unit-test.md) - 3 test layers (Domain 60, Application 41, API integration 418): WebApplicationFactory harness, in-place store reset & deterministic seed, race/probe tests, Domain/Application matrix (existing vs backlog)
 
 ## Backend Audit (`.context/backend/`)
 - [BE Guide](backend/architecture/backend-guide.md) - request lifecycle & behavior order, DI, error pipeline (ProblemDetails + `code`), auth lifecycle (refresh/logout/switch, session lock), UoW & event dispatch semantics, concurrency & non-production statement, debt list with statuses (security hardening done, EF/transactions open), notifications pipeline, probes ledger
