@@ -7,7 +7,6 @@ using YSocial.Application.CQRS.Validation;
 using YSocial.Application.Features.Users.Projection;
 using YSocial.Application.Models;
 using YSocial.Application.Models.Commons;
-using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.UserRelations.GetFollowRequests;
 

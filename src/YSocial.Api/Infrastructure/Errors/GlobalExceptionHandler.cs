@@ -54,8 +54,8 @@ public sealed class GlobalExceptionHandler(
                 var (status, code, ruleDetail) = Classify(rule);
                 return ApiProblems.Create(context, status, code, ruleDetail);
 
-            case EntityNotFoundException notFound:
-                return ApiProblems.Create(context, StatusCodes.Status404NotFound, ErrorCodes.NotFound, notFound.Message);
+            case EntityNotFoundException:
+                return ApiProblems.Create(context, StatusCodes.Status404NotFound, ErrorCodes.NotFound, "Resource not found.");
 
             default:
                 var detail = environment.IsDevelopment() ? exception.Message : "An unexpected error occurred.";

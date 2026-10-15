@@ -11,7 +11,7 @@ public record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, i
     /// Newest-first slice of an ALREADY access-filtered list; a page beyond the last is empty with real metadata.
     /// </summary>
     public static IReadOnlyList<TItem> Slice<TItem>(IReadOnlyList<TItem> filtered, int page, int pageSize)
-        => filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        => filtered.Skip((int)Math.Min((long)(page - 1) * pageSize, int.MaxValue)).Take(pageSize).ToList();
 }
 
 /// <summary>

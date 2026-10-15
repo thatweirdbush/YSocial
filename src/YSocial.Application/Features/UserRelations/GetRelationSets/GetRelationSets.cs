@@ -40,7 +40,8 @@ internal sealed class GetRelationSetsQueryHandler(
         var closeFriends = edges.Where(e => e.IsCloseFriend && context.IsDiscoverable(e.TargetId)).Select(e => e.TargetId.Value).ToList();
         var muted = edges.Where(e => e.IsMuted && context.IsDiscoverable(e.TargetId)).Select(e => e.TargetId.Value).ToList();
 
-        var blocked = (await blockRepository.GetByObserverAsync(viewerId, cancellationToken)).Select(b => b.TargetId.Value).ToList();
+        var blockedIds = (await blockRepository.GetByObserverAsync(viewerId, cancellationToken)).Select(b => b.TargetId).ToList();
+        var blocked = (await userRepository.GetUsersByIdsAsync(blockedIds, cancellationToken)).Select(u => u.Id.Value).ToList();
 
         var viewer = await userRepository.GetByIdAsync(viewerId, cancellationToken);
         var requestCount = (await requests.LoadAsync(viewerId, cancellationToken)).Count;
