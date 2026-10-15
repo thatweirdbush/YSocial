@@ -2,6 +2,7 @@
 using MediatR;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.CQRS.Validation;
 using YSocial.Application.Models;
 using YSocial.Application.Models.Commons;
 using YSocial.Domain.Posts;
@@ -18,13 +19,9 @@ internal sealed class GetPostsByUserIdQueryValidator : AbstractValidator<GetPost
         RuleFor(x => x.UserId)
             .NotEmpty();
 
-        RuleFor(x => x.Page)
-            .GreaterThanOrEqualTo(1)
-            .WithMessage("Page index must be greater than or equal to 1.");
+        RuleFor(x => x.Page).MustBeValidPage();
 
-        RuleFor(x => x.PageSize)
-            .InclusiveBetween(1, 50)
-            .WithMessage("PageSize must be between 1 and 50 items.");
+        RuleFor(x => x.PageSize).MustBeValidPageSize();
     }
 }
 

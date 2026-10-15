@@ -289,7 +289,7 @@ Every task DoD also includes: `dotnet build YSocial.sln` 0 errors & 0 new warnin
 - **Tests:** `AllRules_AreClassified` (reflection over Domain assembly) | `AllRuleCodes_ExistInCatalog` | `NonAuthorEditPost_Returns403_NotPostAuthor` | `FollowSelf_Returns400_CannotFollowSelf` | `FollowBlockedEitherWay_Returns404_NotFound` | `CloseFriendWithoutFollow_Returns400` | `RestoreNotDeletedPost_Returns400_PostNotDeleted` | `InvalidOtp_Returns400_InvalidOtp` | `CodesSnapshot_MatchesApprovedList` (pins every emitted code; rename = contract change)
 - **DoD:** no rule failure produces 500; codes independent of class names (renaming a rule class leaves tests green)
 
-#### - [ ] T1.2 Query validation & pagination bounds
+#### - [x] T1.2 Query validation & pagination bounds
 - **Scope:** D16. Relax `ValidationBehavior` constraint to all requests (queries validated; `TransactionBehavior` still commands-only); `page >= 1`, `1 <= pageSize <= 50`; shared pagination rules for new list queries; `PagedList.TotalPages` divide-by-0 guard; page beyond last -> 200 empty items + metadata
 - **Depends:** T1.1b
 - **Files:** `Application/CQRS/Behaviors/Validation/ValidationBehavior.cs`, `Features/Posts/GetPost*/`, `Models/Commons/PagedList.cs`, `Application/CQRS/Validation/` (new)
