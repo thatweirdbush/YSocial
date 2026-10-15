@@ -3,7 +3,6 @@ using Microservice.BuildingBlocks.Domain.Entities;
 using YSocial.Domain.Likes.Rules;
 using YSocial.Domain.SavedItems.Events;
 using YSocial.Domain.Users;
-using YSocial.Domain.Users.Rules;
 
 namespace YSocial.Domain.SavedItems;
 

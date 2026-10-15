@@ -1,6 +1,5 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
-using Microservice.BuildingBlocks.Domain.BusinessRules;
 using YSocial.Domain.Posts.Events;
 using YSocial.Domain.Posts.Rules;
 using YSocial.Domain.Users;
@@ -73,7 +72,7 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     public void Delete(UserId editorId)
     {
         CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
-        
+
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
         AddDomainEvent(new PostDeletedEvent(Id));
@@ -82,8 +81,8 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     public void Restore(UserId editorId)
     {
         CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
-        CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
-        
+        CheckRule(new PostMustBeDeletedToRestoreRule(IsDeleted));
+
         IsDeleted = false;
         DeletedAt = null;
         AddDomainEvent(new PostRestoredEvent(Id));

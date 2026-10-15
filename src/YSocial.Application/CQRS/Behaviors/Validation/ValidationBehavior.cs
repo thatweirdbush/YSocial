@@ -1,11 +1,10 @@
 ﻿using FluentValidation;
 using MediatR;
-using Microservice.BuildingBlocks.CQRS.Commands;
 
 namespace YSocial.Application.CQRS.Behaviors.Validation;
 
 public sealed class ValidationBehavior<TRequest, TResponse>(IEnumerable<IValidator<TRequest>> validators) : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : ICommand<TResponse>
+    where TRequest : IRequest<TResponse>
 {
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {

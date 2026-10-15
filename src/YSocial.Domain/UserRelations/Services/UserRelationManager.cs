@@ -1,4 +1,3 @@
-using Microservice.BuildingBlocks.Domain.BusinessRules;
 using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.Exceptions;
 using YSocial.Domain.UserBlocks;
@@ -18,13 +17,7 @@ public sealed class UserRelationManager(
     {
         Entity.CheckRule(new CannotFollowYourselfRule(observerId, targetId));
 
-        var targetUserTask = userRepository.GetByIdAsync(targetId, cancellationToken);
-        var blocksTask = userBlockRepository.GetBlocksBetweenAsync(observerId, targetId, cancellationToken);
-        var relationTask = userRelationRepository.GetRelationAsync(observerId, targetId, includeDeleted: true, cancellationToken);
-
-        await Task.WhenAll(targetUserTask, blocksTask, relationTask);
-
-        var targetUser = await targetUserTask;
+        var targetUser = await userRepository.GetByIdAsync(targetId, cancellationToken);
         if (targetUser is null)
         {
             throw new EntityNotFoundException($"User with ID {targetId} was not found.");
@@ -32,7 +25,7 @@ public sealed class UserRelationManager(
 
         Entity.CheckRule(new CannotInteractWithDeletedUserRule(targetUser.IsDeleted));
 
-        var (observerBlockedTarget, targetBlockedObserver) = await blocksTask;
+        var (observerBlockedTarget, targetBlockedObserver) = await userBlockRepository.GetBlocksBetweenAsync(observerId, targetId, cancellationToken);
 
         // Rule 1: Observer cannot follow someone they have blocked
         var hasBlockedTarget = observerBlockedTarget is not null;
@@ -43,7 +36,7 @@ public sealed class UserRelationManager(
         Entity.CheckRule(new TargetMustNotHaveBlockedObserverRule(isBlockedByTarget));
 
         // Get or Create relation
-        var relation = await relationTask;
+        var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, includeDeleted: true, cancellationToken);
         if (relation is null)
         {
             relation = UserRelation.Create(observerId, targetId);
@@ -91,15 +84,17 @@ public sealed class UserRelationManager(
         }
     }
 
+    /// <summary>
+    /// Self-mute guard (rules are internal to the Domain).
+    /// </summary>
+    public static void EnsureCanMute(UserId observerId, UserId targetId)
+        => Entity.CheckRule(new CannotMuteYourselfRule(observerId, targetId));
+
     public async Task ToggleCloseFriendAsync(UserId observerId, UserId targetId, bool isCloseFriend, CancellationToken cancellationToken)
     {
         var relation = await userRelationRepository.GetRelationAsync(observerId, targetId, cancellationToken);
+        Entity.CheckRule(new CloseFriendRequiresAcceptedFollowRule(relation?.FollowStatus == FollowStatus.Accepted));
 
-        if (relation is null || relation.FollowStatus != FollowStatus.Accepted)
-        {
-            throw new BusinessRuleValidationException("You must be following the user to add them as a close friend.");
-        }
-
-        relation.ToggleCloseFriend(isCloseFriend);
+        relation!.ToggleCloseFriend(isCloseFriend);
     }
 }

@@ -12,20 +12,16 @@ public class YSocialDbContext : DbContext, IDataStorage, IDomainEventsProvider
 
     public DbSet<Post> Posts { get; set; }
 
-    public void ClearAllDomainEvents()
+    public IReadOnlyCollection<IDomainEvent> DrainDomainEvents()
     {
-        foreach (var entry in ChangeTracker.Entries<AggregateRoot>())
-        {
-            entry.Entity.ClearDomainEvents();
-        }
-    }
+        var aggregates = ChangeTracker.Entries<AggregateRoot>().Select(e => e.Entity).ToList();
+        var events = aggregates.SelectMany(e => e.DomainEvents).ToList();
 
-    public IReadOnlyCollection<IDomainEvent> GetAllDomainEvents()
-    {
-        return ChangeTracker.Entries<AggregateRoot>()
-            .Select(e => e.Entity)
-            .SelectMany(e => e.DomainEvents)
-            .ToList()
-            .AsReadOnly();
+        foreach (var aggregate in aggregates)
+        {
+            aggregate.ClearDomainEvents();
+        }
+
+        return events.AsReadOnly();
     }
 }

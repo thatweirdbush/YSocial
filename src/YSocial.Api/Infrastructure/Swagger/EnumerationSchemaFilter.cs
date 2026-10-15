@@ -11,12 +11,12 @@ public class EnumerationSchemaFilter : ISchemaFilter
     public void Apply(OpenApiSchema schema, SchemaFilterContext context)
     {
         var type = context.Type;
-        
+
         if (IsEnumeration(type))
         {
             schema.Type = "integer";
             schema.Enum.Clear();
-            
+
             var baseType = type.BaseType;
             while (baseType != null && (!baseType.IsGenericType || baseType.GetGenericTypeDefinition() != typeof(Enumeration<>)))
             {
@@ -36,14 +36,14 @@ public class EnumerationSchemaFilter : ISchemaFilter
                         {
                             var propValue = val.GetType().GetProperty("Value")?.GetValue(val);
                             var propName = val.GetType().GetProperty("Name")?.GetValue(val);
-                            
+
                             if (propValue != null)
                             {
                                 schema.Enum.Add(new OpenApiInteger((int)propValue));
                                 descriptions.Add($"{propValue} = {propName}");
                             }
                         }
-                        
+
                         schema.Description = string.Join(", ", descriptions);
                     }
                 }

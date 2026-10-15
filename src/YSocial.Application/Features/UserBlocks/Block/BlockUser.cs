@@ -20,6 +20,7 @@ internal sealed class BlockUserCommandValidator : AbstractValidator<BlockUserCom
 
 internal sealed class BlockUserCommandHandler(
     IUserContext userContext,
+    IUserRepository userRepository,
     UserRelationManager relationManager)
     : ICommandHandler<BlockUserCommand, Result>
 {
@@ -27,6 +28,15 @@ internal sealed class BlockUserCommandHandler(
     {
         var targetId = new UserId(request.TargetId);
         var observerId = new UserId(userContext.UserId);
+
+        if (targetId != observerId)
+        {
+            var target = await userRepository.GetByIdAsync(targetId, cancellationToken);
+            if (target is null || target.IsDeleted)
+            {
+                return Result.NotFound("Resource not found.");
+            }
+        }
 
         await relationManager.BlockUserAsync(observerId, targetId, cancellationToken);
 

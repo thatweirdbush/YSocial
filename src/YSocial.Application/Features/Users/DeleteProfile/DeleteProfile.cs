@@ -8,7 +8,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Users.DeleteProfile;
 
-public sealed record DeleteProfileCommand(Guid ProfileId) : ResultCommand<bool>;
+public sealed record DeleteProfileCommand(Guid ProfileId) : ResultCommand;
 
 internal sealed class DeleteProfileCommandValidator : AbstractValidator<DeleteProfileCommand>
 {
@@ -22,9 +22,9 @@ internal sealed class DeleteProfileCommandHandler(
     IUserRepository userRepository,
     IUserContext userContext,
     UserProfileService userProfileService)
-    : ICommandHandler<DeleteProfileCommand, Result<bool>>
+    : ICommandHandler<DeleteProfileCommand, Result>
 {
-    public async Task<Result<bool>> Handle(DeleteProfileCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(DeleteProfileCommand request, CancellationToken cancellationToken)
     {
         var accountId = new AccountId(userContext.AccountId);
         var targetUserId = new UserId(request.ProfileId);
@@ -34,7 +34,7 @@ internal sealed class DeleteProfileCommandHandler(
 
         if (targetUser is null)
         {
-            return Result<bool>.Fail("Profile not found.", ErrorType.NotFound);
+            return Result.Fail("Profile not found.", ErrorType.NotFound);
         }
 
         userProfileService.VerifyDeletionRules(allProfiles);
@@ -42,6 +42,6 @@ internal sealed class DeleteProfileCommandHandler(
         targetUser.Delete();
         userRepository.Update(targetUser);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

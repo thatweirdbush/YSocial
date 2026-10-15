@@ -6,16 +6,16 @@ using YSocial.Domain.Identities;
 
 namespace YSocial.Application.Features.Identities.DeleteAccount;
 
-public sealed record DeleteAccountCommand : ResultCommand<bool>;
+public sealed record DeleteAccountCommand : ResultCommand;
 
-internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepository, IUserContext userContext)
-    : ICommandHandler<DeleteAccountCommand, Result<bool>>
+internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepository, IUserContext userContext, IAccountSessionLock sessionLock)
+    : ICommandHandler<DeleteAccountCommand, Result>
 {
-    public async Task<Result<bool>> Handle(DeleteAccountCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(DeleteAccountCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result.Unauthorized();
         }
 
         var accountId = new AccountId(userContext.AccountId);
@@ -23,12 +23,14 @@ internal sealed class DeleteAccountCommandHandler(IAccountRepository accountRepo
 
         if (account is null)
         {
-            return Result<bool>.NotFound("Account not found.");
+            return Result.NotFound("Account not found.");
         }
+
+        await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
 
         account.Delete();
         accountRepository.Update(account);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

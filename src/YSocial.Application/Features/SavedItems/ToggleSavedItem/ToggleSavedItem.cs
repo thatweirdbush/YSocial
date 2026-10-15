@@ -3,6 +3,7 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
@@ -31,6 +32,7 @@ internal sealed class ToggleSavedItemCommandHandler(
     ICommentRepository commentRepository,
     ISavedItemRepository savedItemRepository,
     SavedItemToggleService savedItemToggleService,
+    InteractionGuard interactionGuard,
     IUserContext userContext)
     : ICommandHandler<ToggleSavedItemCommand, Result<ToggleSavedItemResponse>>
 {
@@ -46,6 +48,11 @@ internal sealed class ToggleSavedItemCommandHandler(
         // Check if target exists
         var targetExists = await request.TargetType.CheckExistsAsync(request.TargetId, postRepository, commentRepository, cancellationToken);
         if (!targetExists)
+        {
+            return Result<ToggleSavedItemResponse>.NotFound("Target not found.");
+        }
+
+        if (!await interactionGuard.CanInteractAsync(userId, request.TargetId, request.TargetType == SavedItemTargetType.Comment, cancellationToken))
         {
             return Result<ToggleSavedItemResponse>.NotFound("Target not found.");
         }

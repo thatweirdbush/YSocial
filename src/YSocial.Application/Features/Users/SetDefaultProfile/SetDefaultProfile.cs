@@ -8,7 +8,7 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Users.SetDefaultProfile;
 
-public sealed record SetDefaultProfileCommand(Guid ProfileId) : ResultCommand<bool>;
+public sealed record SetDefaultProfileCommand(Guid ProfileId) : ResultCommand;
 
 internal sealed class SetDefaultProfileCommandValidator : AbstractValidator<SetDefaultProfileCommand>
 {
@@ -21,9 +21,9 @@ internal sealed class SetDefaultProfileCommandValidator : AbstractValidator<SetD
 internal sealed class SetDefaultProfileCommandHandler(
     IUserContext userContext,
     UserProfileService userProfileService)
-    : ICommandHandler<SetDefaultProfileCommand, Result<bool>>
+    : ICommandHandler<SetDefaultProfileCommand, Result>
 {
-    public async Task<Result<bool>> Handle(SetDefaultProfileCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(SetDefaultProfileCommand request, CancellationToken cancellationToken)
     {
         var accountId = new AccountId(userContext.AccountId);
         var targetUserId = new UserId(request.ProfileId);
@@ -31,6 +31,6 @@ internal sealed class SetDefaultProfileCommandHandler(
         // Perform the state change in domain
         await userProfileService.SetDefaultProfileAsync(accountId, targetUserId, cancellationToken);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

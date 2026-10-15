@@ -1,4 +1,3 @@
-using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
 using YSocial.Domain.UserRelations;
@@ -37,6 +36,43 @@ public class MockUserRelationRepository : IUserRelationRepository
             return Task.FromResult<UserRelation?>(null);
 
         return Task.FromResult(relation);
+    }
+
+    public Task<IReadOnlyList<UserRelation>> GetRelationsAsync(UserId observerId, IReadOnlyCollection<UserId> targetIds, CancellationToken cancellationToken = default)
+    {
+        var targets = targetIds.ToHashSet();
+        var relations = _relations.Values
+            .Where(r => r.ObserverId == observerId && targets.Contains(r.TargetId))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRelation>>(relations);
+    }
+
+    public Task<IReadOnlyList<UserRelation>> GetByObserverAsync(UserId observerId, CancellationToken cancellationToken = default)
+    {
+        var relations = _relations.Values.Where(r => r.ObserverId == observerId).ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRelation>>(relations);
+    }
+
+    public Task<IReadOnlyList<UserRelation>> GetAcceptedEdgesAsync(IReadOnlyCollection<UserId> userIds, CancellationToken cancellationToken = default)
+    {
+        var users = userIds.ToHashSet();
+        var edges = _relations.Values
+            .Where(r => !r.IsDeleted && r.FollowStatus == FollowStatus.Accepted
+                        && (users.Contains(r.ObserverId) || users.Contains(r.TargetId)))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRelation>>(edges);
+    }
+
+    public Task<IReadOnlyList<UserRelation>> GetPendingRequestsAsync(UserId targetId, CancellationToken cancellationToken = default)
+    {
+        var requests = _relations.Values
+            .Where(r => !r.IsDeleted && r.FollowStatus == FollowStatus.Pending && r.TargetId == targetId)
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<UserRelation>>(requests);
     }
 
     public Task AddAsync(UserRelation entity, CancellationToken cancellationToken = default)

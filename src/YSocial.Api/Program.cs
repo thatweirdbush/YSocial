@@ -3,12 +3,15 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using YSocial.Api.Infrastructure.Errors;
 using YSocial.Api.Infrastructure.Serialization;
 using YSocial.Api.Infrastructure.Swagger;
 using YSocial.Application;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Infrastructure;
 using YSocial.Infrastructure.Data;
+using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Notifications;
 
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -16,32 +19,60 @@ JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// The seed holds well-known passwords: Development only. MUST run before MockDataStore is first touched
+MockSeedOptions.Enabled = builder.Environment.IsDevelopment();
+
+// Signing key: required outside Development (no fallback), a missing or short Jwt:SecretKey fails the startup
+var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration, builder.Environment.IsDevelopment());
+builder.Services.AddSingleton(jwtSettings);
+
 builder.Services.Configure<RouteOptions>(options =>
 {
     options.LowercaseUrls = true;
 });
 
-builder.Services.AddControllers().AddJsonOptions(options =>
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new EnumerationJsonConverterFactory());
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Framework binding failures use the same envelope as validator failures
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var errors = context.ModelState
+                .Where(entry => entry.Value is { Errors.Count: > 0 })
+                .GroupBy(entry => ApiProblems.ToFieldKey(entry.Key))
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.SelectMany(entry => entry.Value!.Errors)
+                        .Select(error => string.IsNullOrEmpty(error.ErrorMessage) ? "The value is invalid." : error.ErrorMessage)
+                        .ToArray());
+
+            return ApiProblems.ToResult(context.HttpContext, StatusCodes.Status400BadRequest, "ValidationFailed",
+                "One or more validation errors occurred.", errors);
+        };
+    });
+
+builder.Services.AddProblemDetails(options =>
 {
-    options.JsonSerializerOptions.Converters.Add(new EnumerationJsonConverterFactory());
+    options.CustomizeProblemDetails = context => ApiProblems.Enrich(context.HttpContext, context.ProblemDetails);
 });
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secretKey = builder.Configuration["Jwt:SecretKey"] ?? "super-secret-key-that-should-be-long-enough-for-hs256!";
-        var issuer = builder.Configuration["Jwt:Issuer"] ?? "YSocialApi";
-        var audience = builder.Configuration["Jwt:Audience"] ?? "YSocialClient";
-
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = issuer,
-            ValidAudience = audience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
         };
 
         options.Events = new JwtBearerEvents
@@ -105,8 +136,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("YSocialCorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
-              .SetIsOriginAllowed(origin => true)
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -114,6 +146,9 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
@@ -188,3 +223,5 @@ app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
+
+public partial class Program;

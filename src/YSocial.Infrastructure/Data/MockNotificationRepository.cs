@@ -33,17 +33,13 @@ public class MockNotificationRepository : INotificationRepository
 
     public void Remove(Notification notification)
     {
+        MockDataStore.CaptureRemovedEvents(notification);
         _notifications.TryRemove(notification.Id, out _);
     }
 
-    public Task<IReadOnlyList<Notification>> GetByRecipientIdAsync(UserId recipientId, int page, int pageSize, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<Notification>> GetByRecipientAsync(UserId recipientId, CancellationToken cancellationToken = default)
     {
-        var result = _notifications.Values
-            .Where(n => n.RecipientId == recipientId)
-            .OrderByDescending(n => n.CreatedAt) // Order by newest first
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
+        var result = _notifications.Values.Where(n => n.RecipientId == recipientId).ToList();
 
         return Task.FromResult<IReadOnlyList<Notification>>(result);
     }

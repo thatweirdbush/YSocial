@@ -1,5 +1,5 @@
 using MediatR;
-using Microsoft.AspNetCore.Mvc;
+using YSocial.Api.Infrastructure.Errors;
 using YSocial.Application.CQRS.Results;
 
 namespace YSocial.Api.Controllers
@@ -7,6 +7,7 @@ namespace YSocial.Api.Controllers
     //[Authorize(AuthenticationSchemes = "Bearer")]
     [Route("api/[controller]")]
     [ApiController]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
     public abstract class ApiController : ControllerBase
     {
         private IMediator? _mediator;
@@ -26,7 +27,7 @@ namespace YSocial.Api.Controllers
             if (result.IsSuccess)
                 return result.Value is null ? NoContent() : Ok(result.Value);
 
-            return ProcessErrorResponse(result.Error, result.ErrorType);
+            return ProcessErrorResponse(result);
         }
 
         /// <summary>
@@ -40,38 +41,49 @@ namespace YSocial.Api.Controllers
             if (result.IsSuccess)
                 return NoContent();
 
-            return ProcessErrorResponse(result.Error, result.ErrorType);
+            return ProcessErrorResponse(result);
+        }
+
+
+        /// <summary>
+        /// 201 with a body & optional Location (D7)
+        /// </summary>
+        protected IActionResult HandleCreated<T>(Result<T> result, Func<T, object> body, Func<T, string?>? location = null)
+        {
+            if (!result.IsSuccess)
+                return HandleResult(result);
+
+            var created = body(result.Value);
+            var locationUri = location?.Invoke(result.Value);
+
+            return locationUri is null
+                ? StatusCode(StatusCodes.Status201Created, created)
+                : Created(locationUri, created);
         }
 
         /// <summary>
-        /// Map ErrorType to correct HTTP Status Code
+        /// 400 problem with a field error (e.g. bad enum), same envelope as validation failures
         /// </summary>
-        private IActionResult ProcessErrorResponse(string error, ErrorType errorType)
-        {
-            return errorType switch
-            {
-                ErrorType.Validation => BadRequest(CreateProblemDetails("Validation Error", error, 400)),
-                ErrorType.NotFound => NotFound(CreateProblemDetails("Not Found", error, 404)),
-                ErrorType.Conflict => Conflict(CreateProblemDetails("Conflict", error, 409)),
-                ErrorType.Business => BadRequest(CreateProblemDetails("Business Rule Violation", error, 400)),
-                ErrorType.Unauthorized => Unauthorized(CreateProblemDetails("Unauthorized", error, 401)),
-                ErrorType.Forbidden => StatusCode(403, CreateProblemDetails("Forbidden", error, 403)),
-                _ => BadRequest(CreateProblemDetails("Error", error, 400))
-            };
-        }
+        protected IActionResult ValidationProblemFor(string field, string message)
+            => ApiProblems.ToResult(HttpContext, StatusCodes.Status400BadRequest, "ValidationFailed", "One or more validation errors occurred.",
+                new Dictionary<string, string[]> { [ApiProblems.ToFieldKey(field)] = [message] });
 
         /// <summary>
-        /// Create the RFC 7807 standard error structure (Problem Details)
+        /// Map ErrorType to correct HTTP Status Code (RFC 7807 envelope)
         /// </summary>
-        private static object CreateProblemDetails(string title, string detail, int status)
+        private IActionResult ProcessErrorResponse(Result result)
         {
-            return new
+            var status = result.ErrorType switch
             {
-                Title = title,
-                Detail = detail,
-                Status = status,
-                Timestamp = DateTime.UtcNow
+                ErrorType.Validation or ErrorType.Business => StatusCodes.Status400BadRequest,
+                ErrorType.NotFound => StatusCodes.Status404NotFound,
+                ErrorType.Conflict => StatusCodes.Status409Conflict,
+                ErrorType.Unauthorized => StatusCodes.Status401Unauthorized,
+                ErrorType.Forbidden => StatusCodes.Status403Forbidden,
+                _ => StatusCodes.Status500InternalServerError // ErrorType.None = bug
             };
+
+            return ApiProblems.ToResult(HttpContext, status, result.Code, result.Error);
         }
     }
 }

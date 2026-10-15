@@ -3,13 +3,19 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Posts.Projection;
+using YSocial.Application.Models;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Comments.AddComment;
 
-public sealed record AddCommentCommand(Guid PostId, string Content, Guid? ParentCommentId) : ResultCommand<Guid>;
+/// <summary>
+/// Creates a comment or reply (D12). Unknown / deleted / inaccessible post or parent = 404;
+/// parent of another post = 400 ParentCommentMismatch.
+/// </summary>
+public sealed record AddCommentCommand(Guid PostId, string Content, Guid? ParentCommentId) : ResultCommand<PostDto>;
 
 internal sealed class AddCommentCommandValidator : AbstractValidator<AddCommentCommand>
 {
@@ -19,7 +25,6 @@ internal sealed class AddCommentCommandValidator : AbstractValidator<AddCommentC
             .NotEmpty();
 
         RuleFor(x => x.Content)
-            .NotNull()
             .NotEmpty();
     }
 }
@@ -28,49 +33,46 @@ internal sealed class AddCommentCommandHandler(
     IPostRepository postRepository,
     ICommentRepository commentRepository,
     CommentPostingService commentPostingService,
+    PostProjector projector,
     IUserContext userContext)
-    : ICommandHandler<AddCommentCommand, Result<Guid>>
+    : ICommandHandler<AddCommentCommand, Result<PostDto>>
 {
-    public async Task<Result<Guid>> Handle(AddCommentCommand command, CancellationToken cancellationToken)
+    public async Task<Result<PostDto>> Handle(AddCommentCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<Guid>.Unauthorized();
-        }
-
-        var postId = new PostId(command.PostId);
-        var postTask = postRepository.GetByIdAsync(postId, cancellationToken);
-
-        CommentId? parentCommentId = command.ParentCommentId.HasValue
-            ? new CommentId(command.ParentCommentId.Value)
-            : null;
-
-        var parentCommentTask = parentCommentId is not null
-            ? commentRepository.GetByIdAsync(parentCommentId.Value, cancellationToken)
-            : Task.FromResult<Comment?>(null);
-
-        await Task.WhenAll(postTask, parentCommentTask);
-
-        var post = await postTask;
-        if (post is null)
-        {
-            return Result<Guid>.NotFound($"Post with ID {command.PostId} not found.");
-        }
-
-        if (parentCommentId is not null)
-        {
-            var parentComment = await parentCommentTask;
-            if (parentComment is null)
-            {
-                return Result<Guid>.NotFound($"Parent comment with ID {command.ParentCommentId} not found.");
-            }
+            return Result<PostDto>.Unauthorized();
         }
 
         var authorId = new UserId(userContext.UserId);
-        var comment = commentPostingService.CreateComment(post, authorId, command.Content, parentCommentId);
+
+        var post = await postRepository.GetByIdAsync(new PostId(command.PostId), cancellationToken);
+        if (post is null || (await projector.ProjectPostsAsync(authorId, [post], cancellationToken)).Count == 0)
+        {
+            return Result<PostDto>.NotFound("Post not found.");
+        }
+
+        Comment? parent = null;
+        if (command.ParentCommentId is { } parentId)
+        {
+            parent = await commentRepository.GetByIdAsync(new CommentId(parentId), cancellationToken);
+
+            // Unknown, soft-deleted & inaccessible parents are indistinguishable
+            if (parent is null || !(await projector.ProjectAsync(authorId, [], [parent], cancellationToken)).ContainsKey(parent.Id.Value))
+            {
+                return Result<PostDto>.NotFound("Parent comment not found.");
+            }
+        }
+
+        // Domain: comments allowed + parent belongs to the same post
+        var comment = commentPostingService.CreateComment(post, authorId, command.Content, parent);
 
         await commentRepository.AddAsync(comment, cancellationToken);
 
-        return Result<Guid>.Success(comment.Id.Value);
+        var items = await projector.ProjectAsync(authorId, [], [comment], cancellationToken);
+
+        return items.TryGetValue(comment.Id.Value, out var dto)
+            ? Result<PostDto>.Success(dto)
+            : Result<PostDto>.Unauthorized();
     }
 }

@@ -3,6 +3,7 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Likes;
 using YSocial.Domain.Posts;
@@ -29,6 +30,7 @@ internal sealed class ToggleLikeCommandHandler(
     ICommentRepository commentRepository,
     ILikeRepository likeRepository,
     LikeToggleService likeToggleService,
+    InteractionGuard interactionGuard,
     IUserContext userContext)
     : ICommandHandler<ToggleLikeCommand, Result<ToggleLikeResponse>>
 {
@@ -44,6 +46,11 @@ internal sealed class ToggleLikeCommandHandler(
         // Check if target exists
         var targetAuthorId = await request.TargetType.GetTargetAuthorIdAsync(request.TargetId, postRepository, commentRepository, cancellationToken);
         if (targetAuthorId is not UserId validatedAuthorId)
+        {
+            return Result<ToggleLikeResponse>.NotFound("Target not found.");
+        }
+
+        if (!await interactionGuard.CanInteractAsync(likerId, request.TargetId, request.TargetType == LikeTargetType.Comment, cancellationToken))
         {
             return Result<ToggleLikeResponse>.NotFound("Target not found.");
         }

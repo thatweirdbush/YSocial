@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.Abstractions.Messaging;
 using YSocial.Application.Abstractions.Notifications;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
@@ -50,6 +51,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
+        services.AddSingleton<IAccountSessionLock, AccountSessionLock>();
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();
 
         // Message & Notifications
@@ -72,6 +74,7 @@ public static class DependencyInjection
 
         services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<MockDataStore>());
         services.AddScoped<IDomainEventsProvider>(sp => sp.GetRequiredService<MockDataStore>());
+        services.AddScoped<IPendingDomainEvents>(sp => sp.GetRequiredService<MockDataStore>());
 
         // Domain Events Dispatcher
         services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();
@@ -81,6 +84,7 @@ public static class DependencyInjection
 
         // Other services
         services.AddSignalR();
+        services.AddScoped<NotificationOutboxProcessor>();
         services.AddHostedService<ProcessNotificationOutboxJob>();
 
         return services;

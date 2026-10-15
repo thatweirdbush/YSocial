@@ -1,6 +1,5 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
-using Microservice.BuildingBlocks.Domain.BusinessRules;
 using YSocial.Domain.Comments.Events;
 using YSocial.Domain.Comments.Rules;
 using YSocial.Domain.Posts;
@@ -61,7 +60,7 @@ public class Comment : AggregateRoot<CommentId>, ISoftDeletable
     public void Delete(UserId editorId, UserId postAuthorId)
     {
         CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
-        
+
         IsDeleted = true;
         DeletedAt = DateTime.UtcNow;
         DeletedBy = editorId;
@@ -72,9 +71,9 @@ public class Comment : AggregateRoot<CommentId>, ISoftDeletable
     {
         CheckRule(new OnlyAuthorOrPostOwnerCanDeleteCommentRule(AuthorId, postAuthorId, editorId));
         CheckRule(new OnlyDeleterCanRestoreCommentRule(DeletedBy, editorId));
-        CheckRule(new EntityMustBeDeletedToRestoreRule(IsDeleted));
+        CheckRule(new CommentMustBeDeletedToRestoreRule(IsDeleted));
         CheckRule(new CannotRestoreCommentIfPostIsDeletedRule(isPostDeleted));
-        
+
         IsDeleted = false;
         DeletedAt = null;
         DeletedBy = null;

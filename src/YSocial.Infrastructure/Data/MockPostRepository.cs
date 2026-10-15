@@ -1,7 +1,6 @@
 using Microservice.BuildingBlocks.Domain.Entities;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
@@ -45,6 +44,17 @@ public class MockPostRepository : IPostRepository
         _posts[post.Id] = post;
     }
 
+    public Task<IReadOnlyList<Post>> GetByIdsAsync(IReadOnlyCollection<PostId> ids, CancellationToken cancellationToken = default)
+    {
+        var wanted = ids.ToHashSet();
+        var posts = _posts.Values
+            .WhereNotDeleted()
+            .Where(p => wanted.Contains(p.Id))
+            .ToList();
+
+        return Task.FromResult<IReadOnlyList<Post>>(posts);
+    }
+
     public Task<IReadOnlyList<Post>> GetByAuthorIdAsync(UserId authorId, CancellationToken cancellationToken = default)
     {
         var posts = _posts.Values
@@ -55,18 +65,17 @@ public class MockPostRepository : IPostRepository
         return Task.FromResult<IReadOnlyList<Post>>(posts);
     }
 
-    public Task<(IReadOnlyList<Post> Posts, int TotalCount)> GetByUserIdPagedAsync(UserId userId, int page, int pageSize, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<Post>> GetByAuthorIdsAsync(IReadOnlyCollection<UserId> authorIds, CancellationToken cancellationToken = default)
     {
-        var query = _posts.Values
+        var authors = authorIds.ToHashSet();
+        var posts = _posts.Values
             .WhereNotDeleted()
-            .Where(p => p.AuthorId == userId);
-
-        IReadOnlyList<Post> posts = query
-            .OrderByDescending(p => p.CreatedAt) // Newest first
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Where(p => authors.Contains(p.AuthorId))
             .ToList();
 
-        return Task.FromResult((posts, query.Count()));
+        return Task.FromResult<IReadOnlyList<Post>>(posts);
     }
+
+    public Task<IReadOnlyList<Post>> GetAllAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<Post>>(_posts.Values.WhereNotDeleted().ToList());
 }

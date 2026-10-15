@@ -13,9 +13,9 @@ public sealed class Notification : AggregateRoot<NotificationId>
     public string Content { get; private set; }
 
     /// <summary>
-    ///  Dynamic metadata as JSON (e.g., PostId, CommentId for FE to click on for navigation)
+    /// Entity the FE navigates to: post or comment id (like, comment), follower id (follow types)
     /// </summary>
-    public object? MetaData { get; private set; }
+    public Guid? TargetId { get; private set; }
     public bool IsRead { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? ReadAt { get; private set; }
@@ -26,7 +26,7 @@ public sealed class Notification : AggregateRoot<NotificationId>
         NotificationType type,
         string title,
         string content,
-        object? metaData)
+        Guid? targetId)
     {
         Id = NotificationId.New();
         RecipientId = recipientId;
@@ -34,7 +34,7 @@ public sealed class Notification : AggregateRoot<NotificationId>
         Type = type;
         Title = title;
         Content = content;
-        MetaData = metaData;
+        TargetId = targetId;
         IsRead = false;
         CreatedAt = DateTime.UtcNow;
     }
@@ -45,9 +45,9 @@ public sealed class Notification : AggregateRoot<NotificationId>
         NotificationType type,
         string title,
         string content,
-        object? metaData = null)
+        Guid? targetId = null)
     {
-        //CheckRule(new CannotSendNotificationToYourselfRule(senderId, recipientId));
+        CheckRule(new CannotSendNotificationToYourselfRule(senderId, recipientId));
         CheckRule(new NotificationContentMustNotBeEmptyRule(title, content));
 
         return new Notification(
@@ -56,7 +56,7 @@ public sealed class Notification : AggregateRoot<NotificationId>
             type,
             title,
             content,
-            metaData);
+            targetId);
     }
 
     public void MarkAsRead(UserId currentUserId)

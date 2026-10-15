@@ -3,13 +3,14 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Comments.RestoreComment;
 
-public sealed record RestoreCommentCommand(Guid CommentId) : ResultCommand<bool>;
+public sealed record RestoreCommentCommand(Guid CommentId) : ResultCommand;
 
 internal sealed class RestoreCommentCommandValidator : AbstractValidator<RestoreCommentCommand>
 {
@@ -20,16 +21,17 @@ internal sealed class RestoreCommentCommandValidator : AbstractValidator<Restore
 }
 
 internal sealed class RestoreCommentCommandHandler(
-    ICommentRepository commentRepository, 
+    ICommentRepository commentRepository,
     IPostRepository postRepository,
+    InteractionGuard guard,
     IUserContext userContext)
-    : ICommandHandler<RestoreCommentCommand, Result<bool>>
+    : ICommandHandler<RestoreCommentCommand, Result>
 {
-    public async Task<Result<bool>> Handle(RestoreCommentCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RestoreCommentCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result.Unauthorized();
         }
 
         var commentId = new CommentId(command.CommentId);
@@ -37,20 +39,25 @@ internal sealed class RestoreCommentCommandHandler(
 
         if (comment is null)
         {
-            return Result<bool>.NotFound($"Comment with ID {command.CommentId} not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         // We also need the post to check if the user is the post owner
         var post = await postRepository.GetByIdAsync(comment.PostId, includeDeleted: true, cancellationToken);
         if (post is null)
         {
-            return Result<bool>.NotFound("Associated post not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
+        if (await guard.IsCommentHiddenFromAsync(editorId, comment, post, cancellationToken))
+        {
+            return Result.NotFound("Resource not found.");
+        }
+
         comment.Restore(editorId, post.AuthorId, post.IsDeleted);
         commentRepository.Update(comment);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

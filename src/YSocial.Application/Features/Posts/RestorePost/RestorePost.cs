@@ -3,12 +3,13 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Access;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.RestorePost;
 
-public sealed record RestorePostCommand(Guid PostId) : ResultCommand<bool>;
+public sealed record RestorePostCommand(Guid PostId) : ResultCommand;
 
 internal sealed class RestorePostCommandValidator : AbstractValidator<RestorePostCommand>
 {
@@ -18,14 +19,14 @@ internal sealed class RestorePostCommandValidator : AbstractValidator<RestorePos
     }
 }
 
-internal sealed class RestorePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)
-    : ICommandHandler<RestorePostCommand, Result<bool>>
+internal sealed class RestorePostCommandHandler(IPostRepository postsRepository, InteractionGuard guard, IUserContext userContext)
+    : ICommandHandler<RestorePostCommand, Result>
 {
-    public async Task<Result<bool>> Handle(RestorePostCommand command, CancellationToken cancellationToken)
+    public async Task<Result> Handle(RestorePostCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result.Unauthorized();
         }
 
         var postId = new PostId(command.PostId);
@@ -35,13 +36,18 @@ internal sealed class RestorePostCommandHandler(IPostRepository postsRepository,
 
         if (post is null)
         {
-            return Result<bool>.NotFound($"Post with ID {command.PostId} not found.");
+            return Result.NotFound("Resource not found.");
         }
 
         var editorId = new UserId(userContext.UserId);
+        if (await guard.IsPostHiddenFromAsync(editorId, post, cancellationToken))
+        {
+            return Result.NotFound("Resource not found.");
+        }
+
         post.Restore(editorId);
         postsRepository.Update(post);
 
-        return Result<bool>.Success(true);
+        return Result.Success();
     }
 }

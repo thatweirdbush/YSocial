@@ -1,11 +1,9 @@
 ﻿using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
-using Microservice.BuildingBlocks.Domain.Exceptions;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Domain.Notifications;
-using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Notifications.MarkNotificationAsRead;
 
@@ -25,13 +23,17 @@ internal sealed class MarkNotificationAsReadCommandHandler(
 {
     public async Task<Result> Handle(MarkNotificationAsReadCommand request, CancellationToken cancellationToken)
     {
+        if (userContext.GetViewerId() is not { } currentUserId)
+        {
+            return Result.Unauthorized();
+        }
+
         var notificationId = new NotificationId(request.NotificationId);
-        var currentUserId = new UserId(userContext.UserId);
 
         var notification = await notificationRepository.GetByIdAsync(notificationId, cancellationToken);
         if (notification is null)
         {
-            throw new EntityNotFoundException($"Notification with ID {notificationId} was not found.");
+            return Result.NotFound("Notification not found.");
         }
 
         notification.MarkAsRead(currentUserId);

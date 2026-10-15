@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Domain.Identities;
@@ -27,7 +28,8 @@ internal sealed class ResetPasswordCommandValidator : AbstractValidator<ResetPas
 
 internal sealed class ResetPasswordCommandHandler(
     IAccountRepository accountRepository,
-    IPasswordHasher passwordHasher)
+    IPasswordHasher passwordHasher,
+    IAccountSessionLock sessionLock)
     : ICommandHandler<ResetPasswordCommand, Result>
 {
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
@@ -38,6 +40,8 @@ internal sealed class ResetPasswordCommandHandler(
         {
             return Result.Fail("Invalid request.", ErrorType.Business);
         }
+
+        await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
 
         account.ResetPassword(request.Otp, request.NewPassword, passwordHasher);
         accountRepository.Update(account);

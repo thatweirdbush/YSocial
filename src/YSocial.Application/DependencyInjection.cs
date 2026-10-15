@@ -11,6 +11,15 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        // Read-side access policy (D14, D15, D20)
+        services.AddScoped<Features.Access.IViewerAccessPolicy, Features.Access.ViewerAccessPolicy>();
+        services.AddScoped<Features.Users.Projection.UserProfileProjector>();
+        services.AddScoped<Features.Posts.Projection.PostProjector>();
+        services.AddScoped<Features.Access.InteractionGuard>();
+        services.AddScoped<Features.UserRelations.GetFollowRequests.AccessibleFollowRequests>();
+        services.AddScoped<Features.Notifications.NotificationPublisher>();
+        services.AddScoped<Features.Notifications.AccessibleNotifications>();
+
         // Fluent Validation
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 

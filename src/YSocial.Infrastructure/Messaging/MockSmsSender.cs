@@ -1,17 +1,20 @@
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using YSocial.Application.Abstractions.Messaging;
 
 namespace YSocial.Infrastructure.Messaging;
 
-public class MockSmsSender(ILogger<MockSmsSender> logger) : ISmsSender
+public class MockSmsSender(ILogger<MockSmsSender> logger, IHostEnvironment environment) : ISmsSender
 {
     public Task SendSmsAsync(string toPhoneNumber, string message, CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("--- MOCK SMS SENDER ---");
-        logger.LogInformation("To: {PhoneNumber}", toPhoneNumber);
-        logger.LogInformation("Message: {Message}", message);
-        logger.LogInformation("-----------------------");
-        
+        logger.LogInformation("Mock SMS to {PhoneNumber}", toPhoneNumber);
+
+        if (environment.IsDevelopment())
+        {
+            logger.LogInformation("Mock SMS text (digit runs masked): {Message}", MessageLogMasking.Mask4PlusDigits(message));
+        }
+
         return Task.CompletedTask;
     }
 }

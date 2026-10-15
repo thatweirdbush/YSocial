@@ -8,6 +8,7 @@ public sealed class NotificationOutboxMessage
     public DateTime OccurredOnUtc { get; private set; }
     public DateTime? ProcessedOnUtc { get; private set; }
     public string? Error { get; private set; } // To retry later
+    public int Attempts { get; private set; }
 
     // For EF Core
     private NotificationOutboxMessage() { }
@@ -29,5 +30,6 @@ public sealed class NotificationOutboxMessage
     public void MarkAsFailed(string errorMessage)
     {
         Error = errorMessage;
+        Attempts++;
     }
 }

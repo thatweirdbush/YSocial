@@ -3,12 +3,14 @@ using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
+using YSocial.Application.Features.Posts.Projection;
+using YSocial.Application.Models;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Posts.UpdatePost;
 
-public sealed record UpdatePostCommand(Guid PostId, string Content) : ResultCommand<bool>;
+public sealed record UpdatePostCommand(Guid PostId, string Content) : ResultCommand<PostDto>;
 
 internal sealed class UpdatePostCommandValidator : AbstractValidator<UpdatePostCommand>
 {
@@ -18,36 +20,37 @@ internal sealed class UpdatePostCommandValidator : AbstractValidator<UpdatePostC
             .NotEmpty();
 
         RuleFor(command => command.Content)
-            .NotNull()
-            .NotEmpty();
+            .NotEmpty()
+            .MaximumLength(2000);
     }
 }
 
-internal sealed class UpdatePostCommandHandler(IPostRepository postsRepository, IUserContext userContext)
-    : ICommandHandler<UpdatePostCommand, Result<bool>>
+internal sealed class UpdatePostCommandHandler(IPostRepository postsRepository, PostProjector projector, IUserContext userContext)
+    : ICommandHandler<UpdatePostCommand, Result<PostDto>>
 {
-    public async Task<Result<bool>> Handle(UpdatePostCommand command, CancellationToken cancellationToken)
+    public async Task<Result<PostDto>> Handle(UpdatePostCommand command, CancellationToken cancellationToken)
     {
         if (!userContext.IsAuthenticated)
         {
-            return Result<bool>.Unauthorized();
+            return Result<PostDto>.Unauthorized();
         }
 
         var postId = new PostId(command.PostId);
         var post = await postsRepository.GetByIdAsync(postId, cancellationToken);
+        var editorId = new UserId(userContext.UserId);
 
-        if (post is null)
+        // Hidden/blocked posts do not reveal their existence to a non-author editor
+        if (post is null || (await projector.ProjectPostsAsync(editorId, [post], cancellationToken)).Count == 0)
         {
-            return Result<bool>.NotFound($"Post with ID {command.PostId} not found.");
+            return Result<PostDto>.NotFound("Post not found.");
         }
 
-        // Domain Model's UpdateContent enforces OnlyAuthorCanEditPostRule internally, 
-        // but it requires us to pass the editor's UserId.
-        var editorId = new UserId(userContext.UserId);
-        
+        // Domain enforces OnlyAuthorCanPerformActionOnPostRule (403 NotPostAuthor)
         post.UpdateContent(editorId, command.Content);
         postsRepository.Update(post);
 
-        return Result<bool>.Success(true);
+        var items = await projector.ProjectPostsAsync(editorId, [post], cancellationToken);
+
+        return Result<PostDto>.Success(items[0]);
     }
 }

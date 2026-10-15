@@ -28,7 +28,7 @@ public class MockUserBlockRepository : IUserBlockRepository
         return block is not null;
     }
 
-    public  Task<UserBlock?> GetBlockAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
+    public Task<UserBlock?> GetBlockAsync(UserId observerId, UserId targetId, CancellationToken cancellationToken = default)
     {
         var block = _blocks.Values
             .FirstOrDefault(b => b.ObserverId == observerId && b.TargetId == targetId);
@@ -40,7 +40,7 @@ public class MockUserBlockRepository : IUserBlockRepository
     {
         var blocks = _blocks.Values
             //.AsNoTracking() // EF Core specific, can be ignored in this in-memory implementation
-            .Where(b => (b.ObserverId == user1Id && b.TargetId == user2Id) || 
+            .Where(b => (b.ObserverId == user1Id && b.TargetId == user2Id) ||
                         (b.ObserverId == user2Id && b.TargetId == user1Id))
             .ToList();
 
@@ -48,6 +48,27 @@ public class MockUserBlockRepository : IUserBlockRepository
         var user2BlockedUser1 = blocks.FirstOrDefault(b => b.ObserverId == user2Id && b.TargetId == user1Id);
 
         return Task.FromResult((user1BlockedUser2, user2BlockedUser1));
+    }
+
+    public Task<IReadOnlyList<UserBlock>> GetByObserverAsync(UserId observerId, CancellationToken cancellationToken = default)
+    {
+        var blocks = _blocks.Values.Where(b => b.ObserverId == observerId).ToList();
+
+        return Task.FromResult<IReadOnlyList<UserBlock>>(blocks);
+    }
+
+    public Task<IReadOnlySet<UserId>> GetBlockedEitherWayAsync(UserId userId, IReadOnlyCollection<UserId> candidateIds, CancellationToken cancellationToken = default)
+    {
+        var candidates = candidateIds.ToHashSet();
+        var blocked = new HashSet<UserId>();
+
+        foreach (var block in _blocks.Values)
+        {
+            if (block.ObserverId == userId && candidates.Contains(block.TargetId)) blocked.Add(block.TargetId);
+            else if (block.TargetId == userId && candidates.Contains(block.ObserverId)) blocked.Add(block.ObserverId);
+        }
+
+        return Task.FromResult<IReadOnlySet<UserId>>(blocked);
     }
 
     public Task AddAsync(UserBlock entity, CancellationToken cancellationToken = default)
@@ -63,6 +84,7 @@ public class MockUserBlockRepository : IUserBlockRepository
 
     public void Remove(UserBlock entity)
     {
+        MockDataStore.CaptureRemovedEvents(entity);
         _blocks.TryRemove(entity.Id, out _);
     }
 }
