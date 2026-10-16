@@ -1,7 +1,7 @@
 ---
 module: Backend Decisions & Conventions
 stack: C# / ASP.NET Core 8 / MediatR / FluentValidation / DDD (in-memory store; EF Core planned)
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # BACKEND DECISIONS & CONVENTIONS
@@ -60,13 +60,13 @@ updated: 2026-10-15
 - Author-only actions keep ownership in domain rules (403); hidden target answers 404 first where handler applies policy (`UpdatePost`, `AddComment` & delete/restore of posts & comments via `InteractionGuard.IsPostHiddenFromAsync`/`IsCommentHiddenFromAsync`: outsiders get 404, participants reach 403 rules)
 
 ### 3.4 Repo contracts
-- **Set-based members** on Domain contracts (accept `IReadOnlyCollection<Id>`, return rows or `IReadOnlySet<...>`): e.g. `GetBlockedEitherWayAsync`, `GetRelationsAsync`, `GetAcceptedEdgesAsync`, `GetPendingRequestsAsync`, `GetByObserverAsync`, `GetLikedTargetIdsAsync`, `GetSavedTargetIdsAsync`, `GetByIdsAsync`, `GetTopLevelCommentsByPostIdsAsync`, `GetChildCommentsByParentIdsAsync`; list per contract in DM §7
+- **Set-based members** on Domain contracts (accept `IReadOnlyCollection<Id>`, return rows or `IReadOnlySet<...>`); full member list per contract: DM §7
 - **Typed ids on parent queries:** post ids & comment ids are never mixed in 1 query (2 strongly-typed members)
 - Unordered returns: callers filter by policy, order & page in memory (EF migration pushes paging down later)
 
 ### 3.5 Lists & pagination
 - **Pagination validators:** `PaginationRules.MustBeValidPage()` (>= 1) & `MustBeValidPageSize()` (1..50) on every list query; response `PagedResponse<T>` (`Slice` helper for already-filtered list); page beyond last = 200 empty + real metadata
-- **Relation search (`RelationSearch`):** shared rule for follow requests, followers/following (& future mutes): `query` trimmed, max 50 (`MustBeValidRelationQuery`), matches `username` OR `displayName` case- & diacritics-insensitive (FormD, `đ` mapped), applied AFTER access filter & BEFORE paging
+- **Relation search (`RelationSearch`):** shared rule for follow requests, followers/following & mutes: `query` trimmed, max 50 (`MustBeValidRelationQuery`), matches `username` OR `displayName` case- & diacritics-insensitive (FormD, `đ` mapped), applied AFTER access filter & BEFORE paging
 
 ### 3.6 Concurrency & sessions
 - Every `Account.RefreshTokens` mutation runs under `IAccountSessionLock` (per account; process-local); new token-mutating paths MUST acquire it (BG §6.4)

@@ -1,6 +1,6 @@
 ---
 module: FE <-> BE Integration Mapping
-updated: 2026-10-15
+updated: 2026-10-16
 contract: ysocial-clients/web-app/docs/swagger.json
 fe-roadmap: .context/features/frontend-roadmap.md
 ---
@@ -9,7 +9,7 @@ fe-roadmap: .context/features/frontend-roadmap.md
 
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
-- Decisions D1-D20 & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
+- Decisions D1-D24 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
 - Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
 - **Status 2026-10-15:** BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE still on mocks (CP = BE ready, FE adoption pending); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
@@ -112,7 +112,6 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `PATCH /api/users/profiles/{id}/default` | JWT | -> 204 | 403 `ProfileNotOwned`; 400 `AccountRequiresProfile` | none |
 | `DELETE /api/users/profiles/{id}` | JWT | -> 204 | 404 foreign/unknown; 400 `CannotDeleteDefaultProfile` / `AccountRequiresProfile` | none |
 
-- Not found: create profile, username change, suggestions
 
 ### 2.3 Posts (`PostsController`)
 
@@ -165,7 +164,6 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `PUT /api/users/{targetId}/relations/mute` | JWT | no body -> 204 | idempotent; never changes follow state (no edge -> hidden `None` edge, soft-deleted edge stays deleted, flag is dormant); 400 `CannotMuteSelf`; 404 unknown/deleted/blocked either way; 401 | `setMuted(id, true)` |
 | `DELETE /api/users/{targetId}/relations/mute` | JWT | no body -> 204 | idempotent; always 204 for authenticated callers (no 404, also for hidden users); 401 | `setMuted(id, false)` |
 
-- Not found: restrict
 
 ### 2.7 Notifications (`NotificationsController`, SignalR `/hubs/notifications`)
 
@@ -271,24 +269,11 @@ SharePostLinkResponse: { postId, sharedUrl }
 | Settings: sessions, language, deactivate | Unsupported | delete account exists |
 | DMs, report, onboarding | Unsupported | no code |
 
-## 5. Integration risks (ranked, status 2026-10-15)
+## 5. Integration risks (status 2026-10-16)
 
-| # | Mismatch | Status |
-|---|---|---|
-| 1 | Domain/validation failures returned 500 | CLOSED (T1.1a/b): documented status + `code` |
-| 2 | Text-only post creation failed | CLOSED (T1.6) |
-| 3 | Logout 404, no refresh, 7-day access token, 5-session lockout | CLOSED (T1.4/T1.5); FE cross-tab single-flight & redirect fix OPEN (FE, CP1) |
-| 4 | Follow/block events never dispatched, unlike lost | CLOSED (T1.3) |
-| 5 | `sub` != `user_id`; no user in login; username not choosable | CLOSED (`GET me`, register username, T1.8); FE must still decode `user_id` |
-| 6 | No read endpoints (profile, comments, lists) | CLOSED for profile, post, thread, user posts, saved, follow lists, requests, relation sets, blocks, mutes, feed, notifications; search, tags, trending OPEN (deferred) |
-| 7 | Reads ignored privacy/visibility/blocks; privacy unsettable; write leaks (like/bookmark/comment on hidden targets) | CLOSED (T2.1-T2.5 reads, T3.1 privacy, T3.3 writes) |
-| 8 | Toggle vs set semantics | CLOSED (T1.10 routes); toggles deprecated, FE removal after CP2 |
-| 9 | Response codes (200 `true` vs 201/204) | CLOSED (T1.9 & DTO writes) |
-| 10 | SignalR payload shape differs | CLOSED (T4.2): `NotificationDto` carries FE fields; FE type union still to extend (§6) |
-| 11 | 4 error body shapes | CLOSED: 1 ProblemDetails envelope |
-| 12 | Credentials/OTP/tokens in logs, JWT secret fallback, dev token/seed in same binary | CLOSED (T4.3, BG §10.7/10.8/10.13) |
-| 13 | Delete/restore of hidden posts/comments answers 403 not 404 (existence disclosure) | CLOSED (BG §6.3) |
-| 14 | Process-global in-memory store, no transactions, no rollback | OPEN, accepted (BG §7.2); BE restart wipes state (deterministic seed ids) |
+- **Closed:** error shapes & 500s, text-only post, logout/refresh/session cap, event dispatch, identity (`user_id`, username), read endpoints, privacy/block enforcement, toggle vs set routes, response codes, SignalR payload, security hardening; history in plan T1-T4
+- **Open (FE side):** cross-tab refresh single-flight & redirect fix (CP1, §1), FE notification type union (§6), toggle removal after CP2
+- **Open (BE, accepted):** in-memory store, no transactions, restart wipes state (deterministic seed ids; FE treats refresh 401 as logout); full register: BG §10
 
 ## 6. FE checkpoints & follow-ups
 
@@ -297,7 +282,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | CP | Slice unblocked | BE state |
 |---|---|---|
 | CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests) |
-| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke not performed |
+| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12) |
 | CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | reached (tests, swagger verified) |
 | CP3 | private account, follow requests, followers dialog, block list, close friends | reached (tests, swagger regenerated) |
 | CP4 | feed, notifications, mute | reached (tests, swagger regenerated); FE slices not adopted yet |
@@ -309,7 +294,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 - **CP3:** `FollowListPageDto.locked` for private profiles (counts visible on profile, list not clickable)
 - **CP4:** `fetchFeed` via `GET /api/feed` (`tab`, `page`; `nextPage` from `hasNextPage`; `following` needs token); `setMuted`/`fetchMutedUsers` via mute routes & `me/mutes`; notifications: list/unread/read routes, extend `NotificationPayload.type` union (`NewFollow`, `FollowRequested`, `FollowAccepted`), map `kind` to item icon, `targetId` to link; share link: use `sharedUrl` as is
 
-## 7. Decided contract decisions (D-ids, owner: plan §4)
+## 7. Contract decisions (D-ids, owner of outcome; rationale: plan §4)
 
 | D | Decision (contract) | Status |
 |---|---|---|
@@ -336,7 +321,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D23 | Notifications: 1 `NotificationDto` for HTTP & push, `NewFollow` type, self notifications skipped, foreign mark-read 403, blocked/deleted senders filtered before paging | Implemented (T4.2) |
 | D24 | Security: log redaction by member name/attribute, JWT key required outside Development, seed & dev token Development-only | Implemented (T4.3) |
 
-- **Still open (not decided/built):** media upload URL shape, access-token revocation list, audience `CloseFriends`, feed ranking (`forYou` is chronological), notification reply preview, toggle endpoint removal (after FE adoption), search/tags/trending
+- **Still open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, toggle removal, search/tags/trending; full register: BG §10
 
 ## 8. Evidence
 - Probes of original behavior (T0.2) & their current results: `../architecture/backend-guide.md` §12

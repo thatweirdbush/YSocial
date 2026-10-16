@@ -1,7 +1,7 @@
 ---
 module: Backend Implementation
 stack: ASP.NET Core 8 / MediatR 14 / FluentValidation 12 / in-memory store
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # BACKEND GUIDE
@@ -242,11 +242,11 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ## 8. Cross-cutting API behavior
 - **Routing:** `api/[controller]` + `LowercaseUrls`; Users/UserRelations/UserBlocks override routes (`api/users/{targetId}/relations`, `api/users/{targetId}/blocks`); like/bookmark idempotent routes use absolute templates (`/api/posts/{id}/like`...) declared in `LikesController`/`SavedItemsController`
-- **JSON:** System.Text.Json camelCase; `EnumerationJsonConverterFactory` -> every `Enumeration<T>` request/response field reads/writes as **integer** (strings rejected -> 400); read DTOs expose string unions instead (MAP §3); strongly-typed IDs use generated `SystemTextJson` converter (GUID string); `PostDto.parentId`/`imageUrl` are omitted when null, other nullable fields serialize as `null`
+- **JSON:** System.Text.Json camelCase; `EnumerationJsonConverterFactory` -> every `Enumeration<T>` field is **integer** (strings rejected -> 400); read DTOs use string unions; strongly-typed IDs via generated `SystemTextJson` converter; contract details (omitted vs `null` fields): MAP §1
 - **CORS:** policy built from `Cors:AllowedOrigins` + `AllowCredentials`; empty list = no origin allowed; dev origin in `appsettings.Development.json` (T1.7; permissive `SetIsOriginAllowed` removed)
 - **HTTPS:** `UseHttpsRedirection` active; `launchSettings.json` https `49895` (matches FE)
 - **Cancellation:** every controller action forwards request `CancellationToken` to `Mediator.Send`; mock repos ignore tokens anyway
-- **Pagination (D16):** offset `page` (1-based) & `pageSize` (default 10, relation lists, block & mute lists & notifications 20, max 50; feed 10); envelope `PagedResponse{items,page,pageSize,totalCount,hasNextPage}`; counts after access filter; page beyond last -> 200 empty + real metadata
+- **Pagination (D16):** offset envelope `PagedResponse`, counts after access filter; defaults, limits & beyond-last behavior: MAP §1
 - **Rate limiting, health checks, request size limits, structured logging:** not found
 
 ## 9. Implementation boundaries (what exists vs not)
@@ -254,31 +254,29 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Not found (no code):** search, hashtags/mentions, trending, reposts, pin, hide-like-count, media upload, DMs, session list, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
 - **Planned (comments/dead code only):** EF Core + PostgreSQL (`YSocialDbContext`, outbox `jsonb` config, commented queries), cache/search-index hooks, push-notification service
 
-## 10. Known limitations & technical debt
+## 10. Known limitations & technical debt (single live register)
+
+> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-8, 10, 11, 13-16, 18-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link): history in plan T1-T4 & §12 probes
+
+### 10.1 Open / accepted (architectural)
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Exceptions -> 500 for domain/validation failures | RESOLVED (T1.1a/b, §5) |
-| 2 | Relation/block events never dispatched; unlike event lost | RESOLVED (T1.3, §7) |
-| 3 | Logout always 404 + 5-session cap = lockout | RESOLVED (T1.4: logout 204, cap evicts) |
-| 4 | No refresh endpoint; 7-day access token | RESOLVED (T1.5: refresh endpoint, 15 min); access-token revocation list absent = ACCEPTED (D6) |
-| 5 | Text-only post creation fails | RESOLVED (T1.6) |
-| 6 | No read path enforces visibility, privacy or blocks | RESOLVED (T2.1-T2.5 reads, T3.3 writes); gap: delete/restore existence disclosure (§6.3) |
-| 7 | Credentials/OTP/tokens logged (`LoggingBehavior`, `MockEmailSender`/`MockSmsSender`) | RESOLVED (T4.3: `LogRedactor`; senders log no body outside Development, digit runs masked in Development) |
-| 8 | Hard-coded JWT secret fallback (`Program.cs`, `JwtProvider.cs`) | RESOLVED (T4.3: `JwtSettings`, startup fails without key outside Development); permissive CORS RESOLVED (T1.7) |
-| 9 | In-memory only; process-global event handling, no rollback | OPEN, ACCEPTED for FE integration (§7.2); fix = EF migration |
-| 10 | Username uniqueness absent; orphan-account path on register | RESOLVED (T1.8) |
-| 11 | Query validators never run; no bounds on `page`/`pageSize` | RESOLVED (T1.2) |
-| 12 | `Task.WhenAll` over same repo/DbContext | RESOLVED for `UserRelationManager.FollowUserAsync`, `RemoveFollowsWhenUserBlockedEventHandler`, `CreateNotificationWhenCommentCreatedHandler`; `ValidationBehavior` keeps parallel validators (no repo access); no new occurrences allowed |
-| 13 | `SeedMockData` & Swagger dev token logging ship in same binary | RESOLVED (T4.3: seed, admin-token log, Swagger all Development-only; verified by running Production: no seed, no swagger, no token log) |
-| 14 | Notifications: no HTTP list/read, payload not FE-shaped, self notifications created, outbox never trimmed | RESOLVED (T4.2, §7.4) |
-| 15 | Mute: no endpoints (`isMuted` always false) | RESOLVED (T3.4) |
-| 16 | `GET /api/feed` absent | RESOLVED (T4.1) |
-| 17 | `like/toggle`, `saveditems/toggle` kept next to idempotent routes | OPEN, deferred: remove after FE CP2 (FE still on mocks) |
-| 18 | `ApiProblems.CodeFor` default `InternalError` for unmapped statuses (405, 415) | RESOLVED (`MethodNotAllowed`, `UnsupportedMediaType`) |
-| 19 | Delete/restore of hidden posts & comments answered 403 (existence disclosure) | RESOLVED (§6.3) |
-| 20 | Share link used username route that FE does not have; no access check | RESOLVED (`{FrontendUrl}/posts/{id}`, 404 for hidden) |
-| 21 | Notification push: processing failures retried forever, no backoff; payload has no content preview | OPEN, minor |
+| 9 | In-memory only; process-global event handling, no rollback or transactions | OPEN, ACCEPTED for FE integration (§7.2); fix = EF migration |
+| 22 | Access token valid after logout until expiry (15 min), no revocation list | ACCEPTED (D6) |
+| 23 | Session lock is process-local (multi-instance unsafe); new token-mutating paths MUST take it (§6.4) | ACCEPTED |
+| 24 | `likesCount` stored aggregate, not viewer-filtered; stored `FollowersCount`/`FollowingCount` unexposed, remove at EF migration | ACCEPTED |
+| 12 | `Task.WhenAll` over same repo: fixed in 3 handlers; `ValidationBehavior` keeps parallel validators (no repo access); no new occurrences allowed | RESOLVED (guard) |
+
+### 10.2 Deferred (minor / waits on others)
+
+| # | Item | Waits on |
+|---|---|---|
+| 17 | `likes/toggle` & `saveditems/toggle` kept next to idempotent routes | FE CP2 adoption, then remove |
+| 21 | Notification push: failed processing retried (max 5) without backoff; no reply preview text | minor |
+| 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
+| 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change, session list | design (re-activation, session identity, username reuse) |
+| 27 | Features without BE: search, tags, trending, suggestions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
 - **Remaining blockers for real deployment are architectural, not hardening:** persistence (EF + transactions + concurrency tokens), per-scope event tracking, multi-instance session lock, access-token revocation (items 9, §6.1, §6.4)
 

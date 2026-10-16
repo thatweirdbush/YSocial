@@ -1,6 +1,6 @@
 ---
 module: Backend Domain Model
-updated: 2026-10-15
+updated: 2026-10-16
 ---
 
 # DOMAIN MODEL
@@ -54,7 +54,7 @@ updated: 2026-10-15
 | `LikeStatus` / `SavedItemStatus` | Liked 1, Unliked 0 / Saved 1, Unsaved 2 | internal; toggle response: `isLiked`/`isSaved` bool |
 | `Gender` | Unspecified 0, Male 1, Female 2, Other 3 | `UpdateProfileRequest` (int) |
 | `ProfileType` | Personal 1, Business 2, Creator 3 | preserved on update, not settable |
-| `NotificationType` | FollowRequested 1, FollowAccepted 2, NewComment 3, NewLike 4 | SignalR payload `Type` = name string |
+| `NotificationType` | FollowRequested 1, FollowAccepted 2, NewComment 3, NewLike 4, NewFollow 5 | SignalR payload `Type` = name string |
 | `UserRole` | Member 1, Moderator 2, Admin 3 | no (not in JWT; unused) |
 | `Country` | named list; only `Country.Vietnam` used (register default) | no |
 | `RuleViolationKind` | Invalid, Forbidden, NotFound, Conflict, Unauthorized | maps to 400/403/404/409/401 (§4) |
@@ -191,7 +191,7 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 - "yes" = dispatched in same request (all 9 aggregate sets scanned; hard-removed Like/UserBlock/Notification events kept in removed-events queue; BG §7.2)
 - Failed request discards its pending events (nothing dispatched, no leak into later requests)
 - Event class hierarchy (`DomainEvent : INotification`)
-- Notification semantics: plain follow of public user notifies followed user (`NewFollow`, "X started following you"); accepted request notifies requester (`FollowAccepted`); like & comment notify content author; self events create nothing
+- Notification semantics (types, recipients, self-skip): BG §7.4
 
 ## 7. Repository contracts of interest
 
@@ -211,23 +211,6 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 
 - Unit of Work: `IUnitOfWork` (BuildingBlocks) implemented by `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`; mock repos return `UnitOfWork => null!`
 
-## 8. Feature-specific status (follow, soft-delete, privacy, visibility, ownership)
-
-| Topic | Implemented? | Evidence / gap |
-|---|---|---|
-| Follow / unfollow | yes (state machine §5.1) | `FollowUserCommand` -> `{followStatus}`; unfollow 204 |
-| Follow requests (private account) | yes | list, count, respond, privacy toggle (MAP §2.6) |
-| Soft-delete & restore (post, comment) | yes | restore permissions differ (post: author; comment: author-or-owner & must be deleter) |
-| Soft-delete & restore (follow edge) | yes (restore by re-follow) | `includeDeleted: true` in `FollowUserAsync` |
-| Block checks both directions | yes, everywhere (D14) | reads (`IViewerAccessPolicy`) & writes (`InteractionGuard`, `UserRelationManager`) |
-| Account privacy | yes | read effect: locked lists, profile still 200 (D15) |
-| Post visibility | enforced on reads | field exists, never set (always Public); `followersOnly`/`private` honored if present |
-| Ownership checks | writes (rules) & reads (policy) | delete/restore of hidden content answers 404 before ownership 403 (`InteractionGuard`, BG §6.3) |
-| Deleted-user handling | yes (D20) | content of soft-deleted profiles hidden from all reads |
-| Mute | yes (§5.1) | PUT/DELETE mute, `me/mutes`, relation sets, feed exclusion |
-| Notifications | yes | MAP §2.7, BG §7.4 |
-
-## 9. Open items
-- `Post.UpdateSettings` & audience (`CloseFriends`) have no use case (D17): needs policy query for author -> viewer edge
-- `Account.Deactivate/Activate/AssignRole/ChangePassword` have no use case (account lifecycle: design needed for re-activation)
-- Remove at EF migration: stored `FollowersCount`/`FollowingCount` counters (not exposed)
+## 8. Open items
+- Register of debt & deferred domain work (`Post.UpdateSettings`/audience, account lifecycle, stored counters at EF migration): `backend-guide.md` §10
+- Feature-level coverage vs FE: `../integration/frontend-backend-mapping.md` §4

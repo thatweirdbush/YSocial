@@ -419,6 +419,8 @@ Single owner per fact; others link, never copy
 
 ## 8. Deferred work & known risks
 
+> Historical snapshot at plan close. Live debt register = `../architecture/backend-guide.md` §10 (several rows below are resolved there, e.g. `Task.WhenAll`, credentials in logs)
+
 ### Deferred (not integration blockers)
 - Search, tags, trending, suggestions, hashtags/mentions (design: ranking/indexing)
 - Pin, hide-like-count, reposts, polls, drafts, DMs, report
