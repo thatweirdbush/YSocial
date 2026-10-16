@@ -18,8 +18,10 @@
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
 - [BE Test Spec](features/backend-unit-test.md) - 3 test layers (Domain 60, Application 41, API integration 418): WebApplicationFactory harness, in-place store reset & deterministic seed, race/probe tests, Domain/Application matrix (existing vs backlog)
 
+
 ## Backend Audit (`.context/backend/`)
 - [BE Guide](backend/architecture/backend-guide.md) - request lifecycle & behavior order, DI, error pipeline (ProblemDetails + `code`), auth lifecycle (refresh/logout/switch, session lock), UoW & event dispatch semantics, concurrency & non-production statement, single live debt & deferred register §10 (EF/transactions open), notifications pipeline, probes ledger
 - [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules with code & kind, follow/block/post state machines, events (all live), repo contracts (set-based members)
 - [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - owner of FE contract: endpoint matrix with statuses, published error codes, DTO shapes, FE coverage, open-risk summary, checkpoints CP0-CP4 & FE follow-ups, decided D-ids
 - [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (all done), decisions D1-D24, debt & deferred triage (§8, history only; live register = BG §10), session synchronization & access policy (error catalog & DTOs moved to MAP/BG), dependencies, tests, FE checkpoints, risks
+- [FE-BE Integration CP0-CP1 Plan](backend/plans/2026-10-16-fe-be-integration-cp0-cp1.md) - draft: FE plumbing (api-client, ProblemDetails, JWT) & auth slice against real BE, cross-tab refresh, mismatch log
