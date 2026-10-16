@@ -1,19 +1,23 @@
-# FE-BE Integration Implementation Plan (Phases F, C, G, N, X)
+# FE-BE Integration Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (recommended, 1 phase per session, code review at every phase exit) or superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans (code review at exit) to implement this plan task-by-task. Steps tracking use checkbox (`- [ ]`) syntax
 
 **Goal:** Replace FE mocks with real BE slice by slice (auth -> content -> graph -> activity), then remove mock layer
 
 **Architecture:** Keep Zustand stores & op-ledger/rollback logic untouched; swap service adapters behind existing function signatures. Slice switch = cumulative env prefix (`NEXT_PUBLIC_REAL_API_SLICES`). One typed `api-client` (ProblemDetails -> `ApiError`, cross-tab single-flight refresh). BE-less features are hidden through capability map while their slice is real
 
-**Tech Stack:** Next.js 15 App Router, React, Zustand, Vitest + RTL + jsdom, openapi-typescript, `@microsoft/signalr`; BE ASP.NET Core (contract owner: MAP)
+**Tech Stack:** Next.js 16.3.8 App Router, React 19.3, Zustand, Vitest + RTL + jsdom, openapi-typescript, `@microsoft/signalr`; BE ASP.NET Core (contract owner: MAP)
 
-**Design:** inline in this file (Phase F design notes merged from former Foundation spec; phases C, G, N, X carry their own design notes; user decision 2026-10-16). Roadmap: `.context/features/fe-be-integration-roadmap.md`. Contract: `.context/backend/integration/frontend-backend-mapping.md` (MAP §n)
+**Design:** Roadmap `.context/features/fe-be-integration-roadmap.md`. Contract `.context/backend/integration/frontend-backend-mapping.md` (MAP §n)
 
 ## Global Constraints
 
 - **Paths:** FE = relative to `ysocial-clients/web-app/`; run all `npm`/`npx` commands from there
-- **Adapters keep existing service signatures** (incl. `actorId` params) so stores, op-ledger & components do not change; mock adapter stays default when slice is not real
+- **Adapters keep existing service signatures** (incl. `actorId` params) so stores, op-ledger & components do not change, EXCEPT 5 post-operation functions changed once in Task C3 (`PostRef`); mock adapter stays default when slice is not real
+- **404 rule:** adapters map 404 -> `null`/not-found state; network, TLS, 5xx & unknown errors are rethrown, never shown as not-found
+- **Id domains:** BE ids are GUIDs, mock ids are not (`author-01`); real adapters call `requireBackendId` (C1) & never send non-GUID; mock services never receive BE id except through hidden-or-accepted surfaces in Phase C coexistence table
+- **Contract names come from `docs/swagger.json`:** no generic `PagedResponse<T>` exists; use `PostDtoPagedResponse`, `UserProfileDtoPagedResponse`, `FollowListPageDto`, `UserPostsPageDto`, `NotificationPageDto`
+- **Dev cert:** `NODE_EXTRA_CA_CERTS` is read when Node starts: set it in shell (or scripts), never in `.env*`; browser trust needs `dotnet dev-certs https --trust`
 - **Never import `generated.ts` in UI:** re-export DTO types in `src/features/<feature>/types/index.ts` (`conventions/frontend.md` §3)
 - **Store init is SSR-safe:** no `localStorage`/`window` in initializers
 - **i18n:** flat keys `domain.elementName` in `src/lib/locales/vi.json` & `en.json`, every key added to BOTH; full key list is in this plan
@@ -30,17 +34,19 @@
 ## Review Focus
 
 Each line has pinned test in owning task.
-- **Two tabs refresh at once:** exactly 1 refresh call, no logout (F3, F9)
+- **Two tabs refresh at once:** with `navigator.locks` exactly 1 refresh call; without it (insecure context, jsdom) coordination is in-tab only & losing tab adopts token rotated by other tab instead of forcing logout (F3, F9)
 - **Login 401 `InvalidCredentials` must not trigger refresh** (F4)
 - **401 from refresh call itself must not trigger another refresh; original request retries once, never loops** (F4)
-- **BE restart mid-session:** refresh 401 -> clean logout `/login` (F3, F9)
-- **Non-JSON failure (CORS, cert, offline, HTML proxy page):** typed `ApiError`, session kept (F2, F4)
-- **Real id must never reach still-mock service & mock id never a real route** (C2 coexistence table, C5)
-- **Top-level comment (`parentId == postId`) routes to `/api/comments/{id}/...`, not posts** (C5)
-- **Optimistic rollback on 404 caused by block/delete mid-session** (C5, G3)
-- **Server read when BE is down or cert fails -> `error.tsx`, never `notFound()`** (C1, C7)
+- **BE restart mid-session:** refresh 401 with unchanged stored token -> clean logout `/login` (F3, F9)
+- **Non-JSON failure (CORS, cert, offline, HTML proxy page):** typed `ApiError`, session kept; network/TLS/5xx never rendered as not-found (F2, F4, C6, C8)
+- **real id never reaches mock-only service, & mock id never reaches real route** (C1, C2, C6)
+- **Reply to nested comment sends root `postId` + `parentCommentId`; edit/delete/like/bookmark pick endpoint from `PostRef.kind`** (C3, C6)
+- **Optimistic rollback on 404 caused by block/delete mid-session** (C6, G3)
+- **`/posts/[id]`: follower of private author still sees post on hard reload; anonymous server read never turns viewer-dependent 404 into page 404** (C8)
+- **Server read when BE is down or cert fails -> `error.tsx`, never `notFound()`** (C1, C8)
 - **Blocked either way = 404 profile; `locked: true` list is not error** (G3)
 - **SignalR token expiry/reconnect uses fresh access token; push for hidden/blocked sender never shown** (N3)
+- **Cleanup removes only mock code proven unused by wired slices & hidden features** (X1)
 
 ## Test helpers (T0 shared by all phases)
 
@@ -95,11 +101,11 @@ Each line has pinned test in owning task.
 ### Decisions
 - **F-D1 Docs:** Tier 1 roadmap + this single plan (Phase F design merged here, user decision 2026-10-16)
 - **F-D2 Slice switch:** `NEXT_PUBLIC_REAL_API_SLICES` cumulative prefix (F1), default empty = all mock; `NEXT_PUBLIC_API_BASE_URL` default `https://localhost:49895`; tests run in mock mode unless test sets slice
-- **F-D3 Service seam:** `features/auth/services/auth-service.ts` one interface, adapter chosen per call by `isRealApi("auth")`; mock adapter keeps today's behavior (seed demo account, reserved usernames)
+- **F-D3 Service seam:** `features/auth/services/auth-service.ts` 1 interface, adapter chosen per call by `isRealApi("auth")`; mock adapter keeps today's behavior (seed demo account, reserved usernames)
 - **F-D4 Mixed mode:** real viewer = `MeDto.profile` mapped to `AuthUser`; `ViewerSync`/`ensureViewerUser` registers it as runtime user in mock user DB so mock slices keep working; real viewer has no mock relations/posts until its slice goes real; no seed-id alignment
-- **F-D5 Tokens:** localStorage (already cross-tab); browser must trust BE dev cert; httpOnly cookie/BFF deferred (XSS exposure accepted for dev); server components stay mock in Phase F (revised in Phase C for anonymous server reads)
-- **F-D6 Refresh:** cross-tab single-flight via `navigator.locks`; in-tab promise fallback when unavailable (documented gap)
-- **F-D7 Logout policy:** clear session ONLY on 401 `InvalidRefreshToken` or missing refresh token; network error/5xx keeps session & surfaces `ApiError`
+- **F-D5 Tokens:** localStorage (already cross-tab); browser must trust BE dev cert (`dotnet dev-certs https --trust`); httpOnly cookie/BFF deferred (XSS exposure accepted for dev); server components stay mock in Phase F (revised in Phase C for anonymous server reads)
+- **F-D6 Refresh:** cross-tab single-flight needs `navigator.locks`, which exists only in secure contexts (https, localhost) & not in jsdom or LAN http. Without it coordination is IN-TAB ONLY: cross-tab races are mitigated, not prevented. Mitigation in both modes: on refresh 401 re-read storage; if stored refresh token differs from one sent, another tab rotated it -> adopt. Relies on BE not revoking successors when rotated token is replayed (confirmed: only `Account.RevokeRefreshToken` (logout) revokes successors, DM §5.6)
+- **F-D7 Logout policy:** clear session ONLY on 401 `InvalidRefreshToken` with unchanged stored token, or missing refresh token;
 - **F-D8 Register:** `POST register` (201, no tokens) then `POST login` with email; login failure after successful register -> `/login` with "account created" notice
 
 ### Data flows
@@ -116,10 +122,12 @@ Each line has pinned test in owning task.
 - Non-JSON failure (CORS, cert, offline, proxy HTML) -> `ApiError{kind, code:"Unknown"|"Network"}`, never raw throw
 
 ### Open items to verify during Phase F
-- Swagger endpoint path for `api:fetch` (BE Development only)
+- Swagger document URL for `api:fetch`: no `SwaggerDoc(` in `Program.cs`, so default `/swagger/v1/swagger.json` is expected; confirm against running BE (Development only)
 - Browsers without `navigator.locks` (fallback documented)
 - `generated.ts` diff after regeneration: types FE already imports must still compile
 - Register schema split: reserved-username rule only in mock adapter
+
+> **Execution order inside Phase F:** T0, F1, **F5** (types must exist before anything imports response types), F2, F3, F4, F6, F7, F8, F9. Task ids are not renumbered
 
 ### Task F1: API config & slice switch
 **Files:**
@@ -161,23 +169,24 @@ Each line has pinned test in owning task.
 - [ ] **Step 4: Run** -> PASS
 - [ ] **Step 5: Commit** `feat(api): add typed ApiError & ProblemDetails parser`
 
-### Task F3: Cross-tab refresh coordinator
+### Task F3: Refresh coordinator (cross-tab only when locks exist)
 **Files:**
 - Create: `src/lib/token-refresh.ts`
 - Test: `src/lib/token-refresh.test.ts`
 
 **Interfaces:**
-- Consumes: `API_BASE_URL` (F1), `parseProblem`, `networkError`, `hasCode` (F2), `createLockFake`, `mockFetchSequence` (T0); storage keys `ysocial_access_token`, `ysocial_refresh_token` (exported as `AUTH_STORAGE_KEYS` from `features/auth/store/auth-store.ts`, added here)
+- Consumes: `API_BASE_URL` (F1), `parseProblem`, `networkError`, `hasCode` (F2), `createLockFake`, `mockFetchSequence` (T0); storage keys exported as `AUTH_STORAGE_KEYS` from `features/auth/store/auth-store.ts` (added here)
 - Produces:
   - `type RefreshOutcome = { status: "refreshed" | "adopted"; accessToken: string } | { status: "unauthorized" } | { status: "transient"; error: ApiError }`
   - `interface LockManagerLike { request<T>(name: string, callback: () => Promise<T>): Promise<T> }`
-  - `refreshTokens(sentAccessToken: string | null, deps?: { locks?: LockManagerLike; storage?: Storage; fetchFn?: typeof fetch }): Promise<RefreshOutcome>` (lock name `ysocial-refresh`; inside lock re-read storage; stored access token != sent -> `adopted`; else `POST /api/identities/refresh-token`; success -> write both tokens, `refreshed`; 401 `InvalidRefreshToken` -> `unauthorized`; network/5xx/other -> `transient`; no refresh token -> `unauthorized`; locks unavailable -> in-tab promise fallback)
+  - `getRefreshCoordination(deps?): "cross-tab" | "in-tab"` (`cross-tab` only when lock manager is available)
+  - `refreshTokens(sentAccessToken: string | null, deps?: { locks?: LockManagerLike; storage?: Storage; fetchFn?: typeof fetch }): Promise<RefreshOutcome>`: lock name `ysocial-refresh`; inside lock re-read storage; stored access token != sent -> `adopted`; else `POST /api/identities/refresh-token {refreshToken}`; success -> write both tokens, `refreshed`; 401 `InvalidRefreshToken` -> re-read storage: stored refresh token != one sent -> `adopted` (other tab rotated), else `unauthorized`; network/5xx/other -> `transient`; no refresh token -> `unauthorized`; no lock manager -> in-tab shared promise only
 
-- [ ] **Step 1: Write failing tests:** `2 concurrent calls with same sent token -> exactly 1 fetch, second returns adopted`, `stored token already rotated -> adopted without fetch`, `no refresh token -> unauthorized`, `401 InvalidRefreshToken -> unauthorized (BE restart case)`, `network error -> transient, tokens untouched`, `500 -> transient`, `success writes both tokens`, `no navigator.locks -> in-tab dedupe still 1 fetch`
+- [ ] **Step 1: Write failing tests:** `with locks: 2 concurrent calls, same sent token -> exactly 1 fetch, second returns adopted`, `stored access token already rotated -> adopted without fetch`, `401 InvalidRefreshToken but stored refresh token changed meanwhile -> adopted`, `401 InvalidRefreshToken with unchanged stored token -> unauthorized (BE restart case)`, `no refresh token -> unauthorized`, `network error -> transient, tokens untouched`, `500 -> transient`, `success writes both tokens`, `no locks: coordination is "in-tab", same-tab concurrent calls still 1 fetch, cross-tab loser recovers via 401 rescue (not claimed as single-flight)`, `getRefreshCoordination reflects lock availability`
 - [ ] **Step 2: Run** `npx vitest run src/lib/token-refresh.test.ts` -> FAIL
 - [ ] **Step 3: Implement** per interfaces (default `locks = navigator.locks` adapter when present)
 - [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(auth): add cross-tab single-flight token refresh`
+- [ ] **Step 5: Commit** `feat(auth): refresh coordinator with cross-tab lock & rotation adoption`
 
 ### Task F4: api-client rewrite
 **Files:**
@@ -199,19 +208,21 @@ Each line has pinned test in owning task.
 - [ ] **Step 4: Run** `npx vitest run src/lib` & `npm run typecheck` -> PASS
 - [ ] **Step 5: Commit** `refactor(api): typed api-client with single-flight refresh`
 
-### Task F5: Regenerate API types & fix `api:update`
+### Task F5: Contract test, regenerate API types & fix `api:update`
 **Files:**
+- Create: `src/lib/api-contract.test.ts`
 - Modify: `package.json` (add `api:fetch`), `src/lib/api/generated.ts` (generated), `docs/swagger.json` (from BE)
-- Modify: `src/features/auth/types/index.ts`, `src/features/posts/types/index.ts`, `src/features/profile/types/index.ts` (re-exports of DTOs added when first used)
+- Modify: `src/features/auth/types/index.ts` (re-exports added when first used; later phases add theirs)
 
 **Interfaces:**
-- Produces: script `api:fetch` = download BE Swagger (Development) into `docs/swagger.json`; type re-exports `MeDto`, `LoginResponse`, `UserProfileDto`, `PostDto`, `ThreadDto`, `PagedResponse*` (as each phase needs them)
+- Produces: script `api:fetch` = download BE Swagger (Development) into `docs/swagger.json`; contract test reading `docs/swagger.json`
+- Evidence at plan time: `generated.ts` is STALE (only request schemas + few paths; no `PostDto`, `ThreadDto`, `MeDto`, `LoginResponse`, GET endpoints); `docs/swagger.json` has them but lacks `NotificationDto.senderUsername` that BE source (`NotificationDtos.cs`) already has; page schemas are named `PostDtoPagedResponse`, `UserProfileDtoPagedResponse` (no generics); read-DTO enums are plain `string`, nearly every field is `nullable`
 
-- [ ] **Step 1: Write failing check:** `npm run api:check` fails or `api:update` errors with missing script (record output)
-- [ ] **Step 2: Add** `api:fetch` (curl/node fetch to BE swagger URL; verify actual path against running BE, Phase F open items)
-- [ ] **Step 3: Run** `npm run api:update` against running BE, then `npm run api:generate`
-- [ ] **Step 4: Run** `npm run api:check` & `npm run typecheck` -> PASS (types already imported by FE must compile)
-- [ ] **Step 5: Commit** `chore(api): add api:fetch & regenerate types from BE swagger`
+- [ ] **Step 1: Write failing tests** in `api-contract.test.ts`: `every endpoint used by adapters exists in swagger (method + path)` (identities x6, users me/{id}/by-username/followers/following/follow-requests(+count)/relation-sets/blocks/mutes, profiles/me, privacy, posts CRUD & user list, threads, comments CRUD, like/bookmark PUT/DELETE for posts & comments, saveditems/posts, relations follow/close-friend/follow-request/mute, blocks, feed, notifications x4; follow-request path param is `{targetId}`, MAP says `{requesterId}`), `required schemas exist` (`PostDto`, `ThreadDto`, `MeDto`, `LoginResponse`, `RefreshTokenRequest`, `RegisterAccountResponse`, `RespondFollowRequestRequest`, `UpdatePrivacyRequest`, `PostDtoPagedResponse`, `UserProfileDtoPagedResponse`, `FollowListPageDto`, `UserPostsPageDto`, `NotificationPageDto`), `PostDto has kind, postId, parentId`, `NotificationDto has senderUsername` (FAILS today: swagger stale vs BE source)
+- [ ] **Step 2: Run** `npx vitest run src/lib/api-contract.test.ts` -> FAIL on `senderUsername`; record `npm run api:check` output
+- [ ] **Step 3: Add** `api:fetch` (Node fetch of `https://localhost:49895/swagger/v1/swagger.json`; needs `NODE_EXTRA_CA_CERTS` or system CA; document PEM export `dotnet dev-certs https --export-path <file> --format Pem --no-password`); run BE in Development, then `npm run api:fetch` & `npm run api:generate`
+- [ ] **Step 4: Run** `npx vitest run src/lib/api-contract.test.ts`, `npm run api:check`, `npm run typecheck` -> PASS (types FE already imports must compile)
+- [ ] **Step 5: Commit** `chore(api): add contract test & api:fetch, regenerate types from BE swagger`
 
 ### Task F6: Auth store cross-tab sync & device id
 **Files:**
@@ -220,17 +231,18 @@ Each line has pinned test in owning task.
 - Test: `src/features/auth/store/auth-store.test.ts` (extend), `src/features/auth/utils/device-id.test.ts`
 
 **Interfaces:**
-- Consumes: `dispatchStorage` (T0)
+- Consumes: `dispatchStorage` (T0), `isRealApi` (F1)
 - Produces:
   - `AUTH_STORAGE_KEYS: { access: string; refresh: string; user: string }`
-  - `registerAuthStorageSync(): () => void` (adds `storage` listener; returns cleanup). Other tab rotated tokens -> store adopts new tokens (no write); other tab removed refresh token -> local `clearAuth` state reset without writing storage; mounted once from `Providers` after `hydrate()`
-  - `getDeviceId(): string` (UUID persisted under `ysocial_device_id`; stable across calls; safe when storage throws -> in-memory id)
+  - `registerAuthStorageSync(): () => void`: `storage` listener; on ANY auth key event re-read all three keys from storage & apply once (never trust `event.newValue`: `setTokens` fires 2 events, `clearAuth` fires 3); refresh token gone -> local state cleared without writing storage; mounted once from `Providers` after `hydrate()`
+  - `getDeviceId(): string` (UUID under `ysocial_device_id`; stable; storage failure -> in-memory id)
+  - `hydrate()` in real auth mode discards `mock_*` tokens & persisted user whose id is not GUID (then behaves as signed out)
 
-- [ ] **Step 1: Write failing tests:** `storage event with new refresh token updates store tokens`, `storage removal of refresh token clears local auth state`, `sync does not write back to storage (no loop)`, `cleanup removes listener`, `getDeviceId stable`, `getDeviceId survives storage failure`
+- [ ] **Step 1: Write failing tests:** `setTokens in other tab (2 events) -> store ends with both new tokens`, `clearAuth in other tab (3 events) -> single cleared state`, `sync never writes back to storage (no loop)`, `cleanup removes listener`, `hydrate real mode drops mock_ tokens`, `hydrate real mode drops non-GUID user id`, `hydrate mock mode unchanged`, `getDeviceId stable`, `getDeviceId survives storage failure`
 - [ ] **Step 2: Run** `npx vitest run src/features/auth` -> new tests FAIL
 - [ ] **Step 3: Implement** per interfaces; mount `registerAuthStorageSync` in `Providers`
 - [ ] **Step 4: Run** `npx vitest run src/features/auth` -> PASS
-- [ ] **Step 5: Commit** `feat(auth): cross-tab token sync & persisted device id`
+- [ ] **Step 5: Commit** `feat(auth): cross-tab token sync, persisted device id, stale mock session guard`
 
 ### Task F7: Auth service (mock/real), error map, i18n
 **Files:**
@@ -302,147 +314,202 @@ Each line has pinned test in owning task.
 
 # PHASE C - Content (profile, posts, feed, saved, follow)
 
-## Design notes
-- **Slice state:** env `auth,content`; follow/unfollow moves here from Phase G (profile header, hover card, `PostCard` all render `followStatus`); feed READ moves here from Phase N (feed, detail, like, bookmark share `post-store`/`post-service`; mock feed would send mock ids to real routes)
-- **Server reads (revises F-D5):** `/@username` & `/posts/[id]` fetch anonymously on server for real 404 & metadata. Dev cert: `dotnet dev-certs https --export-path <pem>` + `NODE_EXTRA_CA_CERTS=<pem>`; NEVER `NODE_TLS_REJECT_UNAUTHORIZED=0`. BE down/cert failure -> throw (Next `error.tsx`), never `notFound()`. Viewer-specific fields (`followStatus`, like flags) load on client
-- **Mapping:** `PostDto -> PostItem`: `id`, `content`, `createdAt`, `likesCount`, `commentsCount`, `isLikedByCurrentUser`, `isBookmarkedByCurrentUser`, `isEdited`, `user` (`avatarUrl` null -> undefined), `parentId` (BE omits when null; comment top-level parent = post id), `imageUrl` -> `imageUrl` & `imageUrls: [imageUrl]`; `kind` kept on client-only field `kind?: "post" | "comment"` for routing; `visibility`: BE values preserved (`public`, `followersOnly`, `private`) via widened FE type, never coerced to `public`; UI renders no badge (BE emits `public` only today)
-- **Thread:** `ThreadDto -> PostThread` (`post`, `parent` nullable, `replies`, `childReplies`)
-- **Delete:** BE 204; adapter returns `{ deletedIds: [id] }`; BE comments of deleted post stay hidden, not cascade-deleted
-- **Follow state:** profile `followStatus` is source; `fetchFollowedIds` has no BE endpoint (MAP §2.2) -> real adapter returns `[]` & projections read `followStatus` (confirm consumer in C4)
-- **Following tab:** guests get 401 -> hide tab for guests in real mode
-- **Mute:** stays mock until N; BE feed does not exclude muted authors for local-only mute; accepted & recorded
-- **Coexistence table (content-real):**
+## Design notes (Phase C)
+- **Slice state:** env `auth,content`; follow/unfollow moves here from Phase G (profile header, hover card, `PostCard` render `followStatus`); feed READ moves here from Phase N (feed, detail, like, bookmark share `post-store`/`post-service`; mock feed would send mock ids to real routes)
+- **Id domains:** BE routes are `{id:guid}`, mock ids look like `author-01`. Real adapters call `requireBackendId(id)` (C1): non-GUID -> local `ApiError` 404, no network. Persisted FE state (drafts, saved collections overlay, recent searches, localStorage user) may hold mock ids: filtered, never sent
+- **404 rule:** real adapters map 404 to `null`/not-found; network, TLS, 5xx, unknown rethrown. `locked: true` is never error
+- **`/@username` server read:** unknown/deleted profile = 404 for every viewer (private = 200, D15) -> server `notFound()` is correct; other failures throw to `error.tsx`
+- **`/posts/[id]` is NOT decided by server:** tokens live in localStorage, so server only reads anonymously; private author's or non-public post is 404 for anonymous but 200 for accepted follower. Server builds metadata only, from `GET /api/threads/{id}` (accepts post & comment ids; `GET /api/posts/{id}` 404s for comments): 200 -> metadata, 404 -> generic title, other -> throw. page body is client-side with viewer's token: client 404 (also blocked, D14) -> not-found state, other errors -> error state. Result is soft 404 for truly unknown ids: accepted deviation from `conventions/frontend.md` §5 until cookie/BFF auth exists. `loading.tsx` stays on this route (it no longer resolves 404 on server)
+- **Dev cert for server reads:** `dotnet dev-certs https --export-path <file> --format Pem --no-password`, `NODE_EXTRA_CA_CERTS=<file>` exported in shell that starts `next dev` (never `NODE_TLS_REJECT_UNAUTHORIZED=0`; never in `.env*`: read at Node start)
+- **Mapping (swagger facts):** read-DTO enums are `string`, nearly all fields nullable: mappers accept null & absent, validate against MAP §3 unions. `PostDto.kind` `"comment"` -> comment, anything else -> post; `PostDto.postId` = root post id; `parentId` omitted when null (top-level comment parent = post id); `imageUrl` -> `imageUrl` + `imageUrls: [imageUrl]`; `visibility` preserved (`public`, `followersOnly`, `private`) via widened FE type, unknown string -> `private` (restrictive; proposal, logged M12); unknown `followStatus` -> `none` (M12); avatar/bio null -> undefined
+- **PostRef:** `{ id, kind: "post" | "comment", rootPostId }` is passed to like, bookmark, edit, delete, reply so endpoint choice never depends on hidden store lookup (C3)
+- **Delete:** BE 204; adapter returns `{ deletedIds: [ref.id] }`; BE comments of deleted post stay hidden, not cascade-deleted
+- **Follow set (`fetchFollowedIds`):** sole consumer is `loadFollowGraph` (`setFollowedIds` marks set `loaded` & accepted-only), read via `ensureFollowGraph` by `post-feed`, `close-friends-list`, `viewer-sync`, & `getFollowedIds`/`useFollowedIds` by `post-feed` & `use-pending-feed`. `[]` would turn every followed user into "none", so real adapter pages `GET /api/users/{viewerId}/following?pageSize=50` until `hasNextPage` is false & returns accepted ids; never marks `loaded` from partial result (failure rethrown)
+- **Capabilities are 1 declarative table** keyed by parsed slice prefix (C2); BE-less capabilities are off whenever content is real (also after all slices are real, until BE adds them)
+- **Relation facade while content real & graph mock:** `relation-service` returns empty defaults (no sets, no lists), so `ViewerSync` never pushes real id into mock relation graph
+- **Following tab:** guests get 401 -> tab hidden for guests in real mode
+- **Mute:** UI hidden until Phase N (local-only mute would not affect real feed)
+- **Coexistence table (content real):**
 
 | Surface | Decision |
 |---|---|
-| Feed | real (this phase) |
+| Feed (both tabs) | real |
 | New-posts pill (`subscribeToNewPosts`) | hide |
-| Search page, search box suggestions, tags page, trending, sidebar suggestions (`searchUsers`, `fetchSuggestedUsers`, `fetchSearch`, `fetchPostsByTag`, `fetchTrendingTags`) | hide |
+| Search page, search box suggestions, tags page, trending, sidebar suggestions (`fetchSearch`, `searchUsers`, `fetchSuggestedUsers`, `fetchPostsByTag`, `fetchTrendingTags`) | hide |
 | Pin, hide-like-count, multi-image & audience picker in composer, profile tabs `replies`/`media`, close-friends ring badge | hide |
-| Followers/following dialog | disable until Phase G (mock users would link to real `by-username` & 404) |
-| Inline notifications mock | accept (unknown ids -> not found) until N |
-| Block/mute menus writing real ids into mock relation graph | accept (local effect only) until G/N |
-| Profile Saved tab | real (C6) |
+| Followers/following dialog | hide trigger until G (mock users would link to real `by-username` & 404) |
+| Block, close-friend, privacy, follow-request UI (profile header, `PostCard` menu, settings lists) | hide until G |
+| Mute UI | hide until N |
+| Inline notifications page (mock list) | hide mock items; page shows empty state until N |
+| Saved collections overlay | keep; entries with non-GUID ids filtered |
+| Profile Saved tab | real (C7) |
 
-### Task C1: Server API fetch & dev-cert recipe
+### Task C1: Server API fetch, backend-id guard & dev-cert recipe
 **Files:**
-- Create: `src/lib/server-api.ts`, `docs/` note appended to `README.md` (cert recipe)
-- Test: `src/lib/server-api.test.ts`
+- Create: `src/lib/server-api.ts`, `src/lib/backend-id.ts`; `README.md` note (cert recipe)
+- Test: `src/lib/server-api.test.ts`, `src/lib/backend-id.test.ts`
 
 **Interfaces:**
 - Consumes: `API_BASE_URL` (F1), `parseProblem`, `networkError` (F2)
-- Produces: `serverApiFetch<T>(path: string, init?: RequestInit): Promise<T>` (anonymous, `cache: "no-store"`, throws `ApiError`; 404 is returned as thrown `ApiError` with `status 404`, callers decide); `isNotFound(error: unknown): boolean`
+- Produces:
+  - `serverApiFetch<T>(path: string, init?: RequestInit): Promise<T>` (anonymous, `cache: "no-store"`, throws `ApiError`)
+  - `isNotFound(error: unknown): boolean` (true only for `kind: "http"` & `status 404`)
+  - `isBackendId(id: string): boolean` (GUID regex)
+  - `requireBackendId(id: string): string` (throws local `ApiError{kind:"http", status:404, code:"NotFound"}` for non-GUID, no network)
 
-- [ ] **Step 1: Write failing tests:** `200 returns parsed JSON`, `404 throws ApiError status 404 (isNotFound true)`, `network failure throws ApiError kind network (isNotFound false)`, `no Authorization header sent`
-- [ ] **Step 2: Run** `npx vitest run src/lib/server-api.test.ts` -> FAIL
-- [ ] **Step 3: Implement**; document cert export + `NODE_EXTRA_CA_CERTS` in README
+- [ ] **Step 1: Write failing tests:** `200 returns parsed JSON`, `404 throws ApiError status 404 (isNotFound true)`, `network failure throws kind network (isNotFound false)`, `500 & TLS failure are not isNotFound`, `no Authorization header sent`, `isBackendId accepts GUID rejects author-01`, `requireBackendId throws local 404 without fetch`
+- [ ] **Step 2: Run** `npx vitest run src/lib/server-api.test.ts src/lib/backend-id.test.ts` -> FAIL
+- [ ] **Step 3: Implement**; document cert export + shell `NODE_EXTRA_CA_CERTS` + `dotnet dev-certs https --trust` in README
 - [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(api): anonymous server-side API fetch`
+- [ ] **Step 5: Commit** `feat(api): anonymous server fetch & backend id guard`
 
-### Task C2: Capability map
+### Task C2: Capability table & relation facade
 **Files:**
 - Create: `src/lib/capabilities.ts`
-- Modify: consumers per coexistence table (sidebar nav & `SearchBox`, trending & suggestions widgets, search/tag routes, `PostCard` menu, `PostCreatorCore`, profile tabs, followers dialog trigger, new-posts pill hook `use-new-posts-stream.ts`, close-friends badge, home tab bar)
-- Test: `src/lib/capabilities.test.ts`, extend component tests of touched surfaces
+- Modify: consumers per coexistence table (sidebar nav, `SearchBox`, trending & suggestions widgets, search/tag routes, `PostCard` menu, `PostCreatorCore`, profile tabs, followers dialog trigger, block/close-friend/privacy/follow-request/mute UI, `use-new-posts-stream.ts`, close-friends badge, home tab bar, notifications page), `relation-service.ts` (empty defaults facade), `viewer-sync.tsx`
+- Test: `src/lib/capabilities.test.ts`, extend tests of touched surfaces
 
 **Interfaces:**
-- Consumes: `isRealApi` (F1), `setRealSlices` (T0)
-- Produces: `type Capability = "search" | "tags" | "trending" | "suggestions" | "pin" | "hideLikeCount" | "multiImage" | "postAudience" | "profileRepliesMedia" | "newPostsPill" | "closeFriendsBadge" | "followLists" | "followingTabForGuests"`; `hasCapability(capability: Capability): boolean` (mock mode: all true; content real: all false except per table; `followLists` true again when graph real)
+- Consumes: `parseRealSlices` (F1), `setRealSlices` (T0)
+- Produces:
+  - `type Capability = "search" | "tags" | "trending" | "suggestions" | "pin" | "hideLikeCount" | "multiImage" | "postAudience" | "profileRepliesMedia" | "newPostsPill" | "closeFriendsBadge" | "followingTabGuest" | "followLists" | "blockUi" | "closeFriendsUi" | "privacyUi" | "followRequestsUi" | "muteUi"`
+  - `hasCapability(capability: Capability): boolean`, derived ONLY from `CAPABILITY_RULES: Record<Capability, (slices: ReadonlySet<ApiSlice>) => boolean>`
+  - Rules: BE-less group (`search`, `tags`, `trending`, `suggestions`, `pin`, `hideLikeCount`, `multiImage`, `postAudience`, `profileRepliesMedia`, `newPostsPill`, `closeFriendsBadge`, `followingTabGuest`) = true iff content NOT real; graph group (`followLists`, `blockUi`, `closeFriendsUi`, `privacyUi`, `followRequestsUi`) = true iff content not real OR graph real; `muteUi` = true iff content not real OR activity real
 
-- [ ] **Step 1: Write failing tests:** `mock mode -> every capability true`, `content real -> search/tags/trending/suggestions/pin/hideLikeCount/multiImage/postAudience/profileRepliesMedia/newPostsPill/closeFriendsBadge false`, `content real & graph not -> followLists false`, `graph real -> followLists true`, `search route redirects/hides when search false`
+- [ ] **Step 1: Write failing tests:** table-driven over 5 supported states (`""`, `auth`, `auth,content`, `auth,content,graph`, `auth,content,graph,activity`) asserting every capability; `every coexistence-table row maps to capability or explicit "accepted" entry (test lists both)`; `relation facade returns empty defaults when content real & graph mock (no call to mock graph)`; `ViewerSync does not call ensureRelationSets with real id into mock graph`; `hidden search route renders not-available state`
 - [ ] **Step 2: Run** `npx vitest run src/lib/capabilities.test.ts` -> FAIL
-- [ ] **Step 3: Implement** map + gate each consumer (hide, not remove)
+- [ ] **Step 3: Implement** table + gate each consumer (hide, not delete) + facade
 - [ ] **Step 4: Run** `npx vitest run` for touched features -> PASS
-- [ ] **Step 5: Commit** `feat(integration): capability map hides BE-less features when slice is real`
+- [ ] **Step 5: Commit** `feat(integration): declarative capability table hides BE-less & not-yet-wired features`
 
-### Task C3: DTO mappers
+### Task C3: PostRef refactor (mock mode, behavior preserving)
 **Files:**
-- Create: `src/features/posts/services/post-mapper.ts`, `src/features/profile/services/user-mapper.ts`
-- Modify: `src/features/posts/types/index.ts` (re-export `PostDto`, `ThreadDto`, `PagedResponse`; add `kind?`; widen `PostVisibility`), `src/features/profile/types/index.ts` (re-export `UserProfileDto`, `MeDto`)
-- Test: `post-mapper.test.ts`, `user-mapper.test.ts`
+- Modify: `src/features/posts/types/index.ts` (add `PostRef`; `PostItem.kind` & `PostItem.rootPostId` REQUIRED), `src/features/posts/services/post-service.ts` (signatures below; mock `buildPost` & seed loader set `kind`/`rootPostId`), `post-card.tsx`, `hooks/use-owner-actions.ts`, `detail/reply-composer.tsx` (prop `parent: PostRef`), `detail/post-detail-container.tsx`, mocks/seeds
+- Create: `src/features/posts/utils/post-ref.ts`
+- Test: extend `post-service` tests, `post-card`, `use-owner-actions`, `reply-composer` tests; new `post-ref.test.ts`
 
 **Interfaces:**
 - Produces:
-  - `toPostItem(dto: PostDto): PostItem`
-  - `toPostThread(dto: ThreadDto): PostThread`
-  - `toFeedPage(dto: PagedResponse<PostDto>, page: number): FeedPage`
-  - `toUserPostsPage(dto: UserPostsPageDto): UserPostsPage`
-  - `toUserProfile(dto: UserProfileDto): UserProfile` (nulls -> undefined, `followStatus` string -> FE `FollowStatus`)
+  - `interface PostRef { id: string; kind: "post" | "comment"; rootPostId: string }`
+  - `toPostRef(post: Pick<PostItem, "id" | "kind" | "rootPostId">): PostRef`
+  - New signatures: `setPostLike(ref: PostRef, liked: boolean): Promise<void>`, `setPostBookmark(ref: PostRef, bookmarked: boolean): Promise<void>`, `updatePostContent(ref: PostRef, content: string, actorId: string): Promise<PostItem>`, `deletePost(ref: PostRef, actorId: string): Promise<{ deletedIds: string[] }>`, `createReply(parent: PostRef, input: CreatePostInput, author: PostAuthor): Promise<PostItem>`
+  - Mock rule: `kind = parentId ? "comment" : "post"`, `rootPostId = parent ? (parent.rootPostId ?? parent.id) : id`; mock functions use `ref.id`
+  - `useOwnerActions(postId)` keeps its signature; it builds `toPostRef(current())` from post it already reads for rollback
 
-- [ ] **Step 1: Write failing tests:** `toPostItem maps comment kind & parentId`, `imageUrl -> imageUrls single`, `omitted imageUrl/parentId stay undefined`, `visibility followersOnly/private preserved (not coerced to public)`, `author avatarUrl null -> undefined`, `toPostThread parent null preserved`, `toFeedPage nextPage from hasNextPage`, `toUserPostsPage keeps locked`, `toUserProfile maps followStatus & nulls`
+- [ ] **Step 1: Write failing tests:** `toPostRef derives kind & root`, `mock buildPost sets kind/rootPostId (reply to reply keeps root)`, `post-card like/bookmark call services with ref`, `useOwnerActions edit/delete of reply passes kind comment & its root`, `ReplyComposer sends parent ref (root post & nested comment)`, `entire existing posts suite stays green in mock mode`
+- [ ] **Step 2: Run** `npx vitest run src/features/posts` -> new tests FAIL; `npm run typecheck` shows signature errors to fix
+- [ ] **Step 3: Implement** refactor; update every caller (`grep -rn "setPostLike\|setPostBookmark\|updatePostContent\|deletePost\|createReply" src` has no old-signature call)
+- [ ] **Step 4: Run** `npm run test`, `npm run typecheck` -> PASS
+- [ ] **Step 5: Commit** `refactor(posts): pass PostRef to post operations`
+
+### Task C4: DTO mappers
+**Files:**
+- Create: `src/features/posts/services/post-mapper.ts`, `src/features/profile/services/user-mapper.ts`
+- Modify: `src/features/posts/types/index.ts`, `src/features/profile/types/index.ts` (re-export schema types)
+- Test: `post-mapper.test.ts`, `user-mapper.test.ts`
+
+**Interfaces:**
+- Consumes: generated schema types (F5): `PostDto`, `ThreadDto`, `PostDtoPagedResponse`, `UserPostsPageDto`, `UserProfileDto`, `UserProfileDtoPagedResponse`, `FollowListPageDto`, `MeDto`
+- Produces:
+  - `toPostItem(dto: PostDto): PostItem` (sets `kind`, `rootPostId = dto.postId`)
+  - `toPostThread(dto: ThreadDto): PostThread`
+  - `toFeedPage(dto: PostDtoPagedResponse): FeedPage`
+  - `toUserPostsPage(dto: UserPostsPageDto): UserPostsPage`
+  - `toUserProfile(dto: UserProfileDto): UserProfile`
+  - `toFollowListPage(dto: FollowListPageDto | UserProfileDtoPagedResponse): FollowListPage`
+
+- [ ] **Step 1: Write failing tests:** `kind comment & parentId & rootPostId`, `kind null -> post`, `imageUrl -> imageUrls single`, `omitted imageUrl/parentId stay undefined`, `visibility followersOnly/private preserved, unknown string -> private`, `null content/displayName tolerated`, `author avatarUrl null -> undefined`, `toPostThread parent null preserved`, `toFeedPage nextPage from hasNextPage`, `toUserPostsPage keeps locked`, `toUserProfile unknown followStatus -> none`, `toFollowListPage keeps locked`
 - [ ] **Step 2: Run** `npx vitest run src/features/posts/services/post-mapper.test.ts src/features/profile/services/user-mapper.test.ts` -> FAIL
 - [ ] **Step 3: Implement** mappers per design notes
 - [ ] **Step 4: Run** same + `npm run typecheck` -> PASS
 - [ ] **Step 5: Commit** `feat(integration): DTO mappers for posts & profiles`
 
-### Task C4: User service real adapter (profile, follow)
+### Task C5: User service real adapter (profile, follow)
 **Files:**
 - Modify: `src/features/profile/services/user-service.ts` (dispatch `isRealApi("content")` per function)
 - Create: `src/features/profile/services/user-service.real.ts`
 - Test: `src/features/profile/services/user-service.real.test.ts`
 
 **Interfaces:**
-- Consumes: `apiClient` (F4), `toUserProfile` (C3), `ApiError`/`hasCode` (F2)
-- Produces (same signatures as mock): `fetchUser(id, actorId): Promise<UserProfile | null>` (404 -> `null`), `fetchUserByUsername(username, actorId)`, `updateProfile(id, patch, actorId)` (`PUT /api/users/profiles/me`; `gender` int; no username), `followUser(id, actorId): Promise<FollowStatus>` (`POST .../relations/follow`), `unfollowUser(id, actorId): Promise<void>`, `fetchFollowedIds(actorId): Promise<string[]>` (real: `[]`), `upsertViewerUser` (real: viewer already BE profile; maps `AuthUser` to runtime row for mock slices)
+- Consumes: `apiClient` (F4), `toUserProfile`/`toFollowListPage` (C4), `requireBackendId` (C1), `isNotFound`-style 404 handling
+- Produces (same signatures as mock):
+  - `fetchUser(id, actorId): Promise<UserProfile | null>` (404 or non-GUID -> `null`)
+  - `fetchUserByUsername(username, actorId)`
+  - `updateProfile(id, patch, actorId)` (`PUT /api/users/profiles/me`; `gender` int; no username)
+  - `followUser(id, actorId): Promise<FollowStatus>`; `unfollowUser(id, actorId): Promise<void>`
+  - `fetchFollowedIds(actorId): Promise<string[]>` (pages `GET /api/users/{actorId}/following?pageSize=50` until `hasNextPage` false; accepted ids; any page failure rethrown)
+  - `upsertViewerUser`: real mode does NOT write mock user DB (viewer is already BE profile)
 
-- [ ] **Step 1: Write failing tests:** `fetchUser 404 -> null`, `fetchUser other error rethrown`, `fetchUserByUsername lowercases`, `updateProfile sends gender int & maps response`, `updateProfile ProfileFieldInvalid surfaces ApiError`, `followUser returns pending/accepted`, `unfollow 204`, `follow 404 (blocked) rejects ApiError -> store rollback path`, `fetchFollowedIds returns []`
+- [ ] **Step 1: Write failing tests:** `fetchUser 404 -> null`, `fetchUser network/5xx rethrown (not null)`, `fetchUser non-GUID -> null without fetch`, `fetchUserByUsername lowercases`, `updateProfile sends gender int & maps response`, `updateProfile ProfileFieldInvalid surfaces ApiError`, `followUser returns pending/accepted`, `unfollow 204`, `follow 404 (blocked) rejects ApiError for rollback`, `fetchFollowedIds pages 3 pages into 1 list`, `fetchFollowedIds page 2 failure rethrows & never resolves partial`, `real upsertViewerUser leaves mock DB untouched`
 - [ ] **Step 2: Run** `npx vitest run src/features/profile/services` -> FAIL
-- [ ] **Step 3: Implement**; verify `user-store` consumers of `fetchFollowedIds` read `followStatus` (adjust projection only if consumer needs id set; log in Mismatch log M1)
+- [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** `npx vitest run src/features/profile` -> PASS
-- [ ] **Step 5: Commit** `feat(profile): real user service adapter (profile & follow)`
+- [ ] **Step 5: Commit** `feat(profile): real user service adapter (profile, follow)`
 
-### Task C5: Post service real adapter
+### Task C6: Post service real adapter
 **Files:**
 - Modify: `src/features/posts/services/post-service.ts` (dispatch per function)
 - Create: `src/features/posts/services/post-service.real.ts`
 - Test: `src/features/posts/services/post-service.real.test.ts`
 
 **Interfaces:**
-- Consumes: `apiClient`, mappers (C3), `hasCode`
-- Produces (same signatures as mock): `fetchFeed(tab, page, viewerId): Promise<FeedPage>` (`GET /api/feed?tab&page`; `following` for guest -> empty page, no call), `fetchUserPosts(userId, tab, page, actorId)` (`threads` only), `fetchPostThread(id, actorId): Promise<PostThread | null>` (`GET /api/threads/{id}`; 404 -> `null`), `createPost(input, author)` (`POST /api/posts`, only `content` + first `imageUrl`), `createReply(parentId, input, author)` (`POST /api/comments {postId, content, parentCommentId}`; needs root post id -> resolved from thread in store; BE `ParentCommentMismatch` surfaced), `updatePostContent(id, content, actorId)` (`PUT /api/posts/{id}` or `/api/comments/{id}` by `kind`), `deletePost(id, actorId): Promise<{ deletedIds: string[] }>` (`[id]`), `setPostLike(id, liked)`/`setPostBookmark(id, bookmarked)` (PUT/DELETE; route by `kind`: post -> `/api/posts/{id}/like`, comment -> `/api/comments/{id}/like`)
+- Consumes: `apiClient`, mappers (C4), `PostRef` (C3), `requireBackendId` (C1)
+- Produces (signatures from C3 & mock):
+  - `fetchFeed(tab, page, viewerId): Promise<FeedPage>` (`GET /api/feed?tab&page`; `following` for guest -> empty page without call)
+  - `fetchUserPosts(userId, tab, page, actorId)` (`threads` only)
+  - `fetchPostThread(id, actorId): Promise<PostThread | null>` (`GET /api/threads/{id}`; 404/non-GUID -> `null`)
+  - `createPost(input, author)` (`POST /api/posts`: `content` + first `imageUrl` only)
+  - `createReply(parent: PostRef, input, author)` (`POST /api/comments {postId: parent.rootPostId, content, parentCommentId: parent.kind === "comment" ? parent.id : undefined}`)
+  - `updatePostContent(ref, content, actorId)` (`PUT /api/posts/{id}` or `/api/comments/{id}` by `ref.kind`)
+  - `deletePost(ref, actorId)` (same routing; returns `{ deletedIds: [ref.id] }`)
+  - `setPostLike(ref, liked)`, `setPostBookmark(ref, bookmarked)` (PUT/DELETE; post -> `/api/posts/{id}/like|bookmark`, comment -> `/api/comments/{id}/like|bookmark`)
 
-- [ ] **Step 1: Write failing tests:** `fetchFeed forYou calls /api/feed?tab=forYou&page`, `following for guest returns empty without call`, `feed page 2 nextPage from hasNextPage`, `fetchPostThread 404 -> null`, `createPost text only sends no imageUrl`, `createReply posts to /api/comments with postId & parentCommentId`, `top-level comment (parentId == postId) like routes to /api/comments/{id}/like`, `post like routes to /api/posts/{id}/like`, `like PUT then DELETE idempotent calls`, `deletePost returns [id]`, `edit comment uses comments route`, `404 on like (blocked mid-session) rejects ApiError so op-ledger rolls back`
+- [ ] **Step 1: Write failing tests:** `feed forYou calls /api/feed?tab=forYou&page`, `following for guest returns empty without call`, `feed page 2 nextPage from hasNextPage`, `thread 404 -> null`, `thread network failure rethrown (not null)`, `createPost text only sends no imageUrl`, `reply to root post: postId = root, no parentCommentId`, `reply to nested comment: postId = rootPostId, parentCommentId = ref.id`, `top-level comment like -> /api/comments/{id}/like`, `post like -> /api/posts/{id}/like`, `edit & delete of comment use comments routes`, `deletePost returns [ref.id]`, `like PUT then DELETE idempotent calls`, `non-GUID ref id -> local 404, no fetch`, `404 on like (blocked mid-session) rejects ApiError so op-ledger rolls back`
 - [ ] **Step 2: Run** `npx vitest run src/features/posts/services` -> FAIL
 - [ ] **Step 3: Implement**; mock functions untouched
 - [ ] **Step 4: Run** `npx vitest run src/features/posts` -> PASS
 - [ ] **Step 5: Commit** `feat(posts): real post service adapter (feed, thread, writes, likes)`
 
-### Task C6: Saved page real
+### Task C7: Saved page real
 **Files:**
 - Modify: `src/features/posts/services/post-service.ts` (`fetchSavedPosts` dispatch), `post-service.real.ts`, saved list consumer if collections reference ids
 - Test: extend `post-service.real.test.ts`, `src/features/saved/components/saved-list.test.tsx`
 
 **Interfaces:**
-- Produces: `fetchSavedPosts(actorId, page): Promise<SavedPostsPage>` real = `GET /api/saveditems/posts?page`; collections/drag-sort/bulk-unsave stay local overlay keyed by real post ids (bulk unsave = N x `DELETE .../bookmark`)
+- Produces: `fetchSavedPosts(actorId, page): Promise<SavedPostsPage>` real = `GET /api/saveditems/posts?page`; collections/drag-sort/bulk-unsave stay local overlay keyed by real post ids; overlay entries with non-GUID ids are filtered; bulk unsave = N x `DELETE .../bookmark`
 
-- [ ] **Step 1: Write failing tests:** `saved page maps PagedResponse`, `excluded/hidden posts absent from totalCount (BE-filtered)`, `bulk unsave issues DELETE per id & reconciles list`, `local collection keeps entries for real ids`
+- [ ] **Step 1: Write failing tests:** `saved page maps PostDtoPagedResponse`, `hidden posts absent from totalCount (BE-filtered)`, `bulk unsave issues DELETE per id & reconciles list`, `local collection keeps real-id entries & drops non-GUID entries`
 - [ ] **Step 2: Run** `npx vitest run src/features/saved src/features/posts/services` -> FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** -> PASS
 - [ ] **Step 5: Commit** `feat(saved): real saved posts page`
 
-### Task C7: Server pages (`/@username`, `/posts/[id]`)
+### Task C8: Server pages (`/@username`, `/posts/[id]`)
 **Files:**
-- Modify: `src/app/[@username]/page.tsx`, `src/app/posts/[id]/page.tsx`, `src/features/profile/utils/*` resolver (`resolveProfileRoute` real branch), `error.tsx` for `/@username` (create if missing)
-- Test: `src/app/[@username]/page.test.tsx`, `src/app/posts/[id]/page.test.tsx` (extend)
+- Modify: `src/app/[@username]/page.tsx`, `src/app/posts/[id]/page.tsx`, `src/features/profile/utils/*` (`resolveProfileRoute` real branch), `src/features/posts/components/detail/post-detail-container.tsx` (client 404 vs error states), create `src/app/[@username]/error.tsx` if missing
+- Test: `src/app/[@username]/page.test.tsx`, `src/app/posts/[id]/page.test.tsx` (extend), container test
 
 **Interfaces:**
 - Consumes: `serverApiFetch`, `isNotFound` (C1), `isRealApi` (F1)
-- Produces: real mode: `/@username` -> `GET /api/users/by-username/{u}` (404 -> `notFound()`; other failure -> throw to `error.tsx`); metadata from profile DTO; `/posts/[id]` -> `GET /api/posts/{id}` (comment id resolves via `/api/threads/{id}`; 404 -> generic metadata); mock branch unchanged (cookie resolver)
+- Produces:
+  - Real `/@username`: `GET /api/users/by-username/{u}`; 404 -> `notFound()`; other failure -> throw (error page); metadata from profile DTO (private = 200)
+  - Real `/posts/[id]`: server calls `GET /api/threads/{id}` anonymously for metadata ONLY; 200 -> metadata, 404 -> generic title (page still renders), other -> throw; NO `notFound()` from server; `loading.tsx` kept
+  - Client `PostDetailContainer`: thread 404 -> not-found state (also blocked), other errors -> error state with retry
+  - Mock branch unchanged (cookie resolver)
 
-- [ ] **Step 1: Write failing tests:** `real: unknown username -> notFound`, `real: BE down -> throws (not notFound)`, `real: metadata uses profile displayName & bio`, `real: private profile still 200 metadata`, `post: 404 -> generic title`, `post: BE down -> throws`, `mock mode path unchanged`
-- [ ] **Step 2: Run** `npx vitest run "src/app"` -> FAIL
-- [ ] **Step 3: Implement**; still NO `loading.tsx` on these routes
+- [ ] **Step 1: Write failing tests:** `profile: unknown username -> notFound`, `profile: BE down -> throws (not notFound)`, `profile: TLS failure -> throws`, `profile: private profile 200 metadata`, `post: anonymous 404 -> generic title & page still renders (follower can see it)`, `post: BE down -> throws`, `post: comment id resolves via threads for metadata`, `container: 404 -> not-found state`, `container: network error -> error state, not not-found`, `mock mode path unchanged`
+- [ ] **Step 2: Run** `npx vitest run src/app src/features/posts/components/detail` -> FAIL
+- [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(app): server-side real reads for profile & post routes`
+- [ ] **Step 5: Commit** `feat(app): real reads for profile route & viewer-aware post route`
 
-### Task C8: Phase C exit
+### Task C9: Phase C exit
 **Files:**
-- Modify: roadmap (C.1-C.4 per deviations), MAP §6 (CP2 FE adopted; follow & feed read moved), `.context/features/fe-be-integration.md`, `.context/features/profile.md`, `post-detail.md`, `feed-post-interaction.md` (as-built notes), `.context/features/frontend-roadmap.md` item 2.7 note
+- Modify: roadmap (C.1-C.4 per deviations), MAP §6 (CP2 FE adopted; follow & feed read moved; follow-request param name `{targetId}`), `.context/features/fe-be-integration.md` (include soft-404 deviation from `conventions/frontend.md` §5 & Zustand-adapters deviation from §4), `profile.md`, `post-detail.md`, `feed-post-interaction.md` (as-built notes), `frontend-roadmap.md` item 2.7 note
 
 - [ ] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
-- [ ] **Step 2: Manual smoke** (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`, `NODE_EXTRA_CA_CERTS` set): login seed user -> feed both tabs -> open post & reply thread -> create post/reply -> edit -> delete -> like/bookmark (post & comment) -> saved page -> view other profile (public + private locked) -> follow/unfollow -> edit profile; BE down on `/@username` -> error page; hidden-feature check (no search, pin, pill)
-- [ ] **Step 3: Record** Mismatch log; record Zustand-adapters decision in `conventions/frontend.md` §4 as deviation
+- [ ] **Step 2: Manual smoke** (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`, shell `NODE_EXTRA_CA_CERTS` set, browser trusts cert): login seed user -> feed both tabs -> open post & reply thread -> create post/reply (also reply to nested comment) -> edit -> delete -> like/bookmark (post & comment) -> saved page -> other profiles (public + private locked) -> follow/unfollow -> edit profile; hard-reload `/posts/{id}` of private author's post as accepted follower (visible) & as anonymous (not-found state); BE down on `/@username` -> error page; hidden-feature check (no search, pin, pill, block/mute UI)
+- [ ] **Step 3: Record** Mismatch log
 - [ ] **Step 4: `requesting-code-review` gate**
 - [ ] **Step 5: Commit** `docs(integration): close Phase C`
 
@@ -456,6 +523,7 @@ Each line has pinned test in owning task.
 - **D14:** blocked either way = 404 on profile/lists/posts; own block list is only place blocked profile is visible (`isBlocked: true`); drop `isBlockedBy` & `blockedBy` usage; unblock only from own list
 - **Writes:** respond `POST .../relations/follow-request {decision}`; privacy `PUT users/profiles/me/privacy -> {acceptedCount}`; block `POST/DELETE .../blocks`; close friend `PATCH .../close-friend` (400 `CloseFriendRequiresAcceptedFollow` surfaced)
 - **Mute** stays in N (needs `me/mutes` + feed exclusion together)
+- **Enables (capability table, C2):** followers/following dialog, block, close-friend, privacy & follow-request UI; `relation-service` facade stops returning empty defaults
 
 ### Task G1: Relation service real reads
 **Files:**
@@ -488,25 +556,24 @@ Each line has pinned test in owning task.
 
 ### Task G3: D14 handling, dialog enable, lists UI
 **Files:**
-- Modify: `src/lib/capabilities.ts` (`followLists`), profile container & `PostCard` menu (blocked -> 404 behavior), `blocked-user-list.tsx`, relation-store (drop `blockedBy`), followers dialog locked state; i18n
+- Modify: `src/lib/capabilities.ts` rules already key on `graph` (verify), profile container & `PostCard` menu (blocked -> 404 behavior), `blocked-user-list.tsx`, relation-store (drop `blockedBy`), followers dialog locked state; i18n
 - Test: extend `profile-container` / `followers-dialog` / `blocked-user-list` tests
 
 **Interfaces:**
-- Produces: profile 404 when blocked either way (renders not-found state); `isBlockedBy`/`blockedBy` removed from FE logic; locked lists render empty-state (`profile.followListLocked`); block action from other profile removes viewer from content (BE 404 on next read)
+- Produces: profile 404 when blocked either way (renders not-found state, network/5xx still error state); `isBlockedBy`/`blockedBy` removed from FE logic; locked lists render empty-state (`profile.followListLocked`); block/close-friend/privacy/follow-request UI visible when graph real
 
 **i18n keys (BOTH files):**
 
 | Key | vi | en |
 |---|---|---|
 | `profile.followListLocked` | Tài khoản riêng tư, danh sách không hiển thị | Private account, list is hidden |
-| `profile.followListUnavailable` | Chưa xem được danh sách này | This list is not available yet |
 | `profile.blockedNotFound` | Không tìm thấy người dùng này | This user was not found |
 
-- [ ] **Step 1: Write failing tests:** `blocked profile (404) renders not-found`, `locked list shows locked empty state, not error`, `blockedBy never read`, `dialog disabled when followLists false`, `unblock only from own block list`, `follow 404 mid-session rolls back optimistic state`
+- [ ] **Step 1: Write failing tests:** `blocked profile (404) renders not-found`, `profile network error renders error state, not not-found`, `locked list shows locked empty state, not error`, `blockedBy never read`, `graph UI hidden until graph real, visible after`, `unblock only from own block list`, `follow 404 mid-session rolls back optimistic state`
 - [ ] **Step 2: Run** `npx vitest run src/features/profile` -> FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(profile): D14 not-found, locked lists, dialog enabled`
+- [ ] **Step 5: Commit** `feat(profile): D14 not-found, locked lists, graph UI enabled`
 
 ### Task G4: Phase G exit
 **Files:**
@@ -536,7 +603,7 @@ Each line has pinned test in owning task.
 **Interfaces:**
 - Produces: `setMuted(id, on, actorId)` (PUT/DELETE), `fetchMutedUsers(q, actorId)` (`GET /api/users/me/mutes`, items `isMuted: true`)
 
-- [ ] **Step 1: Write failing tests:** `mute PUT & unmute DELETE`, `mute self -> CannotMuteSelf`, `muted list paged with query`, `unmute of hidden user still 204`
+- [ ] **Step 1: Write failing tests:** `mute UI hidden until activity real, visible after`, `mute PUT & unmute DELETE`, `mute self -> CannotMuteSelf`, `muted list paged with query`, `unmute of hidden user still 204`
 - [ ] **Step 2: Run** `npx vitest run src/features/profile/services` -> FAIL
 - [ ] **Step 3: Implement**
 - [ ] **Step 4: Run** -> PASS
@@ -586,27 +653,29 @@ Each line has pinned test in owning task.
 # PHASE X - Cleanup
 
 ## Design notes
-- Mock layer removal only for wired slices (auth, content, graph, activity all wired by now); demo/seed-only code used by tests may stay under `src/mocks/` if tests still need it
-- **X2 is BE contract change:** MAP §2.5 update, swagger regeneration, `Swagger_*` tests, remove `ToggleEndpoints_Unchanged` (BE repo)
+- Remove only mock code proven unused (import-graph/grep proof); hidden BE-less features & FE roadmap Phases 3-7 keep running on mocks, so their services, fixtures & mock switch stay
+- **X2 is optional & gated:** BE contract change (MAP §2.5 update, swagger regeneration, `Swagger_*` tests, remove `ToggleEndpoints_Unchanged`); roadmap closure does not depend on it
 
-### Task X1: Remove mock adapters & cookie bridge
+### Task X1: Remove proven-unused mock code
 **Files:**
-- Modify/Delete: mock branches in `*-service.ts`, `src/features/auth/utils/mock-session.ts`, `ysocial_mock_user` cookie writers, `ViewerSync` mock upsert, `capabilities.ts` (real = default), `.env.example` (`auth,content,graph,activity` default), `[@username]/page.tsx` cookie resolver
-- Test: update/remove tests tied to removed code; keep real-adapter tests
+- Modify/Delete: ONLY mock branches/adapters proven unused (see proof step); candidates: mock branches of auth, post, user, relation, notification services, `mock-session.ts` cookie bridge, `ViewerSync` mock upsert, `[@username]/page.tsx` cookie resolver
+- Keep: slice switch & mock mode, mocks/fixtures needed by hidden/unsupported features (search, tags, trending, suggestions, pin, hide-like-count, new-posts pill, audience, `replies`/`media` tabs, FE roadmap Phases 3-7 work) & by tests
+- Test: update/remove only tests of deleted code
 
-- [ ] **Step 1: Write failing tests:** `app has no import of removed mock modules (import-graph test)`, `/@username resolves only via BE`, `default env enables all slices`
-- [ ] **Step 2: Run** `npm run test` -> expected failures listed
-- [ ] **Step 3: Remove** code & dead tests; delete `NEXT_PUBLIC_REAL_API_SLICES` fallback paths
+- [ ] **Step 1: Produce proof:** import-graph/grep list of every mock export with its remaining consumers (hidden features, tests); delete only exports with 0 consumers outside deleted code; record list in commit body
+- [ ] **Step 2: Write failing tests:** `no module imports deleted mock export (import-graph test)`, `/@username resolves via BE only when slices real`, `default env enables all wired slices`, `mock mode still renders hidden-feature routes`
+- [ ] **Step 3: Remove** proven-unused code & its tests
 - [ ] **Step 4: Run** `npm run test`, `npm run typecheck`, `npm run lint` -> PASS
-- [ ] **Step 5: Commit** `refactor(integration): remove mock layer for wired slices`
+- [ ] **Step 5: Commit** `refactor(integration): remove mock code unused by wired slices`
 
-### Task X2: Remove BE toggle endpoints (BE repo)
+### Task X2 (OPTIONAL, gated on user approval): Remove BE toggle endpoints (BE repo)
+> Not required to close roadmap; deferable. BE contract change: needs explicit user approval before starting
 **Files (BE, repo root):**
 - Modify: likes/saved items controllers & application features for `likes/toggle`, `saveditems/toggle`; `tests/YSocial.Api.IntegrationTests` (`ToggleEndpoints_Unchanged`, `Swagger_*`); `ysocial-clients/web-app/docs/swagger.json` + `generated.ts`; MAP §2.5; BG §10 #17
 
-- [ ] **Step 1: Confirm** FE has 0 calls to toggle routes (`grep -rn "likes/toggle\|saveditems/toggle" src` empty)
+- [ ] **Step 1: Confirm** FE has 0 calls to toggle routes (`grep -rn "likes/toggle\|saveditems/toggle" src` empty) & user approved
 - [ ] **Step 2: Update tests first:** replace `ToggleEndpoints_Unchanged` with `ToggleEndpoints_Return404`; run BE tests -> FAIL
-- [ ] **Step 3: Remove** endpoints & handlers (or mark unreachable per BE conventions); regenerate swagger
+- [ ] **Step 3: Remove** endpoints & handlers per BE conventions; regenerate swagger
 - [ ] **Step 4: Run** BE `dotnet test`, FE `npm run api:update && npm run api:check` -> PASS
 - [ ] **Step 5: Commit (BE)** `refactor(api): remove deprecated toggle endpoints`
 
@@ -614,7 +683,7 @@ Each line has pinned test in owning task.
 **Files:**
 - Modify: roadmap (all phases `[x]`), MAP (FE-counterpart column, §5, §6 follow-ups closed), `.context/features/fe-be-integration.md` (final as-built), INDEX, `frontend-roadmap.md` "Out of scope" note updated
 
-- [ ] **Step 1: Run** full verification (`npm run test`, `typecheck`, `lint`, `api:check`, BE `dotnet test`) -> pass
+- [ ] **Step 1: Run** full verification (`npm run test`, `typecheck`, `lint`, `api:check`; BE `dotnet test` only if X2 ran) -> pass
 - [ ] **Step 2: Update** docs listed; deferred-minor triage per `00-agentic-rules.md` §4.3 (resolve/defer/close with rationale)
 - [ ] **Step 3: `finishing-a-development-branch`:** PR options, worktree clean-up
 - [ ] **Step 4: Commit** `docs(integration): close FE-BE integration roadmap`
@@ -623,19 +692,29 @@ Each line has pinned test in owning task.
 
 ## Mismatch log
 
-| # | Found in | Mismatch | Decision (BE / FE / MAP) | Status |
+> Status values: `decided (FE|BE|MAP)`, `accepted`, `open: needs evidence at <task>`. Nothing is resolved until its task lands & its test passes
+
+| # | Found in | Mismatch | Decision | Status |
 |---|---|---|---|---|
-| M1 | C4 | `fetchFollowedIds` has no BE endpoint | FE: real adapter returns `[]`, projections read `followStatus`; confirm store consumers | open |
-| M2 | C3 | FE `PostVisibility = public \| closeFriends` vs BE `public \| followersOnly \| private` | FE: widen type, preserve BE values, no UI badge (BE emits `public` only) | open |
-| M3 | C3 | FE multi `imageUrls` vs BE single `imageUrl` | FE: mapper fills one; composer multi-image hidden (C2) | open |
-| M4 | C5 | FE `deletePost -> { deletedIds }` vs BE 204 | FE: adapter returns `[id]`; BE comments hidden, not cascaded | open |
-| M5 | C5 | `PostItem` has no `kind` for route choice | FE: add client-only `kind`; test top-level comment routing | open |
-| M6 | C | FE `following` tab for guests vs BE 401 | FE: hide tab for guests, adapter returns empty page | open |
-| M7 | C | BE feed excludes muted only after N; FE mute is local until then | accepted until N | open |
-| M8 | F4 | FE `/auth/login` redirect vs route `/login` | FE: fix in api-client | open |
-| M9 | F1 | `api:update` calls missing `api:fetch` | FE: add script (F5) | open |
+| M1 | C5 | `fetchFollowedIds` has no BE endpoint; `[]` would mark every followed user "none" (`setFollowedIds` loaded & accepted-only) | FE: page `GET users/{viewerId}/following`, never partial | decided (FE), verify at C5 |
+| M2 | C4 | FE `PostVisibility = public \| closeFriends` vs BE `public \| followersOnly \| private` | FE: widen type, preserve BE values, no badge | decided (FE) |
+| M3 | C4 | FE multi `imageUrls` vs BE single `imageUrl` | FE: mapper fills one; multi-image hidden (C2) | decided (FE) |
+| M4 | C6 | FE `deletePost -> { deletedIds }` vs BE 204 | FE: adapter returns `[ref.id]`; BE comments hidden, not cascaded | decided (FE) |
+| M5 | C3 | `PostItem` lacked `kind`/root id; services took bare ids | FE: required `kind` & `rootPostId`, `PostRef` param | decided (FE) |
+| M6 | C | FE `following` tab for guests vs BE 401 | FE: hide for guests, adapter returns empty page | decided (FE) |
+| M7 | C | BE feed excludes muted authors; FE mute is local until N | mute UI hidden until N | closed |
+| M8 | F4 | FE redirect `/auth/login` vs route `/login` | FE: fix in api-client | decided (FE) |
+| M9 | F5 | `api:update` calls missing `api:fetch` | FE: add script | decided (FE) |
+| M10 | F5 | `generated.ts` stale vs `docs/swagger.json` (no response schemas, no GET paths) | FE: regenerate before any task importing response types | decided (FE) |
+| M11 | F5 | `docs/swagger.json` stale vs BE source (`NotificationDto.SenderUsername` missing) | regenerate from running BE; contract test pins it | open: needs evidence at F5 |
+| M12 | C4 | swagger marks nearly all fields nullable (MAP says non-null) & enums are plain `string`; unknown enum values undefined | FE mappers tolerate null/absent; proposal: unknown `visibility` -> `private`, unknown `followStatus` -> `none`; BE option: enable nullable-reference-type support in Swashbuckle (user decides) | open: needs evidence at F5/C4 |
+| M13 | F5 | MAP names follow-request param `{requesterId}`, swagger `{targetId}` | MAP: fix name | decided (MAP) |
+| M14 | C8 | `/posts/[id]` cannot 404 on server (anonymous read vs viewer-dependent visibility) | soft 404 via client state; revisit with cookie/BFF auth | accepted |
+| M15 | F3 | no `navigator.locks` (insecure context, jsdom) -> no cross-tab single-flight | in-tab only + rotation adoption rescue; documented | accepted |
+| M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
 
 ## Self-review (writing-plans)
-- **Spec coverage:** every Phase F decision F-D1..F-D8 (Phase F design notes) maps to F1-F8; roadmap items F.1-F.3, C.1-C.3, G.1-G.2, N.2-N.3, X.1-X.3 map to tasks; roadmap deviations to apply when executing exits: post delete CP1 -> C, follow & feed read -> C, profile switcher removed from C (FE roadmap 2.7 note)
-- **Interface names:** `refreshTokens`, `apiClient`, `ApiError`, `isRealApi`, `hasCapability`, mappers & service functions are defined before use
+- **Spec coverage:** Phase F decisions F-D1..F-D8 (Phase F design notes) map to F1-F8; roadmap items F.1-F.3, C.1-C.4, G.1-G.2, N.1-N.3, X.1-X.3 map to tasks; roadmap deviations apply at phase exits (post delete CP1 -> C, follow & feed read -> C, switcher out of C)
+- **Interface names:** `refreshTokens`, `apiClient`, `ApiError`, `isRealApi`, `parseRealSlices`, `requireBackendId`, `PostRef`, `toPostRef`, `hasCapability`, mappers & service functions are defined before use; execution order inside Phase F: F5 before F2-F4, F6-F8
+- **Contract:** endpoint & schema names verified against `docs/swagger.json` (F5 contract test pins them)
 - **Proportion:** tasks list test names & signatures only; no function bodies
