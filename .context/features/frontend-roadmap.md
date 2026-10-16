@@ -68,7 +68,7 @@ updated: 2026-10-06
 - [x] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
 - [x] **2.5 Block / Mute** (Restrict deferred): `PostCard` menu & profile hide content for real, lists in `/settings/blocked|muted`
 - [x] **2.6 Share profile:** copy link + QR code dialog
-- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown
+- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(build real-first after integration Phase C: `features/fe-be-integration-roadmap.md`)*
 
 ### Phase 3 - Notifications & Activity (P1)
 - [ ] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"

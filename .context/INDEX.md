@@ -25,4 +25,4 @@
 - [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules with code & kind, follow/block/post state machines, events (all live), repo contracts (set-based members)
 - [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - owner of FE contract: endpoint matrix with statuses, published error codes, DTO shapes, FE coverage, open-risk summary, checkpoints CP0-CP4 & FE follow-ups, decided D-ids
 - [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (all done), decisions D1-D24, debt & deferred triage (§8, history only; live register = BG §10), session synchronization & access policy (error catalog & DTOs moved to MAP/BG), dependencies, tests, FE checkpoints, risks
-- FE-BE Foundation spec (FE repo, draft): `ysocial-clients/web-app/docs/specs/2026-10-16-fe-be-integration-foundation-design.md` - api-client rewrite, cross-tab refresh, auth service seam, mixed-mode viewer bridge
+- FE-BE Integration plan (FE repo, all phases F/C/G/N/X, draft): `ysocial-clients/web-app/docs/plans/2026-10-16-fe-be-integration.md`

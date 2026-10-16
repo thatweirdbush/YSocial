@@ -256,7 +256,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ## 10. Known limitations & technical debt (single live register)
 
-> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-8, 10, 11, 13-16, 18-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link): history in plan T1-T4 & §12 probes
+> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-8, 10, 11-16, 18-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link): history in plan T1-T4 & §12 probes
 
 ### 10.1 Open / accepted (architectural)
 
@@ -266,7 +266,6 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | 22 | Access token valid after logout until expiry (15 min), no revocation list | ACCEPTED (D6) |
 | 23 | Session lock is process-local (multi-instance unsafe); new token-mutating paths MUST take it (§6.4) | ACCEPTED |
 | 24 | `likesCount` stored aggregate, not viewer-filtered; stored `FollowersCount`/`FollowingCount` unexposed, remove at EF migration | ACCEPTED |
-| 12 | `Task.WhenAll` over same repo: fixed in 3 handlers; `ValidationBehavior` keeps parallel validators (no repo access); no new occurrences allowed | RESOLVED (guard) |
 
 ### 10.2 Deferred (minor / waits on others)
 
@@ -287,27 +286,25 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ## 12. Evidence ledger
 
-> Probes of T0.2 describe BEFORE-recovery behavior (characterization on original code). "Now" = current behavior, pinned by named test
+> Probes of T0.2 describe BEFORE-recovery behavior (characterization on original code). "Now" = current behavior, pinned by named test. All are verified
 
-| Claim / probe | Status | Observed before recovery (T0.2) | Now | Pinned by |
-|---|---|---|---|---|
-| Domain exceptions return 500 | Verified | non-author `PUT /api/posts/{id}` = 500 `text/plain` (rule class text) | 403 `NotPostAuthor` ProblemDetails | `NonAuthorEditPost_Returns403` |
-| Follow response content type | Verified | `text/plain` `Accepted` without `Accept`; `application/json` `"Accepted"` with `Accept: application/json` | JSON `{followStatus:"accepted"\|"pending"}` | `Follow_ReturnsJsonFollowStatusLowercase` |
-| Register response shape | Verified | raw JSON GUID string (accountId), 200 | 201 `{accountId}` | `Register_Returns201_AccountId` |
-| Create post response | Verified | 200 `{postId, authorId, content, imageUrl, createdAt}` | 201 `PostDto` + `Location` | `CreatePost_201_PostDtoKindPost_Location` |
-| `sub` claim readable as `AccountId` | Verified | switch with bogus token reached rule = 500 `RefreshTokenMustBeActiveRule` (not NotFound) | 401 `InvalidRefreshToken` | `SwitchProfile_OtherAccountsRefreshToken_Returns401` |
-| Logout | Verified | 404 "Account not found" (profile id used as account id) | 204 | `Logout_ActiveToken_Returns204_TokenRevoked` |
-| Login failures | Verified | wrong password 500, unknown account 400 | identical 401 `InvalidCredentials` | `Login_UnknownWrongPasswordDeleted_IdenticalBody401` |
-| Text-only post | Verified | 500 (FluentValidation `ValidationException`) | 201 | `CreatePost_TextOnly_Returns2xx` |
-| Event loss (follow, unlike) | Verified (runtime) | counts frozen; unlike lost | counts & notifications live | `FollowPublicUser_IncrementsCounts`, `Unlike_DecrementsPostLikeCount` |
-| `appsettings` values, ports | Verified | unverified | `launchSettings` https `49895`; `Cors:AllowedOrigins` from config | `Cors_AllowedOrigin_GetsHeaders`, `Cors_UnknownOrigin_NoAllowOrigin` |
-| Behavior order | Partially verified | log line order from 1 command | unchanged; registration order in `Application/DependencyInjection.cs` | - |
-| Log redaction & Production startup | Verified | passwords/OTP/tokens printed by pipeline logger (code inspection) | `***`; Production without key fails, with key: no swagger, no seed, no dev token log | `Login_PipelineLogs_NoPasswordOrTokens`, `Production_MissingJwtSecret_FailsStartup`, manual `dotnet run` in Production |
-| Manual login -> refresh -> logout smoke | Verified | not performed | login 200, refresh rotates, old token 401, logout 204, refresh after logout 401 (real host, Development) | manual `dotnet run` (2026-10-15) |
-| JSON camelCase & enum ints | Verified | `POST /api/likes/toggle` shape | unchanged; read DTOs use string unions | `Swagger_*`, `ToggleEndpoints_Unchanged` |
+| Claim / probe | Observed before recovery (T0.2) | Now | Pinned by |
+|---|---|---|---|
+| Domain exceptions return 500 | non-author `PUT /api/posts/{id}` = 500 `text/plain` (rule class text) | 403 `NotPostAuthor` ProblemDetails | `NonAuthorEditPost_Returns403` |
+| Follow response content type | `text/plain` `Accepted` without `Accept`; `application/json` `"Accepted"` with `Accept: application/json` | JSON `{followStatus:"accepted"\|"pending"}` | `Follow_ReturnsJsonFollowStatusLowercase` |
+| Register response shape | raw JSON GUID string (accountId), 200 | 201 `{accountId}` | `Register_Returns201_AccountId` |
+| Create post response | 200 `{postId, authorId, content, imageUrl, createdAt}` | 201 `PostDto` + `Location` | `CreatePost_201_PostDtoKindPost_Location` |
+| `sub` claim readable as `AccountId` | switch with bogus token reached rule = 500 `RefreshTokenMustBeActiveRule` (not NotFound) | 401 `InvalidRefreshToken` | `SwitchProfile_OtherAccountsRefreshToken_Returns401` |
+| Logout | 404 "Account not found" (profile id used as account id) | 204 | `Logout_ActiveToken_Returns204_TokenRevoked` |
+| Login failures | wrong password 500, unknown account 400 | identical 401 `InvalidCredentials` | `Login_UnknownWrongPasswordDeleted_IdenticalBody401` |
+| Text-only post | 500 (FluentValidation `ValidationException`) | 201 | `CreatePost_TextOnly_Returns2xx` |
+| Event loss (follow, unlike) | counts frozen; unlike lost | counts & notifications live | `FollowPublicUser_IncrementsCounts`, `Unlike_DecrementsPostLikeCount` |
+| `appsettings` values, ports | unverified | `launchSettings` https `49895`; `Cors:AllowedOrigins` from config | `Cors_AllowedOrigin_GetsHeaders`, `Cors_UnknownOrigin_NoAllowOrigin` |
+| Log redaction & Production startup | passwords/OTP/tokens printed by pipeline logger | `***`; Production without key fails, with key: no swagger, no seed, no dev token log | `Login_PipelineLogs_NoPasswordOrTokens`, `Production_MissingJwtSecret_FailsStartup`, manual `dotnet run` in Production |
+| Manual login -> refresh -> logout smoke | not performed | login 200, refresh rotates, old token 401, logout 204, refresh after logout 401 (real host, Development) | manual `dotnet run` (2026-10-15) |
+| JSON camelCase & enum ints | `POST /api/likes/toggle` shape | unchanged; read DTOs use string unions | `Swagger_*`, `ToggleEndpoints_Unchanged` |
 
 - Test class locations: `tests/YSocial.Api.IntegrationTests/{Characterization,Errors,Identities,Status,Events,Config}`
 
 ## 13. Deviations from existing docs
 - `features/identities.md` & `features/user-profile-and-relations.md`: endpoint content replaced by pointers to MAP (single owner); design decisions kept
-- `conventions/backend.md`: aligned with recovery (no `Task.WhenAll` guidance for new code; mock `FirstOrDefault` scans instead of `AnyAsync`; EF planned only)

@@ -9,7 +9,7 @@ updated: 2026-10-02
 - NO emojis
 - USE digits over words: `1`, `150`
 - USE `±` instead of `+/-`
-- USE ASCII operators/symbols in code & logic: `&`, `>`, `<`, `...`, `"`, `'`
+- USE ASCII operators/symbols in code & logic: `&` (no `and`), `>`, `<`, `...`, `"`, `'`
 - USE `->` / `=>` only for actual directional, transformational, or logical relationships
 - DO NOT replace normal punctuation or conjunctions with `->`: use `,` or natural wording when appropriate
 - DO NOT replace `to` with `()` or `->`
@@ -19,7 +19,7 @@ updated: 2026-10-02
 ## 2. Concise Style
 - USE English
 - PRIORITY: `correctness > clarity > token efficiency`
-- DROP non-semantic words: articles, filler, redundant politeness
+- DROP non-semantic words: articles, filler, redundant politeness (e.g. a, an, the...)
 - PREFER short active phrasing
 - PREFER direct statements over prose
 - AVOID repeated context, explanations, or user-provided information

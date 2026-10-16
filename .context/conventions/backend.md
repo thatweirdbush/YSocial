@@ -10,7 +10,7 @@ updated: 2026-10-16
 - **Soft delete over hard delete:** unfollow sets `IsDeleted = true` to preserve metadata (e.g. `IsCloseFriend`). Re-follow restores existing record -> prevents unique index conflicts
 - **Aggregate segregation:** `UserBlock` = standalone Aggregate Root (separate from `UserRelation`) for fast block checks (mock = scans today; `AnyAsync` once EF lands)
 - **Idempotent commands (fail silently):** re-trigger (e.g. follow already-followed user, PUT like twice) -> return Success immediately, no mutation
-- **Query batching:** minimize round-trips with SET-BASED repo members (id collections in, rows out) & bidirectional queries (e.g. `GetBlocksBetweenAsync`, `GetBlockedEitherWayAsync`). NEVER add `Task.WhenAll` over same repo/`DbContext` in new code (breaks on single EF `DbContext`, BG §10.12)
+- **Query batching:** minimize round-trips with SET-BASED repo members (id collections in, rows out) & bidirectional queries (e.g. `GetBlocksBetweenAsync`, `GetBlockedEitherWayAsync`). NEVER add `Task.WhenAll` over same repo/`DbContext` (breaks on single EF `DbContext`)
 - **Single gate per direction:** reads go through `IViewerAccessPolicy`, writes through `InteractionGuard` (§3); handlers never re-implement block/privacy/visibility checks
 
 ## 2. Conventions

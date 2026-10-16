@@ -166,36 +166,34 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 
 ## 6. Domain events
 
-| Event | Raised by | Handlers | Live? |
-|---|---|---|---|
-| `AccountCreatedEvent` | `Account.Create` | `InitializeUserProfileHandler` | yes |
-| `AccountDeletedEvent` | `Account.Delete` | `RemoveUserWhenAccountDeletedEventHandler` | yes |
+| Event | Raised by | Handlers |
+|---|---|---|
+| `AccountCreatedEvent` | `Account.Create` | `InitializeUserProfileHandler` |
+| `AccountDeletedEvent` | `Account.Delete` | `RemoveUserWhenAccountDeletedEventHandler` |
 | `AccountDeactivatedEvent` | `Account.Deactivate` (unreachable) | - | no |
-| `PasswordResetTokenGeneratedEvent` | `Account.GeneratePasswordResetToken` | email/SMS mock senders (no body logged outside Development, digit runs masked in Development) | yes |
-| `UserProfileCreatedEvent` | `User.Create` | - | yes (no handler) |
-| `PostCreatedEvent` | `Post.Create` | `InitializePostStatsHandler` (log) | yes |
-| `PostUpdatedEvent`, `PostRestoredEvent` | Post | - | yes (no handler) |
-| `PostDeletedEvent` | `Post.Delete` | `RemoveSavedItemsWhenPostDeletedEventHandler` | yes |
-| `CommentCreatedEvent` | `Comment.Create` | `CreateNotificationWhenCommentCreatedHandler` | yes |
-| `CommentDeletedEvent` | `Comment.Delete` | `RemoveSavedItemsWhenCommentDeletedEventHandler` | yes |
-| `CommentUpdatedEvent`, `CommentRestoredEvent` | Comment | - | yes (no handler) |
-| `LikeCreatedEvent` | `Like.Create` | `UpdateLikeCount...`, `CreateNotificationWhenLikedHandler` | yes |
-| `LikeRemovedEvent` | `Like.Remove` | `UpdateLikeCount...` | yes |
-| `SavedItemCreatedEvent` / `SavedItemRemovedEvent` | SavedItem | `UpdateSavedCount...` | yes |
-| `UserFollowRequestedEvent` | `UserRelation.RequestFollow` | `CreateNotificationWhenFollowRequested...` | yes |
-| `UserFollowAcceptedEvent` | `RequestFollow`, `AcceptFollow` (`FromRequest`) | `CreateNotificationWhenFollowAccepted...`, `UpdateFollowCountsHandler` | yes |
-| `UserUnfollowedEvent` | `UserRelation.Delete` (Accepted only) | `UpdateFollowCountsHandler` | yes |
-| `UserBlockedEvent` | `UserBlock.Create` | `RemoveFollowsWhenUserBlockedEventHandler` | yes |
-| `UserUnblockedEvent` | `UserBlock.Unblock` | - | yes (no handler) |
+| `PasswordResetTokenGeneratedEvent` | `Account.GeneratePasswordResetToken` | email/SMS mock senders (no body logged outside Development, digit runs masked in Development) |
+| `UserProfileCreatedEvent` | `User.Create` | - |
+| `PostCreatedEvent` | `Post.Create` | `InitializePostStatsHandler` (log) |
+| `PostUpdatedEvent`, `PostRestoredEvent` | Post | - |
+| `PostDeletedEvent` | `Post.Delete` | `RemoveSavedItemsWhenPostDeletedEventHandler` |
+| `CommentCreatedEvent` | `Comment.Create` | `CreateNotificationWhenCommentCreatedHandler` |
+| `CommentDeletedEvent` | `Comment.Delete` | `RemoveSavedItemsWhenCommentDeletedEventHandler` |
+| `CommentUpdatedEvent`, `CommentRestoredEvent` | Comment | - |
+| `LikeCreatedEvent` | `Like.Create` | `UpdateLikeCount...`, `CreateNotificationWhenLikedHandler` |
+| `LikeRemovedEvent` | `Like.Remove` | `UpdateLikeCount...` |
+| `SavedItemCreatedEvent` / `SavedItemRemovedEvent` | SavedItem | `UpdateSavedCount...` |
+| `UserFollowRequestedEvent` | `UserRelation.RequestFollow` | `CreateNotificationWhenFollowRequested...` |
+| `UserFollowAcceptedEvent` | `RequestFollow`, `AcceptFollow` (`FromRequest`) | `CreateNotificationWhenFollowAccepted...`, `UpdateFollowCountsHandler` |
+| `UserUnfollowedEvent` | `UserRelation.Delete` (Accepted only) | `UpdateFollowCountsHandler` |
+| `UserBlockedEvent` | `UserBlock.Create` | `RemoveFollowsWhenUserBlockedEventHandler` |
+| `UserUnblockedEvent` | `UserBlock.Unblock` | - |
 
-- "yes" = dispatched in same request (all 9 aggregate sets scanned; hard-removed Like/UserBlock/Notification events kept in removed-events queue; BG §7.2)
 - Failed request discards its pending events (nothing dispatched, no leak into later requests)
 - Event class hierarchy (`DomainEvent : INotification`)
-- Notification semantics (types, recipients, self-skip): BG §7.4
 
 ## 7. Repository contracts of interest
 
-> Set-based members accept id collections (EF-friendly, fixed number of calls per page); no `Task.WhenAll` over same repo in new code
+> Set-based members accept id collections (EF-friendly, fixed number of calls per page)
 
 | Contract | Extra members | Notes |
 |---|---|---|
