@@ -277,7 +277,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 
 ## 6. FE checkpoints & follow-ups
 
-> FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
+> FE adoption plan & phase progress: `../../features/fe-be-integration-roadmap.md` (post delete moves CP1 -> Phase C). FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
 
 | CP | Slice unblocked | BE state |
 |---|---|---|

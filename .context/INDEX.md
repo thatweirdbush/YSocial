@@ -16,6 +16,7 @@
 - [Feed & Post Interaction Spec](features/feed-post-interaction.md) - "N bài mới" pill (simulated push stream, per-tab consumed buffer), owner actions (edit/delete/pin/hide likes, service-enforced ownership, field-scoped rollback, tombstones), author hover card, viewer-scoped follow graph & `user-store`, shared `src/mocks/` seeds
 - [Profile Core Spec](features/profile.md) - `/@username` on mocks: server-resolved route + real 404 (session cookie bridge), SSR-safe auth hydration, viewer/actor identity split, graph-derived counts & fans, profile tab controller, followers dialog, share link + QR
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
+- [FE-BE Integration Roadmap](features/fe-be-integration-roadmap.md) - Tier 1 for replacing FE mocks with real BE: phases F Foundation (auth), C Content, G Graph, N Activity, X Cleanup; BE track; deviations from MAP
 - [BE Test Spec](features/backend-unit-test.md) - 3 test layers (Domain 60, Application 41, API integration 418): WebApplicationFactory harness, in-place store reset & deterministic seed, race/probe tests, Domain/Application matrix (existing vs backlog)
 
 
@@ -24,4 +25,4 @@
 - [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules with code & kind, follow/block/post state machines, events (all live), repo contracts (set-based members)
 - [FE-BE Mapping](backend/integration/frontend-backend-mapping.md) - owner of FE contract: endpoint matrix with statuses, published error codes, DTO shapes, FE coverage, open-risk summary, checkpoints CP0-CP4 & FE follow-ups, decided D-ids
 - [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (all done), decisions D1-D24, debt & deferred triage (§8, history only; live register = BG §10), session synchronization & access policy (error catalog & DTOs moved to MAP/BG), dependencies, tests, FE checkpoints, risks
-- [FE-BE Integration CP0-CP1 Plan](backend/plans/2026-10-16-fe-be-integration-cp0-cp1.md) - draft: FE plumbing (api-client, ProblemDetails, JWT) & auth slice against real BE, cross-tab refresh, mismatch log
+- FE-BE Foundation spec (FE repo, draft): `ysocial-clients/web-app/docs/specs/2026-10-16-fe-be-integration-foundation-design.md` - api-client rewrite, cross-tab refresh, auth service seam, mixed-mode viewer bridge
