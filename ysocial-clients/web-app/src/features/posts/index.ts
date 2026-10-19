@@ -19,6 +19,8 @@ export {
   PROFILE_PAGE_SIZE,
   searchPosts,
   SEARCH_LIMIT,
+  setPostBookmark,
 } from "./services/post-service";
+export { toPostRef } from "./utils/post-ref";
 export { getPostActions, useIsAuthorBlocked, useIsDeleted, usePinnedPostId, usePost, usePostActions } from "./store/post-store";
 export { byNewest as byNewestPost } from "./utils/hashtags";

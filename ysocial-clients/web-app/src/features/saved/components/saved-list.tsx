@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useEffect, useState, useTransition } from "react";
 import { Search, FolderPlus, Plus, Layers, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import { SavedItem, Collection } from "../types";
-import { getMockPostById, PostCard } from "@/features/posts";
+import { useAuthHydrated, useViewerId } from "@/features/auth";
+import { fetchSavedPosts, getMockPostById, PostCard, PostSkeletonList, setPostBookmark, toPostRef, usePostActions } from "@/features/posts";
+import { isRealApi } from "@/lib/api-config";
 import { SavedCommandBar } from "./saved-command-bar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -22,9 +24,18 @@ const INITIAL_SAVED_ITEMS: SavedItem[] = SAVED_SEED.flatMap(({ postId, ...item }
   return post ? [{ ...item, post }] : [];
 });
 
+/** Safety cap while the list has no "load more": 10 pages = 100 saved posts. */
+const REAL_MAX_PAGES = 10;
+
 export const SavedList: React.FC = () => {
   const { t } = useTranslation();
   const [, startTransition] = useTransition();
+  const realApi = isRealApi("content");
+  const viewerId = useViewerId();
+  const hydrated = useAuthHydrated();
+  const { upsertPosts } = usePostActions();
+  const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "error">(realApi ? "loading" : "ready");
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   // 1. Initial Mock Collections
   const [collections, setCollections] = useState<Collection[]>([
@@ -34,7 +45,35 @@ export const SavedList: React.FC = () => {
   ]);
 
   // 2. Master Array of Saved Items
-  const [savedItems, setSavedItems] = useState<SavedItem[]>(INITIAL_SAVED_ITEMS);
+  const [savedItems, setSavedItems] = useState<SavedItem[]>(realApi ? [] : INITIAL_SAVED_ITEMS);
+
+  // Real mode: the BE saved list replaces the seeds (collections stay a local overlay keyed by post id)
+  useEffect(() => {
+    if (!realApi || !hydrated) return;
+    if (!viewerId) {
+      setLoadStatus("ready");
+      return;
+    }
+    let cancelled = false;
+    setLoadStatus("loading");
+    (async () => {
+      const posts: SavedItem["post"][] = [];
+      for (let page = 1; page <= REAL_MAX_PAGES; page += 1) {
+        const result = await fetchSavedPosts(viewerId, page);
+        posts.push(...result.posts);
+        if (!result.nextPage) break;
+      }
+      if (cancelled) return;
+      upsertPosts(posts);
+      setSavedItems(posts.map((post) => ({ id: post.id, post, collectionIds: [], savedAt: post.createdAt })));
+      setLoadStatus("ready");
+    })().catch(() => {
+      if (!cancelled) setLoadStatus("error");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [realApi, hydrated, viewerId, loadAttempt, upsertPosts]);
 
   // UI Interactive States
   const [activeCollectionId, setActiveCollectionId] = useState<string>("all");
@@ -182,19 +221,32 @@ export const SavedList: React.FC = () => {
   const handleBulkUnsave = () => {
     if (selectedIds.length === 0) return;
 
-    const idsToUnsave = [...selectedIds];
-    // Start height animation for all selected targets simultaneously
-    setAnimatingUnsaveIds((prev) => [...prev, ...idsToUnsave]);
+    const requested = [...selectedIds];
+    // Real mode: one idempotent DELETE per post; only confirmed ones leave the list
+    const confirmed = realApi
+      ? Promise.allSettled(
+          requested.map((id) => {
+            const item = savedItems.find((candidate) => candidate.id === id);
+            return item ? setPostBookmark(toPostRef(item.post), false) : Promise.resolve();
+          }),
+        ).then((results) => requested.filter((_, index) => results[index].status === "fulfilled"))
+      : Promise.resolve(requested);
 
-    setTimeout(() => {
+    void confirmed.then((idsToUnsave) => {
+      if (idsToUnsave.length < requested.length) toast.error(t("saved.unsaveError"));
+      if (idsToUnsave.length === 0) return;
+      // Start height animation for the removed targets simultaneously
+      setAnimatingUnsaveIds((prev) => [...prev, ...idsToUnsave]);
+      setTimeout(() => {
       startTransition(() => {
         setSavedItems((prev) => prev.filter((item) => !idsToUnsave.includes(item.id)));
-        setSelectedIds([]);
+        setSelectedIds((prev) => prev.filter((id) => !idsToUnsave.includes(id)));
         setIsManageMode(false);
         setAnimatingUnsaveIds((prev) => prev.filter((id) => !idsToUnsave.includes(id)));
       });
       toast.success(t("saved.bulkUnsaveSuccess"));
-    }, 300);
+      }, 300);
+    });
   };
 
   // 7. Bulk Move to Collection
@@ -519,7 +571,18 @@ export const SavedList: React.FC = () => {
 
       {/* Main Items feed rendering */}
       <div className="flex-1 w-full flex flex-col border-t border-zinc-100 dark:border-zinc-900/60 select-none">
-        {filteredItems.length === 0 ? (
+        {loadStatus === "loading" ? (
+          <PostSkeletonList count={3} />
+        ) : loadStatus === "error" ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center gap-3">
+            <p role="alert" className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              {t("common.error")}
+            </p>
+            <Button variant="outline" onClick={() => setLoadAttempt((n) => n + 1)} className="rounded-full">
+              {t("postDetail.retry")}
+            </Button>
+          </div>
+        ) : filteredItems.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center select-none">
             <Layers className="size-12 text-zinc-300 dark:text-zinc-800 mb-4 stroke-1 animate-pulse" />
             <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">

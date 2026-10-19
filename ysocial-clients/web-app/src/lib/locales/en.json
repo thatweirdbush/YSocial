@@ -262,6 +262,7 @@
     "emptyDesc": "Items you save will appear here. Start exploring your feed!",
     "unsave": "Unsave",
     "unsaveSuccess": "Item unsaved successfully!",
+    "unsaveError": "Could not unsave some items, try again",
     "bulkUnsaveSuccess": "Selected items unsaved successfully!",
     "manageMode": "Manage",
     "exitManage": "Exit",

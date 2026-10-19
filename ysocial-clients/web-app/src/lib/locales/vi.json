@@ -262,6 +262,7 @@
     "emptyDesc": "Các mục bạn lưu sẽ hiển thị ở đây. Hãy bắt đầu khám phá bảng tin!",
     "unsave": "Hủy lưu",
     "unsaveSuccess": "Đã hủy lưu mục thành công!",
+    "unsaveError": "Không thể hủy lưu một số mục, thử lại nhé",
     "bulkUnsaveSuccess": "Đã hủy lưu các mục đã chọn thành công!",
     "manageMode": "Quản lý",
     "exitManage": "Thoát",
