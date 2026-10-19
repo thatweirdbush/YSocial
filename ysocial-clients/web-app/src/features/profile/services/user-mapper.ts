@@ -28,7 +28,8 @@ export function toUserProfile(dto: UserProfileDto): UserProfile {
     viewerMarkedCloseFriend: dto.viewerMarkedCloseFriend ?? false,
     isMuted: dto.isMuted ?? false,
     isBlocked: dto.isBlocked ?? false,
-    isBlockedBy: dto.isBlockedBy ?? false,
+    // D14: a user who blocked the viewer answers 404, so this never arrives true; never read it
+    isBlockedBy: false,
   };
 }
 

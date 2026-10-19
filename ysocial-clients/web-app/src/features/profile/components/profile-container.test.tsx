@@ -7,7 +7,9 @@ import { useAuthStore } from "@/features/auth";
 import * as postService from "@/features/posts/services/post-service";
 import { resetPostStore } from "@/features/posts/store/post-store";
 import type { PostItem } from "@/features/posts/types";
+import { ApiError } from "@/lib/api-error";
 import { useUIStore } from "@/lib/store/ui-store";
+import { setRealSlices } from "@/test/api-test-utils";
 import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import { makeUserProfile } from "../mocks/user-fixtures";
 import * as relationService from "../services/relation-service";
@@ -414,5 +416,28 @@ describe("ProfileContainer private, blocked & unavailable states", () => {
     render(<ProfileContainer username="ysocial_member" />);
     await screen.findByRole("heading", { name: "YSocial Member" });
     expect(screen.queryByRole("button", { name: "Thêm" })).toBeNull();
+  });
+});
+
+describe("ProfileContainer real slices (D14)", () => {
+  it("blocked either way (BE 404 -> null) renders the not-found state, not the session desync", async () => {
+    setRealSlices("auth,content,graph");
+    signedOut();
+    render(<ProfileContainer username="ghost.user" />);
+
+    expect(await screen.findByText("Không tìm thấy người dùng này")).toBeInTheDocument();
+    expect(screen.queryByText("Phiên đăng nhập đã thay đổi")).toBeNull();
+  });
+
+  it("network / 5xx renders an error state with retry, never not-found", async () => {
+    setRealSlices("auth,content,graph");
+    signedOut();
+    vi.mocked(userService.fetchUserByUsername).mockRejectedValueOnce(new ApiError({ kind: "network", status: 0, code: "Network" }));
+    render(<ProfileContainer username="anquoc.dev" />);
+
+    expect(await screen.findByText("Không tải được nội dung")).toBeInTheDocument();
+    expect(screen.queryByText("Không tìm thấy người dùng này")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Thử lại" }));
+    expect(await screen.findByRole("heading", { name: "Trần Anh Quốc" })).toBeInTheDocument();
   });
 });

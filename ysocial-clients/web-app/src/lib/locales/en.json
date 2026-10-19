@@ -138,6 +138,8 @@
     "mediaMulti": "Post with multiple images",
     "tabError": "Couldn't load this tab",
     "retry": "Try again",
+    "followListLocked": "Private account, list is hidden",
+    "blockedNotFound": "This user was not found",
     "tabThreads": "Threads",
     "tabReplies": "Replies",
     "tabMedia": "Media",

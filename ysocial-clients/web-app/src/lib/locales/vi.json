@@ -138,6 +138,8 @@
     "mediaMulti": "Bài viết có nhiều ảnh",
     "tabError": "Không tải được nội dung",
     "retry": "Thử lại",
+    "followListLocked": "Tài khoản riêng tư, danh sách không hiển thị",
+    "blockedNotFound": "Không tìm thấy người dùng này",
     "tabThreads": "Thread",
     "tabReplies": "Trả lời",
     "tabMedia": "File phương tiện",

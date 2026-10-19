@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { ApiError } from "@/lib/api-error";
 import { __resetBlockGraph } from "@/mocks/block-graph";
 import { __resetPrivacy } from "@/mocks/privacy";
 import { __resetRelationGraph, getFollowerCount, getFollowStatus, getRequestIds } from "@/mocks/relation-graph";
@@ -385,6 +386,16 @@ describe("commitFollow", () => {
 
     expect(statusOf("v1", "u2")).toBe("pending");
     expect(followers("u2")).toBe(0);
+  });
+
+  it("BE 404 mid-session (target blocked or deleted) rolls the optimistic follow back", async () => {
+    vi.spyOn(service, "followUser").mockRejectedValue(new ApiError({ kind: "http", status: 404, code: "NotFound" }));
+
+    const commit = commitFollow("v1", "u1", "follow");
+    expect(statusOf("v1", "u1")).toBe("accepted");
+
+    await expect(commit).resolves.toBe(false);
+    expect(statusOf("v1", "u1")).toBeUndefined();
   });
 
   it("applies the service status when it differs from the optimistic guess", async () => {
