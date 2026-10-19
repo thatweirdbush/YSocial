@@ -33,7 +33,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
   const formatTime = (value: string) => {
     const created = new Date(value).getTime();
     if (Number.isNaN(created)) return value;
-    const minutes = Math.max(1, Math.floor((Date.now() - created) / 60000));
+    const minutes = Math.max(1, Math.floor((new Date().getTime() - created) / 60000));
     if (minutes < 60) return t("card.minutesAgo", { n: minutes });
     const hours = Math.floor(minutes / 60);
     if (hours < 24) return t("card.hoursAgo", { n: hours });
