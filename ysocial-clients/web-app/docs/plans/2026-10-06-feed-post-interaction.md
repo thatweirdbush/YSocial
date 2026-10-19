@@ -326,7 +326,7 @@
 ### Task 13: Verification, cleanup & docs
 
 **Files:**
-- Modify: touched files (sort/remove imports), `.context/features/feed-post-interaction.md` (create), `.context/INDEX.md`, `.context/features/frontend-roadmap.md`, `.context/conventions/frontend.md` (only if a new rule emerged), this plan (check boxes), spec (if reality diverged)
+- Modify: touched files (sort/remove imports), `.context/features/feed-post-interaction.md` (create), `.context/INDEX.md`, `.context/roadmap.md`, `.context/conventions/frontend.md` (only if a new rule emerged), this plan (check boxes), spec (if reality diverged)
 
 - [x] **Step 1:** `npm run test` -> all PASS (report counts); `npm run typecheck` exit 0; `npx eslint src` -> <= 62 errors / <= 25 warnings (baseline minus the 2 `post-card.tsx` errors), no new issue in touched files.
 - [x] **Step 2:** Browser pane (`preview_start` dev server, temporarily set `NEW_POST_INTERVAL_MS = 5_000` locally, revert before commit):

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-05
 - **Status:** approved in brainstorming, pending spec review
-- **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 1.2 (Search / Explore) + Phase 1.3 (Hashtag page), merged; also closes F0.2 "users" part
+- **Roadmap:** `.context/roadmap.md` -> Phase 1.2 (Search / Explore) + Phase 1.3 (Hashtag page), merged; also closes F0.2 "users" part
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks.
 
 ## 1. Goal

@@ -243,7 +243,7 @@
 ### Task 10: Browser verification & docs
 
 **Files:**
-- Modify: `.context/features/frontend-roadmap.md`, `.context/INDEX.md`
+- Modify: `.context/roadmap.md`, `.context/INDEX.md`
 - Create: `.context/features/search.md` (as-built, format of `post-detail.md`)
 
 - [x] **Step 1:** `preview_start web-app` -> verify: nav Search -> explore landing; type "da lat" -> suggestions + Enter -> results with highlight; tabs switch & URL updates; click `#NextJS` in feed -> tag page, thread NOT opened; follow in search -> sidebar suggestion synced; like in results -> back to `/` synced; open thread from results -> Back -> instant results; recent survives reload; `/tags/%E0%A4` -> not-found; 375 / 768 / 1440, light & dark; keyboard-only combobox; console has no new errors/hydration warnings.

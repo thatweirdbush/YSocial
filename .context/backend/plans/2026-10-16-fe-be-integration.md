@@ -530,7 +530,7 @@ Each line has pinned test in owning task.
 
 ### Task C9: Phase C exit
 **Files:**
-- Modify: roadmap (C.1-C.4 per deviations), MAP §6 (CP2 FE adopted; follow & feed read moved; follow-request param name `{targetId}`), `.context/backend/integration/fe-be-integration.md` (include soft-404 deviation from `conventions/frontend.md` §5 & Zustand-adapters deviation from §4), `profile.md`, `post-detail.md`, `feed-post-interaction.md` (as-built notes), `frontend-roadmap.md` item 2.7 note
+- Modify: roadmap (C.1-C.4 per deviations), MAP §6 (CP2 FE adopted; follow & feed read moved; follow-request param name `{targetId}`), `.context/backend/integration/fe-be-integration.md` (include soft-404 deviation from `conventions/frontend.md` §5 & Zustand-adapters deviation from §4), `profile.md`, `post-detail.md`, `feed-post-interaction.md` (as-built notes), `roadmap.md` item 2.7 note
 
 - [x] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
 - [x] **Step 2: Manual smoke** (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`, shell `NODE_EXTRA_CA_CERTS` set, browser trusts cert): login seed user -> feed both tabs -> open post & reply thread -> create post/reply (also reply to nested comment) -> edit -> delete -> like/bookmark (post & comment) -> saved page -> other profiles (public + private locked) -> follow/unfollow -> edit profile; hard-reload `/posts/{id}` of private author's post as accepted follower (visible) & as anonymous (not-found state); BE down on `/@username` -> error page; hidden-feature check (no search, pin, pill, block/mute UI)
@@ -693,7 +693,7 @@ Each line has pinned test in owning task.
 
 ### Task N4: Phase N exit
 **Files:**
-- Modify: roadmap (N.1 done in C per deviation, N.2, N.3), MAP §6 (CP4), `.context/backend/integration/fe-be-integration.md`, `frontend-roadmap.md` (Phase 3 notes: tabs/badge/settings still open)
+- Modify: roadmap (N.1 done in C per deviation, N.2, N.3), MAP §6 (CP4), `.context/backend/integration/fe-be-integration.md`, `roadmap.md` (Phase 3 notes: tabs/badge/settings still open)
 
 - [x] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
 - [x] **Step 2: Manual smoke** (all slices): 2 accounts in 2 browsers: like/comment/follow -> push arrives live; mark read; mark all; mute author -> feed excludes; block sender -> their notifications disappear; token refresh while connected -> hub keeps working
@@ -768,7 +768,7 @@ Each line has pinned test in owning task.
 
 ### Task X3: Close-out docs
 **Files:**
-- Modify: roadmap (all phases `[x]`), MAP (FE-counterpart column, §5, §6 follow-ups closed), `.context/backend/integration/fe-be-integration.md` (final as-built), INDEX, `frontend-roadmap.md` "Out of scope" note updated
+- Modify: roadmap (all phases `[x]`), MAP (FE-counterpart column, §5, §6 follow-ups closed), `.context/backend/integration/fe-be-integration.md` (final as-built), INDEX, `roadmap.md` "Out of scope" note updated
 
 - [x] **Step 1: Run** full verification (`npm run test`, `typecheck`, `lint`, `api:check`; BE `dotnet test` only if X2 ran) -> pass
 - [x] **Step 2: Update** docs listed; deferred-minor triage per `00-agentic-rules.md` §4.3 (resolve/defer/close with rationale)

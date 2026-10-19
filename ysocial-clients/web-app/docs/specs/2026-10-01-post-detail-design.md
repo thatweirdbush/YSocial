@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-01
 - **Status:** approved in brainstorming (sections 1-3), pending spec review
-- **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 0 (F0.1, F0.2, F0.3, F0.5) + Phase 1.1
+- **Roadmap:** `.context/roadmap.md` -> Phase 0 (F0.1, F0.2, F0.3, F0.5) + Phase 1.1
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks.
 
 ## 1. Goal

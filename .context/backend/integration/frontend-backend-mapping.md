@@ -1,8 +1,8 @@
 ---
 module: FE <-> BE Integration Mapping
-updated: 2026-10-16
+updated: 2026-10-19
 contract: ysocial-clients/web-app/docs/swagger.json
-fe-roadmap: .context/features/frontend-roadmap.md
+roadmap: .context/roadmap.md
 ---
 
 # FE <-> BE MAPPING
@@ -19,12 +19,12 @@ fe-roadmap: .context/features/frontend-roadmap.md
 | Topic | Fact | Evidence |
 |---|---|---|
 | FE integration state | **FE calls BE through `src/lib/api-client.ts` (JWT, single-flight refresh) & `src/lib/signalr-client.ts`**; each `features/*/services/*.ts` dispatches per function to `*.real.ts` adapter by `isRealApi(slice)` (default: all real); mock adapters (`mockDelay`, `src/mocks/*`) stay for BE-less features & mock mode | `fe-be-integration.md`, plan `2026-10-16-fe-be-integration.md` |
-| Base URL | `https://localhost:49895` (FE hard-codes it; BE `launchSettings.json` matches); BE forces HTTPS redirect; CORS origin from `Cors:AllowedOrigins` (dev `http://localhost:3000`), credentials allowed | BG §8 |
+| Base URL | `https://localhost:49895` (FE default, override via `NEXT_PUBLIC_API_BASE_URL`; BE `launchSettings.json` matches); BE forces HTTPS redirect; CORS origin from `Cors:AllowedOrigins` (dev `http://localhost:3000`), credentials allowed | BG §8 |
 | Auth header | `Authorization: Bearer <accessToken>`; SignalR via `?access_token=` | `Program.cs` `OnMessageReceived` |
 | Actor id | decode JWT claim **`user_id`** (profile id), or read `GET /api/users/me`; login body has no user info; `sub` = account id, NEVER sent to social routes | `JwtProvider.cs`, `LoginResponse` |
 | Token lifetimes | access 15 min (`Jwt:AccessTokenMinutes`); refresh 7 days, rotated on every refresh & switch; max 5 active sessions per account (6th login evicts oldest); logout does NOT invalidate issued access tokens (valid until expiry) | BG §6 |
 | Refresh contract | `POST /api/identities/refresh-token {refreshToken}` anonymous -> `{accessToken, refreshToken, refreshTokenExpiry}`; any failure -> 401 `InvalidRefreshToken`; matches FE `api-client.ts` (route, body, fields) | `RefreshTests` |
-| **Cross-tab refresh (FE REQUIRED, CP1)** | refresh tokens are single-use: 2 tabs refreshing same token -> exactly 1 x 200, loser gets 401 `InvalidRefreshToken` & `clearAuth` logs out ALL tabs. FE MUST add cross-tab single-flight (`navigator.locks` or BroadcastChannel) and, after acquiring lock, re-read stored refresh token & skip call if already rotated | `Refresh_ConcurrentSameToken_ExactlyOne200` |
+| **Cross-tab refresh (FE done, CP1)** | refresh tokens are single-use: 2 tabs refreshing same token -> exactly 1 x 200, loser gets 401 `InvalidRefreshToken`. FE implements cross-tab single-flight (`navigator.locks`) and, after acquiring lock, re-reads stored refresh token & skips call if already rotated (adoption) | `Refresh_ConcurrentSameToken_ExactlyOne200` |
 | JSON | camelCase; request enums = integers (`gender`, `targetType`), read DTO enums = lowercase strings; ids GUID strings; `DateTime` ISO UTC; `PostDto.parentId`/`imageUrl` omitted when null, other nullable fields (`bio`, `avatarUrl`, `coverUrl`, author `avatarUrl`) serialize as `null` (FE types must accept `null`, not only `undefined`) | BG §8 |
 | Error body | RFC 7807 `ProblemDetails` on EVERY error: `type, title, status, detail, instance, code, traceId`; validation adds `errors: { field: string[] }` (camelCase keys); FE switches on `code` (list below) | BG §5, `ErrorPipelineTests` |
 | Pagination | offset `page` (1-based) & `pageSize` (default 10; follow lists, follow requests, block & mute lists, notifications 20; max 50); invalid -> 400 `ValidationFailed`; page beyond last -> 200 empty `items` + real metadata; FE `nextPage = hasNextPage ? page + 1 : undefined` | `PaginationTests` |
@@ -285,12 +285,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | CP3 | private account, follow requests, followers dialog, block list, close friends | FE adopted (Phase G); reached (tests, swagger regenerated) |
 | CP4 | feed, notifications, mute | FE adopted (feed in Phase C, mute & notifications in Phase N); reached (tests, swagger regenerated) |
 
-### FE follow-ups (record in FE roadmap; NOT done here)
-- **CP1 (required):** DONE (FE Phase F): cross-tab refresh single-flight (§1: `navigator.locks` + rotation adoption), redirect `/login`, register sends `username`
-- **CP2 (DONE, FE Phase C except: switcher):** viewer bootstrap from `MeDto`, never expect `email` on other profiles; follow status from `{followStatus}`; like/bookmark via `PUT`/`DELETE` resource routes (route by `kind`); thread via `/api/threads/{id}`; accept `null` for nullable DTO fields (not only absent); map `visibility` `followersOnly|private` (not produced yet)
-- **CP2/CP3 (D14, DONE FE Phase G):** blocked profile = not-found state; `isBlockedBy` forced false & `blockedBy` always empty in real mode (mock keeps its model); unblock only from own block list (`me/blocks?query` searches server-side)
-- **CP3 (DONE FE Phase G):** `FollowListPageDto.locked` renders locked state in followers dialog
-- **CP4 (DONE FE Phases C & N):** `fetchFeed` via `GET /api/feed` (`tab`, `page`; `nextPage` from `hasNextPage`; `following` needs token); `setMuted`/`fetchMutedUsers` via mute routes & `me/mutes`; notifications: list/unread/read routes, extend `NotificationPayload.type` union (`NewFollow`, `FollowRequested`, `FollowAccepted`), map `kind` to item icon, `targetId` to link; share link: use `sharedUrl` as is
+- FE follow-ups per CP: all done (history: plan `2026-10-16-fe-be-integration.md`, as-built: `fe-be-integration.md`)
 
 ## 7. Contract decisions (D-ids, owner of outcome; rationale: plan §4)
 
@@ -300,7 +295,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D3 | Login failure: uniform 401 `InvalidCredentials`; 403 `AccountInactive` only after valid password | Implemented |
 | D4 | Session cap 5; 6th login evicts oldest, no error | Implemented |
 | D5 | Refresh `POST /api/identities/refresh-token`, rotation, profile-bound token, 401 `InvalidRefreshToken` | Implemented |
-| D6 | Access 15 min, refresh 7 days; no per-request revocation; per-account session lock; FE cross-tab single-flight required | Implemented (BE) / FE open |
+| D6 | Access 15 min, refresh 7 days; no per-request revocation; per-account session lock; FE cross-tab single-flight required | Implemented (BE & FE) |
 | D7 | Write responses: 201 `PostDto` + `Location`, 200 `PostDto`/`UserProfileDto` on update, 204 no payload, register 201 `{accountId}` | Implemented |
 | D8 | Follow response `{followStatus}` | Implemented |
 | D9 | Read DTO enums = lowercase-camel strings; request bodies keep ints | Implemented |

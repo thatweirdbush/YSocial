@@ -37,7 +37,7 @@ MUST check & activate these core skills before ANY task.
 **Purpose:** preserve context across chat sessions, prevent memory drift. ALL work MUST follow:
 
 ### 4.1. File System Hierarchy
-1. **Tier 1: Roadmap & Global Context** (e.g. `.context/features/frontend-roadmap.md`)
+1. **Tier 1: Roadmap & Global Context** (`.context/roadmap.md`)
    - High-level project vision (Phase 0 -> Phase N)
    - Single source of truth for phase progress (`[x]`, `[-]`, `[ ]`)
 2. **Tier 2: Spec & Plan** (`docs/specs/` & `docs/plans/`)

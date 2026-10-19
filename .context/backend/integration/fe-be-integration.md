@@ -6,7 +6,7 @@ updated: 2026-10-19
 
 # FE-BE INTEGRATION (AS-BUILT)
 
-> All phases closed. Plan, execution records & mismatch log (history only): `backend/plans/2026-10-16-fe-be-integration.md`. Contract owner: MAP (`backend/integration/frontend-backend-mapping.md`)
+> All phases closed. Plan, execution records & mismatch log (history only): `backend/plans/2026-10-16-fe-be-integration.md`. Contract owner: MAP (`backend/integration/frontend-backend-mapping.md`). Open items & BE track: `.context/roadmap.md`
 
 ## Phase F - Foundation (auth)
 
@@ -114,9 +114,3 @@ updated: 2026-10-19
 - Follow/unfollow moved CP3 -> Phase C; feed read moved CP4 -> Phase C (mock ids must not reach real routes); mute stayed CP4
 - Slice switch is cumulative (`auth` -> `content` -> `graph` -> `activity`)
 - Profile switcher (FE roadmap 2.7) is not mock replacement: build real-first
-
-## Open items & BE track
-- **Open for user/BE owner:** M12 BE option: nullable-reference swagger, wide type churn, no functional gain
-- **BE gaps for FE-built features:** tabs `replies`/`media`, pin, hide-like-count, close-friends audience (D17); register: BG §10
-- **Needs EF migration first:** search/tags/trending, media upload
-- **No FE counterpart yet:** DMs, reposts, polls, report, onboarding, session list

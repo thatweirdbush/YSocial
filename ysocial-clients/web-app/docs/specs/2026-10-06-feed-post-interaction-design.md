@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-06
 - **Status:** implemented 2026-10-06 (as-built notes: `.context/features/feed-post-interaction.md`, implementation decisions I1-I5)
-- **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 1.4 ("Có bài mới" pill) + 1.5 (Post owner actions) + 1.6 (User hover card), merged; also closes gap #2 (`PostCard` follow local state) & part of F0.2 (shared seed authors, follow graph)
+- **Roadmap:** `.context/roadmap.md` -> Phase 1.4 ("Có bài mới" pill) + 1.5 (Post owner actions) + 1.6 (User hover card), merged; also closes gap #2 (`PostCard` follow local state) & part of F0.2 (shared seed authors, follow graph)
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks.
 
 ## 1. Goal
