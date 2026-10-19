@@ -1,9 +1,11 @@
+import { isRealApi } from "@/lib/api-config";
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
 import { isPrivate } from "@/mocks/privacy";
 import { getFollowedIds } from "@/mocks/relation-graph";
 import { SEED_AUTHORS } from "@/mocks/seed-authors";
 import { asViewer, canViewPost, canViewProfile, isMutedBy } from "@/mocks/visibility";
+import * as real from "./post-service.real";
 import { MOCK_INCOMING_CONTENTS } from "../mocks/mock-incoming";
 import { getMockPostById, MOCK_POSTS } from "../mocks/mock-posts";
 import type {
@@ -169,6 +171,7 @@ function buildPost(input: CreatePostInput, author: PostAuthor, parent?: Pick<Pos
 // #endregion
 
 export async function fetchFeed(tab: FeedTab, page: number, viewerId: string): Promise<FeedPage> {
+  if (isRealApi("content")) return real.fetchFeed(tab, page, viewerId);
   await simulateNetwork();
 
   const followed = getFollowedIds(viewerId);
@@ -195,6 +198,7 @@ function pageOf<T>(items: T[], page: number): { items: T[]; nextPage?: number } 
  * repeated on later pages); `replies`: replies plus their parent references; `media`: roots with images.
  */
 export async function fetchUserPosts(userId: string, tab: UserPostsTab, page: number, actorId: string): Promise<UserPostsPage> {
+  if (isRealApi("content")) return real.fetchUserPosts(userId, tab, page, actorId);
   await simulateNetwork();
 
   const viewer = asViewer(actorId);
@@ -235,6 +239,7 @@ export async function fetchUserPosts(userId: string, tab: UserPostsTab, page: nu
  * global on the post (tracked debt); `actorId` drives visibility only.
  */
 export async function fetchSavedPosts(actorId: string, page: number): Promise<SavedPostsPage> {
+  if (isRealApi("content")) return real.fetchSavedPosts(actorId, page);
   await simulateNetwork();
 
   const viewer = asViewer(actorId);
@@ -245,6 +250,7 @@ export async function fetchSavedPosts(actorId: string, page: number): Promise<Sa
 
 /** Not-found (`null`) when the viewer cannot see the post; replies the viewer cannot see are filtered out. */
 export async function fetchPostThread(id: string, actorId: string): Promise<PostThread | null> {
+  if (isRealApi("content")) return real.fetchPostThread(id, actorId);
   await simulateNetwork();
 
   const viewer = asViewer(actorId);
@@ -270,6 +276,7 @@ export async function fetchPostThread(id: string, actorId: string): Promise<Post
 }
 
 export async function createPost(input: CreatePostInput, author: PostAuthor): Promise<PostItem> {
+  if (isRealApi("content")) return real.createPost(input, author);
   await simulateNetwork();
 
   const post = buildPost(input, author);
@@ -282,6 +289,7 @@ export async function createPost(input: CreatePostInput, author: PostAuthor): Pr
  * Applied before the simulated latency, like a server that commits on receipt; unknown ids are ignored.
  */
 export async function setPostLike(ref: PostRef, liked: boolean): Promise<void> {
+  if (isRealApi("content")) return real.setPostLike(ref, liked);
   const post = db.get(ref.id);
   if (post && post.isLikedByCurrentUser !== liked) {
     post.isLikedByCurrentUser = liked;
@@ -291,12 +299,14 @@ export async function setPostLike(ref: PostRef, liked: boolean): Promise<void> {
 }
 
 export async function setPostBookmark(ref: PostRef, bookmarked: boolean): Promise<void> {
+  if (isRealApi("content")) return real.setPostBookmark(ref, bookmarked);
   const post = db.get(ref.id);
   if (post) post.isBookmarkedByCurrentUser = bookmarked;
   await mockDelay();
 }
 
 export async function createReply(parentRef: PostRef, input: CreatePostInput, author: PostAuthor): Promise<PostItem> {
+  if (isRealApi("content")) return real.createReply(parentRef, input, author);
   await simulateNetwork();
 
   const parent = db.get(parentRef.id);
@@ -381,6 +391,7 @@ export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
 
 // #region Owner mutations
 export async function updatePostContent(ref: PostRef, content: string, actorId: string): Promise<PostItem> {
+  if (isRealApi("content")) return real.updatePostContent(ref, content, actorId);
   await simulateNetwork();
 
   const post = ownedPost(ref.id, actorId);
@@ -394,6 +405,7 @@ export async function updatePostContent(ref: PostRef, content: string, actorId: 
 
 /** Deletes the post and its whole reply tree; returns every removed id. */
 export async function deletePost(ref: PostRef, actorId: string): Promise<{ deletedIds: string[] }> {
+  if (isRealApi("content")) return real.deletePost(ref, actorId);
   await simulateNetwork();
 
   const id = ref.id;
