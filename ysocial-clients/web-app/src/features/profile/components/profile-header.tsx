@@ -10,6 +10,7 @@ import type { FollowListKind, UserProfile } from "../types";
 import { parseBio } from "../utils/bio-parser";
 import { EditProfileDialog } from "./edit-profile-dialog";
 import { FollowButton } from "./follow-button";
+import { hasCapability } from "@/lib/capabilities";
 import { ProfileHeaderMenu } from "./profile-header-menu";
 
 interface ProfileHeaderProps {
@@ -40,6 +41,8 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare, canOpenLi
   const { t, locale } = useTranslation();
   const [editOpen, setEditOpen] = useState(false);
   const formatCount = (n: number) => new Intl.NumberFormat(locale).format(n);
+  // Followers/following lists are mock-only until the graph slice is real (mock users would 404 on real routes)
+  const listsEnabled = canOpenLists && hasCapability("followLists");
 
   return (
     <div className="flex flex-col gap-5 px-4 py-6 md:px-6">
@@ -67,13 +70,13 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare, canOpenLi
       )}
 
       <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
-        <CountLink enabled={canOpenLists} onClick={() => onOpenFollowers("followers")}>
+        <CountLink enabled={listsEnabled} onClick={() => onOpenFollowers("followers")}>
           {t("profile.followersCount", { n: formatCount(user.followersCount) })}
         </CountLink>
         <span className="select-none text-zinc-300 dark:text-zinc-700" aria-hidden="true">
           •
         </span>
-        <CountLink enabled={canOpenLists} onClick={() => onOpenFollowers("following")}>
+        <CountLink enabled={listsEnabled} onClick={() => onOpenFollowers("following")}>
           {t("profile.followingCount", { n: formatCount(user.followingCount) })}
         </CountLink>
       </div>
@@ -92,7 +95,9 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare, canOpenLi
           <FollowButton userId={user.id} reserveSpace className="min-h-11 flex-1 px-6 text-xs sm:flex-initial" />
         )}
 
-        {!isOwn && <ProfileHeaderMenu user={user} />}
+        {!isOwn && (hasCapability("closeFriendsUi") || hasCapability("muteUi") || hasCapability("blockUi")) && (
+          <ProfileHeaderMenu user={user} />
+        )}
 
         {onShare && (
           <DropdownMenu>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
+import { hasCapability } from "@/lib/capabilities";
 import { commitBlock, commitCloseFriend, commitMute } from "../store/relation-store";
 import type { UserProfile } from "../types";
 import { BlockConfirmDialog } from "./block-confirm-dialog";
@@ -71,20 +72,24 @@ export function ProfileHeaderMenu({ user }: { user: UserProfile }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60 rounded-2xl p-2">
-          {user.followStatus === "accepted" && (
+          {user.followStatus === "accepted" && hasCapability("closeFriendsUi") && (
             <DropdownMenuItem onSelect={toggleCloseFriend} className={ITEM}>
               <Star className={ICON} aria-hidden="true" />
               {t(user.viewerMarkedCloseFriend ? "relations.removeCloseFriend" : "relations.addCloseFriend")}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onSelect={toggleMute} className={ITEM}>
-            <VolumeX className={ICON} aria-hidden="true" />
-            {user.isMuted ? t("relations.unmute", params) : t("card.mute", params)}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setBlockOpen(true)} className={ITEM}>
-            <Ban className={ICON} aria-hidden="true" />
-            {t("card.block", params)}
-          </DropdownMenuItem>
+          {hasCapability("muteUi") && (
+            <DropdownMenuItem onSelect={toggleMute} className={ITEM}>
+              <VolumeX className={ICON} aria-hidden="true" />
+              {user.isMuted ? t("relations.unmute", params) : t("card.mute", params)}
+            </DropdownMenuItem>
+          )}
+          {hasCapability("blockUi") && (
+            <DropdownMenuItem onSelect={() => setBlockOpen(true)} className={ITEM}>
+              <Ban className={ICON} aria-hidden="true" />
+              {t("card.block", params)}
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       <BlockConfirmDialog open={blockOpen} onOpenChange={setBlockOpen} username={username} onConfirm={block} />

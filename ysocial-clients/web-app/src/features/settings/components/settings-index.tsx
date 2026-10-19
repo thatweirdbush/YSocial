@@ -3,6 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useTranslation } from "@/hooks/use-translation";
+import { hasCapability } from "@/lib/capabilities";
 import { SETTINGS_SECTIONS } from "../constants";
 
 /** `/settings` body: the section list in the center column (the right sidebar stays the default one). */
@@ -13,7 +14,7 @@ export function SettingsIndex() {
     <div className="flex flex-col">
       <h1 className="p-4 text-xl font-bold text-zinc-900 dark:text-zinc-50">{t("settings.title")}</h1>
       <ul className="flex flex-col">
-        {SETTINGS_SECTIONS.map(({ href, titleKey, icon: Icon }) => (
+        {SETTINGS_SECTIONS.filter(({ capability }) => hasCapability(capability)).map(({ href, titleKey, icon: Icon }) => (
           <li key={href} className="border-b border-zinc-200/50 last:border-0 dark:border-zinc-900/50">
             <Link
               href={href}

@@ -1,3 +1,4 @@
+import { isRealApi } from "@/lib/api-config";
 import { CannotBlockYourselfError, ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
 import { getBlockedIds, getBlockerIds, setBlocked as writeBlocked } from "@/mocks/block-graph";
@@ -29,8 +30,17 @@ import { getStoredUser, mockDelay, projectUser } from "./user-service";
 
 export { RELATION_PAGE_SIZE };
 
+/**
+ * Content is real but the graph slice is not: viewer ids are BE GUIDs the mock graph must never see. Reads answer
+ * empty defaults, writes are refused (their UI is hidden by the capability table) until Phase G wires the BE.
+ */
+const isFacade = (): boolean => isRealApi("content") && !isRealApi("graph");
+
+const EMPTY_SETS: RelationSets = { blocked: [], blockedBy: [], muted: [], closeFriends: [], isPrivate: false, requestCount: 0 };
+
 /** Writes are signed-in only (spec D9). */
 function requireViewer(actorId: string): string {
+  if (isFacade()) throw new ForbiddenError("Relationship controls are not available yet");
   const viewer = asViewer(actorId);
   if (!viewer) throw new ForbiddenError("Sign in to manage relationships");
   return viewer;
@@ -102,6 +112,7 @@ export async function respondFollowRequest(requesterId: string, decision: Reques
 // #region Reads
 /** Requesters as profiles, newest first. Guest -> empty. */
 export async function fetchFollowRequests(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isFacade()) return { users: [] };
   await mockDelay();
 
   const viewer = asViewer(actorId);
@@ -109,6 +120,7 @@ export async function fetchFollowRequests(q: RelationListQuery, actorId: string)
 }
 
 export async function fetchFollowRequestCount(actorId: string): Promise<number> {
+  if (isFacade()) return 0;
   await mockDelay();
 
   const viewer = asViewer(actorId);
@@ -116,6 +128,7 @@ export async function fetchFollowRequestCount(actorId: string): Promise<number> 
 }
 
 export async function fetchBlockedUsers(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isFacade()) return { users: [] };
   await mockDelay();
 
   const viewer = asViewer(actorId);
@@ -123,6 +136,7 @@ export async function fetchBlockedUsers(q: RelationListQuery, actorId: string): 
 }
 
 export async function fetchMutedUsers(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isFacade()) return { users: [] };
   await mockDelay();
 
   const viewer = asViewer(actorId);
@@ -131,6 +145,7 @@ export async function fetchMutedUsers(q: RelationListQuery, actorId: string): Pr
 
 /** Accepted followees, with `viewerMarkedCloseFriend` projected. */
 export async function fetchCloseFriendCandidates(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isFacade()) return { users: [] };
   await mockDelay();
 
   const viewer = asViewer(actorId);
@@ -138,6 +153,7 @@ export async function fetchCloseFriendCandidates(q: RelationListQuery, actorId: 
 }
 
 export async function fetchRelationSets(actorId: string): Promise<RelationSets> {
+  if (isFacade()) return { ...EMPTY_SETS };
   await mockDelay();
 
   const viewer = asViewer(actorId);

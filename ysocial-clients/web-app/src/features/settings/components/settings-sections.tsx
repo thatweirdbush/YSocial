@@ -1,11 +1,14 @@
 "use client";
 
+import { FeatureUnavailable } from "@/components/shared/feature-unavailable";
+import { hasCapability } from "@/lib/capabilities";
 import { BlockedUserList, CloseFriendsList, FollowRequestList, MutedUserList } from "@/features/profile";
 import { PrivacySettings } from "./privacy-settings";
 import { SettingsPageHeader } from "./settings-page-header";
 
 /** `/settings/privacy`: the private account switch and the pending follow requests (`#requests`). */
 export function PrivacySection() {
+  if (!hasCapability("privacyUi")) return <FeatureUnavailable />;
   return (
     <>
       <SettingsPageHeader title="settings.privacy" />
@@ -18,6 +21,7 @@ export function PrivacySection() {
 }
 
 export function BlockedSection() {
+  if (!hasCapability("blockUi")) return <FeatureUnavailable />;
   return (
     <>
       <SettingsPageHeader title="settings.blocked" />
@@ -27,6 +31,7 @@ export function BlockedSection() {
 }
 
 export function MutedSection() {
+  if (!hasCapability("muteUi")) return <FeatureUnavailable />;
   return (
     <>
       <SettingsPageHeader title="settings.muted" />
@@ -36,6 +41,7 @@ export function MutedSection() {
 }
 
 export function CloseFriendsSection() {
+  if (!hasCapability("closeFriendsUi")) return <FeatureUnavailable />;
   return (
     <>
       <SettingsPageHeader title="settings.closeFriends" />

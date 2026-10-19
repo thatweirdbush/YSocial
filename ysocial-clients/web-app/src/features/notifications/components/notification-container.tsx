@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { FollowRequestsBanner } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { SafeHydration } from "@/components/shared/safe-hydration";
+import { isRealApi } from "@/lib/api-config";
+import { hasCapability } from "@/lib/capabilities";
 import { NotificationList } from "./notification-list";
 import { NotificationItemData, NotificationUser } from "../types";
 
@@ -97,7 +99,10 @@ const INITIAL_NOTIFICATIONS: NotificationItemData[] = [
 
 export const NotificationContainer: React.FC = () => {
   const { t } = useTranslation();
-  const [notifications, setNotifications] = useState<NotificationItemData[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItemData[]>(
+    // Mock items reference mock users (non-GUID ids): with real content the list stays empty until Phase N
+    isRealApi("content") ? [] : INITIAL_NOTIFICATIONS,
+  );
 
   // Dynamic follow toggle action
   const handleFollowToggle = (user: NotificationUser) => {
@@ -135,7 +140,7 @@ export const NotificationContainer: React.FC = () => {
         </div>
 
         {/* Pending follow requests of a private account (hidden when there are none) */}
-        <FollowRequestsBanner />
+        {hasCapability("followRequestsUi") && <FollowRequestsBanner />}
 
         {/* Dynamic Notification List */}
         <NotificationList

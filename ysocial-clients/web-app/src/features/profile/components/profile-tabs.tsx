@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import { useTranslation } from "@/hooks/use-translation";
+import { hasCapability } from "@/lib/capabilities";
 import type { TranslationKey } from "@/lib/i18n/translate";
 import type { ProfileTab } from "../types";
 
@@ -24,7 +25,12 @@ export function ProfileTabs({ active, onChange, showSaved }: ProfileTabsProps) {
   const { t } = useTranslation();
   const buttons = useRef<Partial<Record<ProfileTab, HTMLButtonElement | null>>>({});
 
-  const tabs: ProfileTab[] = showSaved ? ["threads", "replies", "media", "saved"] : ["threads", "replies", "media"];
+  // The BE has no replies/media tabs: they disappear while content is real
+  const tabs: ProfileTab[] = [
+    "threads",
+    ...(hasCapability("profileRepliesMedia") ? (["replies", "media"] as const) : []),
+    ...(showSaved ? (["saved"] as const) : []),
+  ];
 
   const select = (tab: ProfileTab) => {
     onChange(tab);
