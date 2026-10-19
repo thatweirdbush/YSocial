@@ -8,7 +8,7 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 
 > **For agentic workers:** execute 1 task per session with `superpowers:executing-plans`, TDD per `test-driven-development`, finish with `verification-before-completion`. Track progress with `- [ ]` -> `- [x]` on task headers (§5.4)
 >
-> **Status 2026-10-15:** ALL tasks T0-T4 done (T3.4, T4.1-T4.3 closed in last session together with debt pass, §9); 514 tests green (60 / 41 / 413), 0 build warnings
+> **Status:** DONE; 514 tests green (60 / 41 / 413), 0 build warnings
 
 - **Goal:** make BE safe to integrate (correct errors, auth lifecycle, events) & expose min read/write contract that replaces FE mocks for auth, profile, posts, threads, saved & relationship controls
 - **Architecture:** keep Clean Architecture + MediatR pipeline + FluentValidation + DDD rules + in-memory `MockDataStore`; add explicit error catalog & HTTP mapping, read-model projections in Application, viewer access policy as single read-side gate
@@ -28,19 +28,17 @@ inputs: ../architecture/backend-guide.md (BG) | ../architecture/domain-model.md 
 - Real DB / EF Core migration (keep `MockDataStore`; BG §7.3). Result is NOT production-ready (§8)
 - Wiring FE services to BE, FE feature work
 - Search, tags, trending, pin, hide-like-count, reposts, polls, drafts, DMs, media upload, multi-image (§8)
-- Shared-kernel (`Microservice.BuildingBlocks`) changes
-- Full re-audit; facts in BG/DM/MAP are assumed unless task's first step contradicts them
 
 ## 2. Global constraints
-- Conventions: `.context/conventions/backend.md` + global C# style (file-scoped namespaces, CRLF, `#region`, sort usings, records for simple DTOs)
+- Conventions: `.context/conventions/backend.md`
 - Features stay vertical slices: `Application/Features/<Area>/<UseCase>/<UseCase>.cs` (command/query + validator + handler in 1 file), handlers `internal sealed`
 - New domain rules: `internal sealed record ...Rule : IBusinessRule` (`Message` then `BrokenWhen`) + explicit code & kind (D2)
 - Commands return `Result`/`Result<T>`; aggregate rule failures stay exceptions (mapped by T1.1b), no rewrite of rules into `Result`
-- Repo additions = new interface members on Domain contracts + mock impl; set-based (accept id collections) to stay EF-friendly; NO `Task.WhenAll` over same repo in new code (BG §10.12)
+- Repo additions = new interface members on Domain contracts + mock impl; set-based (accept id collections) to stay EF-friendly
 - **Viewer identity:** `viewerId` = profile `UserId` from JWT `user_id` (`IUserContext.UserId`), NEVER `AccountId`; anonymous = `null`
 - **List reads:** access policy (§4.4) applied to every returned entity BEFORE pagination & counts; fixed number of repo calls per page (no per-item lookups, no N+1)
 - **Refresh tokens:** every mutation under shared per-account lock (§4.3)
-- Swagger is NOT source of truth; acceptance = integration tests over real HTTP pipeline
+- Swagger != source of truth; acceptance = integration tests over real HTTP pipeline
 - JSON: camelCase; ids GUID strings; `Enumeration` ints stay for existing request bodies; new read DTOs expose string unions (D9)
 - Do not change FE code; FE checkpoints (§6) are verification hand-offs only
 
@@ -419,7 +417,7 @@ Single owner per fact; others link, never copy
 
 ## 8. Deferred work & known risks
 
-> Historical snapshot at plan close. Live debt register = `../architecture/backend-guide.md` §10 (several rows below are resolved there, e.g. `Task.WhenAll`, credentials in logs)
+> Historical snapshot at plan close. Live debt register = `../architecture/backend-guide.md` §10 (several rows below are resolved there)
 
 ### Deferred (not integration blockers)
 - Search, tags, trending, suggestions, hashtags/mentions (design: ranking/indexing)
@@ -427,7 +425,7 @@ Single owner per fact; others link, never copy
 - Media upload & multi-image, close-friends audience (D17), profile tabs `replies` & `media`
 - Create-profile, username change, deactivate/activate, change password, session list (account lifecycle: needs decisions on re-activation, session identity & username reuse)
 - EF Core / PostgreSQL persistence & transactions, outbox persistence, per-scope event tracking
-- Access-token revocation list (mitigated by 15 min lifetime, D6)
+- Access-token revocation list (D6)
 
 ### Known risks
 

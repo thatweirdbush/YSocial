@@ -8,7 +8,7 @@ updated: 2026-10-16
 - Pipeline, dispatch, auth & error semantics: `backend-guide.md`
 - FE endpoint view, error codes, DTOs: `../integration/frontend-backend-mapping.md`
 - Paths BE-relative (`src/YSocial.Domain/...`)
-- **Runtime state (2026-10-15):** every event with handler is dispatched in same request (BG §7); column **Live?** in §6 states which ones have effect
+- **Runtime state:** every event with handler is dispatched in same request (BG §7); column **Live?** in §6 states which ones have effect
 
 ## 1. Identity semantics (critical for FE)
 
@@ -18,7 +18,7 @@ updated: 2026-10-16
 | `UserId` | profile (public persona); 1 account has 1..N | JWT `user_id`; author of posts/comments; target of follow/block; every `{userId}`/`{targetId}`/`{id}` user route; viewer identity of every read |
 | `PostId`, `CommentId`, `LikeId`, `SavedItemId`, `NotificationId`, `UserRelationId`, `UserBlockId`, `RefreshTokenId` | aggregate/entity ids | DTOs expose raw `Guid` (`PostDto.id`, `UserProfileDto.id`) |
 
-- All are strongly-typed Guid
+- Strongly-typed Guid
 - Social graph, content & notifications are **per profile (`UserId`)**, not per account; switching profile changes actor
 - Username belongs to `User`, chosen at register (format `^[a-z0-9._]{3,30}$`), unique case-insensitive INCLUDING soft-deleted profiles (never recycled); emails also stay reserved after soft-delete; not editable (`UpdateProfileCommand` has no username)
 - Source: `Domain/Identities/Account.cs`, `Domain/Users/User.cs`, `Infrastructure/Identity/JwtProvider.cs`
@@ -64,7 +64,7 @@ updated: 2026-10-16
 
 ## 4. Invariants & business rules (limits are code constants)
 
-> Every rule is `internal sealed record ... : IClassifiedRule` (`Message`, `BrokenWhen`, explicit `Code` & `Kind`; `Domain/Common/Rules/`). `Code` comes from `Domain/Common/Errors/ErrorCodes.cs`; `AllRules_AreClassified` & `AllRuleCodes_ExistInCatalog` (reflection) forbid unclassified rules. Published code list: MAP §1
+> Every rule is `internal sealed record ... : IClassifiedRule` (`Message`, `BrokenWhen`, explicit `Code` & `Kind`; `Domain/Common/Rules/`). `Code` -> `Domain/Common/Errors/ErrorCodes.cs`; `AllRules_AreClassified` & `AllRuleCodes_ExistInCatalog` (reflection) forbid unclassified rules. Published code list: MAP §1
 
 | Area | Rule | Rule class(es) | Code | Kind |
 |---|---|---|---|---|
@@ -209,5 +209,4 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 - Unit of Work: `IUnitOfWork` (BuildingBlocks) implemented by `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`; mock repos return `UnitOfWork => null!`
 
 ## 8. Open items
-- Register of debt & deferred domain work (`Post.UpdateSettings`/audience, account lifecycle, stored counters at EF migration): `backend-guide.md` §10
-- Feature-level coverage vs FE: `../integration/frontend-backend-mapping.md` §4
+- Debt & deferred (`Post.UpdateSettings`/audience, account lifecycle, stored counters at EF migration): `backend-guide.md` §10

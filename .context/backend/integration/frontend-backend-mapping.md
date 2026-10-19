@@ -10,9 +10,9 @@ roadmap: .context/roadmap.md
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
 - Decisions D1-D24 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
-- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
+- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 422 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
-- **Status:** BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
+- Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
 
 ## 1. Ground truth for integrators
 
@@ -267,25 +267,21 @@ SharePostLinkResponse: { postId, sharedUrl }
 | Settings: sessions, language, deactivate | Unsupported | delete account exists |
 | DMs, report, onboarding | Unsupported | no code |
 
-## 5. Integration risks
+## 5. Integration risks (closed)
 
-- **Closed:** error shapes & 500s, text-only post, logout/refresh/session cap, event dispatch, identity (`user_id`, username), read endpoints, privacy/block enforcement, toggle vs set routes, response codes, SignalR payload, security hardening; history in plan T1-T4
-- **Open (FE side):** none
-- **Open (BE, accepted):** in-memory store, no transactions, restart wipes state (deterministic seed ids; FE treats refresh 401 as logout); full register: BG §10
+> error shapes & 500s, text-only post, logout/refresh/session cap, event dispatch, identity (`user_id`, username), read endpoints, privacy/block enforcement, toggle vs set routes, response codes, SignalR payload, security hardening; history in plan T1-T4
 
 ## 6. FE checkpoints & follow-ups
 
-> FE adoption as-built: `fe-be-integration.md` (post delete moves CP1 -> Phase C). FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
+> FE adoption DONE; as-built: `fe-be-integration.md` (post delete moves CP1 -> Phase C); plan: `2026-10-16-fe-be-integration.md`. FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
 
 | CP | Slice unblocked | BE state |
 |---|---|---|
-| CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests); FE adopted (Phase F) |
-| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12); FE auth adopted (Phase F), post delete moves to FE Phase C |
-| CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | FE adopted (Phase C, follow & feed read moved here); reached (tests, swagger verified) |
-| CP3 | private account, follow requests, followers dialog, block list, close friends | FE adopted (Phase G); reached (tests, swagger regenerated) |
-| CP4 | feed, notifications, mute | FE adopted (feed in Phase C, mute & notifications in Phase N); reached (tests, swagger regenerated) |
-
-- FE follow-ups per CP: all done (history: plan `2026-10-16-fe-be-integration.md`, as-built: `fe-be-integration.md`)
+| CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests); FE (Phase F) |
+| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12); FE auth (Phase F), post delete moves to FE Phase C |
+| CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | FE (Phase C, follow & feed read moved here); reached (tests, swagger verified) |
+| CP3 | private account, follow requests, followers dialog, block list, close friends | FE (Phase G); reached (tests, swagger regenerated) |
+| CP4 | feed, notifications, mute | FE (feed in Phase C, mute & notifications in Phase N); reached (tests, swagger regenerated) |
 
 ## 7. Contract decisions (D-ids, owner of outcome; rationale: plan §4)
 
@@ -314,8 +310,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D23 | Notifications: 1 `NotificationDto` for HTTP & push, `NewFollow` type, self notifications skipped, foreign mark-read 403, blocked/deleted senders filtered before paging | Implemented (T4.2) |
 | D24 | Security: log redaction by member name/attribute, JWT key required outside Development, seed & dev token Development-only | Implemented (T4.3) |
 
-- **Still open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending; full register: BG §10
+- **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, in-memory store, no transactions, restart wipes state (deterministic seed ids; FE treats refresh 401 as logout) full register: BG §10
 
 ## 8. Evidence
 - Probes of original behavior (T0.2) & their current results: `../architecture/backend-guide.md` §12
-- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (422 tests; layers in `.context/backend/architecture/backend-unit-test.md`)

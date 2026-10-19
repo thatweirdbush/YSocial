@@ -41,7 +41,6 @@ updated: 2026-10-19
 
 ## Pitfall Log
 - **OTP smoke:** BE masks OTP digit runs in Development by default; set `Messaging:LogOtpInDevelopment=true` (local `appsettings.Development.json`, gitignored) to read it in BE log (M17 resolved)
-- **`.env*` gitignored:** `.gitignore` has `!.env.example`
 - **Lint baseline:** 0 errors (5 pre-existing fixed in closure sweep); warnings = <img> (avatars/media)
 
 ## Phase C - Content
@@ -107,7 +106,6 @@ updated: 2026-10-19
 - Mock code kept: proof scan found no mock export that lost its last consumer (mock mode, partial slice lists & BE-less features still reach every mock adapter); `ysocial_mock_user` cookie bridge, `ViewerSync` mock upsert & `[@username]` cookie resolver stay for mock mode
 - X.2 done: BE toggle endpoints removed (FE had 0 calls); types regenerated
 - Smoke evidence: 2 tabs + corrupted shared access token -> exactly 1 `refresh-token` call (`navigator.locks`), no forced logout
-- Deferred: plan closure record (X2)
 
 ## Deviations from MAP
 - Post delete moved CP1 -> Phase C (no real post ids while posts were mocked)
