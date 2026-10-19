@@ -19,8 +19,8 @@ export function toUserProfile(dto: UserProfileDto): UserProfile {
     isPrivate: dto.isPrivate,
     isFollowing: followStatus === "accepted",
     followStatus,
-    viewerMarkedCloseFriend: dto.viewerMarkedCloseFriend,
-    isMuted: dto.isMuted,
+    viewerMarkedCloseFriend: dto.viewerMarkedCloseFriend ?? false,
+    isMuted: dto.isMuted ?? false,
     isBlocked: dto.isBlocked ?? false,
     isBlockedBy: dto.isBlockedBy ?? false,
   };
