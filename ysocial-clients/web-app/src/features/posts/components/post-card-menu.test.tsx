@@ -22,6 +22,8 @@ vi.mock("sonner", () => ({ toast }));
 
 const post: PostItem = {
   id: "p1",
+  kind: "post",
+  rootPostId: "p1",
   content: "Nội dung",
   createdAt: "2026-10-01T00:00:00.000Z",
   likesCount: 2,
@@ -123,7 +125,7 @@ describe("PostCardMenu", () => {
     await userEvent.click(item("Xoá")!);
     await userEvent.click(screen.getByRole("button", { name: "Xoá" }));
     expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith("p1", "u1");
+    expect(spy).toHaveBeenCalledWith({ id: "p1", kind: "post", rootPostId: "p1" }, "u1");
   });
 });
 

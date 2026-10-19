@@ -14,12 +14,14 @@ import { PostDetailShell } from "./post-detail-shell";
 import { PostDetailSkeleton } from "./post-detail-skeleton";
 import { ReplyComposer } from "./reply-composer";
 import { ReplyList } from "./reply-list";
+import { toPostRef } from "../../utils/post-ref";
+import type { PostRef } from "../../types";
 
 type LoadState =
   | { status: "loading" }
   | { status: "missing" }
   | { status: "error" }
-  | { status: "ready"; authorId: string; authorUsername: string; parentUsername?: string };
+  | { status: "ready"; ref: PostRef; authorId: string; authorUsername: string; parentUsername?: string };
 
 /** Thread page body. Mount with `key={postId}` so navigating between threads starts fresh. */
 export function PostDetailContainer({ postId }: { postId: string }) {
@@ -59,6 +61,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
 
         setState({
           status: "ready",
+          ref: toPostRef(thread.post),
           authorId: thread.post.user.id,
           authorUsername: thread.post.user.username,
           parentUsername: thread.parent?.user.username,
@@ -101,7 +104,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
       ) : state.status === "ready" ? (
         <>
           <PostDetailMain postId={postId} replyToUsername={state.parentUsername} />
-          <ReplyComposer parentId={postId} replyToUsername={state.authorUsername} />
+          <ReplyComposer parent={state.ref} replyToUsername={state.authorUsername} />
           <ReplyList parentId={postId} />
         </>
       ) : null}

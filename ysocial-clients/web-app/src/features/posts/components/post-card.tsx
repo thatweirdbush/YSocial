@@ -25,6 +25,7 @@ import { useOwnerActions, type OwnerActions } from "../hooks/use-owner-actions";
 import { useIsAuthorBlocked, useIsDeleted, usePost, usePostActions, usePostAuthorId } from "../store/post-store";
 import type { PostItem } from "../types";
 import { getVisibleLikeCount } from "../utils/like-visibility";
+import { toPostRef } from "../utils/post-ref";
 import { RichContent } from "../utils/rich-content";
 import { PostCardMenu } from "./post-card-menu";
 import { PostInlineEditor } from "./post-inline-editor";
@@ -149,7 +150,7 @@ function PostCardView({
   const handleLike = () => {
     const nextState = !isLiked;
     toggleLike(post.id, post);
-    void setPostLike(post.id, nextState);
+    void setPostLike(toPostRef(post), nextState);
 
     if (nextState) {
       setLikeAnimating(true);
@@ -165,7 +166,7 @@ function PostCardView({
   const handleBookmark = () => {
     const nextState = !isBookmarked;
     toggleBookmark(post.id, post);
-    void setPostBookmark(post.id, nextState);
+    void setPostBookmark(toPostRef(post), nextState);
     setBookmarkAnimating(true);
 
     if (nextState) {

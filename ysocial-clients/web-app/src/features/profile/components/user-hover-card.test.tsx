@@ -131,6 +131,8 @@ describe("UserHoverCard", () => {
 describe("PostCard follow sync", () => {
   const post: PostItem = {
     id: "p1",
+    kind: "post",
+    rootPostId: "p1",
     content: "Xin chào",
     createdAt: new Date().toISOString(),
     likesCount: 0,

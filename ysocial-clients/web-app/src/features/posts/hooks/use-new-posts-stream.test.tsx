@@ -10,6 +10,8 @@ import { useNewPostsStream } from "./use-new-posts-stream";
 
 const post: PostItem = {
   id: "live-1",
+  kind: "post",
+  rootPostId: "live-1",
   content: "mới",
   createdAt: "2026-10-06T00:00:00.000Z",
   likesCount: 0,

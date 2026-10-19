@@ -7,6 +7,8 @@ const [alice, bob, carol] = SEED_AUTHORS;
 
 const post = (id: string, user = alice): PostItem => ({
   id,
+  kind: "post",
+  rootPostId: id,
   content: id,
   createdAt: new Date().toISOString(),
   likesCount: 0,

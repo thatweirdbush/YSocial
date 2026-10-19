@@ -11,7 +11,7 @@ export const MOCK_BASE_DATE = new Date().toISOString();
 
 const image = (photo: string) => `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=800&q=80`;
 
-type RawPost = Omit<PostItem, "user" | "createdAt" | "commentsCount" | "isLikedByCurrentUser" | "isBookmarkedByCurrentUser"> & {
+type RawPost = Omit<PostItem, "kind" | "rootPostId" | "user" | "createdAt" | "commentsCount" | "isLikedByCurrentUser" | "isBookmarkedByCurrentUser"> & {
   /** Index into `SEED_AUTHORS`, or "demo" for the mock-login account. */
   author: number | "demo";
   minutesAgo: number;
@@ -109,8 +109,19 @@ const replyCounts = RAW_POSTS.reduce<Record<string, number>>((counts, raw) => {
   return counts;
 }, {});
 
+const parentOf = new Map(RAW_POSTS.map((raw) => [raw.id, raw.parentId]));
+
+/** Id of the root post of a seed thread (own id for root posts). */
+const rootOf = (id: string): string => {
+  let current = id;
+  for (let parent = parentOf.get(current); parent; parent = parentOf.get(current)) current = parent;
+  return current;
+};
+
 export const MOCK_POSTS: PostItem[] = RAW_POSTS.map(({ author, minutesAgo, liked, bookmarked, ...rest }) => ({
   ...rest,
+  kind: rest.parentId ? ("comment" as const) : ("post" as const),
+  rootPostId: rootOf(rest.id),
   user: author === "demo" ? SEED_DEMO_ACCOUNT : SEED_AUTHORS[author],
   createdAt: new Date(baseTime - minutesAgo * 60_000).toISOString(),
   commentsCount: replyCounts[rest.id] ?? 0,

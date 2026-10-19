@@ -19,6 +19,8 @@ const me = { id: "u1", displayName: "Me", username: "me" };
 
 const makePost = (id: string, overrides: Partial<PostItem> = {}): PostItem => ({
   id,
+  kind: "post",
+  rootPostId: id,
   content: `content ${id}`,
   createdAt: "2026-10-01T00:00:00.000Z",
   likesCount: 3,
@@ -55,7 +57,7 @@ beforeEach(() => {
   store().actions.upsertPosts([
     makePost("A", { commentsCount: 1 }),
     makePost("B"),
-    makePost("R", { parentId: "A" }),
+    makePost("R", { kind: "comment", rootPostId: "A", parentId: "A" }),
   ]);
   store().actions.setFeedPage("forYou", ["B", "A"], false);
   store().actions.setReplies("A", ["R"]);
@@ -93,7 +95,7 @@ describe("edit", () => {
     });
 
     expect(ok).toBe(true);
-    expect(service.updatePostContent).toHaveBeenCalledWith("A", "mới", "u1");
+    expect(service.updatePostContent).toHaveBeenCalledWith({ id: "A", kind: "post", rootPostId: "A" }, "mới", "u1");
     expect(store().posts.A).toMatchObject({ content: "mới", isEdited: true });
     expect(store().ownerOpById.A).toBeUndefined();
   });
@@ -281,6 +283,23 @@ describe("remove", () => {
     expect(store().posts.A).toBeDefined();
     expect(store().feedIds.forYou).toEqual(["B", "A"]);
     expect(store().deletedIds.A).toBeUndefined();
+  });
+
+  it("edit & delete of a reply pass its comment ref with the root post id", async () => {
+    const edit = vi.spyOn(service, "updatePostContent").mockResolvedValue(makePost("R", { content: "mới" }));
+    const del = vi.spyOn(service, "deletePost").mockResolvedValue({ deletedIds: ["R"] });
+    const result = render("R");
+
+    await act(async () => {
+      await result.current.edit("mới");
+    });
+    await act(async () => {
+      await result.current.remove();
+    });
+
+    const ref = { id: "R", kind: "comment", rootPostId: "A" };
+    expect(edit).toHaveBeenCalledWith(ref, "mới", "u1");
+    expect(del).toHaveBeenCalledWith(ref, "u1");
   });
 
   it("double delete confirm calls service once", async () => {

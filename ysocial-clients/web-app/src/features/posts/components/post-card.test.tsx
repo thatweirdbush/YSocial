@@ -18,6 +18,8 @@ vi.mock("next/navigation", () => ({
 
 const post: PostItem = {
   id: "post-001",
+  kind: "post",
+  rootPostId: "post-001",
   content: "Nội dung bài viết",
   createdAt: new Date(Date.now() - 5 * 60_000).toISOString(),
   likesCount: 5,
@@ -87,8 +89,8 @@ describe("PostCard store sync", () => {
     await userEvent.click(screen.getByRole("button", { name: "Thích" }));
     await userEvent.click(screen.getByRole("button", { name: "Thích" }));
 
-    expect(spy).toHaveBeenNthCalledWith(1, "post-001", true);
-    expect(spy).toHaveBeenNthCalledWith(2, "post-001", false);
+    expect(spy).toHaveBeenNthCalledWith(1, { id: "post-001", kind: "post", rootPostId: "post-001" }, true);
+    expect(spy).toHaveBeenNthCalledWith(2, { id: "post-001", kind: "post", rootPostId: "post-001" }, false);
   });
 
   it("persists the bookmark to the service", async () => {
@@ -97,7 +99,21 @@ describe("PostCard store sync", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
 
-    expect(spy).toHaveBeenCalledWith("post-001", true);
+    expect(spy).toHaveBeenCalledWith({ id: "post-001", kind: "post", rootPostId: "post-001" }, true);
+  });
+
+  it("like & bookmark of a reply pass its comment ref with the root post id", async () => {
+    const likeSpy = vi.spyOn(service, "setPostLike").mockResolvedValue();
+    const bookmarkSpy = vi.spyOn(service, "setPostBookmark").mockResolvedValue();
+    const reply: PostItem = { ...post, id: "c-9", kind: "comment", rootPostId: "post-001", parentId: "post-001" };
+    render(<PostCard post={reply} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thích" }));
+    await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
+
+    const ref = { id: "c-9", kind: "comment", rootPostId: "post-001" };
+    expect(likeSpy).toHaveBeenCalledWith(ref, true);
+    expect(bookmarkSpy).toHaveBeenCalledWith(ref, true);
   });
 
   it("toggles bookmark through the store", async () => {

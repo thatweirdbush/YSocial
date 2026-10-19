@@ -5,6 +5,8 @@ import { getPostFeedTabs } from "./feed-tabs";
 
 const post = (authorIndex: number, parentId?: string): PostItem => ({
   id: "p1",
+  kind: parentId ? "comment" : "post",
+  rootPostId: parentId ?? "p1",
   content: "x",
   createdAt: new Date().toISOString(),
   likesCount: 0,

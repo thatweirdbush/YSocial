@@ -14,6 +14,7 @@ import type {
   ParentReference,
   PostAuthor,
   PostItem,
+  PostRef,
   PostSearchSort,
   PostThread,
   SavedPostsPage,
@@ -145,10 +146,14 @@ function descendantIds(id: string): string[] {
 
 const pick = <T,>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)];
 
-function buildPost(input: CreatePostInput, author: PostAuthor, parentId?: string, prefix = "post-local"): PostItem {
+function buildPost(input: CreatePostInput, author: PostAuthor, parent?: Pick<PostRef, "id" | "rootPostId">, prefix = "post-local"): PostItem {
   idCounter += 1;
+  const id = `${prefix}-${Date.now()}-${idCounter}`;
+  const parentId = parent?.id;
   return {
-    id: `${prefix}-${Date.now()}-${idCounter}`,
+    id,
+    kind: parent ? "comment" : "post",
+    rootPostId: parent ? parent.rootPostId : id,
     content: input.content,
     imageUrls: input.images.length > 0 ? [...input.images] : undefined,
     createdAt: new Date().toISOString(),
@@ -276,8 +281,8 @@ export async function createPost(input: CreatePostInput, author: PostAuthor): Pr
  * Persists the like state (idempotent set, not toggle) so refetches don't clobber optimistic UI.
  * Applied before the simulated latency, like a server that commits on receipt; unknown ids are ignored.
  */
-export async function setPostLike(id: string, liked: boolean): Promise<void> {
-  const post = db.get(id);
+export async function setPostLike(ref: PostRef, liked: boolean): Promise<void> {
+  const post = db.get(ref.id);
   if (post && post.isLikedByCurrentUser !== liked) {
     post.isLikedByCurrentUser = liked;
     post.likesCount = Math.max(0, post.likesCount + (liked ? 1 : -1));
@@ -285,19 +290,19 @@ export async function setPostLike(id: string, liked: boolean): Promise<void> {
   await mockDelay();
 }
 
-export async function setPostBookmark(id: string, bookmarked: boolean): Promise<void> {
-  const post = db.get(id);
+export async function setPostBookmark(ref: PostRef, bookmarked: boolean): Promise<void> {
+  const post = db.get(ref.id);
   if (post) post.isBookmarkedByCurrentUser = bookmarked;
   await mockDelay();
 }
 
-export async function createReply(parentId: string, input: CreatePostInput, author: PostAuthor): Promise<PostItem> {
+export async function createReply(parentRef: PostRef, input: CreatePostInput, author: PostAuthor): Promise<PostItem> {
   await simulateNetwork();
 
-  const parent = db.get(parentId);
-  if (!parent) throw new Error(`Post ${parentId} not found`);
+  const parent = db.get(parentRef.id);
+  if (!parent) throw new Error(`Post ${parentRef.id} not found`);
 
-  const reply = buildPost(input, author, parentId);
+  const reply = buildPost(input, author, parentRef);
   db.set(reply.id, reply);
   parent.commentsCount += 1;
   return copy(reply);
@@ -375,10 +380,10 @@ export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
 }
 
 // #region Owner mutations
-export async function updatePostContent(id: string, content: string, actorId: string): Promise<PostItem> {
+export async function updatePostContent(ref: PostRef, content: string, actorId: string): Promise<PostItem> {
   await simulateNetwork();
 
-  const post = ownedPost(id, actorId);
+  const post = ownedPost(ref.id, actorId);
   const next = content.trim();
   const hasImages = (post.imageUrls?.length ?? 0) > 0 || post.imageUrl !== undefined;
   if (next.length > POST_CONTENT_MAX || (next === "" && !hasImages)) throw new Error("Invalid post content");
@@ -388,9 +393,10 @@ export async function updatePostContent(id: string, content: string, actorId: st
 }
 
 /** Deletes the post and its whole reply tree; returns every removed id. */
-export async function deletePost(id: string, actorId: string): Promise<{ deletedIds: string[] }> {
+export async function deletePost(ref: PostRef, actorId: string): Promise<{ deletedIds: string[] }> {
   await simulateNetwork();
 
+  const id = ref.id;
   const post = ownedPost(id, actorId);
   const deletedIds = [id, ...descendantIds(id)];
   for (const deletedId of deletedIds) db.delete(deletedId);

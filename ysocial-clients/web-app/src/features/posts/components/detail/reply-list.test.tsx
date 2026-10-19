@@ -11,6 +11,8 @@ vi.mock("next/navigation", () => ({
 
 const makePost = (id: string, parentId?: string): PostItem => ({
   id,
+  kind: parentId ? "comment" : "post",
+  rootPostId: parentId ?? id,
   parentId,
   content: `nội dung ${id}`,
   createdAt: new Date().toISOString(),

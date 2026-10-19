@@ -10,16 +10,18 @@ import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../../hooks/use-current-author";
 import { createReply } from "../../services/post-service";
 import { usePostActions } from "../../store/post-store";
-import type { PostAudience, PostItem } from "../../types";
+import type { PostAudience, PostItem, PostRef } from "../../types";
 import { PostCreatorCore } from "../post-creator-core";
 
 interface ReplyComposerProps {
-  parentId: string;
+  /** Target of the reply (root post or comment): carries the root post id for the BE comment route. */
+  parent: PostRef;
   replyToUsername: string;
 }
 
 /** Inline reply box: compact bar that expands into the full composer (reply mode). */
-export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps) {
+export function ReplyComposer({ parent, replyToUsername }: ReplyComposerProps) {
+  const parentId = parent.id;
   const { t } = useTranslation();
   const router = useRouter();
   const isAuthenticated = useIsAuthenticated();
@@ -57,6 +59,8 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
   const handleSubmit = async (content: string, images: string[], audience: PostAudience) => {
     const tempReply: PostItem = {
       id: `reply-temp-${Date.now()}`,
+      kind: "comment",
+      rootPostId: parent.rootPostId,
       parentId,
       content,
       imageUrls: images.length > 0 ? images : undefined,
@@ -71,7 +75,7 @@ export function ReplyComposer({ parentId, replyToUsername }: ReplyComposerProps)
     addReply(parentId, tempReply);
 
     try {
-      const created = await createReply(parentId, { content, images, audience }, author);
+      const created = await createReply(parent, { content, images, audience }, author);
       removeReply(parentId, tempReply.id);
       addReply(parentId, created);
       toast.success(t("postDetail.replySuccess"));

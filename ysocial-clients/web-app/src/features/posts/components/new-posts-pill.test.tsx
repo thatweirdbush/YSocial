@@ -12,6 +12,8 @@ import { NewPostsPill } from "./new-posts-pill";
 
 const makePost = (id: string, authorId: string): PostItem => ({
   id,
+  kind: "post",
+  rootPostId: id,
   content: id,
   createdAt: "2026-10-06T00:00:00.000Z",
   likesCount: 0,

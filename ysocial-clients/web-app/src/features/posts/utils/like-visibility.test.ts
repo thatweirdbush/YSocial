@@ -7,6 +7,8 @@ const owner = SEED_AUTHORS[0];
 
 const post = (hideLikeCount?: boolean): PostItem => ({
   id: "p1",
+  kind: "post",
+  rootPostId: "p1",
   content: "x",
   createdAt: new Date().toISOString(),
   likesCount: 7,

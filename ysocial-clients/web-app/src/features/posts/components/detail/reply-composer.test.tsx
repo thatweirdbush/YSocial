@@ -23,6 +23,8 @@ const WAIT = { timeout: 3000 };
 
 const parent: PostItem = {
   id: "post-001",
+  kind: "post",
+  rootPostId: "post-001",
   content: "bài gốc",
   createdAt: new Date().toISOString(),
   likesCount: 0,
@@ -31,12 +33,12 @@ const parent: PostItem = {
   isBookmarkedByCurrentUser: false,
   user: { id: "author-04", displayName: "Minh Thư", username: "minh" },
 };
-const existingReply: PostItem = { ...parent, id: "reply-old", parentId: "post-001", content: "reply cũ", commentsCount: 0 };
+const existingReply: PostItem = { ...parent, id: "reply-old", kind: "comment", parentId: "post-001", content: "reply cũ", commentsCount: 0 };
 
 function renderThread() {
   return render(
     <>
-      <ReplyComposer parentId="post-001" replyToUsername="minh" />
+      <ReplyComposer parent={{ id: "post-001", kind: "post", rootPostId: "post-001" }} replyToUsername="minh" />
       <ReplyList parentId="post-001" />
     </>,
   );
@@ -154,6 +156,22 @@ describe("ReplyComposer", () => {
     await waitFor(() => expect(screen.queryByPlaceholderText("Trả lời @minh…")).not.toBeInTheDocument(), WAIT);
     expect(spy).toHaveBeenCalledTimes(1);
     expect(commentsCount()).toBe(2);
+  });
+
+  it("sends the parent ref: root post, and nested comment with the root post id", async () => {
+    const spy = vi.spyOn(service, "createReply").mockResolvedValue({ ...existingReply, id: "reply-new" });
+    const { unmount } = renderThread();
+    await openAndType("xin chào");
+    await userEvent.click(submitButton());
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(1), WAIT);
+    expect(spy.mock.calls[0][0]).toEqual({ id: "post-001", kind: "post", rootPostId: "post-001" });
+    unmount();
+
+    render(<ReplyComposer parent={{ id: "reply-old", kind: "comment", rootPostId: "post-001" }} replyToUsername="minh" />);
+    await openAndType("trả lời lồng");
+    await userEvent.click(submitButton());
+    await waitFor(() => expect(spy).toHaveBeenCalledTimes(2), WAIT);
+    expect(spy.mock.calls[1][0]).toEqual({ id: "reply-old", kind: "comment", rootPostId: "post-001" });
   });
 
   it("rolls back and keeps text on failure", async () => {

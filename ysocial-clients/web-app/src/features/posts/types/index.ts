@@ -32,6 +32,10 @@ export interface PostItem {
   isLikedByCurrentUser: boolean;
   isBookmarkedByCurrentUser: boolean;
   user: PostAuthor;
+  /** `comment` for replies, `post` for root posts (BE `PostDto.kind`). */
+  kind: "post" | "comment";
+  /** Root post id of the thread (own id for root posts); BE `PostDto.postId`. */
+  rootPostId: string;
   /** Set for replies: id of the post being replied to. */
   parentId?: string;
   isEdited?: boolean;
@@ -89,8 +93,18 @@ export interface RemovalSnapshot {
   wasPinned: boolean;
 }
 
-/** Post visibility: `closeFriends` posts are shown only to the author's accepted close friends. */
-export type PostVisibility = "public" | "closeFriends";
+/**
+ * Post visibility: `closeFriends` posts are shown only to the author's accepted close friends (mock only);
+ * `followersOnly` & `private` are BE values, preserved without a badge.
+ */
+export type PostVisibility = "public" | "closeFriends" | "followersOnly" | "private";
+
+/** Target of a post operation: endpoint choice (`posts` vs `comments`) never depends on a store lookup. */
+export interface PostRef {
+  id: string;
+  kind: "post" | "comment";
+  rootPostId: string;
+}
 
 export type PostAudience = "anyone" | "followers" | "following" | "mention";
 

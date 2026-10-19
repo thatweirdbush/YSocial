@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SEED_AUTHORS, SEED_DEMO_ACCOUNT, SEED_FOLLOWED_AUTHOR_IDS } from "@/mocks/seed-authors";
-import type { CreatePostInput } from "../types";
+import type { CreatePostInput, PostRef } from "../types";
+import { MOCK_POSTS } from "../mocks/mock-posts";
 import { POST_CONTENT_MAX } from "../utils/post-content";
 import { __resetBlockGraph, setBlocked } from "@/mocks/block-graph";
 import { __resetPrivacy } from "@/mocks/privacy";
@@ -31,6 +32,9 @@ import {
   subscribeToNewPosts,
   updatePostContent,
 } from "./post-service";
+
+/** Operation target for a mock post id (the mock service only reads `id` & `rootPostId`). */
+const ref = (id: string): PostRef => ({ id, kind: "post", rootPostId: id });
 
 /** Runs a service call to completion under fake timers. */
 async function settle<T>(promise: Promise<T>): Promise<T> {
@@ -123,7 +127,7 @@ describe("fetchPostThread", () => {
 
 describe("mutations", () => {
   it("rejects a reply to an unknown parent", async () => {
-    const pending = createReply("nope", input("hi"), author);
+    const pending = createReply(ref("nope"), input("hi"), author);
     const assertion = expect(pending).rejects.toThrow(Error);
     await vi.runAllTimersAsync();
     await assertion;
@@ -131,7 +135,7 @@ describe("mutations", () => {
 
   it("persists a created reply and bumps the parent counter", async () => {
     const before = await settle(fetchPostThread("post-001", VIEWER));
-    await settle(createReply("post-001", input("hi"), author));
+    await settle(createReply(ref("post-001"), input("hi"), author));
     const after = await settle(fetchPostThread("post-001", VIEWER));
 
     expect(after?.replies[0].content).toBe("hi");
@@ -149,22 +153,22 @@ describe("mutations", () => {
   it("persists likes so a refetch keeps them (idempotent set)", async () => {
     const before = await settle(fetchPostThread("post-001", VIEWER));
 
-    await settle(setPostLike("post-001", true));
-    await settle(setPostLike("post-001", true));
+    await settle(setPostLike(ref("post-001"), true));
+    await settle(setPostLike(ref("post-001"), true));
     const liked = await settle(fetchFeed("forYou", 1, VIEWER));
     const post = liked.posts.find((p) => p.id === "post-001")!;
 
     expect(post.isLikedByCurrentUser).toBe(true);
     expect(post.likesCount).toBe(before!.post.likesCount + 1);
 
-    await settle(setPostLike("post-001", false));
+    await settle(setPostLike(ref("post-001"), false));
     const unliked = await settle(fetchPostThread("post-001", VIEWER));
     expect(unliked?.post.likesCount).toBe(before!.post.likesCount);
   });
 
   it("persists bookmarks and ignores unknown ids", async () => {
-    await settle(setPostBookmark("post-002", false));
-    await settle(setPostLike("khong-ton-tai", true));
+    await settle(setPostBookmark(ref("post-002"), false));
+    await settle(setPostLike(ref("khong-ton-tai"), true));
     const thread = await settle(fetchPostThread("post-002", VIEWER));
 
     expect(thread?.post.isBookmarkedByCurrentUser).toBe(false);
@@ -172,7 +176,7 @@ describe("mutations", () => {
 
   it("applies a like before a fetch that was already in flight resolves", async () => {
     const pending = fetchPostThread("post-001", VIEWER);
-    void setPostLike("post-001", true);
+    void setPostLike(ref("post-001"), true);
     const thread = await settle(pending);
 
     expect(thread?.post.isLikedByCurrentUser).toBe(true);
@@ -184,6 +188,22 @@ describe("mutations", () => {
     const again = await settle(fetchPostThread("post-001", VIEWER));
 
     expect(again?.post.likesCount).not.toBe(9999);
+  });
+});
+
+describe("PostRef (mock)", () => {
+  it("buildPost sets kind/rootPostId; reply to a reply keeps the root", async () => {
+    const root = await settle(createPost(input("gốc"), author));
+    expect(root).toMatchObject({ kind: "post", rootPostId: root.id });
+    const reply = await settle(createReply({ id: root.id, kind: "post", rootPostId: root.id }, input("a"), author));
+    expect(reply).toMatchObject({ kind: "comment", rootPostId: root.id, parentId: root.id });
+    const nested = await settle(createReply({ id: reply.id, kind: "comment", rootPostId: root.id }, input("b"), author));
+    expect(nested).toMatchObject({ kind: "comment", rootPostId: root.id, parentId: reply.id });
+  });
+
+  it("seed replies carry their thread root", () => {
+    const nested = MOCK_POSTS.find((post) => post.id === "reply-001-02-01");
+    expect(nested).toMatchObject({ kind: "comment", rootPostId: "post-001" });
   });
 });
 
@@ -280,7 +300,7 @@ describe("fetchTrendingTags", () => {
 
   it("never counts replies under a close friends root", async () => {
     const root = await settle(createPost({ ...input("secret thread"), visibility: "closeFriends" }, SEED_AUTHORS[1]));
-    await settle(createReply(root.id, input("reply #cfreply"), SEED_AUTHORS[1]));
+    await settle(createReply(ref(root.id), input("reply #cfreply"), SEED_AUTHORS[1]));
 
     const tags = (await settle(fetchTrendingTags(50))).map((stat) => stat.tag);
 
@@ -311,8 +331,8 @@ describe("owner mutations", () => {
   it("rejects non-owners with ForbiddenError and writes nothing", async () => {
     const before = await settle(fetchPostThread("post-001", VIEWER));
 
-    await rejects(updatePostContent("post-001", "hack", "author-02"), ForbiddenError);
-    await rejects(deletePost("post-001", "author-02"), ForbiddenError);
+    await rejects(updatePostContent(ref("post-001"), "hack", "author-02"), ForbiddenError);
+    await rejects(deletePost(ref("post-001"), "author-02"), ForbiddenError);
     await rejects(setPostPinned("post-001", true, "author-02"), ForbiddenError);
     await rejects(setHideLikeCount("post-001", true, "author-02"), ForbiddenError);
 
@@ -320,12 +340,12 @@ describe("owner mutations", () => {
   });
 
   it("rejects unknown ids", async () => {
-    await rejects(updatePostContent("nope", "x", "author-01"), Error);
-    await rejects(deletePost("nope", "author-01"), Error);
+    await rejects(updatePostContent(ref("nope"), "x", "author-01"), Error);
+    await rejects(deletePost(ref("nope"), "author-01"), Error);
   });
 
   it("updatePostContent re-indexes tags & trims", async () => {
-    const updated = await settle(updatePostContent("post-003", "  Mới #Moi  ", "author-03"));
+    const updated = await settle(updatePostContent(ref("post-003"), "  Mới #Moi  ", "author-03"));
 
     expect(updated).toMatchObject({ content: "Mới #Moi", isEdited: true });
     expect((await settle(fetchPostsByTag("Moi", "latest", VIEWER))).posts.map((p) => p.id)).toEqual(["post-003"]);
@@ -333,10 +353,10 @@ describe("owner mutations", () => {
   });
 
   it("updatePostContent rejects content over the limit or empty text without images", async () => {
-    await rejects(updatePostContent("post-002", "a".repeat(POST_CONTENT_MAX + 1), "author-02"), Error);
-    await rejects(updatePostContent("post-002", "   ", "author-02"), Error);
+    await rejects(updatePostContent(ref("post-002"), "a".repeat(POST_CONTENT_MAX + 1), "author-02"), Error);
+    await rejects(updatePostContent(ref("post-002"), "   ", "author-02"), Error);
 
-    expect(await settle(updatePostContent("post-003", "  ", "author-03"))).toMatchObject({ content: "" });
+    expect(await settle(updatePostContent(ref("post-003"), "  ", "author-03"))).toMatchObject({ content: "" });
     expect((await settle(fetchPostThread("post-002", VIEWER)))!.post.isEdited).toBeFalsy();
   });
 
@@ -351,7 +371,7 @@ describe("owner mutations", () => {
       ...Object.values(thread.childReplies).flat().map((r) => r.id),
     ];
 
-    const { deletedIds } = await settle(deletePost("post-001", "author-01"));
+    const { deletedIds } = await settle(deletePost(ref("post-001"), "author-01"));
 
     expect([...deletedIds].sort()).toEqual([...expected].sort());
     expect(await settle(fetchPostThread("post-001", VIEWER))).toBeNull();
@@ -361,7 +381,7 @@ describe("owner mutations", () => {
   it("deleting a reply decrements the parent counter", async () => {
     const before = (await settle(fetchPostThread("post-001", VIEWER)))!.post.commentsCount;
 
-    await settle(deletePost("reply-001-01", "author-03"));
+    await settle(deletePost(ref("reply-001-01"), "author-03"));
 
     expect((await settle(fetchPostThread("post-001", VIEWER)))!.post.commentsCount).toBe(before - 1);
   });
@@ -454,7 +474,7 @@ describe("fetchUserPosts", () => {
   });
 
   it("excludes tombstoned (deleted) posts", async () => {
-    await settle(deletePost("post-demo-02", DEMO));
+    await settle(deletePost(ref("post-demo-02"), DEMO));
     const { posts } = await settle(fetchUserPosts(DEMO, "threads", 1, DEMO));
     expect(posts.some((post) => post.id === "post-demo-02")).toBe(false);
   });
@@ -462,7 +482,7 @@ describe("fetchUserPosts", () => {
 
 describe("fetchSavedPosts", () => {
   it("returns only bookmarked posts, newest first, including bookmarked replies", async () => {
-    await settle(setPostBookmark("reply-demo-01", true));
+    await settle(setPostBookmark(ref("reply-demo-01"), true));
     const { posts, nextPage } = await settle(fetchSavedPosts(DEMO_ID, 1));
 
     expect(posts.every((post) => post.isBookmarkedByCurrentUser)).toBe(true);
@@ -475,7 +495,7 @@ describe("fetchSavedPosts", () => {
   it("pages by PROFILE_PAGE_SIZE", async () => {
     // post-005 & post-007 (private authors) are hidden from the viewer, the close friends posts are not
     const ids = ["post-001", "post-002", "post-003", "post-004", "post-005", "post-006", "post-007", "post-008", "post-009", "post-010", "post-011", "post-012", "post-cf-01", "post-cf-02"];
-    for (const id of ids) await settle(setPostBookmark(id, true));
+    for (const id of ids) await settle(setPostBookmark(ref(id), true));
 
     const first = await settle(fetchSavedPosts(DEMO_ID, 1));
     const second = await settle(fetchSavedPosts(DEMO_ID, 2));
@@ -688,7 +708,7 @@ describe("visibility enforcement", () => {
   });
 
   it("filters replies by blocked authors", async () => {
-    const reply = await settle(createReply("post-001", input("blocked voice"), SEED_AUTHORS[3]));
+    const reply = await settle(createReply(ref("post-001"), input("blocked voice"), SEED_AUTHORS[3]));
     setBlocked(DEMO_ID, SEED_AUTHORS[3].id, true);
 
     const thread = await settle(fetchPostThread("post-001", DEMO_ID));
@@ -707,8 +727,8 @@ describe("visibility enforcement", () => {
   });
 
   it("filters saved posts", async () => {
-    await settle(setPostBookmark("post-cf-03", true));
-    await settle(setPostBookmark("post-cf-01", true));
+    await settle(setPostBookmark(ref("post-cf-03"), true));
+    await settle(setPostBookmark(ref("post-cf-01"), true));
 
     const { posts } = await settle(fetchSavedPosts(DEMO_ID, 1));
     expect(ids(posts)).toContain("post-cf-01");

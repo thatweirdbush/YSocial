@@ -4,6 +4,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { deletePost, ForbiddenError, setHideLikeCount, setPostPinned, updatePostContent } from "../services/post-service";
 import { useOwnerOp, usePostActions, usePostStore } from "../store/post-store";
 import type { OwnerOp, PostItem } from "../types";
+import { toPostRef } from "../utils/post-ref";
 import { useCurrentAuthor } from "./use-current-author";
 
 const POST_ROUTE = /^\/posts\/([^/?#]+)/;
@@ -62,7 +63,7 @@ export function useOwnerActions(postId: string): OwnerActions {
       const next = content.trim();
       actions.editPost(postId, next);
       try {
-        const saved = await updatePostContent(postId, next, actorId);
+        const saved = await updatePostContent(toPostRef(post), next, actorId);
         actions.patchPostIf(postId, {}, { content: saved.content, isEdited: saved.isEdited });
         toast.success(t("card.editSuccess"));
         return true;
@@ -105,12 +106,12 @@ export function useOwnerActions(postId: string): OwnerActions {
     });
 
   const remove = () =>
-    locked("delete", false, async () => {
+    locked("delete", false, async (post) => {
       // Before removal: the cached parent chain is gone afterwards
       const viewed = isInViewedSubtree(pathname, postId, usePostStore.getState().posts);
       const snapshot = actions.removePost(postId);
       try {
-        const { deletedIds } = await deletePost(postId, actorId);
+        const { deletedIds } = await deletePost(toPostRef(post), actorId);
         actions.markDeleted(deletedIds);
         toast.success(t("card.deleteSuccess"));
         // The card may be unmounted by now (stale `pathname`): re-check the live route before leaving it
