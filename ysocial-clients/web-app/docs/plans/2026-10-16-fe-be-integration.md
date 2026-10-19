@@ -655,11 +655,11 @@ Each line has pinned test in owning task.
 **Interfaces:**
 - Produces: `setMuted(id, on, actorId)` (PUT/DELETE), `fetchMutedUsers(q, actorId)` (`GET /api/users/me/mutes`, items `isMuted: true`)
 
-- [ ] **Step 1: Write failing tests:** `mute UI hidden until activity real, visible after`, `mute PUT & unmute DELETE`, `mute self -> CannotMuteSelf`, `muted list paged with query`, `unmute of hidden user still 204`
-- [ ] **Step 2: Run** `npx vitest run src/features/profile/services` -> FAIL
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(profile): real mute`
+- [x] **Step 1: Write failing tests:** `mute UI hidden until activity real, visible after`, `mute PUT & unmute DELETE`, `mute self -> CannotMuteSelf`, `muted list paged with query`, `unmute of hidden user still 204`
+- [x] **Step 2: Run** `npx vitest run src/features/profile/services` -> FAIL
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(profile): real mute`
 
 ### Task N2: Notifications HTTP adapter & container swap
 **Files:**
@@ -670,11 +670,11 @@ Each line has pinned test in owning task.
 **Interfaces:**
 - Produces: `fetchNotifications(page): Promise<NotificationPage>` (`GET /api/notifications`), `fetchUnreadCount(): Promise<number>`, `markNotificationRead(id): Promise<void>`, `markAllNotificationsRead(): Promise<void>`, `toNotificationItem(dto: NotificationDto): NotificationItemData`; mock keeps `INITIAL_NOTIFICATIONS` moved into mock adapter
 
-- [ ] **Step 1: Write failing tests:** `maps kind & targetId link per type`, `NewFollow links to sender profile`, `list pages & unreadCount`, `mark read 204 idempotent`, `foreign notification 403 surfaced`, `read-all`, `mock mode shows seed notifications`
-- [ ] **Step 2: Run** `npx vitest run src/features/notifications` -> FAIL
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(notifications): service-backed list with real adapter`
+- [x] **Step 1: Write failing tests:** `maps kind & targetId link per type`, `NewFollow links to sender profile`, `list pages & unreadCount`, `mark read 204 idempotent`, `foreign notification 403 surfaced`, `read-all`, `mock mode shows seed notifications`
+- [x] **Step 2: Run** `npx vitest run src/features/notifications` -> FAIL
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(notifications): service-backed list with real adapter`
 
 ### Task N3: SignalR integration
 **Files:**
@@ -685,20 +685,37 @@ Each line has pinned test in owning task.
 - Consumes: `API_BASE_URL`, auth store, `toNotificationItem` (N2)
 - Produces: `NotificationPayload` = `NotificationDto` shape; `notificationHub.start(getAccessToken: () => string | null)`, `stop()`, `onNotification(handler): () => void`; `accessTokenFactory` calls `getAccessToken` on every (re)connect; stops on `clearAuth`, starts after login/refresh
 
-- [ ] **Step 1: Write failing tests:** `factory returns latest token after rotation`, `start only when authenticated`, `stop on logout`, `push inserts item at top & bumps unread`, `unknown type still renders generic`, `duplicate push for same id ignored`
-- [ ] **Step 2: Run** `npx vitest run src/lib/signalr-client.test.ts` -> FAIL
-- [ ] **Step 3: Implement** (`withAutomaticReconnect`, listen `ReceiveNotification`)
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(notifications): SignalR push into notification list`
+- [x] **Step 1: Write failing tests:** `factory returns latest token after rotation`, `start only when authenticated`, `stop on logout`, `push inserts item at top & bumps unread`, `unknown type still renders generic`, `duplicate push for same id ignored`
+- [x] **Step 2: Run** `npx vitest run src/lib/signalr-client.test.ts` -> FAIL
+- [x] **Step 3: Implement** (`withAutomaticReconnect`, listen `ReceiveNotification`)
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(notifications): SignalR push into notification list`
 
 ### Task N4: Phase N exit
 **Files:**
 - Modify: roadmap (N.1 done in C per deviation, N.2, N.3), MAP §6 (CP4), `.context/features/fe-be-integration.md`, `frontend-roadmap.md` (Phase 3 notes: tabs/badge/settings still open)
 
-- [ ] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
-- [ ] **Step 2: Manual smoke** (all slices): 2 accounts in 2 browsers: like/comment/follow -> push arrives live; mark read; mark all; mute author -> feed excludes; block sender -> their notifications disappear; token refresh while connected -> hub keeps working
-- [ ] **Step 3: Record** Mismatch log; `requesting-code-review` gate
-- [ ] **Step 4: Commit** `docs(integration): close Phase N`
+- [x] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
+- [x] **Step 2: Manual smoke** (all slices): 2 accounts in 2 browsers: like/comment/follow -> push arrives live; mark read; mark all; mute author -> feed excludes; block sender -> their notifications disappear; token refresh while connected -> hub keeps working
+- [x] **Step 3: Record** Mismatch log (M21); `requesting-code-review` gate not run: user asked for review only on request
+- [x] **Step 4: Commit** `docs(integration): close Phase N`
+
+**Execution record:**
+- **Verification:** `npm run test` 105 files / 1188 tests pass; `typecheck` clean; `eslint` 5 pre-existing errors (1 fewer: `signalr-client` `any` removed by the rewrite); `api:check` passes after `api:generate` (CRLF checkout EOL only, no schema diff)
+- **Smoke (real BE Development, `auth,content,graph,activity`):**
+  - browser (`test_user`): `/notifications` lists HTTP page (FollowAccepted, NewFollow); with the page open a 2nd account follows -> NewFollow pushed live at top (SignalR over WebSocket, 2 consecutive pushes); mark all read -> BE unread count 0
+  - node SignalR client: push payload = `NotificationDto` shape (`type`, `kind`, `senderUsername`, `targetId`...)
+  - curl: mute PUT 204, `me/mutes?query` lists muted user, unmute DELETE 204, mute self -> 400
+  - NOT smoked: 2 separate browsers (1 browser pane: 2nd account driven by curl/node), per-item mark read UI, mute UI, block sender -> list filtering, token refresh while connected (unit: factory reads current token)
+  - First push after a cold dev compile was missed (page loaded before hub connected): list loads over HTTP first, push only covers events after connect
+- **Rulings:**
+  - one shared `notification-store` (HTTP pages + pushes); `NotificationLiveSync` mounted in `Providers` starts the hub only for a signed-in viewer with activity real, stops & resets the list on logout/account switch
+  - unknown `type`/`kind` -> kind `other`, rendered with BE `message`; `FollowRequested`/`FollowAccepted` get own wording; real items carry no follow state so the follow-back button is mock-only
+  - `createdAt` stays ISO for real items (formatted relative in `NotificationItem`), mock seed keeps display strings
+  - push from a sender the viewer blocked is dropped client-side (BE filters too); malformed push (no id) dropped
+  - content real & activity mock: notification list empty (seed items reference mock users)
+  - unread badge, filter tabs & settings stay FE roadmap Phase 3
+- **Deferred minors:** bulk "mark all read" has no confirmation; no reconnect catch-up (items missed while the socket was down appear on next page load); stale relative timestamps until re-render; push dedupe is by id only
 
 ---
 
@@ -767,6 +784,7 @@ Each line has pinned test in owning task.
 | M19 | C6 | BE has no media upload (blob URLs unusable) & no audience/visibility choice on create | FE hides upload, audience & close-friends toggle while content is real | accepted until BE media/audience work |
 | M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
 | M20 | G1 | `GET me/blocks` has no `query` param (follow requests, followers, mutes do) | FE: with query, read every page (cap 20 x 50) & filter locally; BE option: add `query` | accepted |
+| M21 | N3 | pushes missed while hub is disconnected or before it connects are not replayed (BE has no cursor, list is HTTP-first) | FE: list reloads on viewer change; no catch-up; unread count from the page | accepted |
 | M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, `features/identities.md` §2)| BE: Development-only opt-in flag in local `appsettings.Development.json`, `ApiFactory` forces it off | resolved: BE opt-in `Messaging:LogOtpInDevelopment` (Development only, default off), reset flow verified on real BE |
 
 ## Self-review

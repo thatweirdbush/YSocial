@@ -72,7 +72,7 @@ updated: 2026-10-06
 
 ### Phase 3 - Notifications & Activity (P1)
 - [ ] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"
-- [ ] **3.2 Unread badge** on nav (Zustand `notification-store`), mark-all-read, mark-on-view
+- [ ] **3.2 Unread badge** on nav (Zustand `notification-store` exists since integration Phase N with `unreadCount`, mark-read & mark-all-read: only the badge UI & mark-on-view remain)
 - [ ] **3.3 Simulated realtime:** timer fires mock notification + toast (prepare SignalR plug-in point)
 - [ ] **3.4 Notification settings** (toggle per type) - shares store with Settings
 

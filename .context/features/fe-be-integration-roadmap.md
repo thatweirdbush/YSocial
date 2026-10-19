@@ -40,9 +40,10 @@ updated: 2026-10-16
   - Phase G closed (see plan G4 record); mute stays facade until N, M20 accepted (block list has no `query`)
 
 ### Phase N - Activity (CP4)
-- [ ] **N.1** mute (`PUT/DELETE mute`, `me/mutes`)
-- [ ] **N.2** notifications HTTP list + mark-read replacing basic inline list (filter tabs, badge, settings stay FE roadmap Phase 3)
-- [ ] **N.3** SignalR push into that list (extend `NotificationPayload` union, map `kind`/`targetId`)
+- [x] **N.1** mute (`PUT/DELETE mute`, `me/mutes`)
+- [x] **N.2** notifications HTTP list + mark-read replacing basic inline list (filter tabs, badge, settings stay FE roadmap Phase 3)
+- [x] **N.3** SignalR push into that list (`NotificationPayload` = `NotificationDto`, map `kind`/`targetId`)
+  - Phase N closed (see plan N4 record); M21 accepted (no push catch-up), 2-browser smoke covered by 1 browser + API/node client
 
 ### Phase X - Cleanup
 - [ ] **X.1** remove only mock code proven unused by wired slices & hidden features (keep slice switch, mocks for BE-less features & FE roadmap Phases 3-7, test fixtures); includes `ysocial_mock_user` cookie bridge if proven unused

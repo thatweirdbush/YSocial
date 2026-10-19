@@ -82,3 +82,17 @@ updated: 2026-10-19
 - `me/blocks` has no `query` (M20): with a query every page is read (cap 20 x 50) & filtered locally with diacritics folding
 - `locked: true` follower list = lock empty state (`profile.followListLocked`), never error or "no followers"
 - Follow list items carry viewer-relative `followStatus`: only own `following` list means "accepted by viewer"
+
+## Phase N - Activity
+
+### Slice & adapters
+- `auth,content,graph,activity`: `relation-service` mute functions dispatch to `relation-service.real.ts` via `isRealApi("activity")` (PUT/DELETE `relations/mute`, `GET me/mutes` with `query`); before that mute is a facade (reads empty, writes refused, `muteUi` hidden)
+- `notification-service.ts` (mock seed adapter / real `GET notifications`, `unread-count`, `PUT {id}/read`, `PUT read-all`), `notification-mapper.ts` (`type`/`kind` -> `like|reply|follow|other`, `targetId` -> post link, sender -> user), 1 shared `notification-store` (HTTP pages + push, optimistic read with rollback, reset drops in-flight loads)
+- SignalR: `lib/signalr-client.ts` `createNotificationHub(factory)` (injectable connection), `start(getAccessToken)` only with a token, token read on every reconnect, failed first start retried by next call; `NotificationLiveSync` in `Providers` runs it for signed-in viewer + activity real, stops & resets list on logout/account switch
+
+### Design decisions & pitfalls
+- Real items carry no follow state: follow-back button is mock-only; unknown BE types render generic (`other` + `message`)
+- Push from a blocked sender is dropped (`getViewerRelations`); malformed push dropped without breaking the stream
+- List is HTTP-first, push only covers events after the socket connects (M21): a cold dev compile can load the page before the hub connects
+- Content real & activity mock: list stays empty (seed items reference mock users)
+- Unread badge, filter tabs & settings are still FE roadmap Phase 3

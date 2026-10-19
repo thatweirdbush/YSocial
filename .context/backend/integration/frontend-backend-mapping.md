@@ -285,14 +285,14 @@ SharePostLinkResponse: { postId, sharedUrl }
 | CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12); FE auth adopted (Phase F), post delete moves to FE Phase C |
 | CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | FE adopted (Phase C, follow & feed read moved here); reached (tests, swagger verified) |
 | CP3 | private account, follow requests, followers dialog, block list, close friends | FE adopted (Phase G); reached (tests, swagger regenerated) |
-| CP4 | feed, notifications, mute | reached (tests, swagger regenerated); FE slices not adopted yet |
+| CP4 | feed, notifications, mute | FE adopted (feed in Phase C, mute & notifications in Phase N); reached (tests, swagger regenerated) |
 
 ### FE follow-ups (record in FE roadmap; NOT done here)
 - **CP1 (required):** DONE (FE Phase F): cross-tab refresh single-flight (§1: `navigator.locks` + rotation adoption), redirect `/login`, register sends `username`
 - **CP2 (DONE, FE Phase C except: switcher, toggle endpoints still BE-side):** viewer bootstrap from `MeDto`, never expect `email` on other profiles; follow status from `{followStatus}`; like/bookmark via `PUT`/`DELETE` resource routes (route by `kind`); thread via `/api/threads/{id}`; accept `null` for nullable DTO fields (not only absent); map `visibility` `followersOnly|private` (not produced yet); remove toggle endpoint usage
 - **CP2/CP3 (D14, DONE FE Phase G):** blocked profile = not-found state; `isBlockedBy` forced false & `blockedBy` always empty in real mode (mock keeps its model); unblock only from own block list (`me/blocks` has no `query`: FE filters locally, M20)
 - **CP3 (DONE FE Phase G):** `FollowListPageDto.locked` renders locked state in followers dialog
-- **CP4:** `fetchFeed` via `GET /api/feed` (`tab`, `page`; `nextPage` from `hasNextPage`; `following` needs token); `setMuted`/`fetchMutedUsers` via mute routes & `me/mutes`; notifications: list/unread/read routes, extend `NotificationPayload.type` union (`NewFollow`, `FollowRequested`, `FollowAccepted`), map `kind` to item icon, `targetId` to link; share link: use `sharedUrl` as is
+- **CP4 (DONE FE Phases C & N):** `fetchFeed` via `GET /api/feed` (`tab`, `page`; `nextPage` from `hasNextPage`; `following` needs token); `setMuted`/`fetchMutedUsers` via mute routes & `me/mutes`; notifications: list/unread/read routes, extend `NotificationPayload.type` union (`NewFollow`, `FollowRequested`, `FollowAccepted`), map `kind` to item icon, `targetId` to link; share link: use `sharedUrl` as is
 
 ## 7. Contract decisions (D-ids, owner of outcome; rationale: plan §4)
 
