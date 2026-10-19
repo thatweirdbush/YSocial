@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { isRealApi } from "@/lib/api-config";
 import type { AuthUser } from "../types";
 import { clearMockSessionCookie, toMockSession, writeMockSessionCookie } from "../utils/mock-session";
 
@@ -24,6 +25,12 @@ interface AuthState {
     hydrate: () => void;
   };
 }
+
+const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** True for tokens or user ids minted by the mock adapter (BE ids are GUIDs). */
+const isStaleMockSession = (accessToken: string | null, user: AuthUser | null): boolean =>
+  !!accessToken?.startsWith("mock_") || (!!user && !GUID_PATTERN.test(user.id));
 
 /** Reads a persisted user; malformed JSON drops the key and resolves to `null`. */
 const readStoredUser = (): AuthUser | null => {
@@ -70,9 +77,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
     hydrate: () => {
       if (get().hydrated || typeof window === "undefined") return;
-      const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-      const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-      const user = readStoredUser();
+      let accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+      let refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+      let user = readStoredUser();
+      if (isRealApi("auth") && isStaleMockSession(accessToken, user)) {
+        // Mock session left over from mock mode: never send it to the real BE
+        for (const key of [ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]) localStorage.removeItem(key);
+        accessToken = refreshToken = null;
+        user = null;
+      }
       set({ accessToken, refreshToken, user, isAuthenticated: !!accessToken, hydrated: true });
       if (user) {
         writeMockSessionCookie(toMockSession(user));
@@ -82,6 +95,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
   },
 }));
+
+/**
+ * Mirrors auth changes made by OTHER tabs. Any auth-key event re-reads all keys (never trusts `event.newValue`:
+ * `setTokens` fires 2 events, `clearAuth` 3) & applies the result once. Never writes storage, so it cannot loop.
+ * Returns the cleanup function.
+ */
+export function registerAuthStorageSync(): () => void {
+  const watched = new Set<string>(Object.values(AUTH_STORAGE_KEYS));
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== null && !watched.has(event.key)) return;
+    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    const signedIn = !!refreshToken && !!accessToken;
+    const next = signedIn
+      ? { accessToken, refreshToken, user: readStoredUser(), isAuthenticated: true }
+      : { accessToken: null, refreshToken: null, user: null, isAuthenticated: false };
+    const current = useAuthStore.getState();
+    const unchanged =
+      current.accessToken === next.accessToken &&
+      current.refreshToken === next.refreshToken &&
+      current.isAuthenticated === next.isAuthenticated &&
+      JSON.stringify(current.user) === JSON.stringify(next.user);
+    if (unchanged) return;
+    useAuthStore.setState(next);
+    if (next.user) writeMockSessionCookie(toMockSession(next.user));
+    else clearMockSessionCookie();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
 
 // Selector hooks for highly efficient component updates without redundant re-renders
 export const useAccessToken = () => useAuthStore((state) => state.accessToken);

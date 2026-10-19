@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { dispatchStorage, setRealSlices } from "@/test/api-test-utils";
 
 import { clearMockSessionCookie, MOCK_SESSION_COOKIE, parseMockSession } from "../utils/mock-session";
 
@@ -111,5 +112,110 @@ describe("auth-store", () => {
     const { result } = renderHook(() => useActorId());
     expect(result.current).toBe("me");
     expect(GUEST_ACTOR_ID).toBe("me");
+  });
+});
+
+describe("auth-store cross-tab sync", () => {
+  const REAL_USER = { id: "0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10", email: "real@ysocial.dev", username: "real_user" };
+
+  beforeEach(() => {
+    localStorage.clear();
+    clearMockSessionCookie();
+  });
+
+  const setup = async () => {
+    const mod = await freshStore();
+    const stop = mod.registerAuthStorageSync();
+    return { ...mod, stop };
+  };
+
+  it("setTokens in other tab (2 events) -> store ends with both new tokens", async () => {
+    const { useAuthStore, stop } = await setup();
+    localStorage.setItem("ysocial_access_token", "A2");
+    localStorage.setItem("ysocial_refresh_token", "R2");
+    dispatchStorage("ysocial_access_token", "A2", "A1");
+    dispatchStorage("ysocial_refresh_token", "R2", "R1");
+    const state = useAuthStore.getState();
+    expect([state.accessToken, state.refreshToken, state.isAuthenticated]).toEqual(["A2", "R2", true]);
+    stop();
+  });
+
+  it("clearAuth in other tab (3 events) -> single cleared state", async () => {
+    const { useAuthStore, stop } = await setup();
+    useAuthStore.getState().actions.setTokens("A1", "R1");
+    useAuthStore.getState().actions.updateUser(USER);
+    localStorage.clear();
+    const listener = vi.fn();
+    useAuthStore.subscribe(listener);
+    dispatchStorage("ysocial_access_token", null, "A1");
+    dispatchStorage("ysocial_refresh_token", null, "R1");
+    dispatchStorage("ysocial_user", null, "{}");
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+    expect(readCookie()).toBeUndefined();
+    stop();
+  });
+
+  it("sync never writes back to storage (no loop)", async () => {
+    const { stop } = await setup();
+    localStorage.setItem("ysocial_access_token", "A2");
+    localStorage.setItem("ysocial_refresh_token", "R2");
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const removeItem = vi.spyOn(Storage.prototype, "removeItem");
+    dispatchStorage("ysocial_access_token", "A2", "A1");
+    expect(setItem).not.toHaveBeenCalled();
+    expect(removeItem).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+    stop();
+  });
+
+  it("ignores unrelated keys & cleanup removes the listener", async () => {
+    const { useAuthStore, stop } = await setup();
+    localStorage.setItem("ysocial_access_token", "A2");
+    localStorage.setItem("ysocial_refresh_token", "R2");
+    dispatchStorage("some_other_key", "x");
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    stop();
+    dispatchStorage("ysocial_access_token", "A2", null);
+    expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+
+  it("hydrate real mode drops mock_ tokens", async () => {
+    setRealSlices("auth");
+    localStorage.setItem("ysocial_access_token", "mock_access_token");
+    localStorage.setItem("ysocial_refresh_token", "mock_refresh_token");
+    const { useAuthStore } = await freshStore();
+    useAuthStore.getState().actions.hydrate();
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: null, isAuthenticated: false, hydrated: true });
+    expect(localStorage.getItem("ysocial_access_token")).toBeNull();
+  });
+
+  it("hydrate real mode drops non-GUID user id", async () => {
+    setRealSlices("auth");
+    localStorage.setItem("ysocial_access_token", "real.jwt");
+    localStorage.setItem("ysocial_refresh_token", "real-refresh");
+    localStorage.setItem("ysocial_user", JSON.stringify(USER));
+    const { useAuthStore } = await freshStore();
+    useAuthStore.getState().actions.hydrate();
+    expect(useAuthStore.getState()).toMatchObject({ user: null, isAuthenticated: false });
+    expect(localStorage.getItem("ysocial_user")).toBeNull();
+  });
+
+  it("hydrate real mode keeps a real session", async () => {
+    setRealSlices("auth");
+    localStorage.setItem("ysocial_access_token", "real.jwt");
+    localStorage.setItem("ysocial_refresh_token", "real-refresh");
+    localStorage.setItem("ysocial_user", JSON.stringify(REAL_USER));
+    const { useAuthStore } = await freshStore();
+    useAuthStore.getState().actions.hydrate();
+    expect(useAuthStore.getState()).toMatchObject({ user: REAL_USER, isAuthenticated: true });
+  });
+
+  it("hydrate mock mode unchanged (mock tokens kept)", async () => {
+    seedStorage();
+    localStorage.setItem("ysocial_access_token", "mock_access_token");
+    const { useAuthStore } = await freshStore();
+    useAuthStore.getState().actions.hydrate();
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: "mock_access_token", user: USER });
   });
 });

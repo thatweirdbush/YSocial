@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuthStore } from "@/features/auth";
+import { registerAuthStorageSync, useAuthStore } from "@/features/auth";
 import { ViewerSync } from "@/features/profile";
 import { useSearchStore } from "@/features/search";
 import { useUIStore } from "@/lib/store/ui-store";
@@ -29,6 +29,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     useAuthStore.getState().actions.hydrate();
     useUIStore.getState().actions.hydrateLocale();
     void useSearchStore.persist.rehydrate();
+    return registerAuthStorageSync();
   }, []);
 
   return (
