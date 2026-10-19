@@ -32,7 +32,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslation } from "@/hooks/use-translation";
 import { LAYOUT } from "@/lib/constants/layout";
 import { useComposerOpen, useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
-import { useAuthUser, useAuthActions } from "@/features/auth/store/auth-store";
+import { authService } from "@/features/auth/services/auth-service";
+import { useAuthUser } from "@/features/auth/store/auth-store";
 import { RightSidebar } from "./right-sidebar";
 import { PostCreatorDialog } from "@/features/posts";
 
@@ -54,7 +55,6 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
   const { setLocale, toggleSidebar, openComposer, setComposerOpen } = useUIActions();
 
   const user = useAuthUser();
-  const { clearAuth } = useAuthActions();
 
   // Profile nav points at the signed-in user's profile; guests go to login
   const profileHref = user ? `/@${(user.username ?? user.email.split("@")[0]).toLowerCase()}` : "/login";
@@ -73,8 +73,8 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
     setLocale(locale === "vi" ? "en" : "vi");
   };
 
-  const handleLogout = () => {
-    clearAuth();
+  const handleLogout = async () => {
+    await authService.logout();
     router.push("/login");
   };
 

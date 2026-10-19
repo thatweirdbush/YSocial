@@ -1,6 +1,7 @@
 import type { components } from "@/lib/api/generated";
 import { z } from "zod";
 import { isRealApi } from "@/lib/api-config";
+import type { TranslationKey } from "@/lib/i18n/translate";
 import { SEED_AUTHORS, SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import { SEED_FANS } from "@/mocks/seed-fans";
 import { USERNAME_PATTERN } from "../utils/mock-session";
@@ -54,7 +55,7 @@ export interface MockSessionIdentity {
 /** Seed usernames a new mock account must not take (the server resolves them to the seed user first). */
 const RESERVED_USERNAMES = new Set([...SEED_AUTHORS, SEED_DEMO_ACCOUNT, ...SEED_FANS].map((author) => author.username));
 
-export const getIdentitySchema = (t: (key: any) => string) =>
+export const getIdentitySchema = (t: (key: TranslationKey) => string) =>
   z.object({
     identity: z
       .string()
@@ -62,7 +63,7 @@ export const getIdentitySchema = (t: (key: any) => string) =>
       .min(3, { message: t("auth.errorIdentityLength") }),
   });
 
-export const getPasswordSchema = (t: (key: any) => string) =>
+export const getPasswordSchema = (t: (key: TranslationKey) => string) =>
   z.object({
     password: z
       .string()
@@ -70,7 +71,7 @@ export const getPasswordSchema = (t: (key: any) => string) =>
       .min(6, { message: t("auth.errorPasswordLength") }),
   });
 
-export const getForgotSchema = (t: (key: any) => string) =>
+export const getForgotSchema = (t: (key: TranslationKey) => string) =>
   z.object({
     email: z
       .string()
@@ -78,7 +79,7 @@ export const getForgotSchema = (t: (key: any) => string) =>
       .email({ message: t("auth.errorEmailInvalid") }),
   });
 
-export const getResetSchema = (t: (key: any) => string) =>
+export const getResetSchema = (t: (key: TranslationKey) => string) =>
   z
     .object({
       otp: z
@@ -96,7 +97,7 @@ export const getResetSchema = (t: (key: any) => string) =>
       path: ["confirmNewPassword"],
     });
 
-export const getRegisterSchema = (t: (key: any) => string) =>
+export const getRegisterSchema = (t: (key: TranslationKey) => string) =>
   z
     .object({
       email: z

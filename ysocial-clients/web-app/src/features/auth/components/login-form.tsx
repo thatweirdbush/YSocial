@@ -3,13 +3,16 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
-import { useAuthActions } from "@/features/auth/store/auth-store";
-import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
+import { isRealApi } from "@/lib/api-config";
 import { Button } from "@/components/ui/button";
+import { useSubmitGuard } from "../hooks/use-submit-guard";
+import { authService } from "../services/auth-service";
+import { authErrorKey } from "../utils/auth-error";
 import {
   getIdentitySchema,
   getPasswordSchema,
@@ -97,8 +100,8 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
   });
 
   const onSubmit = async (data: IdentityFormValues) => {
-    // Simulate lightweight API lookup
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    // Mock mode simulates a lightweight lookup; the real BE has no identity-check endpoint
+    if (!isRealApi("auth")) await new Promise((resolve) => setTimeout(resolve, 800));
     onContinue(data.identity);
   };
 
@@ -130,7 +133,6 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
 
       <Button
         type="submit"
-        disabled={isSubmitting}
         className="rounded-full w-full py-3.5 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-300 h-auto"
       >
         {isSubmitting ? (
@@ -207,12 +209,12 @@ const IdentityStep: React.FC<IdentityStepProps> = ({ identity, onContinue }) => 
       <div className="text-center mt-2">
         <span className="text-xs text-zinc-500">
           {t("auth.noAccountPrompt")}{" "}
-          <a
+          <Link
             href="/register"
             className="text-zinc-900 dark:text-zinc-100 hover:underline font-bold transition-all ml-1"
           >
             {t("auth.switchToRegister")}
-          </a>
+          </Link>
         </span>
       </div>
     </form>
@@ -231,7 +233,8 @@ interface PasswordStepProps {
 const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotPassword }) => {
   const { t } = useTranslation();
   const router = useRouter();
-  const { setTokens, updateUser } = useAuthActions();
+  const guard = useSubmitGuard();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register,
@@ -242,23 +245,17 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
   });
 
   const onSubmit = async (data: PasswordFormValues) => {
-    // Simulate high-fidelity login transaction
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
-    // Update tokens and user details inzustand store
-    setTokens("mock_access_token", "mock_refresh_token");
-    // Mock login always signs in the seed demo account (spec D10); the typed identity is only validated by the form.
-    updateUser({
-      id: SEED_DEMO_ACCOUNT.id,
-      email: "member@ysocial.dev",
-      displayName: SEED_DEMO_ACCOUNT.displayName,
-      username: SEED_DEMO_ACCOUNT.username,
-      avatarUrl: SEED_DEMO_ACCOUNT.avatarUrl,
-      bio: "Joined YSocial Premium Social Ecosystem",
-    });
-
-    toast.success(t("auth.toastLoginSuccess"));
-    router.push("/");
+    if (!guard.enter()) return;
+    setServerError(null);
+    try {
+      await authService.login(identity, data.password);
+      toast.success(t("auth.toastLoginSuccess"));
+      router.push("/");
+    } catch (error) {
+      setServerError(t(authErrorKey(error)));
+    } finally {
+      guard.leave();
+    }
   };
 
   return (
@@ -301,6 +298,11 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
           {errors.password.message}
         </span>
       )}
+      {serverError && (
+        <span role="alert" className="text-xs text-red-500 -mt-2 animate-fade-in font-medium">
+          {serverError}
+        </span>
+      )}
 
       <div className="text-right -mt-1">
         <button
@@ -314,7 +316,6 @@ const PasswordStep: React.FC<PasswordStepProps> = ({ identity, onBack, onForgotP
 
       <Button
         type="submit"
-        disabled={isSubmitting}
         className="rounded-full w-full py-3.5 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-300 h-auto"
       >
         {isSubmitting ? (
@@ -351,6 +352,8 @@ interface ForgotStepProps {
 
 const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent }) => {
   const { t } = useTranslation();
+  const guard = useSubmitGuard();
+  const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -361,9 +364,17 @@ const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent })
   });
 
   const onSubmit = async (data: ForgotFormValues) => {
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    toast.success(t("auth.toastOtpSent"));
-    onSent(data.email);
+    if (!guard.enter()) return;
+    setServerError(null);
+    try {
+      await authService.forgotPassword(data.email);
+      toast.success(t("auth.toastOtpSent"));
+      onSent(data.email);
+    } catch (error) {
+      setServerError(t(authErrorKey(error)));
+    } finally {
+      guard.leave();
+    }
   };
 
   return (
@@ -392,10 +403,14 @@ const ForgotStep: React.FC<ForgotStepProps> = ({ defaultEmail, onBack, onSent })
           {errors.email.message}
         </span>
       )}
+      {serverError && (
+        <span role="alert" className="text-xs text-red-500 -mt-2 animate-fade-in font-medium">
+          {serverError}
+        </span>
+      )}
 
       <Button
         type="submit"
-        disabled={isSubmitting}
         className="rounded-full w-full py-3.5 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-300 h-auto"
       >
         {isSubmitting ? (
@@ -432,6 +447,8 @@ interface ResetStepProps {
 
 const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
   const { t } = useTranslation();
+  const guard = useSubmitGuard();
+  const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -441,9 +458,17 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
   });
 
   const onSubmit = async (data: ResetFormValues) => {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    toast.success(t("auth.toastResetSuccess"));
-    onSuccess();
+    if (!guard.enter()) return;
+    setServerError(null);
+    try {
+      await authService.resetPassword({ loginId: email, otp: data.otp, newPassword: data.newPassword });
+      toast.success(t("auth.toastResetSuccess"));
+      onSuccess();
+    } catch (error) {
+      setServerError(t(authErrorKey(error)));
+    } finally {
+      guard.leave();
+    }
   };
 
   return (
@@ -516,10 +541,14 @@ const ResetStep: React.FC<ResetStepProps> = ({ email, onBack, onSuccess }) => {
           {errors.confirmNewPassword.message}
         </span>
       )}
+      {serverError && (
+        <span role="alert" className="text-xs text-red-500 -mt-2 animate-fade-in font-medium">
+          {serverError}
+        </span>
+      )}
 
       <Button
         type="submit"
-        disabled={isSubmitting}
         className="rounded-full w-full py-3.5 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-300 h-auto"
       >
         {isSubmitting ? (

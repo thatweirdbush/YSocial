@@ -1,45 +1,64 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "@/hooks/use-translation";
-import { useAuthActions } from "@/features/auth/store/auth-store";
+import { hasCode } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
+import { useSubmitGuard } from "../hooks/use-submit-guard";
+import { authService, RegisteredLoginFailedError } from "../services/auth-service";
+import { authErrorKey, authFieldErrors } from "../utils/auth-error";
 import { getRegisterSchema, RegisterFormValues } from "../types";
 
 export const RegisterForm: React.FC = () => {
   const { t } = useTranslation();
   const router = useRouter();
-  const { setTokens, updateUser } = useAuthActions();
+  const guard = useSubmitGuard();
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterFormValues>({
     resolver: zodResolver(getRegisterSchema(t)),
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
-    // Simulate high-fidelity register transaction
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Auto-login after successful mock registration
-    setTokens("mock_access_token", "mock_refresh_token");
-    updateUser({
-      id: "2",
-      email: data.email,
-      displayName: data.username,
-      username: data.username.toLowerCase(),
-      bio: "Just joined the YSocial ecosystem!",
-    });
-
-    toast.success(t("auth.toastRegisterSuccess"));
-    router.push("/");
+    if (!guard.enter()) return;
+    setServerError(null);
+    try {
+      await authService.register({ email: data.email, password: data.password, username: data.username });
+      toast.success(t("auth.toastRegisterSuccess"));
+      router.push("/");
+    } catch (error) {
+      if (error instanceof RegisteredLoginFailedError) {
+        toast.success(t("auth.registeredPleaseLogin"));
+        router.push("/login");
+        return;
+      }
+      const message = t(authErrorKey(error));
+      const fieldErrors = authFieldErrors(error);
+      const formFields: Array<keyof RegisterFormValues> = ["email", "username", "password"];
+      const invalid = formFields.filter((field) => fieldErrors[field]);
+      if (invalid.length > 0) {
+        for (const field of invalid) setError(field, { message: fieldErrors[field] });
+      } else if (hasCode(error, "UsernameTaken")) {
+        setError("username", { message });
+      } else if (hasCode(error, "EmailTaken")) {
+        setError("email", { message });
+      } else {
+        setServerError(message);
+      }
+    } finally {
+      guard.leave();
+    }
   };
 
   return (
@@ -125,10 +144,14 @@ export const RegisterForm: React.FC = () => {
           {errors.confirmPassword.message}
         </span>
       )}
+      {serverError && (
+        <span role="alert" className="text-xs text-red-500 -mt-2 animate-fade-in font-medium">
+          {serverError}
+        </span>
+      )}
 
       <Button
         type="submit"
-        disabled={isSubmitting}
         className="rounded-full w-full py-3.5 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed font-semibold text-sm transition-all duration-300 h-auto mt-2"
       >
         {isSubmitting ? (
@@ -144,12 +167,12 @@ export const RegisterForm: React.FC = () => {
       <div className="text-center mt-2">
         <span className="text-xs text-zinc-500">
           {t("auth.haveAccountPrompt")}{" "}
-          <a
+          <Link
             href="/login"
             className="text-zinc-900 dark:text-zinc-100 hover:underline font-bold transition-all ml-1"
           >
             {t("auth.switchToLogin")}
-          </a>
+          </Link>
         </span>
       </div>
     </form>
