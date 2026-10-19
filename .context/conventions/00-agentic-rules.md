@@ -40,10 +40,11 @@ MUST check & activate these core skills before ANY task.
 1. **Tier 1: Roadmap & Global Context** (`.context/roadmap.md`)
    - High-level project vision (Phase 0 -> Phase N)
    - Single source of truth for phase progress (`[x]`, `[-]`, `[ ]`)
-2. **Tier 2: Spec & Plan** (`docs/specs/` & `docs/plans/`)
-   - `docs/specs/YYYY-MM-DD-<feature>-design.md`: WHAT & WHY - technical architecture, data flow, Zustand stores, mock definitions, edge cases
+2. **Tier 2: Spec & Plan** (repo root `docs/specs/` & `docs/plans/`, 1 pair per feature covering BE + FE)
+   - `docs/specs/YYYY-MM-DD-<feature>-design.md`: WHAT & WHY - architecture, data flow, contract delta, stores, edge cases
       - **Note:** DO NOT list individual i18n keys. ONLY define Domains/Scope (e.g., auth.*). Full key-value mapping belongs in Plan phase
    - `docs/plans/YYYY-MM-DD-<feature>.md`: HOW & STEPS - bite-sized TDD tasks with checkboxes (`- [ ]`)
+   - Legacy (history, do NOT add new files): `ysocial-clients/web-app/docs/{specs,plans}/` (FE, pre-integration), `.context/backend/plans/` (BE recovery, FE-BE integration)
 3. **Tier 3: Feature Context / As-Built Doc** (`.context/features/<feature-name>.md`)
    - Created/Updated AFTER completion. Documents actual implemented state, API mappings, permanent Design Decisions & Pitfall Logs
    - **MUST always match current implementation** (`Current implementation knowledge`): any task that changes behavior updates affected doc in same task. Rewrite stale parts (e.g. mock-only statements after slice goes real), never append contradicting notes. Specs & plans (Tier 2) stay history
@@ -51,6 +52,23 @@ MUST check & activate these core skills before ANY task.
 ### 4.2. Completion Protocol - Check off Progress
 - Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if phase/feature is done
 - If decisions/architecture shifted during execution, update Tier 2 spec 7 plan to reflect new reality (or note the change)
+
+### 4.2.1 Feature Lifecycle (FE+BE vertical slice)
+Classify roadmap item first: **FE-only | BE-gap-first | vertical**. Then, in order:
+1. **Spec:** include `## Contract delta` (endpoints, DTOs, error codes, capability-table change) & whether mock adapter is needed (BE-less only; default real-first)
+2. **Contract first:** update MAP (`backend/integration/frontend-backend-mapping.md` §2/§3/§7, new D-id) BEFORE any FE task starts
+3. **Plan task order:** BE (domain -> app -> API + integration tests) -> `npm run api:fetch` + `api:generate` + `api:check` -> FE (mapper, `*.real.ts` adapter, store, UI, capability flip) -> real-BE smoke -> exit. Keep `## Mismatch log` in plan: mismatch = decide BE vs FE vs MAP fix, never patch silently
+4. **Exit (same task, see 4.3):** update as-built by owner, tick roadmap
+
+| Fact | Owner doc |
+|---|---|
+| BE behavior | `backend/architecture/backend-guide.md`, `domain-model.md` |
+| Contract (endpoints, DTOs, codes, D-ids) | MAP |
+| FE feature behavior (1 doc per feature, no phase sections) | `.context/features/<feature>.md` |
+| Cross-cutting integration only (slice switch, api-client, refresh, adapter rules) | `backend/integration/fe-be-integration.md` |
+| Progress, open items, BE track | `.context/roadmap.md` |
+
+Never create per-phase sections in `fe-be-integration.md` & never duplicate fact across owners: link instead
 
 ### 4.3 Deferred Minor Triage Before Completion
 Before declaring done:

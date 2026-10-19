@@ -28,11 +28,8 @@
 - [BE Recovery & FE Integration Plan](backend/plans/2026-10-15-backend-recovery-&-fe-integration.md) - phased tasks T0-T4 (all done), decisions D1-D24, debt & deferred triage (§8, history only; live register = BG §10), session synchronization & access policy (error catalog & DTOs moved to MAP/BG), dependencies, tests, FE checkpoints, risks
 - [FE-BE Integration plan](backend/plans/2026-10-16-fe-be-integration.md): FE repo, all phases; closed, history only: execution records, rulings, mismatch log
 
-## Specs & Plans (`ysocial-clients/web-app/docs/`, Tier 2 FE, history)
-- `swagger.json` - BE contract copy (`npm run api:fetch`), input of `api:generate` / `api:check`; do not hand-edit
-- Post Detail: `specs/2026-10-01-post-detail-design.md` | `plans/2026-10-01-post-detail.md`
-- Search & Tags: `specs/2026-10-05-search-and-tags-design.md` | `plans/2026-10-05-search-and-tags.md`
-- Feed & Post Interaction: `specs/2026-10-06-feed-post-interaction-design.md` | `plans/2026-10-06-feed-post-interaction.md`
-- Profile Core: `specs/2026-10-07-profile-core-design.md` | `plans/2026-10-07-profile-core.md`
-- Relationship Controls: `specs/2026-10-09-relationship-controls-design.md` | `plans/2026-10-09-relationship-controls.md`
-- FE-BE integration plan lives in `backend/plans/` (see Backend Audit)
+## Specs & Plans (Tier 2)
+- New features: repo root `docs/specs/` & `docs/plans/` (1 pair per feature, BE + FE; lifecycle: `conventions/00-agentic-rules.md` 4.2.1)
+- `ysocial-clients/web-app/docs/swagger.json` - BE contract copy (`npm run api:fetch`), input of `api:generate` / `api:check`; do not hand-edit
+- Legacy FE specs & plans (`ysocial-clients/web-app/docs/`, history): Post Detail `2026-10-01-post-detail`, Search & Tags `2026-10-05-search-and-tags`, Feed & Post Interaction `2026-10-06-feed-post-interaction`, Profile Core `2026-10-07-profile-core`, Relationship Controls `2026-10-09-relationship-controls` (`specs/<id>-design.md` | `plans/<id>.md`)
+- Legacy FE-BE integration plan lives in `backend/plans/` (see Backend Audit)
