@@ -21,17 +21,17 @@ updated: 2026-10-16
 - [x] **F.1 API plumbing:** env config, typed `ApiError` (ProblemDetails), `api-client` rewrite (cross-tab single-flight refresh), regenerate `generated.ts`, `api:fetch` script
 - [x] **F.2 Auth slice real:** register (username) + auto-login, login, `GET me` viewer bootstrap, silent refresh, logout, forgot/reset, error-code messages (vi/en)
 - [-] **F.3 Exit:** 2-tab login -> refresh -> logout smoke on real BE, MAP §6 updated, mismatch log empty or resolved
-  - Done 2026-10-19: browser register/login/logout/wrong-pw/cross-tab logout sync, node refresh single-flight & BE-restart logout on real BE, MAP §6 updated
-  - Done 2026-10-19: code review gate (2 Important fixed); M17 resolved (BE opt-in `Messaging:LogOtpInDevelopment`), reset -> login verified on real BE
+  - Done: browser register/login/logout/wrong-pw/cross-tab logout sync, node refresh single-flight & BE-restart logout on real BE, MAP §6 updated
+  - Done: code review gate (2 Important fixed); M17 resolved (BE opt-in `Messaging:LogOtpInDevelopment`), reset -> login verified on real BE
   - Open: real 2-tab lock contention smoke, re-run in Phase C (no UI-triggerable authed call yet)
-  - Working mode: all phases on `main` worktree (user decision 2026-10-19)
 
 ### Phase C - Content (CP2)
-- [ ] **C.1** profile header & edit, follow/unfollow (moved from G: header, hover card, `PostCard` render `followStatus`), server-side real reads for `/@username` & `/posts/[id]`
-- [ ] **C.2** posts: create, edit, **delete (moved from CP1: needs real post ids)**, detail & thread (`GET threads/{id}`), profile threads tab, **feed read (moved from N: shares `post-store`)**
-- [ ] **C.3** like/bookmark via idempotent PUT/DELETE (route by `kind`), saved page; stop using toggle endpoints
+- [x] **C.1** profile header & edit, follow/unfollow (moved from G: header, hover card, `PostCard` render `followStatus`), server-side real reads for `/@username` & `/posts/[id]`
+- [x] **C.2** posts: create, edit, **delete (moved from CP1: needs real post ids)**, detail & thread (`GET threads/{id}`), profile threads tab, **feed read (moved from N: shares `post-store`)**
+- [x] **C.3** like/bookmark via idempotent PUT/DELETE (route by `kind`), saved page; stop using toggle endpoints
 - Prerequisite refactor inside C: `PostRef` (kind + root post id) passed to like/bookmark/edit/delete/reply so endpoint routing never relies on hidden store lookups
-- [ ] **C.4** capability map: hide BE-less features (search, tags, trending, pin, hide-like-count, multi-image, audience, `replies`/`media` tabs, new-posts pill) while content is real
+- [x] **C.4** capability map: hide BE-less features (search, tags, trending, pin, hide-like-count, multi-image, audience, `replies`/`media` tabs, new-posts pill) while content is real
+  - Phase C closed (see plan C9 record); open: M18 (BE updateProfile wipes gender/DOB), real 2-tab lock smoke
 - Profile switcher (FE roadmap 2.7) is NOT mock replacement: build real-first after Phase C
 
 ### Phase G - Graph (CP3)

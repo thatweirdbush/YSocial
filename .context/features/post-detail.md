@@ -61,3 +61,6 @@ PostCard / PostFeed / ReplyList <- usePost(id) / useFeedIds(tab) / useReplyIds(i
 
 ## Known pre-existing issues (out of scope)
 - `auth-store` reads `localStorage` in initializer -> hydration mismatch in sidebar user block when logged in (violates SSR-safe store rule; follow `ui-store` `hydrateLocale()` pattern)
+
+## FE-BE integration (Phase C)
+- Real BE mode (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`): data comes from real adapters, hidden surfaces & server-read rules in `features/fe-be-integration.md` (Phase C)

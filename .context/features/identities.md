@@ -29,4 +29,4 @@ updated: 2026-10-19
 ## 4. FE adoption (as-built: `features/fe-be-integration.md`)
 - **Slice:** `NEXT_PUBLIC_REAL_API_SLICES=auth`; register -> `POST register` then `POST login` (no tokens on register), viewer from `GET users/me`
 - **Refresh:** FE coordinates single-use rotation across tabs (`navigator.locks` + adoption of token rotated by another tab); session ends only on 401 `InvalidRefreshToken` with unchanged stored token
-- **Smoke:** with `Messaging:LogOtpInDevelopment=true` the OTP is readable in the BE Development log (reset flow verified on real BE 2026-10-19, plan M17)
+- **Smoke:** with `Messaging:LogOtpInDevelopment=true` OTP is readable in BE Development log (reset flow verified on real BE, plan M17)

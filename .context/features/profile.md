@@ -15,7 +15,7 @@ page.tsx (server) : params + cookies() -> parseMockSession -> resolveProfileRout
 Providers         : useLayoutEffect hydrate() -> <ViewerSync/> ensureViewerUser (once per session id, after hydrated)
 ProfileContainer  : !hydrated -> ProfileSkeleton ; ProfileLookup (ensureViewerUser | ensureUserByUsername) -> ProfileView
 ProfileView       : useProfileTabPostsController(user.id, actorId) -> ProfileTabPanel(tab) -> post-store (posts) / ProfileMediaGrid
-FollowButton / FollowersDialog -> commitFollow(actor, id, follow|unfollow) -> setFollowStatus (optimistic) -> followUser|unfollowUser -> refreshUsers (only if no newer op on the target)
+FollowButton / FollowersDialog -> commitFollow(actor, id, follow|unfollow) -> setFollowStatus (optimistic) -> followUser|unfollowUser -> refreshUsers (only if no newer op on target)
 ```
 
 ## Key rules
@@ -60,7 +60,10 @@ FollowButton / FollowersDialog -> commitFollow(actor, id, follow|unfollow) -> se
    - **Fix & Decision:** added `activatedScope` ref (per tab, holds `scopeKey` fetch was already started for), set synchronously in `activate()` before async call. Guard is reset to `undefined` per tab in SAME layout-effect branch that bumps `tokens` on scope change (comparing `scopeKey` alone is not enough: scope revisited A -> B -> A keeps OLD guard value, which equals new key again & tab never refetch). `followers-dialog.tsx`'s first-page effect has same StrictMode class of issue (hidden by its request-token guard, so only wasted request, not correctness bug) - deferred, not fixed
    - **Verification:** `use-profile-tab-posts.test.tsx`: `<StrictMode>` harness asserts 1 call; separate test revisits scope `1:1 -> 1:2 -> 1:1` & asserts tab refetches
 
-## Verification (2026-10-09)
+## Verification
 - `npm run test`: 56 files / 527 tests pass (+6 vs 2026-10-08); `tsc` exit 0; eslint 55 E / 17 W (baseline 62 / 25), no file/rule increase
 - Followers dialog error state & inline retry row are new UI, verified by tests only (mock-forced failures)
-- Browser pane (2026-10-08, still valid): register -> own profile -> reload OK without hydration warning; logout -> same runtime username 404; unknown 404; login demo -> 4 tabs, pinned first, media grid, saved; follow sync, dialog search & paging, QR PNG download with Unsplash avatar; 375 dark, 768 light. NOT visually checked: 1440, keyboard focus rings (class review only)
+- Browser pane (still valid): register -> own profile -> reload OK without hydration warning; logout -> same runtime username 404; unknown 404; login demo -> 4 tabs, pinned first, media grid, saved; follow sync, dialog search & paging, QR PNG download with Unsplash avatar; 375 dark, 768 light. NOT visually checked: 1440, keyboard focus rings (class review only)
+
+## FE-BE integration (Phase C)
+- Real BE mode (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`): data comes from real adapters, hidden surfaces & server-read rules in `features/fe-be-integration.md` (Phase C)

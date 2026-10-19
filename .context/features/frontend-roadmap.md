@@ -44,7 +44,7 @@ updated: 2026-10-06
 - [x] **F0.1 Test & validate infra:** Vitest + React Testing Library + jsdom, scripts `test` & `typecheck` (devDependencies install needs approval)
 - [-] **F0.2 Mock data layer:** *(posts + users + `src/mocks/` seed authors & follow graph done - notifications/saved collections/conversations pending)* centralized seed users/posts/replies/notifications/conversations; `mockDelay()` helper to show real skeleton; stable IDs
 - [x] **F0.3 Normalized post store (Zustand):** `Record<id, PostItem>` + selectors `usePost(id)` -> like/bookmark/reply synced everywhere, O(1) toggle, no list re-render
-- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, `/search`, `/tags/[tag]`, `/@username` (no `loading.tsx`: it blocks the real 404); global not-found, `/`, `/notifications`, `/saved` pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
+- [-] **F0.4 Route shells:** *(Partial: done `/posts/[id]`, `/search`, `/tags/[tag]`, `/@username` (no `loading.tsx`: it blocks real 404); global not-found, `/`, `/notifications`, `/saved` pending)* `loading.tsx` (size-matched skeleton, anti-CLS), `error.tsx` (retry), `not-found.tsx` (global + profile/post)
 - [x] **F0.5 Shared `EmptyState`** (`components/shared/empty-state.tsx`): Lucide icon + Gen Z message + CTA - standard for all lists
 - [x] **F0.6 Profile on mocks** (drop real-BE SSR fetch, keep `generateMetadata`)
 
@@ -68,7 +68,7 @@ updated: 2026-10-06
 - [x] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
 - [x] **2.5 Block / Mute** (Restrict deferred): `PostCard` menu & profile hide content for real, lists in `/settings/blocked|muted`
 - [x] **2.6 Share profile:** copy link + QR code dialog
-- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(build real-first after integration Phase C: `features/fe-be-integration-roadmap.md`)*
+- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(Phase C done: build real-first now, `features/fe-be-integration-roadmap.md`)*
 
 ### Phase 3 - Notifications & Activity (P1)
 - [ ] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"
