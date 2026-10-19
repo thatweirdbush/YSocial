@@ -1,6 +1,7 @@
 "use client";
 
 import { registerAuthStorageSync, useAuthStore } from "@/features/auth";
+import { NotificationLiveSync } from "@/features/notifications";
 import { ViewerSync } from "@/features/profile";
 import { useSearchStore } from "@/features/search";
 import { useUIStore } from "@/lib/store/ui-store";
@@ -36,6 +37,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <ViewerSync />
+        <NotificationLiveSync />
         {children}
         <Toaster position="top-center" richColors />
       </ThemeProvider>

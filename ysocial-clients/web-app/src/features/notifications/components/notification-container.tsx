@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { toast } from "sonner";
 import { SafeHydration } from "@/components/shared/safe-hydration";
 import { Button } from "@/components/ui/button";
+import { useIsAuthenticated, useViewerId } from "@/features/auth";
 import { FollowRequestsBanner } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { hasCapability } from "@/lib/capabilities";
@@ -26,10 +27,14 @@ export const NotificationContainer: React.FC = () => {
   const status = useNotificationStore((state) => state.status);
   const loadingMore = useNotificationStore((state) => state.loadingMore);
 
-  // First page on mount; pushed items & later pages share the same store state
+  const isAuthenticated = useIsAuthenticated();
+  const viewerId = useViewerId();
+
+  // First page on mount & whenever the viewer changes (hydration, login, account switch); pushed items & later
+  // pages share the same store state
   useEffect(() => {
     void loadNotifications();
-  }, []);
+  }, [isAuthenticated, viewerId]);
 
   const handleFollowToggle = (user: NotificationUser) => {
     toggleNotificationFollow(user.id);

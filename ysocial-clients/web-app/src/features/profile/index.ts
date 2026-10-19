@@ -19,6 +19,7 @@ export {
   searchUsers,
   unfollowUser,
 } from "./services/user-service";
+export { getViewerRelations } from "./store/relation-state";
 export {
   commitBlock,
   commitCloseFriend,

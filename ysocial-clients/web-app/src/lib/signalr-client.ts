@@ -1,71 +1,63 @@
-import { useAuthStore } from "@/features/auth/store/auth-store";
+import { HttpTransportType, HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
+import type { components } from "@/lib/api/generated";
+import { API_BASE_URL } from "./api-config";
 
-// Use standard relative import path from node_modules if needed, microsoft-signalr is installed
-import { HubConnection, HubConnectionBuilder, HttpTransportType, LogLevel } from "@microsoft/signalr";
+/** Push payload = the HTTP list item (MAP §2.7): `type` (`NewLike`, `NewComment`, `NewFollow`, `FollowRequested`, `FollowAccepted`...) is a plain string. */
+export type NotificationPayload = components["schemas"]["NotificationDto"];
 
-const HUB_URL = "https://localhost:49895/hubs/notifications";
-
-export interface NotificationPayload {
-  id: string;
-  type: "NewLike" | "NewComment" | "NewFollow" | string;
-  title: string;
-  message: string;
-  createdAt: string;
-  isRead: boolean;
-  targetId?: string;
-  senderName?: string;
-  senderAvatar?: string;
+/** The slice of `HubConnection` the hub uses (lets tests inject a fake). */
+export interface HubConnectionLike {
+  on(event: string, handler: (payload: NotificationPayload) => void): void;
+  start(): Promise<void>;
+  stop(): Promise<void>;
 }
 
-export class NotificationHubClient {
-  private connection: HubConnection | null = null;
-  private onNotificationReceived: ((notification: NotificationPayload) => void) | null = null;
+/** Builds a connection whose `accessTokenFactory` is asked for the token on every (re)connect. */
+export type HubConnectionFactory = (url: string, accessTokenFactory: () => string) => HubConnectionLike;
 
-  public start(onReceived: (notification: NotificationPayload) => void) {
-    if (this.connection) return;
+const HUB_URL = `${API_BASE_URL}/hubs/notifications`;
 
-    this.onNotificationReceived = onReceived;
+const buildSignalRConnection: HubConnectionFactory = (url, accessTokenFactory) =>
+  new HubConnectionBuilder()
+    .withUrl(url, { accessTokenFactory, skipNegotiation: true, transport: HttpTransportType.WebSockets })
+    .withAutomaticReconnect()
+    .configureLogging(LogLevel.Warning)
+    .build();
 
-    this.connection = new HubConnectionBuilder()
-      .withUrl(HUB_URL, {
-        // Dynamic access token factory to ensure auto-reconnect picks up rotated tokens
-        accessTokenFactory: () => {
-          const token = useAuthStore.getState().accessToken;
-          return token || "";
-        },
-        skipNegotiation: true,
-        transport: HttpTransportType.WebSockets,
-      })
-      .withAutomaticReconnect() // Explicit automatic reconnect activation
-      .configureLogging(LogLevel.Warning)
-      .build();
+export function createNotificationHub(factory: HubConnectionFactory = buildSignalRConnection) {
+  let connection: HubConnectionLike | null = null;
+  const handlers = new Set<(notification: NotificationPayload) => void>();
 
-    // Event listener mapping to backend hub event
-    this.connection.on("ReceiveNotification", (notification: any) => {
-      if (this.onNotificationReceived) {
-        this.onNotificationReceived(notification as NotificationPayload);
-      }
-    });
+  return {
+    /**
+     * Connects once, only while a token exists. `getAccessToken` is read on every (re)connect so a rotated token
+     * is picked up; a failed first start is dropped so the next call retries.
+     */
+    start(getAccessToken: () => string | null): void {
+      if (connection || !getAccessToken()) return;
 
-    this.connection
-      .start()
-      .then(() => {
-        console.log("[SignalR] Connected to YSocial notifications hub.");
-      })
-      .catch((err) => {
-        console.error("[SignalR] Connection start failed:", err);
+      const next = factory(HUB_URL, () => getAccessToken() ?? "");
+      next.on("ReceiveNotification", (payload) => handlers.forEach((handler) => handler(payload)));
+      connection = next;
+      next.start().catch((error: unknown) => {
+        console.error("[SignalR] Connection start failed:", error);
+        if (connection === next) connection = null;
       });
-  }
+    },
 
-  public stop() {
-    if (this.connection) {
-      this.connection.stop().then(() => {
-        console.log("[SignalR] Connection stopped.");
-      });
-      this.connection = null;
-    }
-  }
+    stop(): void {
+      const current = connection;
+      connection = null;
+      void current?.stop().catch(() => undefined);
+    },
+
+    /** Subscribes to pushes; returns the unsubscribe function. */
+    onNotification(handler: (notification: NotificationPayload) => void): () => void {
+      handlers.add(handler);
+      return () => handlers.delete(handler);
+    },
+  };
 }
 
-export const notificationHub = new NotificationHubClient();
+export const notificationHub = createNotificationHub();
 export default notificationHub;
