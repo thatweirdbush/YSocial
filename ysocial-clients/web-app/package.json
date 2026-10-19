@@ -9,6 +9,7 @@
     "lint": "eslint",
     "api:generate": "openapi-typescript ./docs/swagger.json -o ./src/lib/api/generated.ts",
     "api:check": "openapi-typescript ./docs/swagger.json -o ./src/lib/api/generated.ts --check",
+    "api:fetch": "node ./scripts/fetch-swagger.mjs",
     "api:update": "npm run api:fetch && npm run api:generate",
     "test": "vitest run",
     "test:watch": "vitest",
