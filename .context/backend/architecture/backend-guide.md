@@ -69,6 +69,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Pagination bounds:** shared `PaginationRules` (`page >= 1`, `1 <= pageSize <= 50`) on every list query -> 400 `ValidationFailed` (conventions/backend.md)
 - **Validation:** all `IValidator<T>` run in parallel, errors merged, `throw new ValidationException(errors)` -> mapped by `GlobalExceptionHandler` to 400 + `errors` (§5.2)
 - **Logging:** `LoggingBehavior` logs `LogRedactor.Describe(request|response)` at Information; members named `*password*`, `*otp*`, `*token*`, `*secret*` or marked `[SensitiveData]` print `***` (also inside `Result<T>` & nested objects); compiler `ToString()` of requests is NEVER logged (T4.3). Any new secret-bearing member MUST follow naming rule or carry attribute
+- **Mock sender logs:** email/SMS mock senders log no body outside Development; in Development digit runs of 4+ are masked unless `Messaging:LogOtpInDevelopment=true` (Development-only opt-in, default false, ignored elsewhere; set in local gitignored `appsettings.Development.json` with `Cors:AllowedOrigins`; `ApiFactory` forces it off so redaction tests stay valid)
 - **Metrics:** only stopwatch log line
 - **No rollback:** repos mutate shared static dictionaries immediately; failure after mutation leaves state changed (§7.2)
 - **Notification (event) pipeline:** domain events published with `mediator.Publish` sequentially per event; open-generic behaviors do not wrap notifications (`IPipelineBehavior` is request-only; MediatR convention)

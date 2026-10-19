@@ -41,6 +41,6 @@ updated: 2026-10-19
 
 ## Pitfall Log
 - **BE worktree build:** worktree lacks sibling `Microservice.BuildingBlocks` (relative project refs); run BE from main checkout
-- **OTP smoke:** BE masks digit runs in Development log (plan assumed readable): successful reset not smoke-testable (M17)
+- **OTP smoke:** BE masks OTP digit runs in Development by default; set `Messaging:LogOtpInDevelopment=true` (local `appsettings.Development.json`, gitignored) to read it in the BE log (M17 resolved)
 - **`.env*` gitignored:** `.gitignore` has `!.env.example`
 - **Lint baseline:** 6 pre-existing errors outside integration files (see plan F9 record)

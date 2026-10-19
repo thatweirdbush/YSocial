@@ -22,7 +22,9 @@ updated: 2026-10-16
 - [x] **F.2 Auth slice real:** register (username) + auto-login, login, `GET me` viewer bootstrap, silent refresh, logout, forgot/reset, error-code messages (vi/en)
 - [-] **F.3 Exit:** 2-tab login -> refresh -> logout smoke on real BE, MAP §6 updated, mismatch log empty or resolved
   - Done 2026-10-19: browser register/login/logout/wrong-pw/cross-tab logout sync, node refresh single-flight & BE-restart logout on real BE, MAP §6 updated
-  - Open: real 2-tab lock contention smoke (no UI-triggerable authed call until Phase C), successful reset smoke (M17: BE masks OTP), code review gate
+  - Done 2026-10-19: code review gate (2 Important fixed); M17 resolved (BE opt-in `Messaging:LogOtpInDevelopment`), reset -> login verified on real BE
+  - Open: real 2-tab lock contention smoke, re-run in Phase C (no UI-triggerable authed call yet)
+  - Working mode: all phases on `main` worktree (user decision 2026-10-19)
 
 ### Phase C - Content (CP2)
 - [ ] **C.1** profile header & edit, follow/unfollow (moved from G: header, hover card, `PostCard` render `followStatus`), server-side real reads for `/@username` & `/posts/[id]`

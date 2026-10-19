@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
@@ -121,12 +122,18 @@ public class LogRedactionTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     #region Mock senders
 
-    private static (T Sender, CapturingLoggerProvider Logs) Build<T>(string environment, Func<ILogger<T>, IHostEnvironment, T> factory)
+    private static (T Sender, CapturingLoggerProvider Logs) Build<T>(
+        string environment,
+        Func<ILogger<T>, IHostEnvironment, IConfiguration, T> factory,
+        bool logOtp = false)
     {
         var provider = new CapturingLoggerProvider();
         var host = Substitute.For<IHostEnvironment>();
         host.EnvironmentName.Returns(environment);
-        return (factory(new LoggerFactory([provider]).CreateLogger<T>(), host), provider);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["Messaging:LogOtpInDevelopment"] = logOtp.ToString() })
+            .Build();
+        return (factory(new LoggerFactory([provider]).CreateLogger<T>(), host, configuration), provider);
     }
 
     [Theory]
@@ -134,7 +141,7 @@ public class LogRedactionTests(ApiFixture fixture) : ApiTestBase(fixture)
     [InlineData("Staging")]
     public async Task MockEmailSender_OutsideDevelopment_NeverLogsBody(string environment)
     {
-        var (sender, logs) = Build<MockEmailSender>(environment, (l, e) => new MockEmailSender(l, e));
+        var (sender, logs) = Build<MockEmailSender>(environment, (l, e, c) => new MockEmailSender(l, e, c));
 
         await sender.SendEmailAsync("a@b.c", "Reset", "Your code is 123456");
 
@@ -144,7 +151,7 @@ public class LogRedactionTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task MockEmailSender_Development_MasksDigits()
     {
-        var (sender, logs) = Build<MockEmailSender>("Development", (l, e) => new MockEmailSender(l, e));
+        var (sender, logs) = Build<MockEmailSender>("Development", (l, e, c) => new MockEmailSender(l, e, c));
 
         await sender.SendEmailAsync("a@b.c", "Reset", "Your code is 123456");
 
@@ -152,12 +159,34 @@ public class LogRedactionTests(ApiFixture fixture) : ApiTestBase(fixture)
         logs.Entries.Should().NotContain(e => e.Message.Contains("123456"));
     }
 
+    [Fact]
+    public async Task MockEmailSender_Development_OptIn_LogsRawBody()
+    {
+        var (sender, logs) = Build<MockEmailSender>("Development", (l, e, c) => new MockEmailSender(l, e, c), logOtp: true);
+
+        await sender.SendEmailAsync("a@b.c", "Reset", "Your code is 123456");
+
+        logs.Entries.Should().Contain(e => e.Message.Contains("Your code is 123456"));
+    }
+
+    [Theory]
+    [InlineData("Production")]
+    [InlineData("Staging")]
+    public async Task MockEmailSender_OutsideDevelopment_OptInIgnored(string environment)
+    {
+        var (sender, logs) = Build<MockEmailSender>(environment, (l, e, c) => new MockEmailSender(l, e, c), logOtp: true);
+
+        await sender.SendEmailAsync("a@b.c", "Reset", "Your code is 123456");
+
+        logs.Entries.Should().NotContain(e => e.Message.Contains("123456") || e.Message.Contains("Your code"));
+    }
+
     [Theory]
     [InlineData("Production", false)]
     [InlineData("Development", true)]
     public async Task MockSmsSender_NeverLogsOtp(string environment, bool logsText)
     {
-        var (sender, logs) = Build<MockSmsSender>(environment, (l, e) => new MockSmsSender(l, e));
+        var (sender, logs) = Build<MockSmsSender>(environment, (l, e, c) => new MockSmsSender(l, e, c));
 
         await sender.SendSmsAsync("+84900000000", "Code 654321");
 

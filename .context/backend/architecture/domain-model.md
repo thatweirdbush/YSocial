@@ -171,7 +171,7 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 | `AccountCreatedEvent` | `Account.Create` | `InitializeUserProfileHandler` |
 | `AccountDeletedEvent` | `Account.Delete` | `RemoveUserWhenAccountDeletedEventHandler` |
 | `AccountDeactivatedEvent` | `Account.Deactivate` (unreachable) | - | no |
-| `PasswordResetTokenGeneratedEvent` | `Account.GeneratePasswordResetToken` | email/SMS mock senders (no body logged outside Development, digit runs masked in Development) |
+| `PasswordResetTokenGeneratedEvent` | `Account.GeneratePasswordResetToken` | email/SMS mock senders (no body logged outside Development, digit runs masked in Development unless `Messaging:LogOtpInDevelopment` opts in, BG §3) |
 | `UserProfileCreatedEvent` | `User.Create` | - |
 | `PostCreatedEvent` | `Post.Create` | `InitializePostStatsHandler` (log) |
 | `PostUpdatedEvent`, `PostRestoredEvent` | Post | - |

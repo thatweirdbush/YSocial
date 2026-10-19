@@ -20,6 +20,9 @@ public class ApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
 
+        // appsettings.Development.json opts into raw OTP logging for manual dev: redaction tests need it off
+        builder.UseSetting("Messaging:LogOtpInDevelopment", "false");
+
         builder.ConfigureServices(services =>
         {
             // Background polling job mutates shared state: outbox tests process messages directly

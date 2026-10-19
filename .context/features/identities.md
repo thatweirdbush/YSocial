@@ -17,7 +17,7 @@ updated: 2026-10-19
 - **Not exposed (domain only):** change password (only via reset), deactivate/activate account, role assignment, session list
 
 ## 2. Password Reset (OTP Flow)
-- **Token generation:** generate OTP token & raise `PasswordResetTokenGeneratedEvent` to trigger email dispatch (mock senders never log OTP: no body outside Development, digit runs masked in Development; pipeline logs are redacted)
+- **Token generation:** generate OTP token & raise `PasswordResetTokenGeneratedEvent` to trigger email dispatch (mock senders never log OTP: no body outside Development, digit runs masked in Development unless `Messaging:LogOtpInDevelopment=true` in local `appsettings.Development.json`; pipeline logs are redacted)
 - **Verification limits:** max 5 attempts per OTP token before invalidation (`IsMaxAttemptsReached`); wrong OTP -> `InvalidOtp`, exhausted -> `OtpAttemptsExceeded`
 - **Reset action:** validate active OTP -> update password hash -> mark token used (`IsUsed = true`) -> revoke all active refresh tokens
 - **Privacy:** `forgot-password` always answers 204 (no account enumeration)
@@ -29,4 +29,4 @@ updated: 2026-10-19
 ## 4. FE adoption (as-built: `features/fe-be-integration.md`)
 - **Slice:** `NEXT_PUBLIC_REAL_API_SLICES=auth`; register -> `POST register` then `POST login` (no tokens on register), viewer from `GET users/me`
 - **Refresh:** FE coordinates single-use rotation across tabs (`navigator.locks` + adoption of token rotated by another tab); session ends only on 401 `InvalidRefreshToken` with unchanged stored token
-- **Smoke caveat:** OTP is masked in BE Development log, successful reset cannot be smoke-tested (plan Mismatch M17)
+- **Smoke:** with `Messaging:LogOtpInDevelopment=true` the OTP is readable in the BE Development log (reset flow verified on real BE 2026-10-19, plan M17)

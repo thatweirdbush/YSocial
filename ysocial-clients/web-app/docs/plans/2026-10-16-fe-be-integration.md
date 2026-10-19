@@ -27,7 +27,7 @@
 - **BE changes only via mismatch log** (end of this plan), with BE integration test; BE repo rules apply
 - **Contract wins over FE assumptions:** ids are GUID strings, enums in read DTOs are lowercase strings, nullable DTO fields may be `null`, `parentId`/`imageUrl` omitted when null (MAP §1, §3)
 - **Commits:** conventional commits, author = user, NO `Co-Authored-By` trailer; stage files by explicit path
-- **Execution:** isolated worktree branch `feat/fe-be-integration` (`using-git-worktrees`), clean test baseline first; TDD (`test-driven-development`); `verification-before-completion` before any "done" claim
+- **Execution:** main worktree directly (user decision 2026-10-19: Phase F was built on `feat/fe-be-integration`, fast-forward merged into `main`, branch isolated worktree branch `feat/fe-be-integration` (`using-git-worktrees`), clean test baseline first; worktree removed; all later phases on `main`), clean test baseline first; TDD (`test-driven-development`); `verification-before-completion` before any "done" claim
 - **Test env:** jsdom has no `navigator.locks` & `storage` events never cross documents: use fakes from T0
 - **Verification commands:** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check`; single file: `npx vitest run <path>`
 
@@ -315,7 +315,8 @@ Each line has pinned test in owning task.
 - **Smoke (real BE Development, `NEXT_PUBLIC_REAL_API_SLICES=auth`, dev cert trusted):**
   - browser: register -> auto-login -> reload (viewer persists, nav uses real username) -> logout (`POST logout` 204, storage cleared, `/login`) -> wrong password message -> forgot (204) -> reset with wrong OTP shows `InvalidOtp` inline; logout in tab 1 flips tab 2 nav to `/login` without reload (storage sync)
   - node (jsdom, real BE): corrupt access token + 2 concurrent `apiClient.get(/me)` -> exactly 1 `refresh-token` call, both resolve; BE restart then call with stale token -> refresh 401 -> `clearAuth` + redirect `/login`
-  - NOT covered: real cross-tab lock contention in 2 browser tabs (no authenticated real call exists in Phase F surface to trigger a refresh from UI; lock path proven by `createLockFake` unit tests only), successful forgot -> reset (BE masks OTP, see M17)
+  - NOT covered: real cross-tab lock contention in 2 browser tabs (no authenticated real call exists in Phase F surface to trigger a refresh from UI; lock path proven by `createLockFake` unit tests only; re-smoke in Phase C)
+  - Follow-up 2026-10-19: M17 resolved in BE; forgot -> reset -> login with new password verified on real BE via curl (OTP read from log)
 - **Review gate (fresh Opus reviewer):** 2 Important fixed RED->GREEN (suite 1003/1003): no-lock cross-tab race could clear a freshly rotated pair (api-client now adopts storage pair that differs from state instead of clearing), guest 401 forced logout + hard redirect (now throws original 401); plus Minor login 200 without tokens now rejected
 - **Deferred minors (carry to Phase C/X):**
   - double click on enabled submit sets RHF `isSubmitting` false early (spinner flickers off, duplicate request blocked)
@@ -737,7 +738,7 @@ Each line has pinned test in owning task.
 | M14 | C8 | `/posts/[id]` cannot 404 on server (anonymous read vs viewer-dependent visibility) | soft 404 via client state; revisit with cookie/BFF auth | accepted |
 | M15 | F3 | no `navigator.locks` (insecure context, jsdom) -> no cross-tab single-flight | in-tab only + rotation adoption rescue; documented | accepted (lock path unit-proven; localhost has `navigator.locks`) |
 | M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
-| M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, IDS §2), so successful reset cannot be smoke-tested | proposal (user decides, BE track): Development-only fixed OTP or test hook; until then reset success proven only by `auth-service` tests & wrong-OTP path on real BE | open |
+| M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, `features/identities.md` §2)| BE: Development-only opt-in flag in local `appsettings.Development.json`, `ApiFactory` forces it off | resolved: BE opt-in `Messaging:LogOtpInDevelopment` (Development only, default off), reset flow verified on real BE 2026-10-19 |
 
 ## Self-review (writing-plans)
 - **Spec coverage:** Phase F decisions F-D1..F-D8 (Phase F design notes) map to F1-F8; roadmap items F.1-F.3, C.1-C.4, G.1-G.2, N.1-N.3, X.1-X.3 map to tasks; roadmap deviations apply at phase exits (post delete CP1 -> C, follow & feed read -> C, switcher out of C)
