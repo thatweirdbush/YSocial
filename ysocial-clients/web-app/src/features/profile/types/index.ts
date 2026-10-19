@@ -10,6 +10,7 @@ export type ToggleCloseFriendRequest = Schemas["ToggleCloseFriendRequest"];
 export type UserProfileDto = Schemas["UserProfileDto"];
 export type UserProfileDtoPagedResponse = Schemas["UserProfileDtoPagedResponse"];
 export type FollowListPageDto = Schemas["FollowListPageDto"];
+export type RelationSetsDto = Schemas["RelationSetsDto"];
 // #endregion
 
 // #region Domain models
