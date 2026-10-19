@@ -6,6 +6,9 @@ const ACCESS_TOKEN_KEY = "ysocial_access_token";
 const REFRESH_TOKEN_KEY = "ysocial_refresh_token";
 const USER_KEY = "ysocial_user";
 
+/** localStorage keys owned by the auth store (shared with the refresh coordinator & cross-tab sync). */
+export const AUTH_STORAGE_KEYS = { access: ACCESS_TOKEN_KEY, refresh: REFRESH_TOKEN_KEY, user: USER_KEY } as const;
+
 interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
