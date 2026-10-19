@@ -67,3 +67,18 @@ updated: 2026-10-19
 - Dev: dev cert PEM via `NODE_EXTRA_CA_CERTS` in shell that starts `next dev` (server reads), `.env.local` for slices; hard reload on not-yet-compiled route can take seconds (skeleton)
 - Windows: CRLF checkout makes `api:check` fail on `generated.ts` (EOL only): run `npm run api:generate` first
 - BE `PUT profiles/me` replaces whole profile: FE re-sends cover, `gender: 0` wipes gender/DOB (M18)
+
+## Phase G - Graph
+
+### Slice & adapters
+- `auth,content,graph`: `relation-service` & `user-service.fetchFollowList` dispatch per function to `relation-service.real.ts` via `isRealApi("graph")`; stores, op-ledger & components unchanged (every commit already rolls back on any rejection)
+- Reads: `fetchFollowList` (followers|following, `locked` kept), `fetchFollowRequests`/`Count`, `fetchBlockedUsers`, `fetchRelationSets` (`blockedBy: []`), `fetchCloseFriendCandidates` (`following` page + `relation-sets` flags, pending dropped)
+- Writes: `setBlocked` (POST/DELETE `blocks`), `setCloseFriend` (PATCH `{isCloseFriend}`), `setPrivateAccount` (PUT -> `{acceptedCount}`), `respondFollowRequest` (POST `{decision}`); ids pass `requireBackendId`
+- Mute stays facade (`isMuteFacade`: content real & activity mock): reads empty, writes refused, UI hidden by `muteUi`
+
+### Design decisions & pitfalls
+- **D14 in FE:** BE 404 on a blocked-either-way profile; anonymous server read cannot know it, so `ProfileContainer` (content real) shows `profile.blockedNotFound` on `null` and an error + retry on any other failure; mock keeps the desync state
+- `toUserProfile` forces `isBlockedBy: false`; mock graph still models blocked-by
+- `me/blocks` has no `query` (M20): with a query every page is read (cap 20 x 50) & filtered locally with diacritics folding
+- `locked: true` follower list = lock empty state (`profile.followListLocked`), never error or "no followers"
+- Follow list items carry viewer-relative `followStatus`: only own `following` list means "accepted by viewer"

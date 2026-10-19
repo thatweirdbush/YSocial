@@ -572,11 +572,11 @@ Each line has pinned test in owning task.
 **Interfaces:**
 - Produces (same signatures as mock): `fetchFollowList(...)` (`GET users/{id}/followers|following ?page&pageSize&query`, `locked` kept), `fetchFollowRequests(q, actorId)`, `fetchFollowRequestCount(actorId)`, `fetchBlockedUsers(q, actorId)`, `fetchRelationSets(actorId)`, `fetchCloseFriendCandidates(q, actorId)` (derived from `following` list + `relationSets.closeFriends`)
 
-- [ ] **Step 1: Write failing tests:** `followers list maps page & query`, `private non-permitted -> locked true, items empty`, `follow list 404 (blocked) -> ApiError status 404`, `requests count endpoint`, `blocked list items marked isBlocked`, `relation sets map arrays & isPrivate`, `close friend candidates mark dormant flags`
-- [ ] **Step 2: Run** `npx vitest run src/features/profile/services` -> FAIL
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(profile): real relation reads`
+- [x] **Step 1: Write failing tests:** `followers list maps page & query`, `private non-permitted -> locked true, items empty`, `follow list 404 (blocked) -> ApiError status 404`, `requests count endpoint`, `blocked list items marked isBlocked`, `relation sets map arrays & isPrivate`, `close friend candidates mark dormant flags`
+- [x] **Step 2: Run** `npx vitest run src/features/profile/services` -> FAIL
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(profile): real relation reads`
 
 ### Task G2: Relation service real writes
 **Files:**
@@ -586,11 +586,11 @@ Each line has pinned test in owning task.
 **Interfaces:**
 - Produces: `setBlocked(id, on, actorId)`, `setCloseFriend(id, on, actorId)`, `setPrivateAccount(on, actorId): Promise<{ acceptedCount: number }>`, `respondFollowRequest(requesterId, decision, actorId)`; `setMuted` remains mock (N)
 
-- [ ] **Step 1: Write failing tests:** `block POST then DELETE idempotent`, `block self -> CannotBlockSelf ApiError`, `close friend when not accepted -> CloseFriendRequiresAcceptedFollow`, `privacy returns acceptedCount`, `respond accept/decline sends decision`, `respond 404 (request gone) rejects for rollback`
-- [ ] **Step 2: Run** -> FAIL
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run** `npx vitest run src/features/profile` -> PASS
-- [ ] **Step 5: Commit** `feat(profile): real relation writes`
+- [x] **Step 1: Write failing tests:** `block POST then DELETE idempotent`, `block self -> CannotBlockSelf ApiError`, `close friend when not accepted -> CloseFriendRequiresAcceptedFollow`, `privacy returns acceptedCount`, `respond accept/decline sends decision`, `respond 404 (request gone) rejects for rollback`
+- [x] **Step 2: Run** -> FAIL
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run** `npx vitest run src/features/profile` -> PASS
+- [x] **Step 5: Commit** `feat(profile): real relation writes`
 
 ### Task G3: D14 handling, dialog enable, lists UI
 **Files:**
@@ -607,20 +607,34 @@ Each line has pinned test in owning task.
 | `profile.followListLocked` | Tài khoản riêng tư, danh sách không hiển thị | Private account, list is hidden |
 | `profile.blockedNotFound` | Không tìm thấy người dùng này | This user was not found |
 
-- [ ] **Step 1: Write failing tests:** `blocked profile (404) renders not-found`, `profile network error renders error state, not not-found`, `locked list shows locked empty state, not error`, `blockedBy never read`, `graph UI hidden until graph real, visible after`, `unblock only from own block list`, `follow 404 mid-session rolls back optimistic state`
-- [ ] **Step 2: Run** `npx vitest run src/features/profile` -> FAIL
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(profile): D14 not-found, locked lists, graph UI enabled`
+- [x] **Step 1: Write failing tests:** `blocked profile (404) renders not-found`, `profile network error renders error state, not not-found`, `locked list shows locked empty state, not error`, `blockedBy never read`, `graph UI hidden until graph real, visible after`, `unblock only from own block list`, `follow 404 mid-session rolls back optimistic state`
+- [x] **Step 2: Run** `npx vitest run src/features/profile` -> FAIL
+- [x] **Step 3: Implement**
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(profile): D14 not-found, locked lists, graph UI enabled`
 
 ### Task G4: Phase G exit
 **Files:**
 - Modify: roadmap (G.1-G.2), MAP §6 (CP3), `.context/features/relationship-controls.md`, `fe-be-integration.md`
 
-- [ ] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
-- [ ] **Step 2: Manual smoke** (`...,graph`): private account follow -> pending -> accept from other account -> followers dialog (locked for non-follower) -> privacy toggle accepts pending -> block (profile 404 both ways, list shows own block) -> unblock -> close friend toggle (needs accepted)
-- [ ] **Step 3: Record** Mismatch log; `requesting-code-review` gate
-- [ ] **Step 4: Commit** `docs(integration): close Phase G`
+- [x] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> pass
+- [x] **Step 2: Manual smoke** (`...,graph`): private account follow -> pending -> accept from other account -> followers dialog (locked for non-follower) -> privacy toggle accepts pending -> block (profile 404 both ways, list shows own block) -> unblock -> close friend toggle (needs accepted)
+- [x] **Step 3: Record** Mismatch log (M20); `requesting-code-review` gate not run: user asked for review only on request
+- [x] **Step 4: Commit** `docs(integration): close Phase G`
+
+**Execution record:**
+- **Verification:** `npm run test` 99 files / 1133 tests (1 timing-flaky `close-friends-list` fails only under full-suite load, passes alone); `typecheck` clean; `eslint` same 6 pre-existing errors; `api:check` unchanged (no swagger change)
+- **Smoke (real BE Development, `auth,content,graph`):**
+  - curl, 2 seed accounts: privacy on -> follow = `pending` -> requests count 1 & list -> anonymous followers = `locked: true` -> accept (204) -> follower list for follower -> close friend PATCH -> relation-sets has flag -> block (profile 404 for blocker's target, own block list has `isBlocked: true`) -> unblock -> privacy off
+  - browser: login, follow (counts update), followers dialog lists follower; blocked by profile owner -> `/@demo_user` shows not-found state (not desync, not locked)
+  - NOT smoked in browser: privacy toggle, request accept UI, close-friend toggle, block UI (all unit-tested through services + stores)
+- **Rulings:**
+  - mute stays facade until activity slice (`isMuteFacade`): `setMuted`/`fetchMutedUsers` do not follow the graph switch
+  - `isBlockedBy` forced `false` in `toUserProfile`; `RelationSets.blockedBy` kept as always-empty in real mode (mock still models it; type removal waits for X)
+  - real profile lookup (content real): BE 404 -> `profile.blockedNotFound` state, other failure -> error + retry (resolves deferred minor "lookup 5xx shows desync"); mock keeps desync
+  - blocked list `query`: BE has no search on `me/blocks` -> M20, client filter over all pages
+  - Close friend candidates = `following` page + `relation-sets` flags (2 calls/page), pending followees dropped
+- **Deferred minors:** none new
 
 ---
 
@@ -752,6 +766,7 @@ Each line has pinned test in owning task.
 | M18 | C5 | BE `PUT users/profiles/me` replaces whole profile (gender, date of birth, cover) while read DTO exposes no gender/DOB: every FE save wipes them | FE sends current cover & `gender: 0`; BE option: PATCH semantics or expose gender/DOB in `UserProfileDto` | open |
 | M19 | C6 | BE has no media upload (blob URLs unusable) & no audience/visibility choice on create | FE hides upload, audience & close-friends toggle while content is real | accepted until BE media/audience work |
 | M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
+| M20 | G1 | `GET me/blocks` has no `query` param (follow requests, followers, mutes do) | FE: with query, read every page (cap 20 x 50) & filter locally; BE option: add `query` | accepted |
 | M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, `features/identities.md` §2)| BE: Development-only opt-in flag in local `appsettings.Development.json`, `ApiFactory` forces it off | resolved: BE opt-in `Messaging:LogOtpInDevelopment` (Development only, default off), reset flow verified on real BE |
 
 ## Self-review

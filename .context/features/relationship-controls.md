@@ -69,6 +69,9 @@ Reads: post-service / user-service -> mocks/visibility.ts (asViewer) -> filter -
    - **Verification:** `profile-container.test.tsx` switch tests (skeleton, never locked heading, desync on refetch failure)
 5. **Dialog exit animation in hidden preview pane** never finishes (`data-state="closed"` but still in DOM). Not bug
 
+## Real BE (Phase G)
+- Adapter `relation-service.real.ts` behind `graph` slice, D14 not-found & locked lists: see `fe-be-integration.md` Phase G; `blockedBy` is mock-only
+
 ## Tech debt
 - **BE gaps:** accept/decline request, mute, privacy toggle, block / mute / request lists, post visibility in `CreatePostRequest`; real-API write ordering (spec D18)
 - **Deferred minors:**

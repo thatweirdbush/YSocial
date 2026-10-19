@@ -35,8 +35,9 @@ updated: 2026-10-16
 - Profile switcher (FE roadmap 2.7) is NOT mock replacement: build real-first after Phase C
 
 ### Phase G - Graph (CP3)
-- [ ] **G.1** followers/following dialog (`locked`), follow requests, privacy toggle
-- [ ] **G.2** block list (D14: blocked profile = 404, drop `isBlockedBy`), close friends
+- [x] **G.1** followers/following dialog (`locked`), follow requests, privacy toggle
+- [x] **G.2** block list (D14: blocked profile = 404, drop `isBlockedBy`), close friends
+  - Phase G closed (see plan G4 record); mute stays facade until N, M20 accepted (block list has no `query`)
 
 ### Phase N - Activity (CP4)
 - [ ] **N.1** mute (`PUT/DELETE mute`, `me/mutes`)
