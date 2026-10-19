@@ -64,6 +64,26 @@ export async function loadNotifications(): Promise<void> {
   }));
 }
 
+/**
+ * Catch-up after the live socket was down: page 1 again, missed items go on top, the BE unread count wins. Silent:
+ * no status change, failures ignored, and nothing happens before the page's own first load.
+ */
+export async function refreshNotifications(): Promise<void> {
+  if (get().status !== "ready") return;
+  const started = generation;
+  let page: NotificationPage;
+  try {
+    page = await fetchNotifications(1);
+  } catch {
+    return;
+  }
+  if (generation !== started) return;
+  set((state) => {
+    const known = new Set(state.items.map((entry) => entry.id));
+    return { items: [...page.items.filter((entry) => !known.has(entry.id)), ...state.items], unreadCount: page.unreadCount };
+  });
+}
+
 export async function loadMoreNotifications(): Promise<void> {
   const { nextPage, loadingMore } = get();
   if (nextPage === undefined || loadingMore) return;

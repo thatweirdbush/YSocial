@@ -72,6 +72,12 @@ describe("refreshTokens with locks", () => {
     expect(stored()).toEqual({ access: "A1", refresh: "R1" });
   });
 
+  it("refresh fetch is bounded by a timeout signal", async () => {
+    const { fetchFn, calls } = mockFetchSequence([problem(500, "InternalError")]);
+    await refreshTokens("A1", { locks: createLockFake(), fetchFn });
+    expect(calls[0].init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("500 -> transient", async () => {
     const { fetchFn } = mockFetchSequence([problem(500, "InternalError")]);
     const outcome = await refreshTokens("A1", { locks: createLockFake(), fetchFn });

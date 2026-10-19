@@ -1,6 +1,5 @@
 import { apiClient } from "@/lib/api-client";
 import { requireBackendId } from "@/lib/backend-id";
-import { normalizeText, tokenize } from "@/lib/text";
 import {
   RELATION_PAGE_SIZE,
   type FollowListKind,
@@ -11,7 +10,6 @@ import {
   type RelationSets,
   type RelationSetsDto,
   type RequestDecision,
-  type UserProfile,
 } from "../types";
 import { toFollowListPage } from "./user-mapper";
 
@@ -19,10 +17,6 @@ import { toFollowListPage } from "./user-mapper";
 // identifies the viewer. 404 (blocked either way, D14) is NOT mapped here: it rejects so callers choose the state.
 
 const FOLLOW_LIST_PAGE_SIZE = 20;
-/** BE page size cap: used when a client-side filter must read every page. */
-const SCAN_PAGE_SIZE = 50;
-/** Safety cap against a BE that never reports the last page (1000 blocked users). */
-const SCAN_MAX_PAGES = 20;
 
 const listParams = (page: number, pageSize: number, query?: string) => ({
   page,
@@ -57,32 +51,9 @@ export async function fetchFollowRequestCount(_actorId: string): Promise<number>
   return result?.count ?? 0;
 }
 
-/**
- * Own block list (the only place a blocked profile is visible, D14). The BE list has no `query`: a query reads every
- * page & filters here (diacritics-insensitive, like the BE relation search); without one it is a plain page.
- */
+/** Own block list (the only place a blocked profile is visible, D14); the BE searches & pages it. */
 export async function fetchBlockedUsers({ query, page = 1 }: RelationListQuery, _actorId: string): Promise<FollowListPage> {
-  const tokens = tokenize((query ?? "").trim().replace(/^@/, ""));
-  if (tokens.length === 0) {
-    const result = await apiClient.get<FollowListPageDto>("/api/users/me/blocks", { params: listParams(page, RELATION_PAGE_SIZE) });
-    return markBlocked(toFollowListPage(result));
-  }
-
-  const matches: UserProfile[] = [];
-  for (let current = 1; current <= SCAN_MAX_PAGES; current += 1) {
-    const result = await apiClient.get<FollowListPageDto>("/api/users/me/blocks", { params: listParams(current, SCAN_PAGE_SIZE) });
-    matches.push(...markBlocked(toFollowListPage(result)).users);
-    if (!result.hasNextPage) break;
-  }
-  const filtered = matches.filter((user) => {
-    const haystack = normalizeText(`${user.displayName} ${user.username}`);
-    return tokens.every((token) => haystack.includes(token));
-  });
-  const start = (page - 1) * RELATION_PAGE_SIZE;
-  return {
-    users: filtered.slice(start, start + RELATION_PAGE_SIZE),
-    nextPage: start + RELATION_PAGE_SIZE < filtered.length ? page + 1 : undefined,
-  };
+  return markBlocked(await readList("/api/users/me/blocks", page, query));
 }
 
 const markBlocked = (result: FollowListPage): FollowListPage => ({

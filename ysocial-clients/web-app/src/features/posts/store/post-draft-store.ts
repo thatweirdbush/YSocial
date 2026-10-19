@@ -27,7 +27,7 @@ export const useDraftStore = create<DraftState>((set) => {
     drafts: initialDrafts,
     actions: {
       saveDraft: (content, images, audience, id, visibility) => {
-        let generatedId = id || Math.random().toString(36).substring(2, 9);
+        const generatedId = id || Math.random().toString(36).substring(2, 9);
         set((state) => {
           const newDrafts = [...state.drafts];
           const existingIndex = newDrafts.findIndex((d) => d.id === generatedId);

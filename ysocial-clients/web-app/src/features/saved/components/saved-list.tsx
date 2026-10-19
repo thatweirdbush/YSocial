@@ -27,7 +27,13 @@ const INITIAL_SAVED_ITEMS: SavedItem[] = SAVED_SEED.flatMap(({ postId, ...item }
 /** Safety cap while the list has no "load more": 10 pages = 100 saved posts. */
 const REAL_MAX_PAGES = 10;
 
+/** Keyed by viewer: an account switch or logout remounts the list so the previous viewer's items never linger. */
 export const SavedList: React.FC = () => {
+  const viewerId = useViewerId();
+  return <SavedListContent key={viewerId ?? "guest"} />;
+};
+
+const SavedListContent: React.FC = () => {
   const { t } = useTranslation();
   const [, startTransition] = useTransition();
   const realApi = isRealApi("content");
@@ -36,6 +42,7 @@ export const SavedList: React.FC = () => {
   const { upsertPosts, toggleBookmark } = usePostActions();
   const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "error">(realApi ? "loading" : "ready");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isTruncated, setIsTruncated] = useState(false);
   // A signed-out visitor has nothing to load: the (empty) list is ready as soon as auth hydrated
   const status = realApi && hydrated && !viewerId ? "ready" : loadStatus;
 
@@ -55,12 +62,15 @@ export const SavedList: React.FC = () => {
     let cancelled = false;
     (async () => {
       const posts: SavedItem["post"][] = [];
+      let more = false;
       for (let page = 1; page <= REAL_MAX_PAGES; page += 1) {
         const result = await fetchSavedPosts(viewerId, page);
         posts.push(...result.posts);
-        if (!result.nextPage) break;
+        more = Boolean(result.nextPage);
+        if (!more) break;
       }
       if (cancelled) return;
+      setIsTruncated(more);
       upsertPosts(posts);
       setSavedItems(posts.map((post) => ({ id: post.id, post, collectionIds: [], savedAt: post.createdAt })));
       setLoadStatus("ready");
@@ -658,6 +668,11 @@ export const SavedList: React.FC = () => {
               </div>
             );
           })
+        )}
+        {status === "ready" && isTruncated && (
+          <p role="status" className="px-6 py-4 text-center text-xs text-zinc-400 dark:text-zinc-600">
+            {t("saved.truncated", { count: REAL_MAX_PAGES * 10 })}
+          </p>
         )}
       </div>
 

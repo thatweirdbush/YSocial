@@ -8,6 +8,7 @@ import { NotificationLiveSync } from "./notification-live-sync";
 
 const hub = vi.hoisted(() => {
   let handler: ((payload: unknown) => void) | null = null;
+  let resume: (() => void) | null = null;
   return {
     start: vi.fn(),
     stop: vi.fn(),
@@ -17,11 +18,24 @@ const hub = vi.hoisted(() => {
         handler = null;
       };
     }),
+    onResume: vi.fn((next: () => void) => {
+      resume = next;
+      return () => {
+        resume = null;
+      };
+    }),
     emit: (payload: unknown) => handler?.(payload),
+    emitResume: () => resume?.(),
     hasHandler: () => handler !== null,
+    hasResume: () => resume !== null,
   };
 });
+const refresh = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/signalr-client", () => ({ notificationHub: hub }));
+vi.mock("../store/notification-store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../store/notification-store")>()),
+  refreshNotifications: refresh,
+}));
 
 const blocked = vi.hoisted(() => ({ ids: new Set<string>() }));
 vi.mock("@/features/profile", () => ({
@@ -130,6 +144,16 @@ describe("NotificationLiveSync", () => {
     act(() => hub.emit(push({ id: undefined })));
     act(() => hub.emit(push()));
     expect(useNotificationStore.getState().items).toHaveLength(1);
+  });
+
+  it("a resumed socket refreshes the list once (catch-up), and stops listening on unmount", () => {
+    refresh.mockClear();
+    signIn();
+    const { unmount } = render(<NotificationLiveSync />);
+    act(() => hub.emitResume());
+    expect(refresh).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(hub.hasResume()).toBe(false);
   });
 
   it("unsubscribes on unmount", () => {

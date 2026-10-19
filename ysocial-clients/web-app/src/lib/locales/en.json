@@ -270,6 +270,7 @@
     "searchPlaceholder": "Search saved items by content or username...",
     "emptyTitle": "No saved items",
     "emptyDesc": "Items you save will appear here. Start exploring your feed!",
+    "truncated": "Showing your {count} most recent saved items",
     "unsave": "Unsave",
     "unsaveSuccess": "Item unsaved successfully!",
     "unsaveError": "Could not unsave some items, try again",

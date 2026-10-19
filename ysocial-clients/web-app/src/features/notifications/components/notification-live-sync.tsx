@@ -6,7 +6,7 @@ import { getViewerRelations } from "@/features/profile";
 import { isRealApi } from "@/lib/api-config";
 import { notificationHub, type NotificationPayload } from "@/lib/signalr-client";
 import { toNotificationItem } from "../services/notification-mapper";
-import { pushNotification, resetNotificationStore } from "../store/notification-store";
+import { pushNotification, refreshNotifications, resetNotificationStore } from "../store/notification-store";
 
 const getAccessToken = (): string | null => useAuthStore.getState().accessToken;
 
@@ -31,10 +31,12 @@ export function NotificationLiveSync() {
         // Malformed push (contract breach): dropped, the stream keeps working
       }
     });
+    const offResume = notificationHub.onResume(() => void refreshNotifications());
     notificationHub.start(getAccessToken);
 
     return () => {
       off();
+      offResume();
       notificationHub.stop();
       resetNotificationStore();
     };

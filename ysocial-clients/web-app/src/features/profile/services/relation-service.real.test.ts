@@ -106,15 +106,12 @@ describe("fetchBlockedUsers", () => {
     expect(result.nextPage).toBe(2);
   });
 
-  it("query: BE has no search, so every block page is read & filtered locally (diacritics-insensitive)", async () => {
-    const calls = useFetch([
-      page([profile(A, { displayName: "Nguyễn Văn A", username: "vana" })], { hasNextPage: true, pageSize: 50 }),
-      page([profile(B, { displayName: "Lê B", username: "leb" })], { page: 2, pageSize: 50 }),
-    ]);
-    const result = await fetchBlockedUsers({ query: "nguyen" }, ME);
-    expect(calls.map(path)).toEqual(["/api/users/me/blocks?page=1&pageSize=50", "/api/users/me/blocks?page=2&pageSize=50"]);
-    expect(result.users.map((user) => user.id)).toEqual([A]);
-    expect(result.nextPage).toBeUndefined();
+  it("query is searched by the BE (one request, `@` stripped), items still marked isBlocked", async () => {
+    const calls = useFetch([page([profile(A, { displayName: "Nguyễn Văn A", username: "vana" })], { hasNextPage: true, page: 2 })]);
+    const result = await fetchBlockedUsers({ query: " @nguyen ", page: 2 }, ME);
+    expect(calls.map(path)).toEqual(["/api/users/me/blocks?page=2&pageSize=20&query=nguyen"]);
+    expect(result.users.map((user) => [user.id, user.isBlocked])).toEqual([[A, true]]);
+    expect(result.nextPage).toBe(3);
   });
 });
 

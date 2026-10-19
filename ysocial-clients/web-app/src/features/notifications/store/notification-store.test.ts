@@ -9,6 +9,7 @@ import {
   loadMoreNotifications,
   loadNotifications,
   pushNotification,
+  refreshNotifications,
   resetNotificationStore,
   useNotificationStore,
 } from "./notification-store";
@@ -38,6 +39,38 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   useAuthStore.setState({ isAuthenticated: false });
+});
+
+describe("refresh (catch-up after the live socket was down)", () => {
+  it("puts missed items on top, takes the BE unread count, keeps paging state & status", async () => {
+    vi.spyOn(service, "fetchNotifications")
+      .mockResolvedValueOnce(page(["a"], { nextPage: 2, unreadCount: 1 }))
+      .mockResolvedValueOnce(page(["n2", "n1", "a"], { nextPage: 2, unreadCount: 3 }));
+    await loadNotifications();
+    await refreshNotifications();
+    expect(ids()).toEqual(["n2", "n1", "a"]);
+    expect(state()).toMatchObject({ status: "ready", unreadCount: 3, nextPage: 2 });
+  });
+
+  it("failure is silent, idle store is not loaded behind the page's back, a reset drops a stale response", async () => {
+    const spy = vi.spyOn(service, "fetchNotifications");
+    await refreshNotifications();
+    expect(spy).not.toHaveBeenCalled();
+
+    spy.mockResolvedValueOnce(page(["a"]));
+    await loadNotifications();
+    spy.mockRejectedValueOnce(new Error("offline"));
+    await refreshNotifications();
+    expect(ids()).toEqual(["a"]);
+
+    let release: (value: NotificationPage) => void = () => undefined;
+    spy.mockReturnValueOnce(new Promise<NotificationPage>((resolve) => (release = resolve)));
+    const pending = refreshNotifications();
+    resetNotificationStore();
+    release(page(["late"]));
+    await pending;
+    expect(ids()).toEqual([]);
+  });
 });
 
 describe("loading", () => {

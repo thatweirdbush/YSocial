@@ -24,7 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { useDrafts, useDraftActions } from "../store/post-draft-store";
-import type { PostAudience, PostVisibility } from "../types";
+import type { PostAudience, PostDraft, PostVisibility } from "../types";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { DiscardWarningDialog } from "./discard-warning-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -655,7 +655,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     onCancel?.();
   }, [activeDraftId, deleteDraft, reset, onCancel]);
 
-  const handleRestoreDraft = useCallback((draft: any) => {
+  const handleRestoreDraft = useCallback((draft: PostDraft) => {
     setValue("content", draft.content);
     setImages(draft.images);
     setAudience(hasCapability("postAudience") ? draft.audience : "anyone");

@@ -270,6 +270,7 @@
     "searchPlaceholder": "Tìm kiếm mục đã lưu bằng nội dung hoặc tên người dùng...",
     "emptyTitle": "Không có mục đã lưu nào",
     "emptyDesc": "Các mục bạn lưu sẽ hiển thị ở đây. Hãy bắt đầu khám phá bảng tin!",
+    "truncated": "Chỉ hiển thị {count} mục đã lưu gần nhất",
     "unsave": "Hủy lưu",
     "unsaveSuccess": "Đã hủy lưu mục thành công!",
     "unsaveError": "Không thể hủy lưu một số mục, thử lại nhé",

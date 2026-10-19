@@ -62,8 +62,3 @@ export const useLocale = () => useUIStore((state) => state.locale);
 export const useIsCollapsed = () => useUIStore((state) => state.isCollapsed);
 export const useComposerOpen = () => useUIStore((state) => state.composerOpen);
 export const useUIActions = () => useUIStore((state) => state.actions);
-export const useUIState = () => useUIStore((state) => ({
-  locale: state.locale,
-  isCollapsed: state.isCollapsed,
-  actions: state.actions
-}));
