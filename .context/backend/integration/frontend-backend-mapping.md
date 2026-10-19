@@ -12,13 +12,13 @@ fe-roadmap: .context/features/frontend-roadmap.md
 - Decisions D1-D24 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
 - Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
-- **Status 2026-10-15:** BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE still on mocks (CP = BE ready, FE adoption pending); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
+- **Status:** BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
 
 ## 1. Ground truth for integrators
 
 | Topic | Fact | Evidence |
 |---|---|---|
-| FE integration state | **No FE feature calls BE yet.** `src/lib/api-client.ts` & `src/lib/signalr-client.ts` have 0 importers; every `features/*/services/*.ts` is mock (`mockDelay`, `src/mocks/*`); only DTO types are imported from `src/lib/api/generated.ts` (request types) | grep `api-client|apiClient|apiFetch|signalr-client` over `src` |
+| FE integration state | **FE calls BE through `src/lib/api-client.ts` (JWT, single-flight refresh) & `src/lib/signalr-client.ts`**; each `features/*/services/*.ts` dispatches per function to a `*.real.ts` adapter by `isRealApi(slice)` (default: all real); mock adapters (`mockDelay`, `src/mocks/*`) stay for BE-less features & mock mode | `fe-be-integration-roadmap.md`, plan `2026-10-16-fe-be-integration.md` |
 | Base URL | `https://localhost:49895` (FE hard-codes it; BE `launchSettings.json` matches); BE forces HTTPS redirect; CORS origin from `Cors:AllowedOrigins` (dev `http://localhost:3000`), credentials allowed | BG §8 |
 | Auth header | `Authorization: Bearer <accessToken>`; SignalR via `?access_token=` | `Program.cs` `OnMessageReceived` |
 | Actor id | decode JWT claim **`user_id`** (profile id), or read `GET /api/users/me`; login body has no user info; `sub` = account id, NEVER sent to social routes | `JwtProvider.cs`, `LoginResponse` |
@@ -78,18 +78,18 @@ fe-roadmap: .context/features/frontend-roadmap.md
 
 ## 2. Endpoint matrix by feature
 
-Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no attribute, handler returns 401; `anon` = anonymous, optional viewer from JWT). Success status & body first, errors in next column (all errors are ProblemDetails with `code`). FE column = counterpart module (`mock` = FE works on mocks, BE not wired)
+Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no attribute, handler returns 401; `anon` = anonymous, optional viewer from JWT). Success status & body first, errors in next column (all errors are ProblemDetails with `code`). FE column = counterpart module (`mock` = FE has no real adapter for it (BE-less feature))
 
 ### 2.1 Identities (`IdentitiesController`)
 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
-| `POST /api/identities/register` | anon | `{email, password(>=6), username(^[a-z0-9._]{3,30}$), phoneNumber?}` -> 201 `{accountId}` | 400 `ValidationFailed` (+`errors`); 409 `EmailTaken` / `UsernameTaken`; no tokens (login next); no orphan account on failure | `register-form.tsx` (mock); FE username pattern matches |
-| `POST /api/identities/login` | anon | `{loginId, password, deviceId}` -> 200 `{accessToken, refreshToken, refreshTokenExpiry}` | `loginId` = email/phone/username; 401 `InvalidCredentials` (unknown/deleted/wrong password identical); 403 `AccountInactive` (valid password only); 400 `ValidationFailed` | `login-form.tsx` (mock, `utils/mock-session.ts`); FE identity step validates format only |
-| `POST /api/identities/refresh-token` | anon | `{refreshToken}` -> 200 same as login | 401 `InvalidRefreshToken`; 400 empty body; single-use: see §1 cross-tab | `api-client.ts` (unused) |
-| `POST /api/identities/logout` | anon | `{refreshToken}` -> 204 | ALWAYS 204 for active/unknown/revoked/expired/rotated; revokes token family; 400 empty body | not wired |
-| `POST /api/identities/forgot-password` | anon | `{loginId}` -> 204 | always 204 (also unknown ids); OTP only delivered to mock senders (logged); FE cannot receive | forgot flow in `login-form.tsx` (mock) |
-| `POST /api/identities/reset-password` | anon | `{loginId, otp(6), newPassword(>=6)}` -> 204 | 400 `InvalidOtp` / `OtpAttemptsExceeded` / `ValidationFailed` / `BusinessRuleViolated` (unknown loginId); success revokes all refresh tokens | reset step (mock) |
+| `POST /api/identities/register` | anon | `{email, password(>=6), username(^[a-z0-9._]{3,30}$), phoneNumber?}` -> 201 `{accountId}` | 400 `ValidationFailed` (+`errors`); 409 `EmailTaken` / `UsernameTaken`; no tokens (login next); no orphan account on failure | `auth-service.register` (real adapter, then auto-login); FE username pattern matches |
+| `POST /api/identities/login` | anon | `{loginId, password, deviceId}` -> 200 `{accessToken, refreshToken, refreshTokenExpiry}` | `loginId` = email/phone/username; 401 `InvalidCredentials` (unknown/deleted/wrong password identical); 403 `AccountInactive` (valid password only); 400 `ValidationFailed` | `auth-service.login` (real adapter bootstraps viewer from `GET me`); FE identity step validates format only |
+| `POST /api/identities/refresh-token` | anon | `{refreshToken}` -> 200 same as login | 401 `InvalidRefreshToken`; 400 empty body; single-use: see §1 cross-tab | `token-refresh.ts` via `api-client.ts` (cross-tab `navigator.locks` single-flight, rotation adoption) |
+| `POST /api/identities/logout` | anon | `{refreshToken}` -> 204 | ALWAYS 204 for active/unknown/revoked/expired/rotated; revokes token family; 400 empty body | `auth-service.logout` (best-effort POST, then local clear) |
+| `POST /api/identities/forgot-password` | anon | `{loginId}` -> 204 | always 204 (also unknown ids); OTP only delivered to mock senders (logged); FE cannot receive | `auth-service.forgotPassword` |
+| `POST /api/identities/reset-password` | anon | `{loginId, otp(6), newPassword(>=6)}` -> 204 | 400 `InvalidOtp` / `OtpAttemptsExceeded` / `ValidationFailed` / `BusinessRuleViolated` (unknown loginId); success revokes all refresh tokens | `auth-service.resetPassword` |
 | `DELETE /api/identities/account` | JWT | -> 204 | 401; soft-deletes account + profiles; existing access token works until expiry | `settings` danger zone (not built) |
 
 ### 2.2 Users & profile (`UsersController`)
@@ -97,7 +97,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
 | `GET /api/users/me` | JWT | -> 200 `MeDto` | 401; ONLY place exposing `email` & account `profiles` (switcher) | `ensureViewerUser` |
-| `GET /api/users/{id}` | anon | -> 200 `UserProfileDto` | 404 unknown/deleted/blocked either way; private non-follower = 200 same field set | `user-service.fetchUser` (mock) |
+| `GET /api/users/{id}` | anon | -> 200 `UserProfileDto` | 404 unknown/deleted/blocked either way; private non-follower = 200 same field set | `user-service.fetchUser` |
 | `GET /api/users/by-username/{username}` | anon | -> 200 `UserProfileDto` | case-insensitive; 404 as above; 400 over 30 chars | `fetchUserByUsername`, route `/[@username]` |
 | `GET /api/users/{id}/followers` | anon | `?page&pageSize(20)&query` -> 200 `FollowListPageDto` | accepted edges only, newest first; private non-permitted = 200 `locked: true` (`totalCount` 0); 404 blocked/deleted; `query` <= 50 chars (username or display name, case & diacritics insensitive) | `fetchFollowList` |
 | `GET /api/users/{id}/following` | anon | same as followers | same | `fetchFollowList` |
@@ -107,7 +107,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/users/me/blocks` | JWT | `?page&pageSize(20)` -> 200 `PagedResponse<UserProfileDto>` (items `isBlocked: true`, no `locked`) | newest block first; deleted users omitted | `fetchBlockedUsers` |
 | `GET /api/users/me/mutes` | JWT | `?page&pageSize(20)&query` -> 200 `PagedResponse<UserProfileDto>` (items `isMuted: true`) | newest mute first (`MutedAt`); dormant mutes included; blocked/deleted users excluded BEFORE paging & `totalCount`; `query` <= 50 chars (relation search rule); 400 bad paging; 401 | `fetchMutedUsers` |
 | `PUT /api/users/profiles/me/privacy` | JWT | `{isPrivate}` -> 200 `{acceptedCount}` | going public accepts ONLY pending requests (count = transitions); going private/same value -> 0 | `setPrivateAccount` |
-| `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, coverUrl?, gender(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; urls are plain strings (no upload API) | `updateProfile` (mock) |
+| `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, coverUrl?, gender(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; urls are plain strings (no upload API) | `updateProfile` |
 | `PUT /api/users/profiles/switch` | JWT | `{profileId, refreshToken}` -> 200 `LoginResponse` | rotates refresh token, new JWT; 403 `ProfileNotOwned` (foreign/deleted/unknown profile); 401 `InvalidRefreshToken` | profile switcher (roadmap 2.7) |
 | `PATCH /api/users/profiles/{id}/default` | JWT | -> 204 | 403 `ProfileNotOwned`; 400 `AccountRequiresProfile` | none |
 | `DELETE /api/users/profiles/{id}` | JWT | -> 204 | 404 foreign/unknown; 400 `CannotDeleteDefaultProfile` / `AccountRequiresProfile` | none |
@@ -118,7 +118,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
 | `GET /api/posts/{id}` | anon | -> 200 `PostDto` | 404 unknown/deleted/hidden/blocked either way; viewer flags false for anonymous | `post-service.fetchPostThread` (via threads) |
-| `POST /api/posts` | JWT | `{content(<=2000), imageUrl?(abs http(s), <=2048)}` -> 201 `PostDto` + `Location: /api/posts/{id}` | text-only allowed; 400 `ValidationFailed`; single image URL only, no upload; no visibility/audience input (always `public`) | `createPost` + `PostCreatorCore` (mock; multi-image & audience not supported) |
+| `POST /api/posts` | JWT | `{content(<=2000), imageUrl?(abs http(s), <=2048)}` -> 201 `PostDto` + `Location: /api/posts/{id}` | text-only allowed; 400 `ValidationFailed`; single image URL only, no upload; no visibility/audience input (always `public`) | `createPost` + `PostCreatorCore` |
 | `PUT /api/posts/{id}` | JWT | `{content}` -> 200 `PostDto` (`isEdited` true) | 403 `NotPostAuthor`; 404 unknown or hidden from editor; 400 | `updatePostContent` |
 | `DELETE /api/posts/{id}` | JWT | -> 204 | soft-delete; 403 `NotPostAuthor` (visible post); 404 unknown/already deleted/hidden from non-author | `deletePost` (FE has no undo) |
 | `PUT /api/posts/{id}/restore` | JWT | -> 204 | author only (non-author gets 403 on live visible post, 404 on deleted or hidden one); 400 `PostNotDeleted`; saved items not restored | - |
@@ -169,15 +169,15 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
-| `GET /api/notifications` | JWT | `?page&pageSize(20)` -> 200 `NotificationPageDto` | newest first; notifications of blocked/deleted senders excluded BEFORE paging, `totalCount` & `unreadCount`; 400 bad paging; 401 | `/notifications` list (inline mock `INITIAL_NOTIFICATIONS`) |
-| `GET /api/notifications/unread-count` | JWT | -> 200 `{count}` | same sender filter as list | unread badge |
-| `PUT /api/notifications/{id}/read` | JWT | no body -> 204 | idempotent; 403 `NotNotificationRecipient` (foreign notification); 404 unknown; 401 | item click |
-| `PUT /api/notifications/read-all` | JWT | no body -> 204 | idempotent; marks only own | "mark all read" |
+| `GET /api/notifications` | JWT | `?page&pageSize(20)` -> 200 `NotificationPageDto` | newest first; notifications of blocked/deleted senders excluded BEFORE paging, `totalCount` & `unreadCount`; 400 bad paging; 401 | `notification-service.fetchNotifications` + `notification-store` (`/notifications`) |
+| `GET /api/notifications/unread-count` | JWT | -> 200 `{count}` | same sender filter as list | `fetchUnreadCount` (badge UI: FE roadmap 3.2) |
+| `PUT /api/notifications/{id}/read` | JWT | no body -> 204 | idempotent; 403 `NotNotificationRecipient` (foreign notification); 404 unknown; 401 | `commitMarkRead` (item open) |
+| `PUT /api/notifications/read-all` | JWT | no body -> 204 | idempotent; marks only own | `commitMarkAllRead` |
 
 | Item | Actual | FE counterpart |
 |---|---|---|
-| Hub auth | `[Authorize]`, token via `access_token` query; connection user = `user_id` | `signalr-client.ts`: WebSockets, `skipNegotiation`, `accessTokenFactory` (compatible) |
-| Event | `ReceiveNotification` with 1 `NotificationDto` (same item shape as list) | FE `NotificationPayload` in `signalr-client.ts` expects `message`, `createdAt`, `isRead`, `senderName`, `senderAvatar`, `targetId`: all present; FE type union must add `NewFollow`, `FollowRequested`, `FollowAccepted`, `NewComment`, `NewLike` (`kind` gives FE list grouping like \| reply \| follow) |
+| Hub auth | `[Authorize]`, token via `access_token` query; connection user = `user_id` | `signalr-client.ts` `createNotificationHub`: WebSockets, `skipNegotiation`, `accessTokenFactory` reads current token |
+| Event | `ReceiveNotification` with 1 `NotificationDto` (same item shape as list) | FE `NotificationPayload` = `NotificationDto`; `toNotificationItem` groups by `kind` (unknown -> generic `other`), `NotificationLiveSync` pushes into `notification-store` |
 | Types | `NewLike`, `NewComment`, `NewFollow` (public follow, notifies followed user), `FollowRequested`, `FollowAccepted` (notifies REQUESTER) | FE `NotificationKind` like \| follow \| reply = `kind` |
 | Self events | no notification (self like, self comment) | - |
 | Persistence | in-memory; delivered outbox messages removed; lost on restart; push reaches only active profile connection | - |
@@ -272,7 +272,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 ## 5. Integration risks (status 2026-10-16)
 
 - **Closed:** error shapes & 500s, text-only post, logout/refresh/session cap, event dispatch, identity (`user_id`, username), read endpoints, privacy/block enforcement, toggle vs set routes, response codes, SignalR payload, security hardening; history in plan T1-T4
-- **Open (FE side):** cross-tab refresh single-flight & redirect fix (CP1, §1), FE notification type union (§6), toggle removal after CP2
+- **Open (FE side):** none
 - **Open (BE, accepted):** in-memory store, no transactions, restart wipes state (deterministic seed ids; FE treats refresh 401 as logout); full register: BG §10
 
 ## 6. FE checkpoints & follow-ups

@@ -99,7 +99,7 @@ Each line has pinned test in owning task.
 | `ViewerSync` -> `ensureViewerUser` registers viewer in mock user DB by `id:username` | reuse as mixed-mode bridge |
 
 ### Decisions
-- **F-D2 Slice switch:** `NEXT_PUBLIC_REAL_API_SLICES` cumulative prefix (F1), default empty = all mock; `NEXT_PUBLIC_API_BASE_URL` default `https://localhost:49895`; tests run in mock mode unless test sets slice
+- **F-D2 Slice switch:** `NEXT_PUBLIC_REAL_API_SLICES` cumulative prefix (F1); default flipped in X1: unset = all 4 slices real, `none` = mock adapters (shells delete empty variable, so empty cannot mean mock); `NEXT_PUBLIC_API_BASE_URL` default `https://localhost:49895`; tests pin `none` in `vitest.setup.ts` & opt in with `setRealSlices`
 - **F-D3 Service seam:** `features/auth/services/auth-service.ts` 1 interface, adapter chosen per call by `isRealApi("auth")`; mock adapter keeps today's behavior (seed demo account, reserved usernames)
 - **F-D4 Mixed mode:** real viewer = `MeDto.profile` mapped to `AuthUser`; `ViewerSync`/`ensureViewerUser` registers it as runtime user in mock user DB so mock slices keep working; real viewer has no mock relations/posts until its slice goes real; no seed-id alignment
 - **F-D5 Tokens:** localStorage (already cross-tab); browser must trust BE dev cert (`dotnet dev-certs https --trust`); httpOnly cookie/BFF deferred (XSS exposure accepted for dev); server components stay mock in Phase F (revised in Phase C for anonymous server reads)
@@ -629,7 +629,7 @@ Each line has pinned test in owning task.
   - browser: login, follow (counts update), followers dialog lists follower; blocked by profile owner -> `/@demo_user` shows not-found state (not desync, not locked)
   - NOT smoked in browser: privacy toggle, request accept UI, close-friend toggle, block UI (all unit-tested through services + stores)
 - **Rulings:**
-  - mute stays facade until activity slice (`isMuteFacade`): `setMuted`/`fetchMutedUsers` do not follow the graph switch
+  - mute stays facade until activity slice (`isMuteFacade`): `setMuted`/`fetchMutedUsers` do not follow graph switch
   - `isBlockedBy` forced `false` in `toUserProfile`; `RelationSets.blockedBy` kept as always-empty in real mode (mock still models it; type removal waits for X)
   - real profile lookup (content real): BE 404 -> `profile.blockedNotFound` state, other failure -> error + retry (resolves deferred minor "lookup 5xx shows desync"); mock keeps desync
   - blocked list `query`: BE has no search on `me/blocks` -> M20, client filter over all pages
@@ -701,21 +701,21 @@ Each line has pinned test in owning task.
 - [x] **Step 4: Commit** `docs(integration): close Phase N`
 
 **Execution record:**
-- **Verification:** `npm run test` 105 files / 1188 tests pass; `typecheck` clean; `eslint` 5 pre-existing errors (1 fewer: `signalr-client` `any` removed by the rewrite); `api:check` passes after `api:generate` (CRLF checkout EOL only, no schema diff)
+- **Verification:** `npm run test` 105 files / 1188 tests pass; `typecheck` clean; `eslint` 5 pre-existing errors (1 fewer: `signalr-client` `any` removed by rewrite); `api:check` passes after `api:generate` (CRLF checkout EOL only, no schema diff)
 - **Smoke (real BE Development, `auth,content,graph,activity`):**
-  - browser (`test_user`): `/notifications` lists HTTP page (FollowAccepted, NewFollow); with the page open a 2nd account follows -> NewFollow pushed live at top (SignalR over WebSocket, 2 consecutive pushes); mark all read -> BE unread count 0
+  - browser (`test_user`): `/notifications` lists HTTP page (FollowAccepted, NewFollow); with page open 2nd account follows -> NewFollow pushed live at top (SignalR over WebSocket, 2 consecutive pushes); mark all read -> BE unread count 0
   - node SignalR client: push payload = `NotificationDto` shape (`type`, `kind`, `senderUsername`, `targetId`...)
   - curl: mute PUT 204, `me/mutes?query` lists muted user, unmute DELETE 204, mute self -> 400
   - NOT smoked: 2 separate browsers (1 browser pane: 2nd account driven by curl/node), per-item mark read UI, mute UI, block sender -> list filtering, token refresh while connected (unit: factory reads current token)
-  - First push after a cold dev compile was missed (page loaded before hub connected): list loads over HTTP first, push only covers events after connect
+  - First push after cold dev compile was missed (page loaded before hub connected): list loads over HTTP first, push only covers events after connect
 - **Rulings:**
-  - one shared `notification-store` (HTTP pages + pushes); `NotificationLiveSync` mounted in `Providers` starts the hub only for a signed-in viewer with activity real, stops & resets the list on logout/account switch
-  - unknown `type`/`kind` -> kind `other`, rendered with BE `message`; `FollowRequested`/`FollowAccepted` get own wording; real items carry no follow state so the follow-back button is mock-only
+  - one shared `notification-store` (HTTP pages + pushes); `NotificationLiveSync` mounted in `Providers` starts hub only for signed-in viewer with activity real, stops & resets list on logout/account switch
+  - unknown `type`/`kind` -> kind `other`, rendered with BE `message`; `FollowRequested`/`FollowAccepted` get own wording; real items carry no follow state so follow-back button is mock-only
   - `createdAt` stays ISO for real items (formatted relative in `NotificationItem`), mock seed keeps display strings
-  - push from a sender the viewer blocked is dropped client-side (BE filters too); malformed push (no id) dropped
+  - push from sender the viewer blocked is dropped client-side (BE filters too); malformed push (no id) dropped
   - content real & activity mock: notification list empty (seed items reference mock users)
   - unread badge, filter tabs & settings stay FE roadmap Phase 3
-- **Deferred minors:** bulk "mark all read" has no confirmation; no reconnect catch-up (items missed while the socket was down appear on next page load); stale relative timestamps until re-render; push dedupe is by id only
+- **Deferred minors:** bulk "mark all read" has no confirmation; no reconnect catch-up (items missed while socket was down appear on next page load); stale relative timestamps until re-render; push dedupe is by id only
 
 ---
 
@@ -731,11 +731,16 @@ Each line has pinned test in owning task.
 - Keep: slice switch & mock mode, mocks/fixtures needed by hidden/unsupported features (search, tags, trending, suggestions, pin, hide-like-count, new-posts pill, audience, `replies`/`media` tabs, FE roadmap Phases 3-7 work) & by tests
 - Test: update/remove only tests of deleted code
 
-- [ ] **Step 1: Produce proof:** import-graph/grep list of every mock export with its remaining consumers (hidden features, tests); delete only exports with 0 consumers outside deleted code; record list in commit body
-- [ ] **Step 2: Write failing tests:** `no module imports deleted mock export (import-graph test)`, `/@username resolves via BE only when slices real`, `default env enables all wired slices`, `mock mode still renders hidden-feature routes`
-- [ ] **Step 3: Remove** proven-unused code & its tests
-- [ ] **Step 4: Run** `npm run test`, `npm run typecheck`, `npm run lint` -> PASS
-- [ ] **Step 5: Commit** `refactor(integration): remove mock code unused by wired slices`
+- [x] **Step 1: Produce proof:** import-graph/grep list of every mock export with its remaining consumers (hidden features, tests); delete only exports with 0 consumers outside deleted code; record list in commit body
+- [x] **Step 2: Write failing tests:** `default env enables all wired slices` (api-config) & `none` sentinel; import-graph test has nothing to assert (0 deletions); `/@username` BE-only (C8) & hidden-feature routes in mock mode already covered by existing suites (run under pinned `none`)
+- [x] **Step 3: Remove** proven-unused code & its tests: result = 0 mock exports removable (see X record)
+- [x] **Step 4: Run** `npm run test`, `npm run typecheck`, `npm run lint` -> PASS
+- [x] **Step 5: Commit** `refactor(integration): remove mock code unused by wired slices`
+
+**Execution record (X1):**
+- **Proof:** export scan (every non-test export with 0 non-test consumers in other files, 63 hits): none is mock code that lost its last consumer. Mock adapters stay reachable (mock mode via `none`, partial slice lists, BE-less features), `__reset*`/`reset*`/fixtures are test helpers, rest = constants/types used inside their own file. Cookie bridge `ysocial_mock_user`, `ViewerSync` mock upsert & `[@username]` cookie resolver are still used in mock mode: kept
+- **Ruling (default flip):** `parseRealSlices(undefined)` = all 4 slices; `none` / empty = mock. Reverses F-D2 "default empty = all mock": `npm run dev` now needs BE on `https://localhost:49895` unless `NEXT_PUBLIC_REAL_API_SLICES=none`. `.env.example`, README updated; `vitest.setup.ts` pins `none`
+- **Dead non-mock exports (out of X1 scope, deferred minor):** `useAccessToken`, `useRefreshToken` (`auth-store.ts`), `useUIState` (`ui-store.ts`): 0 consumers incl. tests
 
 ### Task X2 (OPTIONAL, gated on user approval): Remove BE toggle endpoints (BE repo)
 > Not required to close roadmap; deferable. BE contract change: needs explicit user approval before starting
@@ -752,10 +757,20 @@ Each line has pinned test in owning task.
 **Files:**
 - Modify: roadmap (all phases `[x]`), MAP (FE-counterpart column, §5, §6 follow-ups closed), `.context/features/fe-be-integration.md` (final as-built), INDEX, `frontend-roadmap.md` "Out of scope" note updated
 
-- [ ] **Step 1: Run** full verification (`npm run test`, `typecheck`, `lint`, `api:check`; BE `dotnet test` only if X2 ran) -> pass
-- [ ] **Step 2: Update** docs listed; deferred-minor triage per `00-agentic-rules.md` §4.3 (resolve/defer/close with rationale)
+- [x] **Step 1: Run** full verification (`npm run test`, `typecheck`, `lint`, `api:check`; BE `dotnet test` only if X2 ran) -> pass
+- [x] **Step 2: Update** docs listed; deferred-minor triage per `00-agentic-rules.md` §4.3 (resolve/defer/close with rationale)
 - [ ] **Step 3: `finishing-a-development-branch`:** PR options, worktree clean-up
-- [ ] **Step 4: Commit** `docs(integration): close FE-BE integration roadmap`
+- [x] **Step 4: Commit** `docs(integration): close FE-BE integration roadmap`
+
+**Execution record (X3):**
+- **Verification:** `npm run test` 105 files / 1190 tests; `typecheck` clean; `eslint` 5 pre-existing errors (`safe-hydration.tsx`, `use-mobile.ts`, `post-creator-dialog.tsx` any, `post-draft-store.ts` prefer-const, 1 more any in posts); `api:check` passes after `api:generate` (CRLF EOL only); BE `dotnet test` not run (X2 not started, BE untouched)
+- **F.3 2-tab lock smoke (was open since Phase F):** real BE, 2 browser tabs on `/notifications`, shared `ysocial_access_token` corrupted, both reloaded together -> exactly 1 `RefreshTokenCommand` in BE log, both tabs render list, no forced logout (`navigator.locks` present on localhost)
+- **Deferred-minor triage (`00-agentic-rules.md` §4.3):**
+  - **Closed:** C "Unblock shown for externally blocked profile" (real graph: that profile is 404); C "profile client lookup 5xx shows desync" resolved in G3; F "residual no-lock window" accepted (M15); F "`authFieldErrors` raw BE text" (BE field messages are English, vi mapping would need BE codes per field)
+  - **Defer (design/BE owner):** M16 docs say Next 15, repo has 16.3.8 (needs user OK to edit conventions); M18 BE `PUT profiles/me` wipes gender/DOB (BE decision: PATCH semantics or expose fields); M12 BE option nullable-reference swagger; M21 no push catch-up; M20 block list has no `query` (BE option); saved list not cleared on account switch & capped at 100 posts; 1 malformed item fails whole page; duplicate-click spinner flicker; hub gives up after automatic reconnect ends (`connection` stays set, live push silently dead until reload/login: impact medium for long sessions, fix = clear `connection` in `onclose` & retry with backoff; priority medium, next: small task in Phase 3 notifications work); stale relative timestamps; `generateMetadata` BE outage sends post page to `error.tsx`; bulk unsave real path has no automated test; refresh/logout fetch have no timeout
+  - **Dead code (not mock):** `useAccessToken`, `useRefreshToken`, `useUIState`: delete in cleanup PR (priority low)
+- **Not smoked in browser (unit/API-tested only):** privacy toggle UI, accept/decline request UI, close-friend toggle UI, block UI, per-item mark-read UI, mute UI, edit post, bulk unsave, guest feed, token refresh while hub is connected
+- **Review gates:** F9 & C9 ran fresh Opus reviewer; G4, N4 & X not run: 1 end-of-plan review of whole branch
 
 ---
 
@@ -784,7 +799,8 @@ Each line has pinned test in owning task.
 | M19 | C6 | BE has no media upload (blob URLs unusable) & no audience/visibility choice on create | FE hides upload, audience & close-friends toggle while content is real | accepted until BE media/audience work |
 | M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
 | M20 | G1 | `GET me/blocks` has no `query` param (follow requests, followers, mutes do) | FE: with query, read every page (cap 20 x 50) & filter locally; BE option: add `query` | accepted |
-| M21 | N3 | pushes missed while hub is disconnected or before it connects are not replayed (BE has no cursor, list is HTTP-first) | FE: list reloads on viewer change; no catch-up; unread count from the page | accepted |
+| M21 | N3 | pushes missed while hub is disconnected or before it connects are not replayed (BE has no cursor, list is HTTP-first) | FE: list reloads on viewer change; no catch-up; unread count from page | accepted |
+| M22 | N3 | hub stays "connected" in FE state after SignalR automatic reconnect gives up (`connection` not cleared on close) | FE: deferred, see X3 triage | open (deferred) |
 | M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, `features/identities.md` §2)| BE: Development-only opt-in flag in local `appsettings.Development.json`, `ApiFactory` forces it off | resolved: BE opt-in `Messaging:LogOtpInDevelopment` (Development only, default off), reset flow verified on real BE |
 
 ## Self-review

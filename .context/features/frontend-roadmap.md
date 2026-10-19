@@ -104,7 +104,7 @@ updated: 2026-10-06
 - [ ] **7.5 A11y pass:** focus ring, icon button `aria-label`, touch target >= 44px, contrast 4.5:1 in both themes
 - [-] **7.6 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`, `/@username`)*
 
-**Out of scope:** real API/SignalR (tracked in `features/fe-be-integration-roadmap.md`), Communities/Lists, Analytics, Scheduled posts, PWA
+**Out of scope:** real API/SignalR (done in `features/fe-be-integration-roadmap.md`: every wired slice is real by default, this roadmap keeps running on mock mode `NEXT_PUBLIC_REAL_API_SLICES=none` for BE-less features), Communities/Lists, Analytics, Scheduled posts, PWA
 
 ---
 

@@ -19,7 +19,7 @@ updated: 2026-10-02
 ## 2. Concise Style
 - USE English
 - PRIORITY: `correctness > clarity > token efficiency`
-- DROP non-semantic words: articles, filler, redundant politeness (e.g. a, an, the...)
+- DROP non-semantic words: articles, filler, redundant politeness (ESPECIALLY: a, an, the...)
 - PREFER short active phrasing
 - PREFER direct statements over prose
 - AVOID repeated context, explanations, or user-provided information

@@ -13,7 +13,7 @@ updated: 2026-10-19
 ### Slice switch
 - `src/lib/api-config.ts`: `NEXT_PUBLIC_REAL_API_SLICES` = cumulative prefix of `auth,content,graph,activity`; gaps & unknown names ignored (warn in dev); `isRealApi(slice)` reads env per call
 - `NEXT_PUBLIC_API_BASE_URL` default `https://localhost:49895`; `.env.example` documents both
-- Default empty = all mock; tests run mock unless `setRealSlices()` (`src/test/api-test-utils.ts`)
+- Default (X.1): env UNSET = all 4 slices real; `none` = mock adapters (empty `.env` value also parses as mock, but shells delete empty variables); tests pin `none` in `vitest.setup.ts` & opt in with `setRealSlices()` (`src/test/api-test-utils.ts`)
 
 ### api-client
 - `src/lib/api-client.ts`: `apiFetch<T>` / `apiClient.*`; JSON as-is (no key mapping), 204 -> `undefined`, failures -> `ApiError` (`src/lib/api-error.ts`: `kind` network|http, `code`, `errors`, `traceId`)
@@ -96,3 +96,11 @@ updated: 2026-10-19
 - List is HTTP-first, push only covers events after the socket connects (M21): a cold dev compile can load the page before the hub connects
 - Content real & activity mock: list stays empty (seed items reference mock users)
 - Unread badge, filter tabs & settings are still FE roadmap Phase 3
+
+## Phase X - Cleanup
+
+- Default flipped: `parseRealSlices(undefined)` = `auth,content,graph,activity`; `NEXT_PUBLIC_REAL_API_SLICES=none` = mock mode (`.env.example`, README). `npm run dev` needs the BE running unless `none`
+- Mock code kept: proof scan found no mock export that lost its last consumer (mock mode, partial slice lists & BE-less features still reach every mock adapter); `ysocial_mock_user` cookie bridge, `ViewerSync` mock upsert & `[@username]` cookie resolver stay for mock mode
+- BE toggle endpoints (`likes/toggle`, `saveditems/toggle`): FE has 0 calls (grep empty); removal = optional X.2, gated on user approval
+- Smoke evidence: 2 tabs + corrupted shared access token -> exactly 1 `refresh-token` call (`navigator.locks`), no forced logout
+- Known gaps: see plan X3 record (hub does not retry after automatic reconnect gives up, no push catch-up, M16/M18/M12)
