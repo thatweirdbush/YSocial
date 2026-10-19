@@ -44,3 +44,4 @@ next-env.d.ts
 # agents
 /.antigravity-awesome-skills
 /.superpowers-skills
+dev-cert.pem

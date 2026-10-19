@@ -20,6 +20,21 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Real BE (dev)
+
+Real API slices are opt-in: copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_REAL_API_SLICES` (cumulative: `auth`, `auth,content`, ...). Start the BE in Development on `https://localhost:49895`.
+
+Dev certificate (needed by the browser and by server-side fetches):
+
+```bash
+dotnet dev-certs https --trust
+dotnet dev-certs https --export-path ./dev-cert.pem --format Pem --no-password
+# shell that starts `next dev` / `npm run api:fetch` (read at Node start, never put it in .env*)
+export NODE_EXTRA_CA_CERTS=$PWD/dev-cert.pem
+```
+
+NEVER use `NODE_TLS_REJECT_UNAUTHORIZED=0`. `npm run api:update` refetches `docs/swagger.json` from the running BE and regenerates types. To read the password-reset OTP in the BE log set `Messaging:LogOtpInDevelopment=true` in the BE's local `appsettings.Development.json`.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

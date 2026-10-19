@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { isRealApi } from "@/lib/api-config";
+import { isBackendId } from "@/lib/backend-id";
 import type { AuthUser } from "../types";
 import { clearMockSessionCookie, toMockSession, writeMockSessionCookie } from "../utils/mock-session";
 
@@ -26,11 +27,10 @@ interface AuthState {
   };
 }
 
-const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** True for tokens or user ids minted by the mock adapter (BE ids are GUIDs). */
 const isStaleMockSession = (accessToken: string | null, user: AuthUser | null): boolean =>
-  !!accessToken?.startsWith("mock_") || (!!user && !GUID_PATTERN.test(user.id));
+  !!accessToken?.startsWith("mock_") || (!!user && !isBackendId(user.id));
 
 /** Reads a persisted user; malformed JSON drops the key and resolves to `null`. */
 const readStoredUser = (): AuthUser | null => {
