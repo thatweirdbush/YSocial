@@ -81,27 +81,14 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task ToggleLike_OnThenOff()
-    {
-        var test = await LoginAsync(Seed.TestLogin);
-        var body = new { targetId = SeedIds.DemoPost.Value, targetType = 1 };
-
-        var on = await JsonAsync(await test.PostAsJsonAsync("/api/likes/toggle", body));
-        var off = await JsonAsync(await test.PostAsJsonAsync("/api/likes/toggle", body));
-
-        on.GetProperty("isLiked").GetBoolean().Should().BeTrue();
-        off.GetProperty("isLiked").GetBoolean().Should().BeFalse();
-    }
-
-    [Fact]
-    public async Task SavedToggle_ThenListContainsPost()
+    public async Task Bookmark_ThenListContainsPost()
     {
         var test = await LoginAsync(Seed.TestLogin);
 
-        var toggle = await JsonAsync(await test.PostAsJsonAsync("/api/saveditems/toggle", new { targetId = SeedIds.DemoPost.Value, targetType = 1 }));
+        var bookmark = await test.PutAsync($"/api/posts/{SeedIds.DemoPost.Value}/bookmark", null);
         var list = await JsonAsync(await test.GetAsync("/api/saveditems/posts"));
 
-        toggle.GetProperty("isSaved").GetBoolean().Should().BeTrue();
+        bookmark.StatusCode.Should().Be(HttpStatusCode.NoContent);
         list.GetProperty("items").EnumerateArray().Select(p => p.GetProperty("id").GetGuid()).Should().Contain(SeedIds.DemoPost.Value);
     }
 

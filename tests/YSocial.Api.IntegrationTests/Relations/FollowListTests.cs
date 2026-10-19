@@ -331,5 +331,24 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await test.GetFromJsonAsync<JsonElement>("/api/users/me/blocks")).GetProperty("pageSize").GetInt32().Should().Be(20);
     }
 
+    [Fact]
+    public async Task MyBlocks_Query_FiltersBeforePaging_DiacriticsInsensitive_Over50Is400()
+    {
+        var an = AddUser("nguyen_van_an", "Nguyễn Văn Ân");
+        var lan = AddUser("lan.pham", "Lan Phạm");
+        var test = await LoginAsync(Seed.TestLogin);
+        AddBlock(SeedIds.TestUser, an.Id);
+        AddBlock(SeedIds.TestUser, lan.Id);
+
+        async Task<JsonElement> Search(string q) => await test.GetFromJsonAsync<JsonElement>($"/api/users/me/blocks?query={Uri.EscapeDataString(q)}&pageSize=1");
+
+        var page = await Search("nguyen");
+
+        Usernames(page).Should().Equal("nguyen_van_an");
+        page.GetProperty("totalCount").GetInt32().Should().Be(1);
+        Usernames(await Search("PHAM")).Should().Equal("lan.pham");
+        (await test.GetAsync($"/api/users/me/blocks?query={new string('a', 51)}")).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     #endregion
 }

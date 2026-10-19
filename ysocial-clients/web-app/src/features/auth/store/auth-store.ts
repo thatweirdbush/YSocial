@@ -127,8 +127,6 @@ export function registerAuthStorageSync(): () => void {
 }
 
 // Selector hooks for highly efficient component updates without redundant re-renders
-export const useAccessToken = () => useAuthStore((state) => state.accessToken);
-export const useRefreshToken = () => useAuthStore((state) => state.refreshToken);
 export const useAuthUser = () => useAuthStore((state) => state.user);
 export const useIsAuthenticated = () => useAuthStore((state) => state.isAuthenticated);
 export const useAuthHydrated = () => useAuthStore((state) => state.hydrated);

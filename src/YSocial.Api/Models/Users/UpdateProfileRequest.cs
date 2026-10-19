@@ -7,5 +7,5 @@ public sealed record UpdateProfileRequest(
     string? Bio,
     string? AvatarUrl,
     string? CoverUrl,
-    Gender Gender,
+    Gender? Gender,
     DateTime? DateOfBirth);

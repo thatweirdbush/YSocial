@@ -1146,93 +1146,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/likes/toggle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["ToggleLikeRequest"];
-                    "text/json": components["schemas"]["ToggleLikeRequest"];
-                    "application/*+json": components["schemas"]["ToggleLikeRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ToggleLikeResponse"];
-                        "application/json": components["schemas"]["ToggleLikeResponse"];
-                        "text/json": components["schemas"]["ToggleLikeResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/notifications": {
         parameters: {
             query?: never;
@@ -2288,93 +2201,6 @@ export interface paths {
                 };
             };
         };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/saveditems/toggle": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["ToggleSavedItemRequest"];
-                    "text/json": components["schemas"]["ToggleSavedItemRequest"];
-                    "application/*+json": components["schemas"]["ToggleSavedItemRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ToggleSavedItemResponse"];
-                        "application/json": components["schemas"]["ToggleSavedItemResponse"];
-                        "text/json": components["schemas"]["ToggleSavedItemResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3618,6 +3444,7 @@ export interface paths {
                 query?: {
                     page?: number;
                     pageSize?: number;
+                    query?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4257,11 +4084,6 @@ export interface components {
          * @enum {integer}
          */
         Gender: number;
-        /**
-         * @description 1 = Post, 2 = Comment
-         * @enum {integer}
-         */
-        LikeTargetType: number;
         LoginRequest: {
             loginId?: string | null;
             password?: string | null;
@@ -4402,11 +4224,6 @@ export interface components {
         RespondFollowRequestRequest: {
             decision?: string | null;
         };
-        /**
-         * @description 1 = Post, 2 = Comment
-         * @enum {integer}
-         */
-        SavedItemTargetType: number;
         SharePostLinkResponse: {
             /** Format: uuid */
             postId?: string;
@@ -4427,22 +4244,6 @@ export interface components {
         };
         ToggleCloseFriendRequest: {
             isCloseFriend?: boolean;
-        };
-        ToggleLikeRequest: {
-            /** Format: uuid */
-            targetId?: string;
-            targetType?: components["schemas"]["LikeTargetType"];
-        };
-        ToggleLikeResponse: {
-            isLiked?: boolean;
-        };
-        ToggleSavedItemRequest: {
-            /** Format: uuid */
-            targetId?: string;
-            targetType?: components["schemas"]["SavedItemTargetType"];
-        };
-        ToggleSavedItemResponse: {
-            isSaved?: boolean;
         };
         UnreadCountDto: {
             /** Format: int32 */

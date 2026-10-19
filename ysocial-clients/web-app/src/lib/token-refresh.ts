@@ -20,6 +20,9 @@ interface RefreshDeps {
 
 const LOCK_NAME = "ysocial-refresh";
 
+/** A hung refresh would stall every lock waiter: abort => transient, the caller keeps its session. */
+const REFRESH_TIMEOUT_MS = 15_000;
+
 /** Auth endpoint path (MAP §1). */
 const REFRESH_PATH = "/api/identities/refresh-token";
 
@@ -69,6 +72,7 @@ async function rotate(sentAccessToken: string | null, deps?: RefreshDeps): Promi
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken: storedRefresh }),
+      signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
     });
   } catch (cause) {
     return { status: "transient", error: networkError(cause) };

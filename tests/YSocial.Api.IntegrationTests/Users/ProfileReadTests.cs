@@ -262,4 +262,33 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
         doc.RootElement.GetProperty("avatarUrl").GetString().Should().Be("https://img.test/a.png");
         doc.RootElement.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(ProfileFields);
     }
+
+    [Fact]
+    public async Task UpdateProfile_OmittedGenderAndBirthDate_KeepStoredValues()
+    {
+        var birth = new DateTime(1990, 5, 17, 0, 0, 0, DateTimeKind.Utc);
+        var stored = MockDataStore.Users[SeedIds.TestUser];
+        stored.UpdateProfile(new UserProfileInfo(stored.ProfileInfo.DisplayName, null, null, null, Gender.Female, birth, stored.ProfileInfo.ProfileType));
+        var test = await LoginAsync(Seed.TestLogin);
+
+        var response = await test.PutAsJsonAsync("/api/users/profiles/me",
+            new { displayName = "Only Name", bio = "Hi", avatarUrl = (string?)null, coverUrl = (string?)null });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var info = MockDataStore.Users[SeedIds.TestUser].ProfileInfo;
+        info.DisplayName.Should().Be("Only Name");
+        info.Gender.Should().Be(Gender.Female);
+        info.DateOfBirth.Should().Be(birth);
+    }
+
+    [Fact]
+    public async Task UpdateProfile_ExplicitGender_Replaces()
+    {
+        var test = await LoginAsync(Seed.TestLogin);
+
+        (await test.PutAsJsonAsync("/api/users/profiles/me",
+            new { displayName = "N", bio = (string?)null, avatarUrl = (string?)null, coverUrl = (string?)null, gender = 1 })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+        MockDataStore.Users[SeedIds.TestUser].ProfileInfo.Gender.Should().Be(Gender.Male);
+    }
 }

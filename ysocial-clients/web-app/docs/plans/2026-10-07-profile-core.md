@@ -317,7 +317,7 @@ function mulberry32(seed: number): () => number {
 
 **Files:**
 - Create: `.context/features/profile.md`
-- Modify: `.context/INDEX.md`, `.context/features/frontend-roadmap.md`, this plan (checkboxes), spec status line
+- Modify: `.context/INDEX.md`, `.context/roadmap.md`, this plan (checkboxes), spec status line
 
 - [x] **Step 1:** `npm run test` (report files/tests), `npm run typecheck` (exit 0), `npx eslint src -f json` summarized per file + rule & diffed against Appendix A: no file/rule count increased; list every decrease (expected: profile files cleaned, `use-translation.ts` `no-explicit-any` gone, `[@username]/page.tsx` warning gone)
 - [x] **Step 2: Greps** (expect 0 unless noted): `grep -rn "apiClient" src/features/profile`; `grep -rn "PostCreatorDialog" src/features/profile`; `grep -rn "useViewerId" src/features/posts`; `grep -rn "viewerId" src/features/profile/services src/features/profile/store`; `grep -rn "useViewerId" src/features/profile` -> only `profile-container.tsx` (+ tests) - review each hit is identity check

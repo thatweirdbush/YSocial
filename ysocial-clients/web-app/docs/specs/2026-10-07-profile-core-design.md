@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-07
 - **Status:** implemented 2026-10-08 (as-built: `.context/features/profile.md`); deviation: NO `loading.tsx` on `/@username` (it streams shell first, `notFound()` then answers HTTP 200); `not-found.tsx` is client component using `useTranslation`
-- **Roadmap:** `.context/features/frontend-roadmap.md` -> Phase 2 sub-project **2A**: F0.6 (profile on mocks) + 2.1 (profile tabs) + 2.2 (followers/following) + 2.6 (share profile); also closes F0.4 for `/@username`, 7.7 for `/@username` & auth-store SSR hydration bug found during 2A
+- **Roadmap:** `.context/roadmap.md` -> Phase 2 sub-project **2A**: F0.6 (profile on mocks) + 2.1 (profile tabs) + 2.2 (followers/following) + 2.6 (share profile); also closes F0.4 for `/@username`, 7.7 for `/@username` & auth-store SSR hydration bug found during 2A
 - **Scope rule:** FE ONLY. NO BE/API/DB calls in any new/touched flow; all data from in-repo mocks. After 2A, `features/profile` has ZERO `apiClient` imports. NO server-side fake DB (see D7 limitation)
 
 ## 1. Goal

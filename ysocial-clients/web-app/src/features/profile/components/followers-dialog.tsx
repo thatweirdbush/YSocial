@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, SearchX, UserX } from "lucide-react";
+import { AlertCircle, Lock, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -46,6 +46,8 @@ interface ListState {
   ids: string[];
   nextPage?: number;
   status: "ready" | "error";
+  /** Private profile the viewer may not see: not an error, not an empty list. */
+  locked?: boolean;
   loadingMore: boolean;
   /** A failed loadMore hides the sentinel (no auto re-trigger loop) until the inline retry is clicked. */
   loadMoreError: boolean;
@@ -75,10 +77,10 @@ function FollowersDialogBody({
   useEffect(() => {
     const request = (token.current += 1);
     fetchFollowList(userId, kind, { query, page: 1 }, actorId)
-      .then(({ users, nextPage }) => {
+      .then(({ users, nextPage, locked }) => {
         if (token.current !== request) return;
         upsertUsers(users, actorId);
-        setList({ key, ids: users.map((user) => user.id), nextPage, status: "ready", loadingMore: false, loadMoreError: false });
+        setList({ key, ids: users.map((user) => user.id), nextPage, status: "ready", locked, loadingMore: false, loadMoreError: false });
       })
       .catch(() => {
         if (token.current === request) setList({ key, ids: [], status: "error", loadingMore: false, loadMoreError: false });
@@ -177,6 +179,8 @@ function FollowersDialogBody({
           <RowsSkeleton />
         ) : current.status === "error" && current.ids.length === 0 ? (
           <EmptyState icon={AlertCircle} title={t("profile.tabError")} action={firstPageRetryButton} />
+        ) : current.locked ? (
+          <EmptyState icon={Lock} title={t("profile.followListLocked")} />
         ) : current.ids.length === 0 ? (
           <EmptyState
             icon={query ? SearchX : UserX}

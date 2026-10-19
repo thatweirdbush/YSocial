@@ -67,3 +67,9 @@ describe("toFollowListPage", () => {
     expect(toFollowListPage(plain)).toEqual({ users: [], nextPage: undefined, locked: false });
   });
 });
+
+describe("toUserProfile D14", () => {
+  it("isBlockedBy is always false (a user who blocked the viewer is a 404, never read)", () => {
+    expect(toUserProfile({ id: "u1", isBlockedBy: true }).isBlockedBy).toBe(false);
+  });
+});

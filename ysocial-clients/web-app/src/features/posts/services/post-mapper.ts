@@ -64,16 +64,29 @@ export function toPostItem(dto: PostDto): PostItem {
   return item;
 }
 
+/** List mapper: a malformed item (contract breach) is dropped with a warning so the rest of the page survives. */
+function toPostItems(dtos: readonly PostDto[] | null | undefined): PostItem[] {
+  const items: PostItem[] = [];
+  for (const dto of dtos ?? []) {
+    try {
+      items.push(toPostItem(dto));
+    } catch (error) {
+      console.warn("[post-mapper] dropped malformed item", error);
+    }
+  }
+  return items;
+}
+
 export function toPostThread(dto: ThreadDto): PostThread {
   if (!dto.post) throw new ApiError({ kind: "http", status: 200, code: "Unknown", detail: "Malformed ThreadDto: missing post" });
   const childReplies: Record<string, PostItem[]> = {};
   for (const [replyId, children] of Object.entries(dto.childReplies ?? {})) {
-    childReplies[replyId] = children.map(toPostItem);
+    childReplies[replyId] = toPostItems(children);
   }
   return {
     post: toPostItem(dto.post),
     parent: dto.parent ? toPostItem(dto.parent) : undefined,
-    replies: (dto.replies ?? []).map(toPostItem),
+    replies: toPostItems(dto.replies),
     childReplies,
   };
 }
@@ -82,10 +95,10 @@ const nextPageOf = (page: { page?: number; hasNextPage?: boolean }): number | un
   page.hasNextPage ? (page.page ?? 1) + 1 : undefined;
 
 export function toFeedPage(dto: PostDtoPagedResponse): FeedPage {
-  return { posts: (dto.items ?? []).map(toPostItem), nextPage: nextPageOf(dto) };
+  return { posts: toPostItems(dto.items), nextPage: nextPageOf(dto) };
 }
 
 /** Threads tab only: the BE has no replies/media tabs, so `parents` is always empty. */
 export function toUserPostsPage(dto: UserPostsPageDto): UserPostsPage {
-  return { posts: (dto.items ?? []).map(toPostItem), parents: [], nextPage: nextPageOf(dto), locked: dto.locked ?? false };
+  return { posts: toPostItems(dto.items), parents: [], nextPage: nextPageOf(dto), locked: dto.locked ?? false };
 }

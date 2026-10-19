@@ -79,10 +79,10 @@ describe("post detail metadata (real BE)", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("BE down / 5xx -> throws (error page), never a not-found title", async () => {
+  it("BE down / 5xx -> neutral title (the page still renders client-side), never a not-found title", async () => {
     useFetch([{ status: 0, reject: new TypeError("fetch failed") }, problem(500, "InternalError")]);
-    await expect(metadataOf(ID)).rejects.toMatchObject({ kind: "network" });
-    await expect(metadataOf(ID)).rejects.toMatchObject({ status: 500 });
+    expect(await metadataOf(ID)).toEqual({ title: "Bài viết • YSocial" });
+    expect(await metadataOf(ID)).toEqual({ title: "Bài viết • YSocial" });
   });
 
   it("the page body never calls notFound on the server", async () => {

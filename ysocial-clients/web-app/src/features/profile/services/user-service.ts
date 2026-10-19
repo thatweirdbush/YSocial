@@ -14,6 +14,7 @@ import {
 } from "@/mocks/relation-graph";
 import { isFanId } from "@/mocks/seed-fans";
 import { asViewer, canDiscoverUser, canViewProfile } from "@/mocks/visibility";
+import * as relationReal from "./relation-service.real";
 import * as real from "./user-service.real";
 import { HIDDEN_FOLLOWERS, HIDDEN_FOLLOWING, isSeedUserId, MOCK_USERS } from "../mocks/mock-users";
 import {
@@ -171,6 +172,7 @@ export async function fetchFollowList(
   { query = "", page = 1 }: FollowListQuery,
   actorId: string,
 ): Promise<FollowListPage> {
+  if (isRealApi("graph")) return relationReal.fetchFollowList(userId, kind, { query, page }, actorId);
   await mockDelay();
 
   const viewer = asViewer(actorId);

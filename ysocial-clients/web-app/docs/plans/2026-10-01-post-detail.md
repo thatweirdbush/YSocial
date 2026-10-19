@@ -304,7 +304,7 @@
 ### Task 12: Runtime verification & context closure
 
 **Files:**
-- Modify: `.context/features/frontend-roadmap.md` (item 1.4 wording; tick F0.1-F0.3, F0.5, 1.1), `.context/INDEX.md`
+- Modify: `.context/roadmap.md` (item 1.4 wording; tick F0.1-F0.3, F0.5, 1.1), `.context/INDEX.md`
 - Create: `.context/features/post-detail.md`
 
 - [x] **Step 1:** `npm run dev`; verify in Browser pane:

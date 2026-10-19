@@ -77,7 +77,7 @@ describe("fetchUser / fetchUserByUsername", () => {
 });
 
 describe("updateProfile", () => {
-  it("keeps the current cover, sends gender int & maps the response", async () => {
+  it("keeps the current cover, omits gender & birth date (BE keeps them) & maps the response", async () => {
     const calls = useFetch([
       { status: 200, body: profile({ id: ME, coverUrl: "https://x/cover.png" }) },
       { status: 200, body: profile({ id: ME, displayName: "New name", bio: "hi" }) },
@@ -85,7 +85,9 @@ describe("updateProfile", () => {
     const updated = await updateProfile(ME, { displayName: " New name ", bio: " hi " }, ME);
     expect(path(calls[1])).toBe("/api/users/profiles/me");
     expect(calls[1].init?.method).toBe("PUT");
-    expect(body(calls[1])).toMatchObject({ displayName: "New name", bio: "hi", coverUrl: "https://x/cover.png", gender: 0 });
+    expect(body(calls[1])).toMatchObject({ displayName: "New name", bio: "hi", coverUrl: "https://x/cover.png" });
+    expect(body(calls[1])).not.toHaveProperty("gender");
+    expect(body(calls[1])).not.toHaveProperty("dateOfBirth");
     expect(updated).toMatchObject({ displayName: "New name", bio: "hi" });
   });
 

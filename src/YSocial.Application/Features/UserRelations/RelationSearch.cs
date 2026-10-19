@@ -6,7 +6,7 @@ using YSocial.Domain.Users;
 namespace YSocial.Application.Features.UserRelations;
 
 /// <summary>
-/// Shared relation-list search rule (follow requests, followers/following, mutes): trimmed, max 50 chars,
+/// Shared relation-list search rule (follow requests, followers/following, mutes, blocks): trimmed, max 50 chars,
 /// substring of username OR display name, case- and diacritics-insensitive, applied after the access filter and before paging.
 /// </summary>
 public static class RelationSearch

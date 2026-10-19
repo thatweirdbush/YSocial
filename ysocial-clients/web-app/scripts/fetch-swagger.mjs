@@ -1,6 +1,6 @@
 // Downloads the BE swagger document (Development only) into docs/swagger.json.
-// Dev cert: export PEM (`dotnet dev-certs https --export-path <file> --format Pem --no-password`) & start this
-// script with NODE_EXTRA_CA_CERTS=<file> (read at Node start, never put it in .env*).
+// Dev cert: `dotnet dev-certs https --trust` (`npm run api:fetch` runs Node with --use-system-ca); alternatively
+// start Node with NODE_EXTRA_CA_CERTS=<PEM file> (read at Node start, never put it in .env*).
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
@@ -16,6 +16,6 @@ try {
   console.log(`swagger written: ${target} (${Object.keys(document.paths ?? {}).length} paths)`);
 } catch (error) {
   console.error(`api:fetch failed for ${url}: ${error instanceof Error ? error.message : error}`);
-  console.error("Is the BE running in Development & is its dev cert trusted (NODE_EXTRA_CA_CERTS)?");
+  console.error("Is the BE running in Development & is its dev cert trusted (dotnet dev-certs https --trust)?");
   process.exit(1);
 }

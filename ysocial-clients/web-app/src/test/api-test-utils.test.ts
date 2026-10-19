@@ -68,7 +68,7 @@ describe("setRealSlices", () => {
     setRealSlices("auth");
     expect(process.env.NEXT_PUBLIC_REAL_API_SLICES).toBe("auth");
   });
-  it("restored by afterEach", () => {
-    expect(process.env.NEXT_PUBLIC_REAL_API_SLICES).toBeUndefined();
+  it("restored by afterEach to the pinned test default (mock mode)", () => {
+    expect(process.env.NEXT_PUBLIC_REAL_API_SLICES).toBe("none");
   });
 });

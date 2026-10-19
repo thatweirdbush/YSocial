@@ -22,6 +22,7 @@ import {
   type RequestDecision,
   type StoredUser,
 } from "../types";
+import * as real from "./relation-service.real";
 import { getStoredUser, mockDelay, projectUser } from "./user-service";
 
 // Mock data source for relation controls (block, mute, close friends, privacy, follow requests). Mirrors BE
@@ -32,15 +33,17 @@ export { RELATION_PAGE_SIZE };
 
 /**
  * Content is real but the graph slice is not: viewer ids are BE GUIDs the mock graph must never see. Reads answer
- * empty defaults, writes are refused (their UI is hidden by the capability table) until Phase G wires the BE.
+ * empty defaults, writes are refused (their UI is hidden by the capability table) until the graph slice is real.
  */
 const isFacade = (): boolean => isRealApi("content") && !isRealApi("graph");
+/** Same facade for mute: it stays mock until the activity slice (`me/mutes` + feed exclusion go real together). */
+const isMuteFacade = (): boolean => isRealApi("content") && !isRealApi("activity");
 
 const EMPTY_SETS: RelationSets = { blocked: [], blockedBy: [], muted: [], closeFriends: [], isPrivate: false, requestCount: 0 };
 
 /** Writes are signed-in only (spec D9). */
-function requireViewer(actorId: string): string {
-  if (isFacade()) throw new ForbiddenError("Relationship controls are not available yet");
+function requireViewer(actorId: string, facade: boolean = isFacade()): string {
+  if (facade) throw new ForbiddenError("Relationship controls are not available yet");
   const viewer = asViewer(actorId);
   if (!viewer) throw new ForbiddenError("Sign in to manage relationships");
   return viewer;
@@ -67,6 +70,7 @@ function pageOfUsers(ids: readonly string[], { query = "", page = 1 }: RelationL
 
 // #region Writes
 export async function setBlocked(id: string, on: boolean, actorId: string): Promise<void> {
+  if (isRealApi("graph")) return real.setBlocked(id, on, actorId);
   const viewer = requireViewer(actorId);
   if (id === viewer) throw new CannotBlockYourselfError();
 
@@ -75,7 +79,8 @@ export async function setBlocked(id: string, on: boolean, actorId: string): Prom
 }
 
 export async function setMuted(id: string, on: boolean, actorId: string): Promise<void> {
-  const viewer = requireViewer(actorId);
+  if (isRealApi("activity")) return real.setMuted(id, on, actorId);
+  const viewer = requireViewer(actorId, isMuteFacade());
 
   setMutedEdge(viewer, id, on);
   await mockDelay();
@@ -83,6 +88,7 @@ export async function setMuted(id: string, on: boolean, actorId: string): Promis
 
 /** Throws unless the follow is accepted (BE rule). */
 export async function setCloseFriend(id: string, on: boolean, actorId: string): Promise<void> {
+  if (isRealApi("graph")) return real.setCloseFriend(id, on, actorId);
   const viewer = requireViewer(actorId);
 
   writeCloseFriend(viewer, id, on);
@@ -91,6 +97,7 @@ export async function setCloseFriend(id: string, on: boolean, actorId: string): 
 
 /** Going public auto-accepts every pending request; `acceptedCount` is how many were accepted. */
 export async function setPrivateAccount(on: boolean, actorId: string): Promise<{ acceptedCount: number }> {
+  if (isRealApi("graph")) return real.setPrivateAccount(on, actorId);
   const viewer = requireViewer(actorId);
 
   const acceptedCount = setPrivate(viewer, on);
@@ -100,6 +107,7 @@ export async function setPrivateAccount(on: boolean, actorId: string): Promise<{
 
 /** Accept = requester becomes a follower; decline = request removed (no notification). */
 export async function respondFollowRequest(requesterId: string, decision: RequestDecision, actorId: string): Promise<void> {
+  if (isRealApi("graph")) return real.respondFollowRequest(requesterId, decision, actorId);
   const viewer = requireViewer(actorId);
   if (!getRequestIds(viewer).includes(requesterId)) throw new Error(`No pending request from ${requesterId}`);
 
@@ -112,6 +120,7 @@ export async function respondFollowRequest(requesterId: string, decision: Reques
 // #region Reads
 /** Requesters as profiles, newest first. Guest -> empty. */
 export async function fetchFollowRequests(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isRealApi("graph")) return real.fetchFollowRequests(q, actorId);
   if (isFacade()) return { users: [] };
   await mockDelay();
 
@@ -120,6 +129,7 @@ export async function fetchFollowRequests(q: RelationListQuery, actorId: string)
 }
 
 export async function fetchFollowRequestCount(actorId: string): Promise<number> {
+  if (isRealApi("graph")) return real.fetchFollowRequestCount(actorId);
   if (isFacade()) return 0;
   await mockDelay();
 
@@ -128,6 +138,7 @@ export async function fetchFollowRequestCount(actorId: string): Promise<number> 
 }
 
 export async function fetchBlockedUsers(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isRealApi("graph")) return real.fetchBlockedUsers(q, actorId);
   if (isFacade()) return { users: [] };
   await mockDelay();
 
@@ -136,7 +147,8 @@ export async function fetchBlockedUsers(q: RelationListQuery, actorId: string): 
 }
 
 export async function fetchMutedUsers(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
-  if (isFacade()) return { users: [] };
+  if (isRealApi("activity")) return real.fetchMutedUsers(q, actorId);
+  if (isMuteFacade()) return { users: [] };
   await mockDelay();
 
   const viewer = asViewer(actorId);
@@ -145,6 +157,7 @@ export async function fetchMutedUsers(q: RelationListQuery, actorId: string): Pr
 
 /** Accepted followees, with `viewerMarkedCloseFriend` projected. */
 export async function fetchCloseFriendCandidates(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isRealApi("graph")) return real.fetchCloseFriendCandidates(q, actorId);
   if (isFacade()) return { users: [] };
   await mockDelay();
 
@@ -153,6 +166,7 @@ export async function fetchCloseFriendCandidates(q: RelationListQuery, actorId: 
 }
 
 export async function fetchRelationSets(actorId: string): Promise<RelationSets> {
+  if (isRealApi("graph")) return real.fetchRelationSets(actorId);
   if (isFacade()) return { ...EMPTY_SETS };
   await mockDelay();
 

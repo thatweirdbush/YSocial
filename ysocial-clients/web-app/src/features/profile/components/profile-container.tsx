@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, UserX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { GUEST_ACTOR_ID, toMockSession, useActorId, useAuthHydrated, useAuthStore, useAuthUser, useViewerId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
+import { isRealApi } from "@/lib/api-config";
 import { useUIActions } from "@/lib/store/ui-store";
 import { ProfileTabPostsProvider, useProfileTabPostsController } from "../hooks/use-profile-tab-posts";
 import { commitBlock, ensureRelationSets, useRelationsLoaded } from "../store/relation-store";
@@ -28,8 +29,10 @@ interface ProfileContainerProps {
 }
 
 /**
- * `/@username` client view on mocks. Route-level not-found is the server's job (`page.tsx`); the only "missing"
- * state here is a cookie/localStorage desync. Identity-dependent UI waits for auth hydration (never a not-found flash).
+ * `/@username` client view. Route-level not-found is the server's job (`page.tsx`). With real content the viewer's
+ * own read decides what the anonymous server read cannot: BE 404 (blocked either way, D14) -> not-found state,
+ * any other failure -> error with retry. On mocks the only "missing" state is a cookie/localStorage desync.
+ * Identity-dependent UI waits for auth hydration (never a not-found flash).
  */
 export function ProfileContainer({ username }: ProfileContainerProps) {
   const hydrated = useAuthHydrated();
@@ -48,7 +51,8 @@ function ProfileLookup({ username }: ProfileContainerProps) {
   const wanted = username.toLowerCase();
   const sessionUsername = authUser ? toMockSession(authUser).username : null;
   const lookupKey = `${actorId}:${wanted}`;
-  const [missingKey, setMissingKey] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<{ key: string; kind: "missing" | "error" } | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,21 +64,42 @@ function ProfileLookup({ username }: ProfileContainerProps) {
         : ensureUserByUsername(wanted, actorId);
     request
       .then((found) => {
-        if (!cancelled) setMissingKey(found ? null : lookupKey);
+        if (!cancelled) setOutcome(found ? null : { key: lookupKey, kind: "missing" });
       })
       .catch(() => {
-        if (!cancelled) setMissingKey(lookupKey);
+        if (!cancelled) setOutcome({ key: lookupKey, kind: "error" });
       });
     return () => {
       cancelled = true;
     };
-  }, [wanted, actorId, lookupKey, viewerId, sessionUsername]);
+  }, [wanted, actorId, lookupKey, viewerId, sessionUsername, reloadNonce]);
 
   // A cached user without a known follow state for this viewer (account switch) must not render: it would read as "none"
   const isOwn = user !== undefined && viewerId !== null && viewerId === user.id;
   if (user && (isOwn || followKnown)) return <ProfileView user={user} isOwn={isOwn} actorId={actorId} />;
 
-  if (missingKey === lookupKey) {
+  if (outcome?.key === lookupKey && isRealApi("content")) {
+    if (outcome.kind === "missing") return <EmptyState icon={UserX} title={t("profile.blockedNotFound")} />;
+    return (
+      <EmptyState
+        icon={AlertCircle}
+        title={t("profile.tabError")}
+        action={
+          <Button
+            type="button"
+            onClick={() => {
+              setOutcome(null);
+              setReloadNonce((n) => n + 1);
+            }}
+            className="min-h-11 rounded-full px-5"
+          >
+            {t("profile.retry")}
+          </Button>
+        }
+      />
+    );
+  }
+  if (outcome?.key === lookupKey) {
     return (
       <EmptyState
         icon={RefreshCw}

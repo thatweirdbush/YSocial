@@ -3,6 +3,9 @@ import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 import { __clearResourceCache } from "@/hooks/use-cached-resource";
 
+// Tests run in mock mode unless a test opts into slices (`setRealSlices`): unset would mean "all real".
+process.env.NEXT_PUBLIC_REAL_API_SLICES = "none";
+
 // Pin UI locale before any store module reads it (jsdom navigator.language is "en-US").
 localStorage.setItem("ysocial_locale", "vi");
 

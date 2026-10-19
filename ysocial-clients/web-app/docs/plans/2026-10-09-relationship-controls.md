@@ -309,7 +309,7 @@
 
 **Files:**
 - Create: `.context/features/relationship-controls.md`
-- Modify: `.context/features/frontend-roadmap.md` (2.3/2.4/2.5 `[x]`, Restrict deferred note, 2B done), `.context/features/profile.md` & `feed-post-interaction.md` (follow-graph -> relation-graph refs), `.context/conventions/frontend.md` (emerald semantic exception), `.context/INDEX.md`, this plan (`[x]`), spec status
+- Modify: `.context/roadmap.md` (2.3/2.4/2.5 `[x]`, Restrict deferred note, 2B done), `.context/features/profile.md` & `feed-post-interaction.md` (follow-graph -> relation-graph refs), `.context/conventions/frontend.md` (emerald semantic exception), `.context/INDEX.md`, this plan (`[x]`), spec status
 
 - [x] **Step 1:** `npm run test` all PASS; `npm run typecheck` 0; `npx eslint src` per file/rule <= Appendix A
 - [x] **Step 2:** Browser pane (`preview_start`): spec §10 flows; 375 / 768 / 1440, light & dark, keyboard focus on lists & dialogs; screenshots as proof

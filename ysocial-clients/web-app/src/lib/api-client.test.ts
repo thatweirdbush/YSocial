@@ -119,6 +119,13 @@ describe("401 interceptor", () => {
     expect(refresh).not.toHaveBeenCalled();
   });
 
+  it("auth calls (skipAuthRefresh) carry no Bearer & a timeout signal", async () => {
+    const calls = useFetch([{ status: 204 }]);
+    await apiFetch("/api/identities/logout", { method: "POST", skipAuthRefresh: true });
+    expect(authHeader(calls[0])).toBeNull();
+    expect(calls[0].init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
   it("refresh unauthorized -> clearAuth & redirect /login, original 401 thrown", async () => {
     useFetch([problem(401, "Unauthenticated")]);
     refresh.mockResolvedValue({ status: "unauthorized" } satisfies RefreshOutcome);

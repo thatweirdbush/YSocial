@@ -152,14 +152,16 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task ToggleEndpoints_Unchanged()
+    public async Task ToggleEndpoints_Return404()
     {
         var test = await LoginAsync(Seed.TestLogin);
 
         var like = await test.PostAsJsonAsync("/api/likes/toggle", new { targetId = SeedIds.DemoPost.Value, targetType = 1 });
         var save = await test.PostAsJsonAsync("/api/saveditems/toggle", new { targetId = SeedIds.DemoPost.Value, targetType = 1 });
 
-        (await like.Content.ReadAsStringAsync()).Should().Contain("isLiked");
-        (await save.Content.ReadAsStringAsync()).Should().Contain("isSaved");
+        like.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        save.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        MockDataStore.Likes.Should().BeEmpty();
+        MockDataStore.SavedItems.Should().BeEmpty();
     }
 }

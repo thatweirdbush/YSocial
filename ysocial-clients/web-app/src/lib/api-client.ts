@@ -9,6 +9,8 @@ export interface ApiRequestOptions extends RequestInit {
   skipAuthRefresh?: boolean;
 }
 
+const AUTH_CALL_TIMEOUT_MS = 15_000;
+
 /** Navigation side effects, isolated so tests can observe them. */
 export const authRedirect = {
   toLogin: () => {
@@ -29,10 +31,13 @@ function buildUrl(path: string, params?: ApiRequestOptions["params"]): string {
 
 async function send(url: string, options: ApiRequestOptions, accessToken: string | null): Promise<Response> {
   const init: ApiRequestOptions = { ...options };
+  // Auth endpoints are anonymous (identity travels in the body): no Bearer, and a bounded wait so a hung call cannot stall login/logout
+  const isAuthCall = Boolean(options.skipAuthRefresh);
+  if (isAuthCall && !init.signal) init.signal = AbortSignal.timeout(AUTH_CALL_TIMEOUT_MS);
   delete init.params;
   delete init.skipAuthRefresh;
   const headers = new Headers(init.headers);
-  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  if (accessToken && !isAuthCall) headers.set("Authorization", `Bearer ${accessToken}`);
   if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }

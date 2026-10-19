@@ -35,7 +35,7 @@ export function PostCreatorDialog({
   const [isSubPopoverOpen, setIsSubPopoverOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const handleCloseAttempt = (e: any) => {
+  const handleCloseAttempt = (e: Event) => {
     // Escape Shield: If any popover/dropdown is open inside, let it close and do nothing
     if (isSubPopoverOpen) {
       e.preventDefault();

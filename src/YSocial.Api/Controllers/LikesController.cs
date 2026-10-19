@@ -1,4 +1,3 @@
-using YSocial.Api.Models.Likes;
 using YSocial.Application.Features.Likes.SetLike;
 using YSocial.Domain.Likes;
 
@@ -44,20 +43,4 @@ public class LikesController : ApiController
         => HandleResult(await Mediator.Send(new SetLikeCommand(id, LikeTargetType.Comment, false), cancellationToken));
 
     #endregion
-
-    [HttpPost("toggle")]
-    [ProducesResponseType(typeof(ToggleLikeResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ToggleLike([FromBody] ToggleLikeRequest request, CancellationToken cancellationToken)
-    {
-        if (request.TargetType is null) return ValidationProblemFor(nameof(request.TargetType), "Invalid TargetType.");
-
-        var command = new ToggleLikeCommand(request.TargetId, request.TargetType);
-
-        var result = await Mediator.Send(command, cancellationToken);
-
-        return HandleResult(result);
-    }
 }

@@ -31,8 +31,8 @@ export async function fetchUserByUsername(username: string, _actorId: string): P
 }
 
 /**
- * Owner-only edit. The BE replaces the whole profile (gender, birth date & cover included) and its read DTO exposes
- * no gender or birth date: the current cover is re-sent, gender goes as `0` (unspecified) - mismatch M18.
+ * Owner-only edit. The BE replaces name, bio, avatar & cover (the current cover is re-sent); gender & birth date are
+ * omitted, which the BE reads as "keep stored value".
  */
 export async function updateProfile(id: string, patch: ProfilePatch, actorId: string): Promise<UserProfile> {
   if (actorId !== id) throw new ForbiddenError(`Profile ${id} is not owned by ${actorId}`);
@@ -42,7 +42,6 @@ export async function updateProfile(id: string, patch: ProfilePatch, actorId: st
     bio: patch.bio?.trim() || null,
     avatarUrl: patch.avatarUrl || null,
     coverUrl: current.coverUrl ?? null,
-    gender: 0,
   });
   return toUserProfile(updated);
 }

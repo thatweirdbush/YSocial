@@ -11,7 +11,7 @@ updated: 2026-10-16
 - **Companions:** domain detail in `domain-model.md` | FE contract (endpoints, error codes, DTOs) in `../integration/frontend-backend-mapping.md` | recovery plan & decisions D1-D20 in `../plans/2026-10-15-backend-recovery-&-fe-integration.md`
 - **Generic conventions** (strongly-typed IDs, `IBusinessRule`, `IClassifiedRule`, `Result`, projectors, access gates) in `.context/conventions/backend.md`
 - **Architecture:** Clean Architecture & DDD
-- **State (2026-10-15):** BE recovery implemented (T0-T4: auth, reads, graph, mute, feed, notifications, security hardening); NOT production-ready: in-memory store, process-global events, no rollback (§7.2, §10)
+- **State:** BE recovery implemented (T0-T4: auth, reads, graph, mute, feed, notifications, security hardening); NOT production-ready: in-memory store, process-global events, no rollback (§7.2, §10)
 
 ## 1. Solution & project map
 
@@ -257,7 +257,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ## 10. Known limitations & technical debt (single live register)
 
-> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-8, 10, 11-16, 18-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link): history in plan T1-T4 & §12 probes
+> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-8, 10-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link): history in plan T1-T4 & §12 probes
 
 ### 10.1 Open / accepted (architectural)
 
@@ -272,7 +272,6 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 | # | Item | Waits on |
 |---|---|---|
-| 17 | `likes/toggle` & `saveditems/toggle` kept next to idempotent routes | FE CP2 adoption, then remove |
 | 21 | Notification push: failed processing retried (max 5) without backoff; no reply preview text | minor |
 | 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
 | 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change, session list | design (re-activation, session identity, username reuse) |
@@ -281,8 +280,8 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Remaining blockers for real deployment are architectural, not hardening:** persistence (EF + transactions + concurrency tokens), per-scope event tracking, multi-instance session lock, access-token revocation (items 9, §6.1, §6.4)
 
 ## 11. Tests
-- 3 projects, 519 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 41, `Api.IntegrationTests` 418
-- Layers, harness, reset rules & per-area coverage: `.context/features/backend-unit-test.md`
+- 3 projects, 523 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 41, `Api.IntegrationTests` 422
+- Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth)
 
 ## 12. Evidence ledger
@@ -302,8 +301,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | Event loss (follow, unlike) | counts frozen; unlike lost | counts & notifications live | `FollowPublicUser_IncrementsCounts`, `Unlike_DecrementsPostLikeCount` |
 | `appsettings` values, ports | unverified | `launchSettings` https `49895`; `Cors:AllowedOrigins` from config | `Cors_AllowedOrigin_GetsHeaders`, `Cors_UnknownOrigin_NoAllowOrigin` |
 | Log redaction & Production startup | passwords/OTP/tokens printed by pipeline logger | `***`; Production without key fails, with key: no swagger, no seed, no dev token log | `Login_PipelineLogs_NoPasswordOrTokens`, `Production_MissingJwtSecret_FailsStartup`, manual `dotnet run` in Production |
-| Manual login -> refresh -> logout smoke | not performed | login 200, refresh rotates, old token 401, logout 204, refresh after logout 401 (real host, Development) | manual `dotnet run` (2026-10-15) |
-| JSON camelCase & enum ints | `POST /api/likes/toggle` shape | unchanged; read DTOs use string unions | `Swagger_*`, `ToggleEndpoints_Unchanged` |
+| Manual login -> refresh -> logout smoke | not performed | login 200, refresh rotates, old token 401, logout 204, refresh after logout 401 (real host, Development) | manual `dotnet run` |
 
 - Test class locations: `tests/YSocial.Api.IntegrationTests/{Characterization,Errors,Identities,Status,Events,Config}`
 

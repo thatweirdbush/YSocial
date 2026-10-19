@@ -119,3 +119,30 @@ describe("pages", () => {
     expect(toUserPostsPage({ ...base, locked: false, items: [dto()], hasNextPage: true }).nextPage).toBe(2);
   });
 });
+
+describe("one malformed item never fails the whole page", () => {
+  const bad = dto({ id: undefined });
+
+  it("feed & profile pages drop the broken item and keep the rest", () => {
+    const ok = dto();
+    const page = { items: [bad, ok], page: 1, pageSize: 10, totalCount: 2, hasNextPage: false };
+    expect(toFeedPage(page).posts.map((p) => p.id)).toEqual([ID]);
+    expect(toUserPostsPage({ ...page, locked: false }).posts.map((p) => p.id)).toEqual([ID]);
+  });
+
+  it("thread replies & child replies drop broken items, a null child list is empty", () => {
+    const reply = dto({ id: "c1", kind: "comment", postId: ID, parentId: ID });
+    const mapped = toPostThread({
+      post: dto(),
+      replies: [bad, reply],
+      childReplies: { c1: [bad, dto({ id: "c2", kind: "comment", postId: ID, parentId: "c1" })], c9: null },
+    } as unknown as ThreadDto);
+    expect(mapped.replies.map((r) => r.id)).toEqual(["c1"]);
+    expect(mapped.childReplies.c1.map((r) => r.id)).toEqual(["c2"]);
+    expect(mapped.childReplies.c9).toEqual([]);
+  });
+
+  it("the thread's own post stays strict", () => {
+    expect(() => toPostThread({ post: bad } as ThreadDto)).toThrow(/missing id/);
+  });
+});

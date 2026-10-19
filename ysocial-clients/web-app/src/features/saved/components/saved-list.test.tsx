@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
@@ -80,6 +80,65 @@ describe("SavedList (real BE)", () => {
 
     expect(await screen.findByText(`saved ${B.slice(0, 4)}`)).toBeInTheDocument();
     expect(fake.calls).toHaveLength(2);
+  });
+
+  it("notes when the 10-page safety cap hides older saved posts", async () => {
+    const steps = Array.from({ length: 10 }, (_, i) => page([`${i}`.repeat(8) + A.slice(8)], true));
+    const fake = mockFetchSequence(steps);
+    vi.stubGlobal("fetch", fake.fetchFn);
+    render(<SavedList />);
+
+    expect(await screen.findByText("Chỉ hiển thị 100 mục đã lưu gần nhất")).toBeInTheDocument();
+    expect(fake.calls).toHaveLength(10);
+  });
+
+  it("does not note a cap for a short list", async () => {
+    vi.stubGlobal("fetch", mockFetchSequence([page([A])]).fetchFn);
+    render(<SavedList />);
+    await screen.findByText(`saved ${A.slice(0, 4)}`);
+    expect(screen.queryByText(/Chỉ hiển thị/)).not.toBeInTheDocument();
+  });
+
+  it("an account switch drops the previous viewer's saved items", async () => {
+    vi.stubGlobal("fetch", mockFetchSequence([page([A]), page([B])]).fetchFn);
+    render(<SavedList />);
+    await screen.findByText(`saved ${A.slice(0, 4)}`);
+
+    act(() => {
+      useAuthStore.getState().actions.updateUser({ id: "33333333-3333-4333-8333-333333333333", email: "x@ysocial.dev", username: "x" });
+    });
+
+    expect(await screen.findByText(`saved ${B.slice(0, 4)}`)).toBeInTheDocument();
+    expect(screen.queryByText(`saved ${A.slice(0, 4)}`)).not.toBeInTheDocument();
+  });
+
+  it("logout empties the list instead of keeping the last viewer's items", async () => {
+    vi.stubGlobal("fetch", mockFetchSequence([page([A])]).fetchFn);
+    render(<SavedList />);
+    await screen.findByText(`saved ${A.slice(0, 4)}`);
+
+    act(() => useAuthStore.getState().actions.clearAuth());
+
+    expect(await screen.findByText("Không có mục đã lưu nào")).toBeInTheDocument();
+    expect(screen.queryByText(`saved ${A.slice(0, 4)}`)).not.toBeInTheDocument();
+  });
+
+  it("bulk unsave sends one DELETE per post and keeps the ones the BE refused", async () => {
+    const fake = mockFetchSequence([page([A, B]), { status: 204 }, problem(500, "InternalError")]);
+    vi.stubGlobal("fetch", fake.fetchFn);
+    render(<SavedList />);
+    await screen.findByText(`saved ${A.slice(0, 4)}`);
+
+    // enter manage mode, select both rows, run bulk unsave
+    await userEvent.click(screen.getByRole("button", { name: /Quản lý|Manage/ }));
+    const boxes = screen.getAllByRole("button").filter((b) => b.className.includes("size-5 rounded-md"));
+    for (const box of boxes) await userEvent.click(box);
+    await userEvent.click(screen.getByRole("button", { name: /Xóa mục đã chọn/ }));
+
+    await waitFor(() => expect(fake.calls.filter((c) => c.init?.method === "DELETE")).toHaveLength(2));
+    expect(fake.calls.filter((c) => c.init?.method === "DELETE").map((c) => c.url).join(" ")).toMatch(/\/bookmark/);
+    await waitFor(() => expect(screen.queryByText(`saved ${A.slice(0, 4)}`)).not.toBeInTheDocument(), { timeout: 2000 });
+    expect(screen.getByText(`saved ${B.slice(0, 4)}`)).toBeInTheDocument();
   });
 
   it("load failure shows an error state, not the empty state", async () => {

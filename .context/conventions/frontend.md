@@ -1,7 +1,7 @@
 ---
 module: Frontend Configuration & Coding Rules
 stack: Next.js 16 App Router / React 19 / Tailwind 4 / TanStack Query / Zustand
-updated: 2026-10-08
+updated: 2026-10-19
 ---
 
 # FRONTEND CODING STANDARDS
@@ -84,17 +84,17 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 
 | Feature | DTOs |
 |---|---|
-| `posts` | Create/UpdatePost, SharePostLinkResponse, ToggleLike, LikeTargetType, Add/UpdateComment |
+| `posts` | Create/UpdatePost, SharePostLinkResponse, Add/UpdateComment |
 | `auth` | Login/Logout/RegisterAccount/ForgotPassword/ResetPassword |
 | `profile` | UpdateProfile, Gender, SwitchProfile, ToggleCloseFriend |
-| `saved` | ToggleSavedItem, SavedItemTargetType |
+| `saved` | none (saved list reads `PostDto`) |
 | `notifications` | none yet |
 
 - `ProblemDetails` is cross-cutting -> belongs in `src/lib/`, not a feature
 - Backend swagger currently exposes request DTOs ONLY (responses untyped) -> domain models (`PostItem`, `UserProfile`...) still hand-written; replace with DTO aliases once response schemas appear in `generated.ts`
 
 ### 4. State Management & API Integration
-- **SSR Fetch:** native Fetch API with Next.js caching
+- **SSR Fetch:** native Fetch API with Next.js caching. Server fetch to dev BE needs dev cert trusted by Node: scripts use `--use-system-ca` (see `backend/integration/fe-be-integration.md` Pitfalls)
 - **CSR Fetch:** TanStack Query. MUST: Optimistic Updates (`onMutate`, `onError`, `onSettled`) for high-frequency actions (e.g. Like toggle)
 - **SignalR:**
   - Endpoint: `${Backend_API_Origin}/hubs/notifications`

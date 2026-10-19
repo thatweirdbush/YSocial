@@ -13,6 +13,7 @@ interface PageProps {
 const EXCERPT_LENGTH = 60;
 
 const NOT_FOUND_METADATA: Metadata = { title: "Không tìm thấy bài viết • YSocial" };
+const NEUTRAL_METADATA: Metadata = { title: "Bài viết • YSocial" };
 
 function postMetadata(post: PostItem): Metadata {
   const excerpt = post.content.length > EXCERPT_LENGTH ? `${post.content.slice(0, EXCERPT_LENGTH)}…` : post.content;
@@ -33,7 +34,8 @@ function postMetadata(post: PostItem): Metadata {
 /**
  * Real BE: metadata ONLY, read anonymously (tokens live in localStorage). A private author's post is 404 here but
  * 200 for an accepted follower, so the server never decides the page: 404 -> generic title (the page still
- * renders & the client resolves it with the viewer's token); network/5xx throw to `error.tsx`.
+ * renders & the client resolves it with the viewer's token); network/5xx -> neutral title (metadata is cosmetic,
+ * the page body has its own client error state).
  * `threads/{id}` accepts post & comment ids (`posts/{id}` 404s for comments).
  */
 async function realMetadata(id: string): Promise<Metadata> {
@@ -41,8 +43,7 @@ async function realMetadata(id: string): Promise<Metadata> {
   try {
     return postMetadata(toPostThread(await serverApiFetch<ThreadDto>(`/api/threads/${id}`)).post);
   } catch (error) {
-    if (isNotFound(error)) return NOT_FOUND_METADATA;
-    throw error;
+    return isNotFound(error) ? NOT_FOUND_METADATA : NEUTRAL_METADATA;
   }
 }
 

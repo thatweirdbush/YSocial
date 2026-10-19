@@ -26,7 +26,7 @@ updated: 2026-10-19
 - **Username:** chosen at register, format `^[a-z0-9._]{3,30}$` (validator, 400), unique case-insensitive incl. soft-deleted profiles (409 `UsernameTaken`); emails unique incl. deleted accounts (409 `EmailTaken`); uniqueness checked BEFORE account creation (no orphan account); username flows to default profile via `AccountCreatedEvent`
 
 
-## 4. FE adoption (as-built: `features/fe-be-integration.md`)
-- **Slice:** `NEXT_PUBLIC_REAL_API_SLICES=auth`; register -> `POST register` then `POST login` (no tokens on register), viewer from `GET users/me`
-- **Refresh:** FE coordinates single-use rotation across tabs (`navigator.locks` + adoption of token rotated by another tab); session ends only on 401 `InvalidRefreshToken` with unchanged stored token
+## 4. FE adoption (as-built: `backend/integration/fe-be-integration.md`)
+- **Slice:** `auth` is real by default (`NEXT_PUBLIC_REAL_API_SLICES` unset = all slices real; `none` = mock auth with seed demo account & `mock_*` tokens); `authService` picks adapter per call via `isRealApi("auth")`. Register -> `POST register` then `POST login` (no tokens on register), viewer from `GET users/me`
+- **Refresh:** `apiClient` retries 401 once after `refreshTokens` (`lib/token-refresh.ts`); auth endpoints skip refresh (`skipAuthRefresh`, 15s timeout). FE coordinates single-use rotation across tabs (`navigator.locks` + adoption of token rotated by another tab); session ends only on 401 `InvalidRefreshToken` with unchanged stored token
 - **Smoke:** with `Messaging:LogOtpInDevelopment=true` OTP is readable in BE Development log (reset flow verified on real BE, plan M17)

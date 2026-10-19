@@ -244,3 +244,14 @@ describe("FollowersDialog", () => {
     await waitFor(() => expect(unfollow).toHaveBeenCalledWith("u2", "v1"));
   });
 });
+
+describe("FollowersDialog locked list", () => {
+  it("locked page shows the locked empty state, not an error and not 'no followers'", async () => {
+    vi.spyOn(userService, "fetchFollowList").mockResolvedValue({ users: [], locked: true });
+    renderDialog();
+
+    expect(await screen.findByText("Tài khoản riêng tư, danh sách không hiển thị")).toBeInTheDocument();
+    expect(screen.queryByText("Không tải được nội dung")).toBeNull();
+    expect(screen.queryByText("Chưa có người theo dõi nào")).toBeNull();
+  });
+});

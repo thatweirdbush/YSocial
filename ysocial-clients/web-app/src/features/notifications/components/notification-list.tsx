@@ -9,11 +9,16 @@ import { NotificationItemData, NotificationUser } from "../types";
 export interface NotificationListProps {
   items: NotificationItemData[];
   onFollowToggle: (user: NotificationUser) => void;
+  onOpen?: (item: NotificationItemData) => void;
+  /** Rendered under the active tab list (load more). */
+  footer?: React.ReactNode;
 }
 
 export const NotificationList: React.FC<NotificationListProps> = ({
   items,
   onFollowToggle,
+  onOpen,
+  footer,
 }) => {
   const { t } = useTranslation();
 
@@ -41,8 +46,10 @@ export const NotificationList: React.FC<NotificationListProps> = ({
             key={item.id}
             item={item}
             onFollowToggle={onFollowToggle}
+            onOpen={onOpen}
           />
         ))}
+        {footer}
       </div>
     );
   };
