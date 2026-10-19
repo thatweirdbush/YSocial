@@ -7,6 +7,9 @@ export type UpdateProfileRequest = Schemas["UpdateProfileRequest"];
 export type Gender = Schemas["Gender"];
 export type SwitchProfileRequest = Schemas["SwitchProfileRequest"];
 export type ToggleCloseFriendRequest = Schemas["ToggleCloseFriendRequest"];
+export type UserProfileDto = Schemas["UserProfileDto"];
+export type UserProfileDtoPagedResponse = Schemas["UserProfileDtoPagedResponse"];
+export type FollowListPageDto = Schemas["FollowListPageDto"];
 // #endregion
 
 // #region Domain models
@@ -95,6 +98,8 @@ export interface FollowListQuery {
 export interface FollowListPage {
   users: UserProfile[];
   nextPage?: number;
+  /** Private profile the viewer may not see: `users` is empty (not an error). */
+  locked?: boolean;
 }
 
 export interface ProfilePatch {

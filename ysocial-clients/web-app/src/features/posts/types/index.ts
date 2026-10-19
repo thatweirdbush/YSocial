@@ -10,6 +10,11 @@ export type ToggleLikeRequest = Schemas["ToggleLikeRequest"];
 export type LikeTargetType = Schemas["LikeTargetType"];
 export type AddCommentRequest = Schemas["AddCommentRequest"];
 export type UpdateCommentRequest = Schemas["UpdateCommentRequest"];
+export type PostDto = Schemas["PostDto"];
+export type PostAuthorDto = Schemas["PostAuthorDto"];
+export type ThreadDto = Schemas["ThreadDto"];
+export type PostDtoPagedResponse = Schemas["PostDtoPagedResponse"];
+export type UserPostsPageDto = Schemas["UserPostsPageDto"];
 // #endregion
 
 // #region Domain models
