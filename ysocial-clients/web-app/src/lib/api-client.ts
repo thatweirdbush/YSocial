@@ -1,175 +1,97 @@
 import { useAuthStore } from "@/features/auth/store/auth-store";
+import { API_BASE_URL } from "./api-config";
+import { networkError, parseProblem } from "./api-error";
+import { refreshTokens } from "./token-refresh";
 
-const BASE_URL = "https://localhost:49895";
-
-interface RequestOptions extends RequestInit {
-  params?: Record<string, string | number>;
+export interface ApiRequestOptions extends RequestInit {
+  params?: Record<string, string | number | boolean | undefined>;
+  /** Auth endpoints (register, login, refresh-token, logout, forgot/reset-password): never refresh on 401. */
+  skipAuthRefresh?: boolean;
 }
 
-// Queue system to coordinate request replays during silent refresh token rotations
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (value: string | null) => void;
-  reject: (reason: any) => void;
-}> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
+/** Navigation side effects, isolated so tests can observe them. */
+export const authRedirect = {
+  toLogin: () => {
+    if (typeof window !== "undefined") window.location.assign("/login");
+  },
 };
 
-// Deep camelCase DTO mapper utility to fulfill strict naming standards from swagger PascalCase
-export function camelCaseKeys(obj: any): any {
-  if (Array.isArray(obj)) {
-    return obj.map(camelCaseKeys);
-  } else if (obj !== null && typeof obj === "object" && !(obj instanceof Date) && !(obj instanceof File)) {
-    return Object.keys(obj).reduce((result, key) => {
-      const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
-      result[camelKey] = camelCaseKeys(obj[key]);
-      return result;
-    }, {} as any);
+function buildUrl(path: string, params?: ApiRequestOptions["params"]): string {
+  const url = `${API_BASE_URL}${path}`;
+  if (!params) return url;
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) search.append(key, String(value));
   }
-  return obj;
+  const query = search.toString();
+  return query ? `${url}?${query}` : url;
 }
 
-async function handleResponse(response: Response) {
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    return Promise.reject({
-      status: response.status,
-      ...camelCaseKeys(errorData),
-    });
-  }
-  
-  if (response.status === 204) {
-    return null;
-  }
-  
-  const text = await response.text();
-  if (!text) return null;
-  
-  try {
-    const json = JSON.parse(text);
-    return camelCaseKeys(json);
-  } catch {
-    return text;
-  }
-}
-
-export async function apiFetch(path: string, options: RequestOptions = {}): Promise<any> {
-  // 1. LAZY EVALUATION: Dynamically fetch access token inside the call context
-  const accessToken = useAuthStore.getState().accessToken;
-
-  // 2. Build full URL with query parameters
-  let url = `${BASE_URL}${path}`;
-  if (options.params) {
-    const searchParams = new URLSearchParams();
-    Object.entries(options.params).forEach(([key, val]) => {
-      searchParams.append(key, String(val));
-    });
-    url += `?${searchParams.toString()}`;
-  }
-
-  // 3. Assemble Headers safely
-  const headers = new Headers(options.headers || {});
-  if (accessToken) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
-  }
-  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+async function send(url: string, options: ApiRequestOptions, accessToken: string | null): Promise<Response> {
+  const init: ApiRequestOptions = { ...options };
+  delete init.params;
+  delete init.skipAuthRefresh;
+  const headers = new Headers(init.headers);
+  if (accessToken) headers.set("Authorization", `Bearer ${accessToken}`);
+  if (init.body && !headers.has("Content-Type") && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-
-  const config: RequestInit = {
-    ...options,
-    headers,
-  };
-
   try {
-    const response = await fetch(url, config);
-
-    // 4. Intercept 401 errors for Silent Refresh Token Rotation
-    if (response.status === 401 && !path.includes("/api/identities/refresh-token")) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({
-            resolve: (newToken) => {
-              const updatedHeaders = new Headers(config.headers);
-              updatedHeaders.set("Authorization", `Bearer ${newToken}`);
-              config.headers = updatedHeaders;
-              resolve(fetch(url, config).then(handleResponse));
-            },
-            reject: (err) => reject(err),
-          });
-        });
-      }
-
-      isRefreshing = true;
-      const refreshToken = useAuthStore.getState().refreshToken;
-
-      if (!refreshToken) {
-        useAuthStore.getState().actions.clearAuth();
-        return Promise.reject({ status: 401, detail: "No refresh token available." });
-      }
-
-      return new Promise((resolve, reject) => {
-        fetch(`${BASE_URL}/api/identities/refresh-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refreshToken }),
-        })
-          .then(async (refreshRes) => {
-            if (refreshRes.ok) {
-              const data = await refreshRes.json();
-              const newAccess = data.accessToken || data.AccessToken;
-              const newRefresh = data.refreshToken || data.RefreshToken;
-
-              // Save new tokens
-              useAuthStore.getState().actions.setTokens(newAccess, newRefresh);
-              processQueue(null, newAccess);
-
-              const updatedHeaders = new Headers(config.headers);
-              updatedHeaders.set("Authorization", `Bearer ${newAccess}`);
-              config.headers = updatedHeaders;
-              resolve(fetch(url, config).then(handleResponse));
-            } else {
-              throw new Error("Token rotation failed");
-            }
-          })
-          .catch((err) => {
-            processQueue(err, null);
-            useAuthStore.getState().actions.clearAuth();
-            if (typeof window !== "undefined") {
-              window.location.href = "/auth/login";
-            }
-            reject(err);
-          })
-          .finally(() => {
-            isRefreshing = false;
-          });
-      });
-    }
-
-    return await handleResponse(response);
-  } catch (error: any) {
-    return Promise.reject(error);
+    return await fetch(url, { ...init, headers });
+  } catch (cause) {
+    throw networkError(cause);
   }
 }
 
+async function readBody<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
+  const text = await response.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as T;
+  }
+}
+
+/** Typed BE call: JSON as-is, failures as `ApiError`, silent token refresh on 401 (retry once, never loops). */
+export async function apiFetch<T = unknown>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  const url = buildUrl(path, options.params);
+  const { actions } = useAuthStore.getState();
+  const sentToken = useAuthStore.getState().accessToken;
+
+  let response = await send(url, options, sentToken);
+
+  if (response.status === 401 && !options.skipAuthRefresh) {
+    const original = await parseProblem(response);
+    const outcome = await refreshTokens(sentToken);
+    if (outcome.status === "transient") throw outcome.error;
+    if (outcome.status === "unauthorized") {
+      actions.clearAuth();
+      authRedirect.toLogin();
+      throw original;
+    }
+    actions.setTokens(outcome.accessToken, outcome.refreshToken);
+    response = await send(url, options, outcome.accessToken);
+  }
+
+  if (!response.ok) throw await parseProblem(response);
+  return readBody<T>(response);
+}
+
+const withBody = (body: unknown): Pick<RequestInit, "body"> => ({
+  body: body === undefined ? undefined : JSON.stringify(body),
+});
+
 export const apiClient = {
-  get: (path: string, options?: Omit<RequestOptions, "method">) =>
-    apiFetch(path, { ...options, method: "GET" }),
-  post: (path: string, body?: any, options?: Omit<RequestOptions, "method" | "body">) =>
-    apiFetch(path, { ...options, method: "POST", body: body ? JSON.stringify(body) : undefined }),
-  put: (path: string, body?: any, options?: Omit<RequestOptions, "method" | "body">) =>
-    apiFetch(path, { ...options, method: "PUT", body: body ? JSON.stringify(body) : undefined }),
-  patch: (path: string, body?: any, options?: Omit<RequestOptions, "method" | "body">) =>
-    apiFetch(path, { ...options, method: "PATCH", body: body ? JSON.stringify(body) : undefined }),
-  delete: (path: string, options?: Omit<RequestOptions, "method">) =>
-    apiFetch(path, { ...options, method: "DELETE" }),
+  get: <T = unknown>(path: string, options?: Omit<ApiRequestOptions, "method">) =>
+    apiFetch<T>(path, { ...options, method: "GET" }),
+  post: <T = unknown>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, "method" | "body">) =>
+    apiFetch<T>(path, { ...options, method: "POST", ...withBody(body) }),
+  put: <T = unknown>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, "method" | "body">) =>
+    apiFetch<T>(path, { ...options, method: "PUT", ...withBody(body) }),
+  patch: <T = unknown>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, "method" | "body">) =>
+    apiFetch<T>(path, { ...options, method: "PATCH", ...withBody(body) }),
+  delete: <T = unknown>(path: string, options?: Omit<ApiRequestOptions, "method">) =>
+    apiFetch<T>(path, { ...options, method: "DELETE" }),
 };
