@@ -127,6 +127,27 @@ describe("401 interceptor", () => {
     expect(authRedirect.toLogin).toHaveBeenCalled();
   });
 
+  it("refresh unauthorized but another tab already stored new tokens -> adopt & retry, never clear", async () => {
+    const calls = useFetch([problem(401, "Unauthenticated"), { status: 200, body: { ok: 1 } }]);
+    refresh.mockImplementation(async () => {
+      localStorage.setItem("ysocial_access_token", "A9");
+      localStorage.setItem("ysocial_refresh_token", "R9");
+      return { status: "unauthorized" };
+    });
+    expect(await apiFetch("/api/users/me")).toEqual({ ok: 1 });
+    expect(authHeader(calls[1])).toBe("Bearer A9");
+    expect(useAuthStore.getState().refreshToken).toBe("R9");
+    expect(authRedirect.toLogin).not.toHaveBeenCalled();
+  });
+
+  it("guest 401 -> original error, no clearAuth, no redirect", async () => {
+    useAuthStore.getState().actions.clearAuth();
+    useFetch([problem(401, "Unauthenticated")]);
+    refresh.mockResolvedValue({ status: "unauthorized" });
+    await expect(apiFetch("/api/feed")).rejects.toMatchObject({ status: 401 });
+    expect(authRedirect.toLogin).not.toHaveBeenCalled();
+  });
+
   it("refresh transient -> session kept, ApiError thrown", async () => {
     useFetch([problem(401, "Unauthenticated")]);
     const error = new ApiError({ kind: "network", status: 0, code: "Network" });

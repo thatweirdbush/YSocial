@@ -68,6 +68,12 @@ describe("real adapter", () => {
     expect(state.user?.username).toBe("real_user");
   });
 
+  it("login: 200 without tokens is rejected, nothing stored", async () => {
+    useFetch([{ status: 200, body: {} }]);
+    await expect(authService.login("real_user", "pw")).rejects.toMatchObject({ code: "Unknown" });
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+  });
+
   it("login: /me failure clears auth", async () => {
     useFetch([loginOk, problem(500, "InternalError")]);
     await expect(authService.login("real_user", "pw")).rejects.toMatchObject({ status: 500 });

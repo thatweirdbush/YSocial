@@ -1,4 +1,4 @@
-import { useAuthStore } from "@/features/auth/store/auth-store";
+import { AUTH_STORAGE_KEYS, useAuthStore } from "@/features/auth/store/auth-store";
 import { API_BASE_URL } from "./api-config";
 import { networkError, parseProblem } from "./api-error";
 import { refreshTokens } from "./token-refresh";
@@ -66,13 +66,26 @@ export async function apiFetch<T = unknown>(path: string, options: ApiRequestOpt
     const original = await parseProblem(response);
     const outcome = await refreshTokens(sentToken);
     if (outcome.status === "transient") throw outcome.error;
-    if (outcome.status === "unauthorized") {
-      actions.clearAuth();
-      authRedirect.toLogin();
+    let tokens: { accessToken: string; refreshToken: string } | null =
+      outcome.status === "unauthorized" ? null : outcome;
+    if (!tokens) {
+      // Another tab may have rotated meanwhile (storage already holds a different pair): adopt, never clear it
+      const storedRefresh = localStorage.getItem(AUTH_STORAGE_KEYS.refresh);
+      const storedAccess = localStorage.getItem(AUTH_STORAGE_KEYS.access);
+      if (storedAccess && storedRefresh && storedRefresh !== useAuthStore.getState().refreshToken) {
+        tokens = { accessToken: storedAccess, refreshToken: storedRefresh };
+      }
+    }
+    if (!tokens) {
+      // A guest 401 is just an unauthorized call, not an expired session
+      if (sentToken) {
+        actions.clearAuth();
+        authRedirect.toLogin();
+      }
       throw original;
     }
-    actions.setTokens(outcome.accessToken, outcome.refreshToken);
-    response = await send(url, options, outcome.accessToken);
+    actions.setTokens(tokens.accessToken, tokens.refreshToken);
+    response = await send(url, options, tokens.accessToken);
   }
 
   if (!response.ok) throw await parseProblem(response);

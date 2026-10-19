@@ -17,6 +17,7 @@
 - [Profile Core Spec](features/profile.md) - `/@username` on mocks: server-resolved route + real 404 (session cookie bridge), SSR-safe auth hydration, viewer/actor identity split, graph-derived counts & fans, profile tab controller, followers dialog, share link + QR
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
 - [FE-BE Integration Roadmap](features/fe-be-integration-roadmap.md) - Tier 1 for replacing FE mocks with real BE: phases F Foundation (auth), C Content, G Graph, N Activity, X Cleanup; BE track; deviations from MAP
+- [FE-BE Integration As-Built](features/fe-be-integration.md) - implemented real-BE adoption (Phase F auth: slice switch, api-client, cross-tab refresh, auth service), design decisions & pitfalls
 - [BE Test Spec](features/backend-unit-test.md) - 3 test layers (Domain 60, Application 41, API integration 418): WebApplicationFactory harness, in-place store reset & deterministic seed, race/probe tests, Domain/Application matrix (existing vs backlog)
 
 

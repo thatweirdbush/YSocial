@@ -89,7 +89,10 @@ async function realLogin(loginId: string, password: string): Promise<AuthUser> {
     { loginId, password, deviceId: getDeviceId() },
     AUTH_CALL,
   );
-  actions().setTokens(tokens.accessToken ?? "", tokens.refreshToken ?? "");
+  if (!tokens?.accessToken || !tokens.refreshToken) {
+    throw new ApiError({ kind: "http", status: 200, code: "Unknown", detail: "Malformed login response" });
+  }
+  actions().setTokens(tokens.accessToken, tokens.refreshToken);
   try {
     const user = toAuthUser(await apiClient.get<MeDto>("/api/users/me"));
     actions().updateUser(user);

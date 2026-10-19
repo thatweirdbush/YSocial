@@ -158,7 +158,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `POST /api/users/{targetId}/relations/follow` | JWT | -> 200 `{followStatus: "accepted" \| "pending"}` | idempotent (current status); `pending` if target private; 400 `CannotFollowSelf`; 404 missing/deleted/blocked either way; 401 | `followUser(id, actorId)` |
 | `DELETE /api/users/{targetId}/relations/follow` | JWT | -> 204 | unfollow == cancel pending; absent edge -> 204 | `unfollowUser` |
 | `PATCH /api/users/{targetId}/relations/close-friend` | JWT | `{isCloseFriend}` -> 204 | only while Accepted, else 400 `CloseFriendRequiresAcceptedFollow`; FE keeps dormant flags (`closeFriends` set includes dormant ones via `relation-sets`) | `setCloseFriend` |
-| `POST /api/users/{requesterId}/relations/follow-request` | JWT | `{decision: "accept" \| "decline"}` -> 204 | 404 no pending request or inaccessible requester; 400 bad decision; accept notifies requester; decline soft-deletes edge (no event) | `respondFollowRequest` |
+| `POST /api/users/{targetId}/relations/follow-request` | JWT | `{decision: "accept" \| "decline"}` -> 204 | 404 no pending request or inaccessible requester; 400 bad decision; accept notifies requester; decline soft-deletes edge (no event) | `respondFollowRequest` |
 | `POST /api/users/{targetId}/blocks` | JWT | -> 204 | idempotent; 404 missing/deleted target; 400 `CannotBlockSelf`; purges follows both directions in same request | `setBlocked(id, true)` |
 | `DELETE /api/users/{targetId}/blocks` | JWT | -> 204 | idempotent; follows not restored; 401 | `setBlocked(id, false)` |
 | `PUT /api/users/{targetId}/relations/mute` | JWT | no body -> 204 | idempotent; never changes follow state (no edge -> hidden `None` edge, soft-deleted edge stays deleted, flag is dormant); 400 `CannotMuteSelf`; 404 unknown/deleted/blocked either way; 401 | `setMuted(id, true)` |
@@ -281,14 +281,14 @@ SharePostLinkResponse: { postId, sharedUrl }
 
 | CP | Slice unblocked | BE state |
 |---|---|---|
-| CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests) |
-| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12) |
+| CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests); FE adopted 2026-10-19 (Phase F) |
+| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12); FE auth adopted 2026-10-19 (Phase F), post delete moves to FE Phase C |
 | CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | reached (tests, swagger verified) |
 | CP3 | private account, follow requests, followers dialog, block list, close friends | reached (tests, swagger regenerated) |
 | CP4 | feed, notifications, mute | reached (tests, swagger regenerated); FE slices not adopted yet |
 
 ### FE follow-ups (record in FE roadmap; NOT done here)
-- **CP1 (required):** cross-tab refresh single-flight (§1); fix refresh-failure redirect `/auth/login` -> `/login`; register sends `username`
+- **CP1 (required):** DONE 2026-10-19 (FE Phase F): cross-tab refresh single-flight (§1: `navigator.locks` + rotation adoption), redirect `/login`, register sends `username`
 - **CP2:** viewer bootstrap from `MeDto`, never expect `email` on other profiles; follow status from `{followStatus}`; like/bookmark via `PUT`/`DELETE` resource routes (route by `kind`); thread via `/api/threads/{id}`; accept `null` for nullable DTO fields (not only absent); map `visibility` `followersOnly|private` (not produced yet); remove toggle endpoint usage
 - **CP2/CP3 (D14):** blocked profile becomes not-found; drop `isBlockedBy` & `RelationSets.blockedBy` usage; "blocked by" UI state removed; unblock only from own block list
 - **CP3:** `FollowListPageDto.locked` for private profiles (counts visible on profile, list not clickable)

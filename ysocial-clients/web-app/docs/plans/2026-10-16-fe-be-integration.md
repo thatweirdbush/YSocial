@@ -63,11 +63,11 @@ Each line has pinned test in owning task.
   - `dispatchStorage(key: string, newValue: string | null, oldValue?: string | null): void` (fires `StorageEvent` on `window`)
   - `setRealSlices(list: string | undefined): void` (sets `process.env.NEXT_PUBLIC_REAL_API_SLICES`, restored by `afterEach`)
 
-- [ ] **Step 1: Write failing tests:** `mockFetchSequence returns steps in order & records calls`, `problem builds ProblemDetails body with code`, `createLockFake runs 2 requests for same name sequentially`, `dispatchStorage reaches storage listeners`
-- [ ] **Step 2: Run** `npx vitest run src/test/api-test-utils.test.ts` -> FAIL (module missing)
-- [ ] **Step 3: Implement** helpers above (plain TS, no new dependency)
-- [ ] **Step 4: Run** same command -> PASS
-- [ ] **Step 5: Commit** `test(api): add fetch/lock/storage test utilities`
+- [x] **Step 1: Write failing tests:** `mockFetchSequence returns steps in order & records calls`, `problem builds ProblemDetails body with code`, `createLockFake runs 2 requests for same name sequentially`, `dispatchStorage reaches storage listeners`
+- [x] **Step 2: Run** `npx vitest run src/test/api-test-utils.test.ts` -> FAIL (module missing)
+- [x] **Step 3: Implement** helpers above (plain TS, no new dependency)
+- [x] **Step 4: Run** same command -> PASS
+- [x] **Step 5: Commit** `test(api): add fetch/lock/storage test utilities`
 
 ---
 
@@ -143,11 +143,11 @@ Each line has pinned test in owning task.
   - `isRealApi(slice: ApiSlice): boolean`
 - Supported states: `""`, `auth`, `auth,content`, `auth,content,graph`, `auth,content,graph,activity`
 
-- [ ] **Step 1: Write failing tests:** `empty env -> no real slice`, `"auth" -> auth real only`, `"auth,content" -> content real`, `"content" alone -> none (gap, warns)`, `"auth,graph" -> auth only`, `unknown slice name ignored`, `base url default & override`
-- [ ] **Step 2: Run** `npx vitest run src/lib/api-config.test.ts` -> FAIL
-- [ ] **Step 3: Implement** per interfaces; `.env.example` documents both variables & supported states
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(api): add api config & cumulative slice switch`
+- [x] **Step 1: Write failing tests:** `empty env -> no real slice`, `"auth" -> auth real only`, `"auth,content" -> content real`, `"content" alone -> none (gap, warns)`, `"auth,graph" -> auth only`, `unknown slice name ignored`, `base url default & override`
+- [x] **Step 2: Run** `npx vitest run src/lib/api-config.test.ts` -> FAIL
+- [x] **Step 3: Implement** per interfaces; `.env.example` documents both variables & supported states
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(api): add api config & cumulative slice switch`
 
 ### Task F2: ApiError & ProblemDetails parsing
 **Files:**
@@ -163,11 +163,11 @@ Each line has pinned test in owning task.
   - `isApiError(value: unknown): value is ApiError`
   - `hasCode(value: unknown, code: string): boolean`
 
-- [ ] **Step 1: Write failing tests:** `parses ProblemDetails with code & traceId`, `parses validation errors map`, `HTML body -> code Unknown, kind http`, `empty body -> code Unknown`, `networkError kind network status 0`, `hasCode false for non ApiError`
-- [ ] **Step 2: Run** `npx vitest run src/lib/api-error.test.ts` -> FAIL
-- [ ] **Step 3: Implement** per interfaces
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(api): add typed ApiError & ProblemDetails parser`
+- [x] **Step 1: Write failing tests:** `parses ProblemDetails with code & traceId`, `parses validation errors map`, `HTML body -> code Unknown, kind http`, `empty body -> code Unknown`, `networkError kind network status 0`, `hasCode false for non ApiError`
+- [x] **Step 2: Run** `npx vitest run src/lib/api-error.test.ts` -> FAIL
+- [x] **Step 3: Implement** per interfaces
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(api): add typed ApiError & ProblemDetails parser`
 
 ### Task F3: Refresh coordinator (cross-tab only when locks exist)
 **Files:**
@@ -182,11 +182,11 @@ Each line has pinned test in owning task.
   - `getRefreshCoordination(deps?): "cross-tab" | "in-tab"` (`cross-tab` only when lock manager is available)
   - `refreshTokens(sentAccessToken: string | null, deps?: { locks?: LockManagerLike; storage?: Storage; fetchFn?: typeof fetch }): Promise<RefreshOutcome>`: lock name `ysocial-refresh`; inside lock re-read storage; stored access token != sent -> `adopted`; else `POST /api/identities/refresh-token {refreshToken}`; success -> write both tokens, `refreshed`; 401 `InvalidRefreshToken` -> re-read storage: stored refresh token != one sent -> `adopted` (other tab rotated), else `unauthorized`; network/5xx/other -> `transient`; no refresh token -> `unauthorized`; no lock manager -> in-tab shared promise only
 
-- [ ] **Step 1: Write failing tests:** `with locks: 2 concurrent calls, same sent token -> exactly 1 fetch, second returns adopted`, `stored access token already rotated -> adopted without fetch`, `401 InvalidRefreshToken but stored refresh token changed meanwhile -> adopted`, `401 InvalidRefreshToken with unchanged stored token -> unauthorized (BE restart case)`, `no refresh token -> unauthorized`, `network error -> transient, tokens untouched`, `500 -> transient`, `success writes both tokens`, `no locks: coordination is "in-tab", same-tab concurrent calls still 1 fetch, cross-tab loser recovers via 401 rescue (not claimed as single-flight)`, `getRefreshCoordination reflects lock availability`
-- [ ] **Step 2: Run** `npx vitest run src/lib/token-refresh.test.ts` -> FAIL
-- [ ] **Step 3: Implement** per interfaces (default `locks = navigator.locks` adapter when present)
-- [ ] **Step 4: Run** -> PASS
-- [ ] **Step 5: Commit** `feat(auth): refresh coordinator with cross-tab lock & rotation adoption`
+- [x] **Step 1: Write failing tests:** `with locks: 2 concurrent calls, same sent token -> exactly 1 fetch, second returns adopted`, `stored access token already rotated -> adopted without fetch`, `401 InvalidRefreshToken but stored refresh token changed meanwhile -> adopted`, `401 InvalidRefreshToken with unchanged stored token -> unauthorized (BE restart case)`, `no refresh token -> unauthorized`, `network error -> transient, tokens untouched`, `500 -> transient`, `success writes both tokens`, `no locks: coordination is "in-tab", same-tab concurrent calls still 1 fetch, cross-tab loser recovers via 401 rescue (not claimed as single-flight)`, `getRefreshCoordination reflects lock availability`
+- [x] **Step 2: Run** `npx vitest run src/lib/token-refresh.test.ts` -> FAIL
+- [x] **Step 3: Implement** per interfaces (default `locks = navigator.locks` adapter when present)
+- [x] **Step 4: Run** -> PASS
+- [x] **Step 5: Commit** `feat(auth): refresh coordinator with cross-tab lock & rotation adoption`
 
 ### Task F4: api-client rewrite
 **Files:**
@@ -202,11 +202,11 @@ Each line has pinned test in owning task.
   - Interceptor: on 401, if NOT `skipAuthRefresh` & not already retried: `refreshTokens(sentToken)`; `refreshed|adopted` -> retry ONCE with new token; `unauthorized` -> `clearAuth()` + redirect `/login` + throw original 401 `ApiError`; `transient` -> throw its error (session kept)
   - Auth endpoints (register, login, refresh-token, logout, forgot-password, reset-password) callers pass `skipAuthRefresh: true`
 
-- [ ] **Step 1: Write failing tests:** `adds Bearer header when token present`, `204 returns undefined`, `non-ok -> ApiError with code`, `fetch rejects -> ApiError kind network`, `HTML error body -> ApiError code Unknown`, `401 then refreshed -> original retried once with new token`, `401 then retry 401 -> rejects, no 2nd refresh`, `login 401 with skipAuthRefresh -> no refresh call`, `refresh unauthorized -> clearAuth & redirect /login`, `refresh transient -> session kept, ApiError thrown`, `params serialized, undefined skipped`
-- [ ] **Step 2: Run** `npx vitest run src/lib/api-client.test.ts` -> FAIL
-- [ ] **Step 3: Implement** per interfaces; confirm 0 importers of removed `camelCaseKeys` (`grep -rn camelCaseKeys src` empty)
-- [ ] **Step 4: Run** `npx vitest run src/lib` & `npm run typecheck` -> PASS
-- [ ] **Step 5: Commit** `refactor(api): typed api-client with single-flight refresh`
+- [x] **Step 1: Write failing tests:** `adds Bearer header when token present`, `204 returns undefined`, `non-ok -> ApiError with code`, `fetch rejects -> ApiError kind network`, `HTML error body -> ApiError code Unknown`, `401 then refreshed -> original retried once with new token`, `401 then retry 401 -> rejects, no 2nd refresh`, `login 401 with skipAuthRefresh -> no refresh call`, `refresh unauthorized -> clearAuth & redirect /login`, `refresh transient -> session kept, ApiError thrown`, `params serialized, undefined skipped`
+- [x] **Step 2: Run** `npx vitest run src/lib/api-client.test.ts` -> FAIL
+- [x] **Step 3: Implement** per interfaces; confirm 0 importers of removed `camelCaseKeys` (`grep -rn camelCaseKeys src` empty)
+- [x] **Step 4: Run** `npx vitest run src/lib` & `npm run typecheck` -> PASS
+- [x] **Step 5: Commit** `refactor(api): typed api-client with single-flight refresh`
 
 ### Task F5: Contract test, regenerate API types & fix `api:update`
 **Files:**
@@ -218,11 +218,11 @@ Each line has pinned test in owning task.
 - Produces: script `api:fetch` = download BE Swagger (Development) into `docs/swagger.json`; contract test reading `docs/swagger.json`
 - Evidence at plan time: `generated.ts` is STALE (only request schemas + few paths; no `PostDto`, `ThreadDto`, `MeDto`, `LoginResponse`, GET endpoints); `docs/swagger.json` has them but lacks `NotificationDto.senderUsername` that BE source (`NotificationDtos.cs`) already has; page schemas are named `PostDtoPagedResponse`, `UserProfileDtoPagedResponse` (no generics); read-DTO enums are plain `string`, nearly every field is `nullable`
 
-- [ ] **Step 1: Write failing tests** in `api-contract.test.ts`: `every endpoint used by adapters exists in swagger (method + path)` (identities x6, users me/{id}/by-username/followers/following/follow-requests(+count)/relation-sets/blocks/mutes, profiles/me, privacy, posts CRUD & user list, threads, comments CRUD, like/bookmark PUT/DELETE for posts & comments, saveditems/posts, relations follow/close-friend/follow-request/mute, blocks, feed, notifications x4; follow-request path param is `{targetId}`, MAP says `{requesterId}`), `required schemas exist` (`PostDto`, `ThreadDto`, `MeDto`, `LoginResponse`, `RefreshTokenRequest`, `RegisterAccountResponse`, `RespondFollowRequestRequest`, `UpdatePrivacyRequest`, `PostDtoPagedResponse`, `UserProfileDtoPagedResponse`, `FollowListPageDto`, `UserPostsPageDto`, `NotificationPageDto`), `PostDto has kind, postId, parentId`, `NotificationDto has senderUsername` (FAILS today: swagger stale vs BE source)
-- [ ] **Step 2: Run** `npx vitest run src/lib/api-contract.test.ts` -> FAIL on `senderUsername`; record `npm run api:check` output
-- [ ] **Step 3: Add** `api:fetch` (Node fetch of `https://localhost:49895/swagger/v1/swagger.json`; needs `NODE_EXTRA_CA_CERTS` or system CA; document PEM export `dotnet dev-certs https --export-path <file> --format Pem --no-password`); run BE in Development, then `npm run api:fetch` & `npm run api:generate`
-- [ ] **Step 4: Run** `npx vitest run src/lib/api-contract.test.ts`, `npm run api:check`, `npm run typecheck` -> PASS (types FE already imports must compile)
-- [ ] **Step 5: Commit** `chore(api): add contract test & api:fetch, regenerate types from BE swagger`
+- [x] **Step 1: Write failing tests** in `api-contract.test.ts`: `every endpoint used by adapters exists in swagger (method + path)` (identities x6, users me/{id}/by-username/followers/following/follow-requests(+count)/relation-sets/blocks/mutes, profiles/me, privacy, posts CRUD & user list, threads, comments CRUD, like/bookmark PUT/DELETE for posts & comments, saveditems/posts, relations follow/close-friend/follow-request/mute, blocks, feed, notifications x4; follow-request path param is `{targetId}`, MAP says `{requesterId}`), `required schemas exist` (`PostDto`, `ThreadDto`, `MeDto`, `LoginResponse`, `RefreshTokenRequest`, `RegisterAccountResponse`, `RespondFollowRequestRequest`, `UpdatePrivacyRequest`, `PostDtoPagedResponse`, `UserProfileDtoPagedResponse`, `FollowListPageDto`, `UserPostsPageDto`, `NotificationPageDto`), `PostDto has kind, postId, parentId`, `NotificationDto has senderUsername` (FAILS today: swagger stale vs BE source)
+- [x] **Step 2: Run** `npx vitest run src/lib/api-contract.test.ts` -> FAIL on `senderUsername`; record `npm run api:check` output
+- [x] **Step 3: Add** `api:fetch` (Node fetch of `https://localhost:49895/swagger/v1/swagger.json`; needs `NODE_EXTRA_CA_CERTS` or system CA; document PEM export `dotnet dev-certs https --export-path <file> --format Pem --no-password`); run BE in Development, then `npm run api:fetch` & `npm run api:generate`
+- [x] **Step 4: Run** `npx vitest run src/lib/api-contract.test.ts`, `npm run api:check`, `npm run typecheck` -> PASS (types FE already imports must compile)
+- [x] **Step 5: Commit** `chore(api): add contract test & api:fetch, regenerate types from BE swagger`
 
 ### Task F6: Auth store cross-tab sync & device id
 **Files:**
@@ -238,11 +238,11 @@ Each line has pinned test in owning task.
   - `getDeviceId(): string` (UUID under `ysocial_device_id`; stable; storage failure -> in-memory id)
   - `hydrate()` in real auth mode discards `mock_*` tokens & persisted user whose id is not GUID (then behaves as signed out)
 
-- [ ] **Step 1: Write failing tests:** `setTokens in other tab (2 events) -> store ends with both new tokens`, `clearAuth in other tab (3 events) -> single cleared state`, `sync never writes back to storage (no loop)`, `cleanup removes listener`, `hydrate real mode drops mock_ tokens`, `hydrate real mode drops non-GUID user id`, `hydrate mock mode unchanged`, `getDeviceId stable`, `getDeviceId survives storage failure`
-- [ ] **Step 2: Run** `npx vitest run src/features/auth` -> new tests FAIL
-- [ ] **Step 3: Implement** per interfaces; mount `registerAuthStorageSync` in `Providers`
-- [ ] **Step 4: Run** `npx vitest run src/features/auth` -> PASS
-- [ ] **Step 5: Commit** `feat(auth): cross-tab token sync, persisted device id, stale mock session guard`
+- [x] **Step 1: Write failing tests:** `setTokens in other tab (2 events) -> store ends with both new tokens`, `clearAuth in other tab (3 events) -> single cleared state`, `sync never writes back to storage (no loop)`, `cleanup removes listener`, `hydrate real mode drops mock_ tokens`, `hydrate real mode drops non-GUID user id`, `hydrate mock mode unchanged`, `getDeviceId stable`, `getDeviceId survives storage failure`
+- [x] **Step 2: Run** `npx vitest run src/features/auth` -> new tests FAIL
+- [x] **Step 3: Implement** per interfaces; mount `registerAuthStorageSync` in `Providers`
+- [x] **Step 4: Run** `npx vitest run src/features/auth` -> PASS
+- [x] **Step 5: Commit** `feat(auth): cross-tab token sync, persisted device id, stale mock session guard`
 
 ### Task F7: Auth service (mock/real), error map, i18n
 **Files:**
@@ -278,11 +278,11 @@ Each line has pinned test in owning task.
 | `auth.errorSessionExpired` | Phiên đăng nhập đã hết hạn | Your session has expired |
 | `auth.registeredPleaseLogin` | Tạo tài khoản thành công, hãy đăng nhập | Account created, please sign in |
 
-- [ ] **Step 1: Write failing tests:** `real login sends loginId/password/deviceId with skipAuthRefresh`, `real login stores tokens then bootstraps viewer from /me`, `real login: /me failure clears auth`, `real register then login`, `register ok but login fails -> RegisteredLoginFailedError`, `logout with network failure still clears local session`, `forgot/reset call endpoints, 204 -> void`, `toAuthUser maps nulls to undefined`, `authErrorKey maps each auth code (InvalidCredentials, AccountInactive, EmailTaken, UsernameTaken, InvalidOtp, OtpAttemptsExceeded, ValidationFailed, network, unknown)`, `authFieldErrors returns first message per field`, `mock mode keeps seed demo login`, `real mode does not apply reserved-username rule`
-- [ ] **Step 2: Run** `npx vitest run src/features/auth` -> FAIL
-- [ ] **Step 3: Implement** per interfaces; select adapter per call via `isRealApi("auth")`
-- [ ] **Step 4: Run** `npx vitest run src/features/auth` & `npm run typecheck` -> PASS
-- [ ] **Step 5: Commit** `feat(auth): auth service with real BE adapter & error mapping`
+- [x] **Step 1: Write failing tests:** `real login sends loginId/password/deviceId with skipAuthRefresh`, `real login stores tokens then bootstraps viewer from /me`, `real login: /me failure clears auth`, `real register then login`, `register ok but login fails -> RegisteredLoginFailedError`, `logout with network failure still clears local session`, `forgot/reset call endpoints, 204 -> void`, `toAuthUser maps nulls to undefined`, `authErrorKey maps each auth code (InvalidCredentials, AccountInactive, EmailTaken, UsernameTaken, InvalidOtp, OtpAttemptsExceeded, ValidationFailed, network, unknown)`, `authFieldErrors returns first message per field`, `mock mode keeps seed demo login`, `real mode does not apply reserved-username rule`
+- [x] **Step 2: Run** `npx vitest run src/features/auth` -> FAIL
+- [x] **Step 3: Implement** per interfaces; select adapter per call via `isRealApi("auth")`
+- [x] **Step 4: Run** `npx vitest run src/features/auth` & `npm run typecheck` -> PASS
+- [x] **Step 5: Commit** `feat(auth): auth service with real BE adapter & error mapping`
 
 ### Task F8: Wire auth UI & viewer bridge
 **Files:**
@@ -293,22 +293,47 @@ Each line has pinned test in owning task.
 - Consumes: `authService`, `authErrorKey`, `authFieldErrors` (F7)
 - Produces: forms call `authService` only (no inline `setTokens`/`updateUser`); field errors from BE `errors` map shown inline; `RegisteredLoginFailedError` -> `router.push("/login")` with `auth.registeredPleaseLogin`
 
-- [ ] **Step 1: Write failing tests:** `login form shows invalidCredentials message on 401`, `login form keeps submit enabled & spinner while pending`, `register shows usernameTaken on 409`, `register maps BE validation errors to fields`, `register-then-login-failure navigates /login with notice`, `forgot step shows otp errors inline`, `mock mode flows unchanged`
-- [ ] **Step 2: Run** `npx vitest run src/features/auth/components` -> FAIL
-- [ ] **Step 3: Implement** wiring; replace redirect usage of `/auth/login` anywhere (`grep -rn "/auth/login" src` empty)
-- [ ] **Step 4: Run** `npx vitest run src/features/auth` -> PASS
-- [ ] **Step 5: Commit** `feat(auth): wire auth forms to auth service`
+- [x] **Step 1: Write failing tests:** `login form shows invalidCredentials message on 401`, `login form keeps submit enabled & spinner while pending`, `register shows usernameTaken on 409`, `register maps BE validation errors to fields`, `register-then-login-failure navigates /login with notice`, `forgot step shows otp errors inline`, `mock mode flows unchanged`
+- [x] **Step 2: Run** `npx vitest run src/features/auth/components` -> FAIL
+- [x] **Step 3: Implement** wiring; replace redirect usage of `/auth/login` anywhere (`grep -rn "/auth/login" src` empty)
+- [x] **Step 4: Run** `npx vitest run src/features/auth` -> PASS
+- [x] **Step 5: Commit** `feat(auth): wire auth forms to auth service`
 
 ### Task F9: Phase F exit
 **Files:**
 - Modify: `.context/features/fe-be-integration-roadmap.md` (check F.1-F.3), MAP §6 (CP0/CP1 rows "FE adopted", post delete moved to C), `.context/features/identities.md` (FE as-built notes)
 - Create: `.context/features/fe-be-integration.md` (Tier 3 as-built: switch, api-client, refresh, mixed mode, pitfalls)
 
-- [ ] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> all pass (record counts)
-- [ ] **Step 2: Manual smoke on real BE** (`NEXT_PUBLIC_REAL_API_SLICES=auth`, BE Development, dev cert trusted): register -> auto-login -> reload (viewer persists) -> force refresh (shorten token or invalidate access token) -> logout; repeat in 2 tabs (1 refresh call in BE log, no forced logout); BE restart mid-session -> clean `/login`; wrong password message; forgot/reset with OTP from BE Development log
-- [ ] **Step 3: Log** every disagreement in Mismatch log; resolve or defer each
-- [ ] **Step 4: Update docs** (files above); `requesting-code-review` gate: critical issues block Phase C
-- [ ] **Step 5: Commit** `docs(integration): close Phase F`
+- [x] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> all pass (record counts)
+- [x] **Step 2: Manual smoke on real BE** (`NEXT_PUBLIC_REAL_API_SLICES=auth`, BE Development, dev cert trusted): register -> auto-login -> reload (viewer persists) -> force refresh (shorten token or invalidate access token) -> logout; repeat in 2 tabs (1 refresh call in BE log, no forced logout); BE restart mid-session -> clean `/login`; wrong password message; forgot/reset with OTP from BE Development log
+- [x] **Step 3: Log** every disagreement in Mismatch log; resolve or defer each
+- [x] **Step 4: Update docs** (files above); `requesting-code-review` gate: critical issues block Phase C
+- [x] **Step 5: Commit** `docs(integration): close Phase F`
+
+**Execution record (2026-10-19, branch `feat/fe-be-integration`):**
+- **Verification:** `npm run test` 88 files / 1003 tests pass (after review fixes); `typecheck` & `api:check` clean; `eslint` 6 errors all pre-existing & outside Phase F files (`safe-hydration.tsx`, `use-mobile.ts`, `signalr-client.ts` any, `post-creator-dialog.tsx` any, `post-draft-store.ts` prefer-const, 1 more any in posts) -> deferred minors, not touched
+- **Smoke (real BE Development, `NEXT_PUBLIC_REAL_API_SLICES=auth`, dev cert trusted):**
+  - browser: register -> auto-login -> reload (viewer persists, nav uses real username) -> logout (`POST logout` 204, storage cleared, `/login`) -> wrong password message -> forgot (204) -> reset with wrong OTP shows `InvalidOtp` inline; logout in tab 1 flips tab 2 nav to `/login` without reload (storage sync)
+  - node (jsdom, real BE): corrupt access token + 2 concurrent `apiClient.get(/me)` -> exactly 1 `refresh-token` call, both resolve; BE restart then call with stale token -> refresh 401 -> `clearAuth` + redirect `/login`
+  - NOT covered: real cross-tab lock contention in 2 browser tabs (no authenticated real call exists in Phase F surface to trigger a refresh from UI; lock path proven by `createLockFake` unit tests only), successful forgot -> reset (BE masks OTP, see M17)
+- **Review gate (fresh Opus reviewer):** 2 Important fixed RED->GREEN (suite 1003/1003): no-lock cross-tab race could clear a freshly rotated pair (api-client now adopts storage pair that differs from state instead of clearing), guest 401 forced logout + hard redirect (now throws original 401); plus Minor login 200 without tokens now rejected
+- **Deferred minors (carry to Phase C/X):**
+  - double click on enabled submit sets RHF `isSubmitting` false early (spinner flickers off, duplicate request blocked)
+  - `rotate` reads raw storage pre-hydration (safe only through effect ordering); first child request before `hydrate()` goes out without Bearer
+  - no timeout on refresh/logout fetch (hung refresh stalls lock waiters)
+  - malformed 200 on refresh treated transient (BE already rotated); `readBody` casts non-JSON 200 text as `T`
+  - N queued lock waiters each retry refresh while BE returns 5xx
+  - `send()` attaches Bearer on `skipAuthRefresh` calls; `authFieldErrors` shows raw BE text (not vi); `navigator.locks as unknown as LockManagerLike` cast
+  - residual no-lock window: tab B may redirect to `/login` while tab A's fresh pair lands right after (valid session in storage)
+- **Rulings:**
+  - `RefreshOutcome` success/adopted variants also carry `refreshToken` (additive: api-client must sync store, storage events never fire in same tab)
+  - `LockManagerLike` declared in `token-refresh.ts`; T0 helper declares same shape structurally (avoids test util importing app code)
+  - GUID check for stale-mock session guard is a local regex in `auth-store.ts`; C1 `isBackendId` should replace it
+  - `BusinessRuleViolated` maps to `auth.errorValidationFailed`; existing `auth.errorUsernameTaken` text kept (plan table would have replaced it)
+  - redirect isolated as `authRedirect.toLogin` (jsdom cannot observe `location.assign`)
+  - mock adapter keeps its simulated delays inside `authService` so mock-mode timing is unchanged
+  - `useSubmitGuard` hook added (`react-hooks/refs` lint forbids ref in form component); all 5 auth submit buttons stay enabled
+  - real-mode form tests live in `login-form.real.test.tsx` (existing mock test untouched); `.gitignore` gets `!.env.example`; BE is run from the main checkout (worktree lacks sibling `Microservice.BuildingBlocks`)
 
 ---
 
@@ -703,15 +728,16 @@ Each line has pinned test in owning task.
 | M5 | C3 | `PostItem` lacked `kind`/root id; services took bare ids | FE: required `kind` & `rootPostId`, `PostRef` param | decided (FE) |
 | M6 | C | FE `following` tab for guests vs BE 401 | FE: hide for guests, adapter returns empty page | decided (FE) |
 | M7 | C | BE feed excludes muted authors; FE mute is local until N | mute UI hidden until N | closed |
-| M8 | F4 | FE redirect `/auth/login` vs route `/login` | FE: fix in api-client | decided (FE) |
-| M9 | F5 | `api:update` calls missing `api:fetch` | FE: add script | decided (FE) |
-| M10 | F5 | `generated.ts` stale vs `docs/swagger.json` (no response schemas, no GET paths) | FE: regenerate before any task importing response types | decided (FE) |
-| M11 | F5 | `docs/swagger.json` stale vs BE source (`NotificationDto.SenderUsername` missing) | regenerate from running BE; contract test pins it | open: needs evidence at F5 |
+| M8 | F4 | FE redirect `/auth/login` vs route `/login` | FE: fix in api-client | resolved F4 (`authRedirect.toLogin`) |
+| M9 | F5 | `api:update` calls missing `api:fetch` | FE: add script | resolved F5 (`api:fetch`, `scripts/fetch-swagger.mjs`) |
+| M10 | F5 | `generated.ts` stale vs `docs/swagger.json` (no response schemas, no GET paths) | FE: regenerate before any task importing response types | resolved F5 |
+| M11 | F5 | `docs/swagger.json` stale vs BE source (`NotificationDto.SenderUsername` missing) | regenerate from running BE; contract test pins it | resolved F5: regenerated swagger has `senderUsername`, contract test green |
 | M12 | C4 | swagger marks nearly all fields nullable (MAP says non-null) & enums are plain `string`; unknown enum values undefined | FE mappers tolerate null/absent; proposal: unknown `visibility` -> `private`, unknown `followStatus` -> `none`; BE option: enable nullable-reference-type support in Swashbuckle (user decides) | open: needs evidence at F5/C4 |
-| M13 | F5 | MAP names follow-request param `{requesterId}`, swagger `{targetId}` | MAP: fix name | decided (MAP) |
+| M13 | F5 | MAP names follow-request param `{requesterId}`, swagger `{targetId}` | MAP: fix name | resolved F9 (MAP names `{targetId}`) |
 | M14 | C8 | `/posts/[id]` cannot 404 on server (anonymous read vs viewer-dependent visibility) | soft 404 via client state; revisit with cookie/BFF auth | accepted |
-| M15 | F3 | no `navigator.locks` (insecure context, jsdom) -> no cross-tab single-flight | in-tab only + rotation adoption rescue; documented | accepted |
+| M15 | F3 | no `navigator.locks` (insecure context, jsdom) -> no cross-tab single-flight | in-tab only + rotation adoption rescue; documented | accepted (lock path unit-proven; localhost has `navigator.locks`) |
 | M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
+| M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, IDS §2), so successful reset cannot be smoke-tested | proposal (user decides, BE track): Development-only fixed OTP or test hook; until then reset success proven only by `auth-service` tests & wrong-OTP path on real BE | open |
 
 ## Self-review (writing-plans)
 - **Spec coverage:** Phase F decisions F-D1..F-D8 (Phase F design notes) map to F1-F8; roadmap items F.1-F.3, C.1-C.4, G.1-G.2, N.1-N.3, X.1-X.3 map to tasks; roadmap deviations apply at phase exits (post delete CP1 -> C, follow & feed read -> C, switcher out of C)
