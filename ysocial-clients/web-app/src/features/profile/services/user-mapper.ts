@@ -1,7 +1,7 @@
 import { ApiError } from "@/lib/api-error";
 import type { FollowListPage, FollowListPageDto, FollowStatus, UserProfile, UserProfileDto, UserProfileDtoPagedResponse } from "../types";
 
-const toFollowStatus = (value: string | null | undefined): FollowStatus =>
+export const toFollowStatus = (value: string | null | undefined): FollowStatus =>
   value === "pending" || value === "accepted" ? value : "none";
 
 /** Swagger marks every field optional (M12): a profile without an id is a contract breach. */

@@ -1,3 +1,4 @@
+import { isRealApi } from "@/lib/api-config";
 import { ForbiddenError } from "@/lib/errors";
 import { normalizeText, tokenize } from "@/lib/text";
 import { isBlocked, isEitherBlocked } from "@/mocks/block-graph";
@@ -13,6 +14,7 @@ import {
 } from "@/mocks/relation-graph";
 import { isFanId } from "@/mocks/seed-fans";
 import { asViewer, canDiscoverUser, canViewProfile } from "@/mocks/visibility";
+import * as real from "./user-service.real";
 import { HIDDEN_FOLLOWERS, HIDDEN_FOLLOWING, isSeedUserId, MOCK_USERS } from "../mocks/mock-users";
 import {
   PROFILE_BIO_MAX,
@@ -107,6 +109,7 @@ export async function fetchSuggestedUsers(limit: number, actorId: string): Promi
 }
 
 export async function fetchUser(id: string, actorId: string): Promise<UserProfile | null> {
+  if (isRealApi("content")) return real.fetchUser(id, actorId);
   await mockDelay();
 
   const user = db.get(id);
@@ -115,6 +118,7 @@ export async function fetchUser(id: string, actorId: string): Promise<UserProfil
 
 /** Case-insensitive username lookup. */
 export async function fetchUserByUsername(username: string, actorId: string): Promise<UserProfile | null> {
+  if (isRealApi("content")) return real.fetchUserByUsername(username, actorId);
   await mockDelay();
 
   const wanted = username.toLowerCase();
@@ -124,6 +128,7 @@ export async function fetchUserByUsername(username: string, actorId: string): Pr
 
 /** Complete set of authors the actor follows (accepted only). */
 export async function fetchFollowedIds(actorId: string): Promise<string[]> {
+  if (isRealApi("content")) return real.fetchFollowedIds(actorId);
   await mockDelay();
   return [...getFollowedIds(actorId)];
 }
@@ -134,6 +139,7 @@ export async function fetchFollowedIds(actorId: string): Promise<string[]> {
  * block either way -> `ForbiddenError`.
  */
 export async function followUser(id: string, actorId: string): Promise<FollowStatus> {
+  if (isRealApi("content")) return real.followUser(id, actorId);
   const viewer = asViewer(actorId);
   if (!viewer) throw new ForbiddenError("Sign in to follow");
   if (isEitherBlocked(viewer, id)) throw new ForbiddenError(`Cannot follow ${id}`);
@@ -145,6 +151,7 @@ export async function followUser(id: string, actorId: string): Promise<FollowSta
 
 /** Idempotent unfollow / cancel request (mirrors BE `DELETE /relations/follow`): pending & accepted -> none. */
 export async function unfollowUser(id: string, actorId: string): Promise<void> {
+  if (isRealApi("content")) return real.unfollowUser(id, actorId);
   const viewer = asViewer(actorId);
   if (!viewer) throw new ForbiddenError("Sign in to unfollow");
 
@@ -211,6 +218,7 @@ function validatePatch({ displayName, bio, avatarUrl }: ProfilePatch): void {
 
 /** Owner-only profile edit. The username is not editable (the mock session cookie identity stays valid). */
 export async function updateProfile(id: string, patch: ProfilePatch, actorId: string): Promise<UserProfile> {
+  if (isRealApi("content")) return real.updateProfile(id, patch, actorId);
   if (actorId !== id) throw new ForbiddenError(`Profile ${id} is not owned by ${actorId}`);
   validatePatch(patch);
 
@@ -229,6 +237,7 @@ export async function updateProfile(id: string, patch: ProfilePatch, actorId: st
  * seed ids. Touches the graph node immediately so follow counts never jump later.
  */
 export async function upsertViewerUser(input: ViewerUserInput, actorId: string): Promise<UserProfile> {
+  if (isRealApi("content")) return real.upsertViewerUser(input, actorId);
   // Register always issues the same id: a different account reusing it replaces the row; the same account keeps its edits
   if (!isSeedUserId(input.id) && db.get(input.id)?.username !== input.username) {
     db.set(input.id, {
