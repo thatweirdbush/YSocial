@@ -281,7 +281,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ## 11. Tests
 - 3 projects, 523 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 41, `Api.IntegrationTests` 422
-- Layers, harness, reset rules & per-area coverage: `.context/features/backend-unit-test.md`
+- Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth)
 
 ## 12. Evidence ledger

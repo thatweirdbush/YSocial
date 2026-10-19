@@ -94,7 +94,7 @@ export type CreatePostRequest = components['schemas']['CreatePostRequest'];
 - Backend swagger currently exposes request DTOs ONLY (responses untyped) -> domain models (`PostItem`, `UserProfile`...) still hand-written; replace with DTO aliases once response schemas appear in `generated.ts`
 
 ### 4. State Management & API Integration
-- **SSR Fetch:** native Fetch API with Next.js caching. Server fetch to dev BE needs dev cert trusted by Node: scripts use `--use-system-ca` (see `features/fe-be-integration.md` Pitfalls)
+- **SSR Fetch:** native Fetch API with Next.js caching. Server fetch to dev BE needs dev cert trusted by Node: scripts use `--use-system-ca` (see `backend/integration/fe-be-integration.md` Pitfalls)
 - **CSR Fetch:** TanStack Query. MUST: Optimistic Updates (`onMutate`, `onError`, `onSettled`) for high-frequency actions (e.g. Like toggle)
 - **SignalR:**
   - Endpoint: `${Backend_API_Origin}/hubs/notifications`

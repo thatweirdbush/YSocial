@@ -88,4 +88,4 @@ Spec D1-D16 + D5b hold as implemented. Key ones + implementation decisions (I*):
 | Browser pane hidden: Radix menus/lightbox stay mounted (`data-state=closed`), body `pointer-events:none`, screenshots time out | Hidden pane pauses rAF/animations -> `animationend` never fires (environment, not app) | Verify via `find`/JS; menu-driven flows covered by RTL tests | Animations `currentTime` stuck at 0 |
 
 ## FE-BE integration (Phase C)
-- Real BE mode (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`): data comes from real adapters, hidden surfaces & server-read rules in `features/fe-be-integration.md` (Phase C)
+- Real BE mode (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`): data comes from real adapters, hidden surfaces & server-read rules in `backend/integration/fe-be-integration.md` (Phase C)

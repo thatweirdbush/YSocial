@@ -414,7 +414,7 @@ Single owner per fact; others link, never copy
 | Decision status & task progress | this plan (§4, §5.4 checkboxes); §4.1/§4.2 frozen once MAP holds them (replace by link) | each task close |
 | Generic patterns (classified rules, projector, access policy, set-based repo members) | `conventions/backend.md` | T1.1b, T2.1, T2.3 |
 | Stale specs | `features/identities.md`, `features/user-profile-and-relations.md` -> replace endpoint content with MAP link | T1.5, T3.1 |
-| Test layers | `features/backend-unit-test.md` (API integration layer, reset rules) | T0.1 |
+| Test layers | `backend/architecture/backend-unit-test.md` (API integration layer, reset rules) | T0.1 |
 | Swagger copy for FE | `ysocial-clients/web-app/docs/swagger.json` | T2.6 & every later contract change |
 
 ## 8. Deferred work & known risks

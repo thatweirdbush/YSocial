@@ -66,4 +66,4 @@ FollowButton / FollowersDialog -> commitFollow(actor, id, follow|unfollow) -> se
 - Browser pane (still valid): register -> own profile -> reload OK without hydration warning; logout -> same runtime username 404; unknown 404; login demo -> 4 tabs, pinned first, media grid, saved; follow sync, dialog search & paging, QR PNG download with Unsplash avatar; 375 dark, 768 light. NOT visually checked: 1440, keyboard focus rings (class review only)
 
 ## FE-BE integration (Phase C)
-- Real BE mode (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`): data comes from real adapters, hidden surfaces & server-read rules in `features/fe-be-integration.md` (Phase C)
+- Real BE mode (`NEXT_PUBLIC_REAL_API_SLICES=auth,content`): data comes from real adapters, hidden surfaces & server-read rules in `backend/integration/fe-be-integration.md` (Phase C)

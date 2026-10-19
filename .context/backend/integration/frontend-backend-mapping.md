@@ -275,7 +275,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 
 ## 6. FE checkpoints & follow-ups
 
-> FE adoption plan & phase progress: `../../features/fe-be-integration-roadmap.md` (post delete moves CP1 -> Phase C). FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
+> FE adoption plan & phase progress: `fe-be-integration-roadmap.md` (post delete moves CP1 -> Phase C). FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
 
 | CP | Slice unblocked | BE state |
 |---|---|---|
@@ -323,4 +323,4 @@ SharePostLinkResponse: { postId, sharedUrl }
 
 ## 8. Evidence
 - Probes of original behavior (T0.2) & their current results: `../architecture/backend-guide.md` §12
-- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (422 tests; layers in `.context/features/backend-unit-test.md`)
+- Contract regression suite: `tests/YSocial.Api.IntegrationTests` (422 tests; layers in `.context/backend/architecture/backend-unit-test.md`)

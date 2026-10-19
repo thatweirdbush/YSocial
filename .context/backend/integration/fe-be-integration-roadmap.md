@@ -9,7 +9,7 @@ updated: 2026-10-16
 - **Goal:** replace FE mocks with real BE slice by slice; contract is frozen & test-proven on BE side, never exercised from FE
 - **Inputs:** `features/frontend-roadmap.md` (FE built on mocks), `backend/integration/frontend-backend-mapping.md` (MAP: contract, CP0-CP4, FE follow-ups), `backend/architecture/backend-guide.md` (BG §10: BE debt register)
 - **Tier 1 doc:** single source of truth for integration phase progress (`[x]`, `[-]`, `[ ]`); FE feature roadmap stays mock-only (its "Out of scope: real API" points here)
-- **Plan docs:** ALL phases (design notes + tasks) = `ysocial-clients/web-app/docs/plans/2026-10-16-fe-be-integration.md`
+- **Plan docs:** ALL phases (design notes + tasks) = `backend/plans/2026-10-16-fe-be-integration.md`
 - **Principles:**
   - **One slice at a time:** mock adapter stays default; slice goes real via `NEXT_PUBLIC_REAL_API_SLICES`, mocks removed only in Cleanup
   - **Contract first:** mismatch found -> decide BE vs FE vs MAP fix & record in plan Mismatch log; never patch silently

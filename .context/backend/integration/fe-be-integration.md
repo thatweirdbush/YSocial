@@ -6,7 +6,7 @@ updated: 2026-10-19
 
 # FE-BE INTEGRATION (AS-BUILT)
 
-> Progress: `features/fe-be-integration-roadmap.md`. Plan & mismatch log: `ysocial-clients/web-app/docs/plans/2026-10-16-fe-be-integration.md`. Contract owner: MAP (`backend/integration/frontend-backend-mapping.md`)
+> Progress: `features/fe-be-integration-roadmap.md`. Plan & mismatch log: `backend/plans/2026-10-16-fe-be-integration.md`. Contract owner: MAP (`backend/integration/frontend-backend-mapping.md`)
 
 ## Phase F - Foundation (auth)
 
