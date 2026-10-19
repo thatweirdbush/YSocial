@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MOCK_SESSION_COOKIE, serializeMockSession } from "@/features/auth";
+import { mockFetchSequence, problem, setRealSlices, type MockStep } from "@/test/api-test-utils";
 
 const cookieStore = vi.hoisted(() => ({ value: undefined as string | undefined }));
 
@@ -78,5 +79,70 @@ describe("generateMetadata", () => {
   it("does not throw on a malformed username", async () => {
     const metadata = await generateMetadata(params("%E0%A4%A"));
     expect(metadata.title).toBe("Không tìm thấy người dùng • YSocial");
+  });
+});
+
+describe("ProfilePage (real BE)", () => {
+  const dto = (overrides: Record<string, unknown> = {}) => ({
+    id: "0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10",
+    username: "real_user",
+    displayName: "Real User",
+    bio: "Real bio",
+    avatarUrl: null,
+    followersCount: 1,
+    followingCount: 2,
+    isPrivate: false,
+    isVerified: false,
+    followStatus: "none",
+    ...overrides,
+  });
+  const useFetch = (steps: MockStep[]) => {
+    const fake = mockFetchSequence(steps);
+    vi.stubGlobal("fetch", fake.fetchFn);
+    return fake.calls;
+  };
+
+  beforeEach(() => setRealSlices("auth,content"));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("unknown username -> notFound", async () => {
+    useFetch([problem(404, "NotFound")]);
+    await expect(ProfilePage(params("ghost"))).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("BE down -> throws (not notFound)", async () => {
+    useFetch([{ status: 0, reject: new TypeError("fetch failed") }]);
+    const error = await ProfilePage(params("real_user")).catch((e: unknown) => e);
+    expect(error).toMatchObject({ kind: "network" });
+  });
+
+  it("TLS failure / 5xx -> throws", async () => {
+    useFetch([problem(500, "InternalError")]);
+    await expect(ProfilePage(params("real_user"))).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("renders a real profile & never consults the mock session", async () => {
+    const calls = useFetch([{ status: 200, body: dto() }]);
+    await expect(ProfilePage(params("%40Real_User"))).resolves.toBeDefined();
+    expect(calls[0].url).toContain("/api/users/by-username/real_user");
+  });
+
+  it("username that cannot exist -> notFound without fetch", async () => {
+    const calls = useFetch([]);
+    await expect(ProfilePage(params("x".repeat(40)))).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("private profile is 200 metadata", async () => {
+    useFetch([{ status: 200, body: dto({ isPrivate: true, bio: null }) }]);
+    const metadata = await generateMetadata(params("real_user"));
+    expect(metadata.title).toContain("Real User");
+    expect(metadata.title).toContain("@real_user");
+  });
+
+  it("metadata of an unknown profile is the generic not-found title, BE down throws", async () => {
+    useFetch([problem(404, "NotFound"), { status: 0, reject: new TypeError("fetch failed") }]);
+    expect(String((await generateMetadata(params("ghost"))).title)).toContain("Không tìm thấy");
+    await expect(generateMetadata(params("real_user"))).rejects.toMatchObject({ kind: "network" });
   });
 });

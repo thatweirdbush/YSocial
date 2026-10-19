@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/shared/empty-state";
-import { useActorId } from "@/features/auth";
+import { useActorId, useAuthHydrated } from "@/features/auth";
+import { isRealApi } from "@/lib/api-config";
 import { useIsBlocked, useIsBlockedBy } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { fetchPostThread } from "../../services/post-service";
@@ -27,6 +28,7 @@ type LoadState =
 export function PostDetailContainer({ postId }: { postId: string }) {
   const { t } = useTranslation();
   const actorId = useActorId();
+  const waitingForAuth = !useAuthHydrated() && isRealApi("content");
   const { upsertPosts, setReplies } = usePostActions();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
@@ -37,6 +39,8 @@ export function PostDetailContainer({ postId }: { postId: string }) {
   const isAuthorHidden = isBlocked || isBlockedBy;
 
   useEffect(() => {
+    // Real BE: the viewer's token loads on hydration. Asking earlier is anonymous and a follower-only post would answer 404
+    if (waitingForAuth) return;
     let cancelled = false;
 
     fetchPostThread(postId, actorId)
@@ -74,7 +78,7 @@ export function PostDetailContainer({ postId }: { postId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [postId, actorId, attempt, isAuthorHidden, upsertPosts, setReplies]);
+  }, [postId, actorId, attempt, isAuthorHidden, waitingForAuth, upsertPosts, setReplies]);
 
   if (state.status === "missing") notFound();
 

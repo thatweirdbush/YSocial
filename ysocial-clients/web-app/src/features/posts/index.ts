@@ -22,5 +22,6 @@ export {
   setPostBookmark,
 } from "./services/post-service";
 export { toPostRef } from "./utils/post-ref";
+export { toPostThread } from "./services/post-mapper";
 export { getPostActions, useIsAuthorBlocked, useIsDeleted, usePinnedPostId, usePost, usePostActions } from "./store/post-store";
 export { byNewest as byNewestPost } from "./utils/hashtags";

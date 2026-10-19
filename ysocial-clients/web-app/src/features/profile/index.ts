@@ -74,8 +74,10 @@ export type {
   RequestDecision,
   UserProfile,
   UserProfileBase,
+  UserProfileDto,
   ViewerFollows,
 } from "./types";
+export { toUserProfile } from "./services/user-mapper";
 export { parseBio } from "./utils/bio-parser";
 export { normalizeUsername, resolveProfileRoute } from "./utils/resolve-profile-route";
 export type { ProfileRouteResolution } from "./utils/resolve-profile-route";
