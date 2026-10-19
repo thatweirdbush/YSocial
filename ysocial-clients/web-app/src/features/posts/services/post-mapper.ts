@@ -1,3 +1,4 @@
+import { ApiError } from "@/lib/api-error";
 import type {
   FeedPage,
   PostAuthor,
@@ -23,26 +24,34 @@ const toVisibility = (value: string | null | undefined): PostVisibility | undefi
   return KNOWN_VISIBILITY.has(value) ? (value as PostVisibility) : "private";
 };
 
-const toAuthor = (dto: PostAuthorDto): PostAuthor => ({
-  id: dto.id,
-  displayName: dto.displayName ?? "",
-  username: dto.username ?? "",
-  avatarUrl: dto.avatarUrl ?? undefined,
-  isVerified: dto.isVerified,
+/** Swagger marks every field optional (M12): a missing identity field is a contract breach, never defaulted. */
+function required<T>(value: T | null | undefined, field: string): T {
+  if (value === null || value === undefined || value === "") {
+    throw new ApiError({ kind: "http", status: 200, code: "Unknown", detail: `Malformed DTO: missing ${field}` });
+  }
+  return value;
+}
+
+const toAuthor = (dto: PostAuthorDto | undefined): PostAuthor => ({
+  id: required(dto?.id, "user.id"),
+  displayName: dto?.displayName ?? "",
+  username: dto?.username ?? "",
+  avatarUrl: dto?.avatarUrl ?? undefined,
+  isVerified: dto?.isVerified ?? false,
 });
 
 export function toPostItem(dto: PostDto): PostItem {
   const item: PostItem = {
-    id: dto.id,
+    id: required(dto.id, "id"),
     kind: dto.kind === "comment" ? "comment" : "post",
-    rootPostId: dto.postId,
+    rootPostId: required(dto.postId, "postId"),
     content: dto.content ?? "",
-    createdAt: dto.createdAt,
-    likesCount: dto.likesCount,
-    commentsCount: dto.commentsCount,
-    isLikedByCurrentUser: dto.isLikedByCurrentUser,
-    isBookmarkedByCurrentUser: dto.isBookmarkedByCurrentUser,
-    isEdited: dto.isEdited,
+    createdAt: required(dto.createdAt, "createdAt"),
+    likesCount: dto.likesCount ?? 0,
+    commentsCount: dto.commentsCount ?? 0,
+    isLikedByCurrentUser: dto.isLikedByCurrentUser ?? false,
+    isBookmarkedByCurrentUser: dto.isBookmarkedByCurrentUser ?? false,
+    isEdited: dto.isEdited ?? false,
     user: toAuthor(dto.user),
   };
   if (dto.parentId) item.parentId = dto.parentId;
@@ -56,6 +65,7 @@ export function toPostItem(dto: PostDto): PostItem {
 }
 
 export function toPostThread(dto: ThreadDto): PostThread {
+  if (!dto.post) throw new ApiError({ kind: "http", status: 200, code: "Unknown", detail: "Malformed ThreadDto: missing post" });
   const childReplies: Record<string, PostItem[]> = {};
   for (const [replyId, children] of Object.entries(dto.childReplies ?? {})) {
     childReplies[replyId] = children.map(toPostItem);
@@ -68,8 +78,8 @@ export function toPostThread(dto: ThreadDto): PostThread {
   };
 }
 
-const nextPageOf = (page: { page: number; hasNextPage: boolean }): number | undefined =>
-  page.hasNextPage ? page.page + 1 : undefined;
+const nextPageOf = (page: { page?: number; hasNextPage?: boolean }): number | undefined =>
+  page.hasNextPage ? (page.page ?? 1) + 1 : undefined;
 
 export function toFeedPage(dto: PostDtoPagedResponse): FeedPage {
   return { posts: (dto.items ?? []).map(toPostItem), nextPage: nextPageOf(dto) };
@@ -77,5 +87,5 @@ export function toFeedPage(dto: PostDtoPagedResponse): FeedPage {
 
 /** Threads tab only: the BE has no replies/media tabs, so `parents` is always empty. */
 export function toUserPostsPage(dto: UserPostsPageDto): UserPostsPage {
-  return { posts: (dto.items ?? []).map(toPostItem), parents: [], nextPage: nextPageOf(dto), locked: dto.locked };
+  return { posts: (dto.items ?? []).map(toPostItem), parents: [], nextPage: nextPageOf(dto), locked: dto.locked ?? false };
 }

@@ -75,7 +75,7 @@ describe("toPostThread", () => {
   it("maps post, replies & child replies; parent null preserved as undefined", () => {
     const reply = dto({ id: "c1", kind: "comment", postId: ID, parentId: ID });
     const child = dto({ id: "c2", kind: "comment", postId: ID, parentId: "c1" });
-    const thread: ThreadDto = { post: dto(), parent: null, replies: [reply], childReplies: { c1: [child] } };
+    const thread = { post: dto(), parent: null, replies: [reply], childReplies: { c1: [child] } } as unknown as ThreadDto;
     const mapped = toPostThread(thread);
     expect(mapped.post.id).toBe(ID);
     expect(mapped.parent).toBeUndefined();
@@ -84,10 +84,24 @@ describe("toPostThread", () => {
   });
 
   it("null replies/childReplies -> empty", () => {
-    const mapped = toPostThread({ post: dto(), parent: dto({ id: "p0", postId: "p0" }), replies: null, childReplies: null });
+    const mapped = toPostThread({ post: dto(), parent: dto({ id: "p0", postId: "p0" }), replies: null, childReplies: null } as unknown as ThreadDto);
     expect(mapped.replies).toEqual([]);
     expect(mapped.childReplies).toEqual({});
     expect(mapped.parent?.id).toBe("p0");
+  });
+});
+
+describe("malformed DTOs", () => {
+  it("missing id / postId / createdAt / user.id throws", () => {
+    expect(() => toPostItem(dto({ id: undefined }))).toThrow(/missing id/);
+    expect(() => toPostItem(dto({ postId: undefined }))).toThrow(/missing postId/);
+    expect(() => toPostItem(dto({ createdAt: undefined }))).toThrow(/missing createdAt/);
+    expect(() => toPostItem(dto({ user: undefined }))).toThrow(/missing user.id/);
+  });
+
+  it("missing counts/flags default to 0/false", () => {
+    const item = toPostItem(dto({ likesCount: undefined, isLikedByCurrentUser: undefined, isEdited: undefined }));
+    expect(item).toMatchObject({ likesCount: 0, isLikedByCurrentUser: false, isEdited: false });
   });
 });
 
