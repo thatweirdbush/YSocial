@@ -36,6 +36,8 @@ export const SavedList: React.FC = () => {
   const { upsertPosts } = usePostActions();
   const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "error">(realApi ? "loading" : "ready");
   const [loadAttempt, setLoadAttempt] = useState(0);
+  // A signed-out visitor has nothing to load: the (empty) list is ready as soon as auth hydrated
+  const status = realApi && hydrated && !viewerId ? "ready" : loadStatus;
 
   // 1. Initial Mock Collections
   const [collections, setCollections] = useState<Collection[]>([
@@ -49,13 +51,8 @@ export const SavedList: React.FC = () => {
 
   // Real mode: the BE saved list replaces the seeds (collections stay a local overlay keyed by post id)
   useEffect(() => {
-    if (!realApi || !hydrated) return;
-    if (!viewerId) {
-      setLoadStatus("ready");
-      return;
-    }
+    if (!realApi || !hydrated || !viewerId) return;
     let cancelled = false;
-    setLoadStatus("loading");
     (async () => {
       const posts: SavedItem["post"][] = [];
       for (let page = 1; page <= REAL_MAX_PAGES; page += 1) {
@@ -571,14 +568,17 @@ export const SavedList: React.FC = () => {
 
       {/* Main Items feed rendering */}
       <div className="flex-1 w-full flex flex-col border-t border-zinc-100 dark:border-zinc-900/60 select-none">
-        {loadStatus === "loading" ? (
+        {status === "loading" ? (
           <PostSkeletonList count={3} />
-        ) : loadStatus === "error" ? (
+        ) : status === "error" ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center gap-3">
             <p role="alert" className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
               {t("common.error")}
             </p>
-            <Button variant="outline" onClick={() => setLoadAttempt((n) => n + 1)} className="rounded-full">
+            <Button variant="outline" onClick={() => {
+                setLoadStatus("loading");
+                setLoadAttempt((n) => n + 1);
+              }} className="rounded-full">
               {t("postDetail.retry")}
             </Button>
           </div>
