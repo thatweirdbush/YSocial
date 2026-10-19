@@ -1,4 +1,3 @@
-using YSocial.Api.Models.SavedItems;
 using YSocial.Application.Features.SavedItems.GetSavedPosts;
 using YSocial.Application.Features.SavedItems.SetSavedItem;
 using YSocial.Domain.SavedItems;
@@ -45,22 +44,6 @@ public class SavedItemsController : ApiController
         => HandleResult(await Mediator.Send(new SetSavedItemCommand(id, SavedItemTargetType.Comment, false), cancellationToken));
 
     #endregion
-
-    [HttpPost("toggle")]
-    [ProducesResponseType(typeof(ToggleSavedItemResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ToggleSavedItem([FromBody] ToggleSavedItemRequest request, CancellationToken cancellationToken)
-    {
-        if (request.TargetType is null) return ValidationProblemFor(nameof(request.TargetType), "Invalid TargetType.");
-
-        var command = new ToggleSavedItemCommand(request.TargetId, request.TargetType);
-
-        var result = await Mediator.Send(command, cancellationToken);
-
-        return HandleResult(result);
-    }
 
     [HttpGet("posts")]
     [ProducesResponseType(typeof(PagedResponse<PostDto>), StatusCodes.Status200OK)]

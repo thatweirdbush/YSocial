@@ -23,12 +23,6 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
     private static async Task BlockAsync(HttpClient blocker, UserId target)
         => (await blocker.PostAsync($"/api/users/{target.Value}/blocks", null)).EnsureSuccessStatusCode();
 
-    private static async Task<HttpStatusCode> LikeToggleAsync(HttpClient client, Guid id, int type)
-        => (await client.PostAsJsonAsync("/api/likes/toggle", new { targetId = id, targetType = type })).StatusCode;
-
-    private static async Task<HttpStatusCode> SaveToggleAsync(HttpClient client, Guid id, int type)
-        => (await client.PostAsJsonAsync("/api/saveditems/toggle", new { targetId = id, targetType = type })).StatusCode;
-
     [Fact]
     public async Task Like_PrivatePostNonFollower_404()
     {
@@ -36,7 +30,6 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.PutAsync($"/api/posts/{DemoPost}/like", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await LikeToggleAsync(test, DemoPost, 1)).Should().Be(HttpStatusCode.NotFound);
         MockDataStore.Likes.Should().BeEmpty();
         MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
     }
@@ -92,7 +85,6 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.PutAsync($"/api/comments/{comment}/like", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await LikeToggleAsync(test, comment, 2)).Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -113,7 +105,6 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         await BlockAsync(test, SeedIds.DemoUser);
 
         (await test.PutAsync($"/api/posts/{DemoPost}/bookmark", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
-        (await SaveToggleAsync(test, DemoPost, 1)).Should().Be(HttpStatusCode.NotFound);
         MockDataStore.SavedItems.Should().BeEmpty();
     }
 
@@ -191,7 +182,6 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
 
         (await test.PutAsync($"/api/posts/{SeedIds.TestPost.Value}/like", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await test.PutAsync($"/api/posts/{SeedIds.TestPost.Value}/bookmark", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
-        (await LikeToggleAsync(test, SeedIds.TestPost.Value, 1)).Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]

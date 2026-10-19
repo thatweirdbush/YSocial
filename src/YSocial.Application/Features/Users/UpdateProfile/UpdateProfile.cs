@@ -9,12 +9,16 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Users.UpdateProfile;
 
+/// <summary>
+/// Display name, bio, avatar & cover replace the stored values; <c>Gender</c> and <c>DateOfBirth</c> are not exposed
+/// by the read DTO, so omitting (null) keeps the stored value.
+/// </summary>
 public sealed record UpdateProfileCommand(
     string DisplayName,
     string? Bio,
     string? AvatarUrl,
     string? CoverUrl,
-    Gender Gender,
+    Gender? Gender,
     DateTime? DateOfBirth) : ResultCommand<UserProfileDto>;
 
 internal sealed class UpdateProfileCommandValidator : AbstractValidator<UpdateProfileCommand>
@@ -27,9 +31,6 @@ internal sealed class UpdateProfileCommandValidator : AbstractValidator<UpdatePr
 
         RuleFor(x => x.Bio)
             .MaximumLength(200);
-
-        RuleFor(x => x.Gender)
-            .NotNull();
 
         RuleFor(x => x.DateOfBirth)
             .LessThan(DateTime.UtcNow.Date)
@@ -58,8 +59,8 @@ internal sealed class UpdateProfileCommandHandler(
             request.Bio,
             request.AvatarUrl,
             request.CoverUrl,
-            request.Gender,
-            request.DateOfBirth,
+            request.Gender ?? user.ProfileInfo.Gender,
+            request.DateOfBirth ?? user.ProfileInfo.DateOfBirth,
             user.ProfileInfo.ProfileType);
 
         user.UpdateProfile(profileInfo);

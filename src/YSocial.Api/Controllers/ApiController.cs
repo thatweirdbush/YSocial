@@ -62,13 +62,6 @@ namespace YSocial.Api.Controllers
         }
 
         /// <summary>
-        /// 400 problem with a field error (e.g. bad enum), same envelope as validation failures
-        /// </summary>
-        protected IActionResult ValidationProblemFor(string field, string message)
-            => ApiProblems.ToResult(HttpContext, StatusCodes.Status400BadRequest, "ValidationFailed", "One or more validation errors occurred.",
-                new Dictionary<string, string[]> { [ApiProblems.ToFieldKey(field)] = [message] });
-
-        /// <summary>
         /// Map ErrorType to correct HTTP Status Code (RFC 7807 envelope)
         /// </summary>
         private IActionResult ProcessErrorResponse(Result result)

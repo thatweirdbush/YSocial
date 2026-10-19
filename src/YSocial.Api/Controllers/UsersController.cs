@@ -99,15 +99,15 @@ public class UsersController : ApiController
         => HandleResult(await Mediator.Send(new GetRelationSetsQuery(), cancellationToken));
 
     /// <summary>
-    /// Own block list, newest block first (items carry isBlocked: true)
+    /// Own block list, newest block first (items carry isBlocked: true; search by username or display name)
     /// </summary>
     [HttpGet("me/blocks")]
     [Authorize]
     [ProducesResponseType(typeof(PagedResponse<UserProfileDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> GetBlocks([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken cancellationToken = default)
-        => HandleResult(await Mediator.Send(new GetBlocksQuery(page, pageSize), cancellationToken));
+    public async Task<IActionResult> GetBlocks([FromQuery] int page = 1, [FromQuery] int pageSize = 20, [FromQuery] string? query = null, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetBlocksQuery(page, pageSize, query), cancellationToken));
 
     /// <summary>
     /// Own muted users, newest mute first (search by username or display name)

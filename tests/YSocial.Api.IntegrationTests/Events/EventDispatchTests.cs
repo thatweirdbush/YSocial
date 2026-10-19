@@ -18,7 +18,9 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     private static string Block(Guid target) => $"/api/users/{target}/blocks";
 
-    private static object PostLike(Guid id) => new { targetId = id, targetType = 1 };
+    private static string PostLike(Guid id) => $"/api/posts/{id}/like";
+
+    private static string CommentLike(Guid id) => $"/api/comments/{id}/like";
 
     private IReadOnlyCollection<IDomainEvent> DrainPending()
     {
@@ -69,10 +71,10 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var test = await LoginAsync(Seed.TestLogin);
 
-        (await test.PostAsJsonAsync("/api/likes/toggle", PostLike(SeedIds.DemoPost.Value))).EnsureSuccessStatusCode();
+        (await test.PutAsync(PostLike(SeedIds.DemoPost.Value), null)).EnsureSuccessStatusCode();
         MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(1);
 
-        (await test.PostAsJsonAsync("/api/likes/toggle", PostLike(SeedIds.DemoPost.Value))).EnsureSuccessStatusCode();
+        (await test.DeleteAsync(PostLike(SeedIds.DemoPost.Value))).EnsureSuccessStatusCode();
 
         MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
     }
@@ -85,12 +87,11 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
         var add = await demo.PostAsJsonAsync("/api/comments", new { postId = SeedIds.DemoPost.Value, content = "hi", parentCommentId = (Guid?)null });
         add.EnsureSuccessStatusCode();
         var commentId = (await add.ReadJsonAsync()).AsId();
-        var body = new { targetId = commentId, targetType = 2 };
 
-        (await test.PostAsJsonAsync("/api/likes/toggle", body)).EnsureSuccessStatusCode();
+        (await test.PutAsync(CommentLike(commentId), null)).EnsureSuccessStatusCode();
         MockDataStore.Comments.Values.Single().LikeCount.Should().Be(1);
 
-        (await test.PostAsJsonAsync("/api/likes/toggle", body)).EnsureSuccessStatusCode();
+        (await test.DeleteAsync(CommentLike(commentId))).EnsureSuccessStatusCode();
 
         MockDataStore.Comments.Values.Single().LikeCount.Should().Be(0);
     }
@@ -140,7 +141,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var test = await LoginAsync(Seed.TestLogin);
         var demo = await LoginAsync(Seed.DemoLogin);
-        (await test.PostAsJsonAsync("/api/saveditems/toggle", new { targetId = SeedIds.DemoPost.Value, targetType = 1 })).EnsureSuccessStatusCode();
+        (await test.PutAsync($"/api/posts/{SeedIds.DemoPost.Value}/bookmark", null)).EnsureSuccessStatusCode();
         MockDataStore.SavedItems.Values.Should().ContainSingle().Which.IsDeleted.Should().BeFalse();
 
         (await demo.DeleteAsync($"/api/posts/{SeedIds.DemoPost.Value}")).EnsureSuccessStatusCode();
@@ -175,8 +176,8 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
                  {
                      () => test.PostAsync(Follow(SeedIds.DemoUser.Value), null),
                      () => demo.PostAsync(Follow(SeedIds.TestUser.Value), null),
-                     () => test.PostAsJsonAsync("/api/likes/toggle", PostLike(SeedIds.DemoPost.Value)),
-                     () => test.PostAsJsonAsync("/api/likes/toggle", PostLike(SeedIds.DemoPost.Value)),
+                     () => test.PutAsync(PostLike(SeedIds.DemoPost.Value), null),
+                     () => test.DeleteAsync(PostLike(SeedIds.DemoPost.Value)),
                      () => test.PostAsync(Block(SeedIds.DemoUser.Value), null),
                      () => test.DeleteAsync(Block(SeedIds.DemoUser.Value)),
                      () => test.DeleteAsync($"/api/posts/{SeedIds.TestPost.Value}")

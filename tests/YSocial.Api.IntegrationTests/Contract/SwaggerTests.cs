@@ -55,8 +55,6 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         ["/api/users/{id}/following", "get", "200", "FollowListPageDto"],
         ["/api/users/me/relation-sets", "get", "200", "RelationSetsDto"],
         ["/api/users/me/blocks", "get", "200", "UserProfileDtoPagedResponse"],
-        ["/api/likes/toggle", "post", "200", "ToggleLikeResponse"],
-        ["/api/saveditems/toggle", "post", "200", "ToggleSavedItemResponse"],
         ["/api/posts/{id}", "delete", "204", ""],
         ["/api/posts/{id}/like", "put", "204", ""],
         ["/api/posts/{id}/like", "delete", "204", ""],
@@ -82,6 +80,14 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         document.GetProperty("paths").EnumerateObject().Should().NotBeEmpty();
         document.GetProperty("paths").EnumerateObject().Select(p => p.Name).Should().NotContain(p => p.Contains("testprobe"));
+    }
+
+    [Fact]
+    public async Task Swagger_HasNoToggleLikeOrSaveEndpoints()
+    {
+        var paths = (await SwaggerAsync()).GetProperty("paths").EnumerateObject().Select(p => p.Name).ToList();
+
+        paths.Should().NotContain(["/api/likes/toggle", "/api/saveditems/toggle"]);
     }
 
     [Theory]

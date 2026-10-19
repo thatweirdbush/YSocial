@@ -202,11 +202,11 @@ public class ErrorPipelineTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task LikeWithoutTargetType_Returns400_Problem()
+    public async Task LikeWithEmptyTargetId_Returns400_Problem()
     {
         var test = await LoginAsync(Seed.TestLogin);
 
-        var response = await test.PostAsJsonAsync("/api/likes/toggle", new { targetId = SeedIds.DemoPost.Value });
+        var response = await test.PutAsync($"/api/posts/{Guid.Empty}/like", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         AssertProblem(await ProblemAsync(response), 400, "ValidationFailed");
