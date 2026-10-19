@@ -68,7 +68,7 @@ updated: 2026-10-06
 - [x] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
 - [x] **2.5 Block / Mute** (Restrict deferred): `PostCard` menu & profile hide content for real, lists in `/settings/blocked|muted`
 - [x] **2.6 Share profile:** copy link + QR code dialog
-- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(Phase C done: build real-first now, `backend/integration/fe-be-integration-roadmap.md`)*
+- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(Phase C done: build real-first now, `backend/integration/fe-be-integration.md`)*
 
 ### Phase 3 - Notifications & Activity (P1)
 - [ ] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"
@@ -104,7 +104,7 @@ updated: 2026-10-06
 - [ ] **7.5 A11y pass:** focus ring, icon button `aria-label`, touch target >= 44px, contrast 4.5:1 in both themes
 - [-] **7.6 SEO public routes:** `generateMetadata` + OG for `/posts/[id]`, `/@username`, `/tags/[tag]` *(done `/posts/[id]`, `/tags/[tag]`, `/@username`)*
 
-**Out of scope:** real API/SignalR (done in `backend/integration/fe-be-integration-roadmap.md`: every wired slice is real by default, this roadmap keeps running on mock mode `NEXT_PUBLIC_REAL_API_SLICES=none` for BE-less features), Communities/Lists, Analytics, Scheduled posts, PWA
+**Out of scope:** real API/SignalR (done, see `backend/integration/fe-be-integration.md`: every wired slice is real by default, this roadmap keeps running on mock mode `NEXT_PUBLIC_REAL_API_SLICES=none` for BE-less features), Communities/Lists, Analytics, Scheduled posts, PWA
 
 ---
 

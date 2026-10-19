@@ -18,7 +18,7 @@ fe-roadmap: .context/features/frontend-roadmap.md
 
 | Topic | Fact | Evidence |
 |---|---|---|
-| FE integration state | **FE calls BE through `src/lib/api-client.ts` (JWT, single-flight refresh) & `src/lib/signalr-client.ts`**; each `features/*/services/*.ts` dispatches per function to `*.real.ts` adapter by `isRealApi(slice)` (default: all real); mock adapters (`mockDelay`, `src/mocks/*`) stay for BE-less features & mock mode | `fe-be-integration-roadmap.md`, plan `2026-10-16-fe-be-integration.md` |
+| FE integration state | **FE calls BE through `src/lib/api-client.ts` (JWT, single-flight refresh) & `src/lib/signalr-client.ts`**; each `features/*/services/*.ts` dispatches per function to `*.real.ts` adapter by `isRealApi(slice)` (default: all real); mock adapters (`mockDelay`, `src/mocks/*`) stay for BE-less features & mock mode | `fe-be-integration.md`, plan `2026-10-16-fe-be-integration.md` |
 | Base URL | `https://localhost:49895` (FE hard-codes it; BE `launchSettings.json` matches); BE forces HTTPS redirect; CORS origin from `Cors:AllowedOrigins` (dev `http://localhost:3000`), credentials allowed | BG §8 |
 | Auth header | `Authorization: Bearer <accessToken>`; SignalR via `?access_token=` | `Program.cs` `OnMessageReceived` |
 | Actor id | decode JWT claim **`user_id`** (profile id), or read `GET /api/users/me`; login body has no user info; `sub` = account id, NEVER sent to social routes | `JwtProvider.cs`, `LoginResponse` |
@@ -275,7 +275,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 
 ## 6. FE checkpoints & follow-ups
 
-> FE adoption plan & phase progress: `fe-be-integration-roadmap.md` (post delete moves CP1 -> Phase C). FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
+> FE adoption as-built: `fe-be-integration.md` (post delete moves CP1 -> Phase C). FE work is out of scope of recovery; CP = BE contract frozen for slice + test evidence. FE never consumes slice before its CP; mocks stay for everything else
 
 | CP | Slice unblocked | BE state |
 |---|---|---|

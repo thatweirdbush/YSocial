@@ -8,7 +8,7 @@
 
 **Tech Stack:** Next.js 16.3.8 App Router, React 19.3, Zustand, Vitest + RTL + jsdom, openapi-typescript, `@microsoft/signalr`; BE ASP.NET Core (contract owner: MAP)
 
-**Design:** Roadmap `.context/backend/integration/fe-be-integration-roadmap.md`. Contract `.context/backend/integration/frontend-backend-mapping.md` (MAP §n)
+**Status:** all phases closed, this file is history only; live state = `.context/backend/integration/fe-be-integration.md`. Contract `.context/backend/integration/frontend-backend-mapping.md` (MAP §n)
 
 ## Global Constraints
 
@@ -300,7 +300,7 @@ Each line has pinned test in owning task.
 
 ### Task F9: Phase F exit
 **Files:**
-- Modify: `.context/backend/integration/fe-be-integration-roadmap.md` (check F.1-F.3), MAP §6 (CP0/CP1 rows "FE adopted", post delete moved to C), `.context/features/identities.md` (FE as-built notes)
+- Modify: roadmap doc (check F.1-F.3; since removed), MAP §6 (CP0/CP1 rows "FE adopted", post delete moved to C), `.context/features/identities.md` (FE as-built notes)
 - Create: `.context/backend/integration/fe-be-integration.md` (Tier 3 as-built: switch, api-client, refresh, mixed mode, pitfalls)
 
 - [x] **Step 1: Run** `npm run test`, `npm run typecheck`, `npm run lint`, `npm run api:check` -> all pass (record counts)
