@@ -740,18 +740,31 @@ Each line has pinned test in owning task.
 **Execution record (X1):**
 - **Proof:** export scan (every non-test export with 0 non-test consumers in other files, 63 hits): none is mock code that lost its last consumer. Mock adapters stay reachable (mock mode via `none`, partial slice lists, BE-less features), `__reset*`/`reset*`/fixtures are test helpers, rest = constants/types used inside their own file. Cookie bridge `ysocial_mock_user`, `ViewerSync` mock upsert & `[@username]` cookie resolver are still used in mock mode: kept
 - **Ruling (default flip):** `parseRealSlices(undefined)` = all 4 slices; `none` / empty = mock. Reverses F-D2 "default empty = all mock": `npm run dev` now needs BE on `https://localhost:49895` unless `NEXT_PUBLIC_REAL_API_SLICES=none`. `.env.example`, README updated; `vitest.setup.ts` pins `none`
-- **Dead non-mock exports (out of X1 scope, deferred minor):** `useAccessToken`, `useRefreshToken` (`auth-store.ts`), `useUIState` (`ui-store.ts`): 0 consumers incl. tests
+- **Dead non-mock exports (deferred):** `useAccessToken`, `useRefreshToken` (`auth-store.ts`), `useUIState` (`ui-store.ts`): 0 consumers incl. tests
 
-### Task X2 (OPTIONAL, gated on user approval): Remove BE toggle endpoints (BE repo)
-> Not required to close roadmap; deferable. BE contract change: needs explicit user approval before starting
+### Task X2: Remove BE toggle endpoints (BE repo) & closure sweep
+> sweep = every deferred minor, mismatch & dead-code item left by X3 triage
 **Files (BE, repo root):**
 - Modify: likes/saved items controllers & application features for `likes/toggle`, `saveditems/toggle`; `tests/YSocial.Api.IntegrationTests` (`ToggleEndpoints_Unchanged`, `Swagger_*`); `ysocial-clients/web-app/docs/swagger.json` + `generated.ts`; MAP §2.5; BG §10 #17
 
-- [ ] **Step 1: Confirm** FE has 0 calls to toggle routes (`grep -rn "likes/toggle\|saveditems/toggle" src` empty) & user approved
-- [ ] **Step 2: Update tests first:** replace `ToggleEndpoints_Unchanged` with `ToggleEndpoints_Return404`; run BE tests -> FAIL
-- [ ] **Step 3: Remove** endpoints & handlers per BE conventions; regenerate swagger
-- [ ] **Step 4: Run** BE `dotnet test`, FE `npm run api:update && npm run api:check` -> PASS
-- [ ] **Step 5: Commit (BE)** `refactor(api): remove deprecated toggle endpoints`
+- [x] **Step 1: Confirm** FE has 0 calls to toggle routes (only `generated.ts` named them)
+- [x] **Step 2: Update tests first:** `ToggleEndpoints_Unchanged` -> `ToggleEndpoints_Return404`, `Swagger_HasNoToggleLikeOrSaveEndpoints`; remaining toggle-based tests moved to PUT/DELETE; run -> FAIL
+- [x] **Step 3: Remove** endpoints, commands, requests & dead `ValidationProblemFor`; `npm run api:update`; drop dead FE DTO re-exports
+- [x] **Step 4: Run** BE `dotnet test` (60/41/422), FE `npm run test` (105 files), `typecheck`, `eslint` (0 errors), `api:check` -> PASS
+- [x] **Step 5: Commit** `refactor(api): remove toggle endpoints; profile update keeps gender/DOB; block list search` + `fix(web): ...`
+
+**Execution record (X2 + closure sweep):**
+- **Profile page shows load-error screen:** server fetch of `/@username` hit BE over dotnet dev cert; Node ignores OS trust store -> `self-signed certificate` -> `ApiError: Network` -> `error.tsx` (BE 404 never reached). Fix: `dev`/`start`/`api:fetch` run `node --use-system-ca`. Verified without `NODE_USE_SYSTEM_CA`: `/@admin` 200 & renders, `/@nobody` 404. Pitfall recorded in as-built doc
+- **Resolved:**
+  - X2 toggle endpoints removed; M18 omitted gender/DOB keep stored (BE) & FE stops sending `gender: 0`; M20 `me/blocks?query` (BE) & FE drops local scan; M16 INDEX said Next 15 (conventions 16.x)
+  - M22 hub retries with backoff after close/failed start; M21 resume refresh merges missed items (page 1)
+  - saved list keyed by viewer (no stale items) + cap notice; list mappers drop malformed item & tolerate null child list; post-detail metadata neutral on BE outage; bulk unsave real path tested
+  - auth calls anonymous (no Bearer) with 15s timeout, refresh fetch 15s timeout
+  - 5 eslint errors (`safe-hydration`, `use-mobile` via `useSyncExternalStore`, 2 `any`, `prefer-const`); `_` params no longer warn; `agentRules: false` stops `next dev` generating AGENTS.md/CLAUDE.md
+- **Closed (rationale):** mark-all-read without confirmation (single low-risk action); stale relative timestamps (fixed earlier, render stays pure); double-click spinner flicker (duplicate request already blocked, cosmetic); `readBody` text cast & `LockManager` cast (typing only); N lock waiters retry on 5xx (bounded by user actions); malformed 200 on refresh = transient (BE already rotated, next 401 ends session); `rotate` pre-hydration read (safe by effect ordering, unit-proven); several GIFs picked, first sent (multi-image hidden: M3/M19); push dedupe by id only (BE ids unique)
+- **Remaining (user/BE owner):** M12 nullable-reference swagger (would turn every generated field required: wide type churn, no functional gain); resume catch-up covers page 1 only; browser smoke in X2 covers profile route only (privacy/accept/close-friend/block/mute/edit-post UI still unit/API-tested only)
+- **Review:** 0 Critical; Important 1 fixed (block purges sender's items from open notification list, dropNotificationsFrom); Important 2 & 3 deferred (below); Minor: engines node >=22.15 added, rest closed (dead fetchUnreadCount waits for FE roadmap Phase 3 badge; unread count drift & resume only prepending unseen ids self-heal on next load; Toggled handler names are domain-event names still used by set routes)
+- **Deferred (review):** push-time block guard fails open until relation sets load & outbox does not recheck access at delivery (BE NotificationOutboxProcessor); hub token factory reads current access token, idle expired token makes retries fail 401 until HTTP call rotates it (fix: await 	oken-refresh in factory)
 
 ### Task X3: Close-out docs
 **Files:**
@@ -767,8 +780,7 @@ Each line has pinned test in owning task.
 - **F.3 2-tab lock smoke (was open since Phase F):** real BE, 2 browser tabs on `/notifications`, shared `ysocial_access_token` corrupted, both reloaded together -> exactly 1 `RefreshTokenCommand` in BE log, both tabs render list, no forced logout (`navigator.locks` present on localhost)
 - **Deferred-minor triage (`00-agentic-rules.md` §4.3):**
   - **Closed:** C "Unblock shown for externally blocked profile" (real graph: that profile is 404); C "profile client lookup 5xx shows desync" resolved in G3; F "residual no-lock window" accepted (M15); F "`authFieldErrors` raw BE text" (BE field messages are English, vi mapping would need BE codes per field)
-  - **Defer (design/BE owner):** M16 docs say Next 15, repo has 16.3.8 (needs user OK to edit conventions); M18 BE `PUT profiles/me` wipes gender/DOB (BE decision: PATCH semantics or expose fields); M12 BE option nullable-reference swagger; M21 no push catch-up; M20 block list has no `query` (BE option); saved list not cleared on account switch & capped at 100 posts; 1 malformed item fails whole page; duplicate-click spinner flicker; hub gives up after automatic reconnect ends (`connection` stays set, live push silently dead until reload/login: impact medium for long sessions, fix = clear `connection` in `onclose` & retry with backoff; priority medium, next: small task in Phase 3 notifications work); stale relative timestamps; `generateMetadata` BE outage sends post page to `error.tsx`; bulk unsave real path has no automated test; refresh/logout fetch have no timeout
-  - **Dead code (not mock):** `useAccessToken`, `useRefreshToken`, `useUIState`: delete in cleanup PR (priority low)
+  - **Defer:** all swept in X2 record
 - **Not smoked in browser (unit/API-tested only):** privacy toggle UI, accept/decline request UI, close-friend toggle UI, block UI, per-item mark-read UI, mute UI, edit post, bulk unsave, guest feed, token refresh while hub is connected
 - **Review gates:** F9 & C9 ran fresh Opus reviewer; G4, N4 & X not run: 1 end-of-plan review of whole branch
 
@@ -791,16 +803,16 @@ Each line has pinned test in owning task.
 | M9 | F5 | `api:update` calls missing `api:fetch` | FE: add script | resolved F5 (`api:fetch`, `scripts/fetch-swagger.mjs`) |
 | M10 | F5 | `generated.ts` stale vs `docs/swagger.json` (no response schemas, no GET paths) | FE: regenerate before any task importing response types | resolved F5 |
 | M11 | F5 | `docs/swagger.json` stale vs BE source (`NotificationDto.SenderUsername` missing) | regenerate from running BE; contract test pins it | resolved F5: regenerated swagger has `senderUsername`, contract test green |
-| M12 | C4 | swagger marks nearly all fields nullable (MAP says non-null) & enums are plain `string`; unknown enum values undefined | FE mappers tolerate null/absent; proposal: unknown `visibility` -> `private`, unknown `followStatus` -> `none`; BE option: enable nullable-reference-type support in Swashbuckle | resolved C4: swagger has NO required fields (all optional), mappers tolerate; BE nullable option still open (user) |
+| M12 | C4 | swagger marks nearly all fields nullable (MAP says non-null) & enums are plain `string`; unknown enum values undefined | FE mappers tolerate null/absent; proposal: unknown `visibility` -> `private`, unknown `followStatus` -> `none`; BE option: enable nullable-reference-type support in Swashbuckle | resolved C4: swagger has NO required fields (all optional), mappers tolerate; BE nullable option deferred (X2 record) |
 | M13 | F5 | MAP names follow-request param `{requesterId}`, swagger `{targetId}` | MAP: fix name | resolved F9 (MAP names `{targetId}`) |
 | M14 | C8 | `/posts/[id]` cannot 404 on server (anonymous read vs viewer-dependent visibility) | soft 404 via client state; revisit with cookie/BFF auth | accepted |
 | M15 | F3 | no `navigator.locks` (insecure context, jsdom) -> no cross-tab single-flight | in-tab only + rotation adoption rescue; documented | accepted (lock path unit-proven; localhost has `navigator.locks`) |
-| M18 | C5 | BE `PUT users/profiles/me` replaces whole profile (gender, date of birth, cover) while read DTO exposes no gender/DOB: every FE save wipes them | FE sends current cover & `gender: 0`; BE option: PATCH semantics or expose gender/DOB in `UserProfileDto` | open |
+| M18 | C5 | BE `PUT users/profiles/me` replaces whole profile (gender, date of birth, cover) while read DTO exposes no gender/DOB: every FE save wipes them | FE sends current cover & `gender: 0`; BE option: PATCH semantics or expose gender/DOB in `UserProfileDto` | resolved X2 (BE: omitted gender/DOB keep stored; FE sends neither) |
 | M19 | C6 | BE has no media upload (blob URLs unusable) & no audience/visibility choice on create | FE hides upload, audience & close-friends toggle while content is real | accepted until BE media/audience work |
-| M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | open |
-| M20 | G1 | `GET me/blocks` has no `query` param (follow requests, followers, mutes do) | FE: with query, read every page (cap 20 x 50) & filter locally; BE option: add `query` | accepted |
-| M21 | N3 | pushes missed while hub is disconnected or before it connects are not replayed (BE has no cursor, list is HTTP-first) | FE: list reloads on viewer change; no catch-up; unread count from page | accepted |
-| M22 | N3 | hub stays "connected" in FE state after SignalR automatic reconnect gives up (`connection` not cleared on close) | FE: deferred, see X3 triage | open (deferred) |
+| M16 | docs | `conventions/frontend.md` & INDEX say Next 15; repo has 16.3.8 | report to user, update docs when user approves | resolved X2 (INDEX corrected; conventions already say 16) |
+| M20 | G1 | `GET me/blocks` has no `query` param (follow requests, followers, mutes do) | FE: with query, read every page (cap 20 x 50) & filter locally; BE option: add `query` | resolved X2 (BE `me/blocks?query`; FE local scan removed) |
+| M21 | N3 | pushes missed while hub is disconnected or before it connects are not replayed (BE has no cursor, list is HTTP-first) | FE: list reloads on viewer change; no catch-up; unread count from page | resolved X2 (hub resume -> list refresh merges missed items, page 1) |
+| M22 | N3 | hub stays "connected" in FE state after SignalR automatic reconnect gives up (`connection` not cleared on close) | FE: deferred, see X3 triage | resolved X2 (hub retries with backoff after close/failed start) |
 | M17 | F9 | plan assumed forgot/reset OTP is readable in BE Development log; BE masks digit runs (`MessageLogMasking`, `features/identities.md` §2)| BE: Development-only opt-in flag in local `appsettings.Development.json`, `ApiFactory` forces it off | resolved: BE opt-in `Messaging:LogOtpInDevelopment` (Development only, default off), reset flow verified on real BE |
 
 ## Self-review

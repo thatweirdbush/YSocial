@@ -38,7 +38,9 @@ vi.mock("../store/notification-store", async (importOriginal) => ({
 }));
 
 const blocked = vi.hoisted(() => ({ ids: new Set<string>() }));
+const relationListeners = vi.hoisted(() => new Set<() => void>());
 vi.mock("@/features/profile", () => ({
+  useRelationStore: { subscribe: (listener: () => void) => (relationListeners.add(listener), () => relationListeners.delete(listener)) },
   getViewerRelations: () => ({ blocked: Object.fromEntries([...blocked.ids].map((id) => [id, true])) }),
 }));
 
@@ -136,6 +138,20 @@ describe("NotificationLiveSync", () => {
     render(<NotificationLiveSync />);
     act(() => hub.emit(push()));
     expect(useNotificationStore.getState().items).toEqual([]);
+  });
+
+  it("blocking a sender removes their items from the open list & recounts unread", () => {
+    signIn();
+    render(<NotificationLiveSync />);
+    act(() => hub.emit(push()));
+    act(() => hub.emit(push({ id: "a1111111-1111-4111-8111-111111111111", senderId: "44444444-4444-4444-8444-444444444444" })));
+    expect(useNotificationStore.getState().unreadCount).toBe(2);
+
+    blocked.ids.add(SENDER);
+    act(() => relationListeners.forEach((listener) => listener()));
+    const { items, unreadCount } = useNotificationStore.getState();
+    expect(items).toHaveLength(1);
+    expect(unreadCount).toBe(1);
   });
 
   it("a malformed push (no id) is dropped without breaking the stream", () => {

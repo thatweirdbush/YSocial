@@ -2,11 +2,11 @@
 
 import { useEffect } from "react";
 import { useAuthStore, useIsAuthenticated, useViewerId } from "@/features/auth";
-import { getViewerRelations } from "@/features/profile";
+import { getViewerRelations, useRelationStore } from "@/features/profile";
 import { isRealApi } from "@/lib/api-config";
 import { notificationHub, type NotificationPayload } from "@/lib/signalr-client";
 import { toNotificationItem } from "../services/notification-mapper";
-import { pushNotification, refreshNotifications, resetNotificationStore } from "../store/notification-store";
+import { dropNotificationsFrom, pushNotification, refreshNotifications, resetNotificationStore } from "../store/notification-store";
 
 const getAccessToken = (): string | null => useAuthStore.getState().accessToken;
 
@@ -31,12 +31,25 @@ export function NotificationLiveSync() {
         // Malformed push (contract breach): dropped, the stream keeps working
       }
     });
+    // Blocking someone removes their items from the open list at once (the BE filters them on the next load)
+    const dropped = new Set<string>();
+    const offBlocks = useRelationStore.subscribe(() => {
+      const blockedIds = Object.keys(viewerId ? (getViewerRelations(viewerId)?.blocked ?? {}) : {});
+      // An unblocked id is forgotten, so blocking it again purges again
+      for (const id of dropped) if (!blockedIds.includes(id)) dropped.delete(id);
+      for (const id of blockedIds) {
+        if (dropped.has(id)) continue;
+        dropped.add(id);
+        dropNotificationsFrom(id);
+      }
+    });
     const offResume = notificationHub.onResume(() => void refreshNotifications());
     notificationHub.start(getAccessToken);
 
     return () => {
       off();
       offResume();
+      offBlocks();
       notificationHub.stop();
       resetNotificationStore();
     };

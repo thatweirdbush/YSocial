@@ -84,6 +84,16 @@ export async function refreshNotifications(): Promise<void> {
   });
 }
 
+/** Drops every item from one sender (the viewer just blocked them) & recounts unread. */
+export function dropNotificationsFrom(senderId: string): void {
+  set((state) => {
+    const items = state.items.filter((entry) => entry.user.id !== senderId);
+    if (items.length === state.items.length) return state;
+    const removedUnread = state.items.filter((entry) => entry.user.id === senderId && !entry.isRead).length;
+    return { items, unreadCount: Math.max(0, state.unreadCount - removedUnread) };
+  });
+}
+
 export async function loadMoreNotifications(): Promise<void> {
   const { nextPage, loadingMore } = get();
   if (nextPage === undefined || loadingMore) return;

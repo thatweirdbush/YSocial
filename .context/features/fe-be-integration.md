@@ -18,7 +18,7 @@ updated: 2026-10-19
 ### api-client
 - `src/lib/api-client.ts`: `apiFetch<T>` / `apiClient.*`; JSON as-is (no key mapping), 204 -> `undefined`, failures -> `ApiError` (`src/lib/api-error.ts`: `kind` network|http, `code`, `errors`, `traceId`)
 - 401 flow: `refreshTokens(sentToken)` -> `refreshed|adopted` retry ONCE; `unauthorized` -> `clearAuth` + `authRedirect.toLogin()` + original 401; `transient` -> throw, session kept
-- Auth endpoints pass `skipAuthRefresh: true`
+- Auth endpoints pass `skipAuthRefresh: true`: anonymous (no Bearer) & bounded by 15s timeout; refresh fetch has same timeout (abort = `transient`)
 
 ### Refresh coordinator
 - `src/lib/token-refresh.ts`: lock `ysocial-refresh` via `navigator.locks`; inside lock re-read storage, stored access != sent -> `adopted`; 401 `InvalidRefreshToken` + stored refresh unchanged -> `unauthorized`
@@ -37,12 +37,12 @@ updated: 2026-10-19
 ## Design Decisions
 - **Tokens in localStorage** (F-D5): XSS exposure accepted for dev; httpOnly cookie/BFF deferred
 - **Session ends only on proven invalid refresh token** (F-D7): network/5xx never log user out
-- **Contract wins over FE assumptions:** `docs/swagger.json` regenerated from running BE (`npm run api:fetch`, needs `NODE_EXTRA_CA_CERTS` PEM of dev cert), contract test pins used endpoints & schemas
+- **Contract wins over FE assumptions:** `docs/swagger.json` regenerated from running BE (`npm run api:update`), contract test pins used endpoints & schemas
 
 ## Pitfall Log
 - **OTP smoke:** BE masks OTP digit runs in Development by default; set `Messaging:LogOtpInDevelopment=true` (local `appsettings.Development.json`, gitignored) to read it in BE log (M17 resolved)
 - **`.env*` gitignored:** `.gitignore` has `!.env.example`
-- **Lint baseline:** 6 pre-existing errors outside integration files (see plan F9 record)
+- **Lint baseline:** 0 errors (5 pre-existing fixed in closure sweep); warnings = <img> (avatars/media)
 
 ## Phase C - Content
 
@@ -64,9 +64,13 @@ updated: 2026-10-19
 ### Design decisions & pitfalls
 - Optimistic like/bookmark roll back (store toggle + toast) when service rejects
 - Local file upload is hidden: blob URLs are unusable by BE; GIF (http URL) is only image source, 1 per post, none in replies
-- Dev: dev cert PEM via `NODE_EXTRA_CA_CERTS` in shell that starts `next dev` (server reads), `.env.local` for slices; hard reload on not-yet-compiled route can take seconds (skeleton)
+- Dev TLS: server components fetch BE from Node, which ignores OS trust store by default -> `self-signed certificate` -> `ApiError: Network` -> `/@username` "Couldn't load this profile". `dev`/`start`/`api:fetch` run `node --use-system-ca` (trust via `dotnet dev-certs https --trust`); `NODE_EXTRA_CA_CERTS` PEM stays alternative; NEVER `NODE_TLS_REJECT_UNAUTHORIZED=0`
+- `.env.local` for slices; hard reload on not-yet-compiled route can take seconds (skeleton)
 - Windows: CRLF checkout makes `api:check` fail on `generated.ts` (EOL only): run `npm run api:generate` first
-- BE `PUT profiles/me` replaces whole profile: FE re-sends cover, `gender: 0` wipes gender/DOB (M18)
+- `PUT profiles/me`: FE re-sends current cover & omits gender/DOB (BE keeps stored values, M18)
+- List mappers drop malformed item (warn) instead of failing the page; thread's own post stays strict
+- Post-detail metadata: BE outage -> neutral title (page body has its own client error state); only BE 404 gives not-found title
+- Saved list: `SavedList` is keyed by viewer id (switch/logout remounts, no stale items); 10-page cap (100 posts) shows `saved.truncated`
 
 ## Phase G - Graph
 
@@ -77,30 +81,30 @@ updated: 2026-10-19
 - Mute stays facade (`isMuteFacade`: content real & activity mock): reads empty, writes refused, UI hidden by `muteUi`
 
 ### Design decisions & pitfalls
-- **D14 in FE:** BE 404 on a blocked-either-way profile; anonymous server read cannot know it, so `ProfileContainer` (content real) shows `profile.blockedNotFound` on `null` and an error + retry on any other failure; mock keeps the desync state
+- **D14 in FE:** BE 404 on blocked-either-way profile; anonymous server read cannot know it, so `ProfileContainer` (content real) shows `profile.blockedNotFound` on `null` & error + retry on any other failure; mock keeps desync state
 - `toUserProfile` forces `isBlockedBy: false`; mock graph still models blocked-by
-- `me/blocks` has no `query` (M20): with a query every page is read (cap 20 x 50) & filtered locally with diacritics folding
+- `me/blocks?query`: BE search (RelationSearch), same adapter helper as other relation lists (M20)
 - `locked: true` follower list = lock empty state (`profile.followListLocked`), never error or "no followers"
 - Follow list items carry viewer-relative `followStatus`: only own `following` list means "accepted by viewer"
 
 ## Phase N - Activity
 
 ### Slice & adapters
-- `auth,content,graph,activity`: `relation-service` mute functions dispatch to `relation-service.real.ts` via `isRealApi("activity")` (PUT/DELETE `relations/mute`, `GET me/mutes` with `query`); before that mute is a facade (reads empty, writes refused, `muteUi` hidden)
+- `auth,content,graph,activity`: `relation-service` mute functions dispatch to `relation-service.real.ts` via `isRealApi("activity")` (PUT/DELETE `relations/mute`, `GET me/mutes` with `query`); before that mute is facade (reads empty, writes refused, `muteUi` hidden)
 - `notification-service.ts` (mock seed adapter / real `GET notifications`, `unread-count`, `PUT {id}/read`, `PUT read-all`), `notification-mapper.ts` (`type`/`kind` -> `like|reply|follow|other`, `targetId` -> post link, sender -> user), 1 shared `notification-store` (HTTP pages + push, optimistic read with rollback, reset drops in-flight loads)
-- SignalR: `lib/signalr-client.ts` `createNotificationHub(factory)` (injectable connection), `start(getAccessToken)` only with a token, token read on every reconnect, failed first start retried by next call; `NotificationLiveSync` in `Providers` runs it for signed-in viewer + activity real, stops & resets list on logout/account switch
+- SignalR: `lib/signalr-client.ts` `createNotificationHub(factory)` (injectable connection), `start(getAccessToken)` only with token, token read on every reconnect; failed start or final close retries with backoff (5s doubling, cap 60s) until `stop()` (M22); `onResume` fires after library reconnect or successful retry & `refreshNotifications` merges missed items on top (M21); `NotificationLiveSync` in `Providers` runs it for signed-in viewer + activity real, stops & resets list on logout/account switch
 
 ### Design decisions & pitfalls
 - Real items carry no follow state: follow-back button is mock-only; unknown BE types render generic (`other` + `message`)
-- Push from a blocked sender is dropped (`getViewerRelations`); malformed push dropped without breaking the stream
-- List is HTTP-first, push only covers events after the socket connects (M21): a cold dev compile can load the page before the hub connects
+- Push from blocked sender is dropped (`getViewerRelations`); malformed push dropped without breaking stream; blocking user purges their items from open list (`dropNotificationsFrom`)
+- List is HTTP-first, push covers events after socket connects; gaps are healed by resume refresh (page 1 only: gap longer than 1 page is not recovered)
 - Content real & activity mock: list stays empty (seed items reference mock users)
 - Unread badge, filter tabs & settings are still FE roadmap Phase 3
 
 ## Phase X - Cleanup
 
-- Default flipped: `parseRealSlices(undefined)` = `auth,content,graph,activity`; `NEXT_PUBLIC_REAL_API_SLICES=none` = mock mode (`.env.example`, README). `npm run dev` needs the BE running unless `none`
+- Default flipped: `parseRealSlices(undefined)` = `auth,content,graph,activity`; `NEXT_PUBLIC_REAL_API_SLICES=none` = mock mode (`.env.example`, README). `npm run dev` needs BE running unless `none`
 - Mock code kept: proof scan found no mock export that lost its last consumer (mock mode, partial slice lists & BE-less features still reach every mock adapter); `ysocial_mock_user` cookie bridge, `ViewerSync` mock upsert & `[@username]` cookie resolver stay for mock mode
-- BE toggle endpoints (`likes/toggle`, `saveditems/toggle`): FE has 0 calls (grep empty); removal = optional X.2, gated on user approval
+- X.2 done: BE toggle endpoints removed (FE had 0 calls); types regenerated
 - Smoke evidence: 2 tabs + corrupted shared access token -> exactly 1 `refresh-token` call (`navigator.locks`), no forced logout
-- Known gaps: see plan X3 record (hub does not retry after automatic reconnect gives up, no push catch-up, M16/M18/M12)
+- Deffered: plan closure record (X2)

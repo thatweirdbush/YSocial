@@ -150,8 +150,7 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 - **Accessibility:** root post accessible & author discoverable & not deleted
 
 ### 5.5 Like / SavedItem
-- **Idempotent set** (`SetLike`, `SetSavedItem`; PUT/DELETE routes): target must exist & pass `InteractionGuard` (else 404); no-op when already in state
-- **Toggle** (`ToggleLike`, `ToggleSavedItem`; kept until FE CP2, same guard): existing like => hard remove, else create; response `{ isLiked }`/`{ isSaved }`
+- **Idempotent set** (`SetLike`, `SetSavedItem`; PUT/DELETE routes, the only write API; toggle endpoints removed): target must exist & pass `InteractionGuard` (else 404); no-op when already in state
 - `LikeCreated` -> `+1` count & notification to target author (self-like notifies self); `LikeRemoved` -> `-1` (live since removed-events queue)
 - Likes/saves of own content are allowed (even when private); like on target that became inaccessible can no longer be removed by actor via route (404)
 - Saved: existing active => soft-remove (`SavedItemRemovedEvent` -> `-1`), else **new** row (soft-deleted row is never reused); posts & comments can be saved, **only posts are listable** (`GET /api/saveditems/posts`, paged, newest saved first, inaccessible posts excluded BEFORE paging & counting)

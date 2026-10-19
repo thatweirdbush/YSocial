@@ -24,14 +24,13 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 All API slices use the real BE by default (`NEXT_PUBLIC_REAL_API_SLICES` unset = `auth,content,graph,activity`): start the BE in Development on `https://localhost:49895`. For the mock adapters only set `NEXT_PUBLIC_REAL_API_SLICES=none` (see `.env.example`; cumulative partial lists such as `auth,content` also work).
 
-Dev certificate (needed by the browser and by server-side fetches):
+Dev certificate (needed by the browser and by server-side fetches, e.g. `/@username`):
 
 ```bash
 dotnet dev-certs https --trust
-dotnet dev-certs https --export-path ./dev-cert.pem --format Pem --no-password
-# shell that starts `next dev` / `npm run api:fetch` (read at Node start, never put it in .env*)
-export NODE_EXTRA_CA_CERTS=$PWD/dev-cert.pem
 ```
+
+`npm run dev`, `start` & `api:fetch` run Node with `--use-system-ca`, so the trusted dev cert is picked up (Node 22.15+/23.8+). Without it, server-side fetches fail with `self-signed certificate` and profile pages show "Couldn't load this profile". Alternative for another launcher: export the PEM (`dotnet dev-certs https --export-path ./dev-cert.pem --format Pem --no-password`) and set `NODE_EXTRA_CA_CERTS=$PWD/dev-cert.pem` in the shell that starts Node (never in `.env*`).
 
 NEVER use `NODE_TLS_REJECT_UNAUTHORIZED=0`. `npm run api:update` refetches `docs/swagger.json` from the running BE and regenerates types. To read the password-reset OTP in the BE log set `Messaging:LogOtpInDevelopment=true` in the BE's local `appsettings.Development.json`.
 
