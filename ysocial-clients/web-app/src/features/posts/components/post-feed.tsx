@@ -4,7 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/shared/empty-state";
-import { getActorId } from "@/features/auth";
+import { getActorId, useIsAuthenticated } from "@/features/auth";
+import { hasCapability } from "@/lib/capabilities";
 import { ensureFollowGraph, getFollowedIds } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../hooks/use-current-author";
@@ -39,6 +40,8 @@ export function PostFeed() {
   const { t } = useTranslation();
   const author = useCurrentAuthor();
   const viewerId = author.id;
+  // The BE following tab needs a token: guests do not get it once content is real
+  const showFollowingTab = useIsAuthenticated() || hasCapability("followingTabGuest");
   const { upsertPosts, setFeedPage, prependPost, consumeIncoming } = usePostActions();
   const [activeTab, setActiveTab] = useState<FeedTab>("forYou");
   // Transient per-mount failure flags; loaded pages + nextPage live in the store and survive remounts.
@@ -151,7 +154,7 @@ export function PostFeed() {
             )}
           </button>
 
-          <button
+          {showFollowingTab && <button
             onClick={() => setActiveTab("following")}
             className="flex-1 flex flex-col items-center justify-center relative font-bold text-sm transition-colors text-center"
           >
@@ -161,7 +164,7 @@ export function PostFeed() {
             {activeTab === "following" && (
               <div className="absolute bottom-0 h-[3px] w-16 bg-black dark:bg-white rounded-full" />
             )}
-          </button>
+          </button>}
         </div>
 
         {/* Quick status bar sparkle spinner */}
@@ -174,7 +177,7 @@ export function PostFeed() {
         </button>
       </header>
 
-      <NewPostsPill tab={activeTab} onRefetch={refetchFirstPage} />
+      {hasCapability("newPostsPill") && <NewPostsPill tab={activeTab} onRefetch={refetchFirstPage} />}
 
       {/* Composition Block */}
       <PostCreator onSuccess={handleComposerSuccess} />

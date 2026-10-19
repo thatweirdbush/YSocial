@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MainLayout } from "@/components/layout/main-layout";
+import { FeatureUnavailable } from "@/components/shared/feature-unavailable";
+import { hasCapability } from "@/lib/capabilities";
 import { getMockTagStat } from "@/features/posts";
 import { decodeTagParam, isTagSort, TagContainer } from "@/features/search";
 
@@ -25,6 +27,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function TagPage({ params, searchParams }: PageProps) {
+  if (!hasCapability("tags")) {
+    return (
+      <MainLayout>
+        <FeatureUnavailable />
+      </MainLayout>
+    );
+  }
   const tag = decodeTagParam((await params).tag);
   if (!tag) notFound();
 

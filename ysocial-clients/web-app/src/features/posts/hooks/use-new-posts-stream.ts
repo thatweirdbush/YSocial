@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useActorId } from "@/features/auth";
+import { hasCapability } from "@/lib/capabilities";
 import { ensureUser } from "@/features/profile";
 import { subscribeToNewPosts } from "../services/post-service";
 import { usePostActions } from "../store/post-store";
@@ -13,6 +14,8 @@ export function useNewPostsStream(): void {
   const { bufferIncoming } = usePostActions();
 
   useEffect(() => {
+    // Simulated push stream: real posts have no stream yet (a mock post id would reach real routes)
+    if (!hasCapability("newPostsPill")) return;
     let unsubscribe: (() => void) | undefined;
 
     const sync = () => {

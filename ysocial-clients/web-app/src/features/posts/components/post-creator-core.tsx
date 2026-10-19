@@ -29,6 +29,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { DiscardWarningDialog } from "./discard-warning-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { hasCapability } from "@/lib/capabilities";
 
 const postSchema = z.object({
   content: z.string().max(500, "Content exceeds 500 characters limit"),
@@ -1105,7 +1106,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
 
           {/* Tools Menu Bar */}
           <div className="flex items-center gap-1 border-t border-zinc-100 dark:border-zinc-900/60 pt-2.5">
-            {/* Native image uploader input and trigger */}
+            {/* Native image uploader input and trigger: local files become blob URLs, the real BE has no upload API yet */}
+            {hasCapability("multiImage") && (
+              <>
             <input
               ref={fileInputRef}
               type="file"
@@ -1124,6 +1127,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
             >
               <ImageIcon className="size-4 shrink-0" />
             </Button>
+              </>
+            )}
 
             {/* GIF Popover */}
             <div className="relative">
@@ -1212,7 +1217,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
           {/* Options & Action Footer */}
           <div className="flex items-center justify-between">
             {/* Post Option Audience Toggle (empty spacer in reply mode keeps the submit action right-aligned) */}
-            {isReplyMode ? <span /> : (
+            {isReplyMode || !hasCapability("postAudience") ? <span /> : (
             <div className="relative flex items-center gap-1">
               <Popover open={isAudienceOpen} onOpenChange={setIsAudienceOpen}>
                 <PopoverTrigger asChild>

@@ -26,6 +26,7 @@ import { useIsAuthorBlocked, useIsDeleted, usePost, usePostActions, usePostAutho
 import type { PostItem } from "../types";
 import { getVisibleLikeCount } from "../utils/like-visibility";
 import { toPostRef } from "../utils/post-ref";
+import { hasCapability } from "@/lib/capabilities";
 import { RichContent } from "../utils/rich-content";
 import { PostCardMenu } from "./post-card-menu";
 import { PostInlineEditor } from "./post-inline-editor";
@@ -90,7 +91,7 @@ function PostCardView({
   const bookmarksCount = isBookmarked ? 12 : 11;
   const isDetail = variant === "detail";
   // Close friends posts get a green ring + label (the viewer only sees them when marked, so this is never a leak)
-  const isCloseFriends = live.visibility === "closeFriends";
+  const isCloseFriends = hasCapability("closeFriendsBadge") && live.visibility === "closeFriends";
 
   const [sharesCount, setSharesCount] = useState(14);
 

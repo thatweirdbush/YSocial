@@ -113,7 +113,9 @@
   },
   "common": {
     "language": "Language",
-    "error": "Something went wrong. Please try again!"
+    "error": "Something went wrong. Please try again!",
+    "featureUnavailable": "This feature is not available yet",
+    "featureUnavailableDesc": "It is being connected to the server, please check back later."
   },
   "profile": {
     "followersTitle": "Followers",

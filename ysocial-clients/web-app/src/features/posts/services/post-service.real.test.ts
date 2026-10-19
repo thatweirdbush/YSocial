@@ -138,6 +138,12 @@ describe("writes", () => {
     expect(post.id).toBe(ROOT);
   });
 
+  it("createPost never sends a local blob: image", async () => {
+    const calls = useFetch([{ status: 201, body: dto(ROOT) }]);
+    await createPost({ content: "hi", images: ["blob:http://localhost/abc"], audience: "anyone" }, author);
+    expect(body(calls[0])).toEqual({ content: "hi" });
+  });
+
   it("createPost sends the first image only", async () => {
     const calls = useFetch([{ status: 201, body: dto(ROOT) }]);
     await createPost({ content: "hi", images: ["https://x/1.png", "https://x/2.png"], audience: "anyone" }, author);

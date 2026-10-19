@@ -113,7 +113,9 @@
   },
   "common": {
     "language": "Ngôn ngữ",
-    "error": "Đã có lỗi xảy ra. Vui lòng thử lại!"
+    "error": "Đã có lỗi xảy ra. Vui lòng thử lại!",
+    "featureUnavailable": "Tính năng này chưa khả dụng",
+    "featureUnavailableDesc": "Tính năng đang được kết nối với máy chủ, vui lòng quay lại sau."
   },
   "profile": {
     "followersTitle": "Người theo dõi",

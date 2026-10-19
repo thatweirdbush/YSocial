@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import React from "react";
+import { hasCapability } from "@/lib/capabilities";
 import { SearchWidget } from "./search-widget";
 import { FollowSuggestions } from "./follow-suggestions";
 import { TrendingWidget } from "./trending-widget";
@@ -12,9 +13,9 @@ export function RightSidebar() {
 
   return (
     <aside className="hidden lg:flex flex-col gap-6 py-6 px-2 w-[340px] ml-6 xl:ml-8 shrink-0 sticky top-0 h-screen overflow-y-auto bg-zinc-50 dark:bg-black">
-      {!isSearchPage && <SearchWidget />}
-      <FollowSuggestions />
-      <TrendingWidget />
+      {!isSearchPage && hasCapability("search") && <SearchWidget />}
+      {hasCapability("suggestions") && <FollowSuggestions />}
+      {hasCapability("trending") && <TrendingWidget />}
 
       {/* Minimalist footer */}
       <footer className="px-5 text-zinc-400 text-xs flex flex-wrap gap-x-3 gap-y-1.5 leading-5 shrink-0">

@@ -58,9 +58,10 @@ export async function fetchSavedPosts(_actorId: string, page: number): Promise<S
   return { posts, nextPage };
 }
 
-/** Text + first image only: the BE post has a single `imageUrl` & no audience/visibility choice yet. */
+/** Text + first http(s) image only: the BE post has a single `imageUrl` & no audience/visibility choice yet. */
 export async function createPost(input: CreatePostInput, _author: PostAuthor): Promise<PostItem> {
-  const image = input.images[0];
+  // Local uploads are blob: URLs (no upload API): only real http(s) URLs (e.g. GIFs) may be sent
+  const image = input.images.find((url) => /^https?:\/\//i.test(url));
   return toPostItem(await apiClient.post<PostDto>("/api/posts", { content: input.content, ...(image ? { imageUrl: image } : {}) }));
 }
 

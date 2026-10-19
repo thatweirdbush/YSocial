@@ -22,6 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
+import { hasCapability } from "@/lib/capabilities";
 import { BlockConfirmDialog, commitBlock, commitMute, useIsMuted } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 import type { OwnerActions } from "../hooks/use-owner-actions";
@@ -129,16 +130,18 @@ export function PostCardMenu({ post, owner, isSavedPage = false, onUnsave, onEdi
                 <Pencil className={ICON} />
                 {t("card.edit")}
               </DropdownMenuItem>
-              {post.parentId === undefined && (
+              {post.parentId === undefined && hasCapability("pin") && (
                 <DropdownMenuItem disabled={busy} onSelect={() => void owner.togglePin()} className={ITEM}>
                   {post.isPinned ? <PinOff className={ICON} /> : <Pin className={ICON} />}
                   {t(post.isPinned ? "card.unpin" : "card.pin")}
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem disabled={busy} onSelect={() => void owner.toggleHideLikeCount()} className={ITEM}>
-                {post.hideLikeCount ? <Eye className={ICON} /> : <EyeOff className={ICON} />}
-                {t(post.hideLikeCount ? "card.showLikes" : "card.hideLikes")}
-              </DropdownMenuItem>
+              {hasCapability("hideLikeCount") && (
+                <DropdownMenuItem disabled={busy} onSelect={() => void owner.toggleHideLikeCount()} className={ITEM}>
+                  {post.hideLikeCount ? <Eye className={ICON} /> : <EyeOff className={ICON} />}
+                  {t(post.hideLikeCount ? "card.showLikes" : "card.hideLikes")}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onSelect={() => void copyLink()} className={ITEM}>
                 <Link2 className={ICON} />
                 {t("card.copyLink")}
@@ -160,16 +163,20 @@ export function PostCardMenu({ post, owner, isSavedPage = false, onUnsave, onEdi
                 {t("card.notInterested")}
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-              {canManageAuthor && (
+              {canManageAuthor && (hasCapability("muteUi") || hasCapability("blockUi")) && (
                 <>
-                  <DropdownMenuItem onSelect={() => setMuted(!isMuted)} className={ITEM}>
-                    <VolumeX className={ICON} />
-                    {isMuted ? t("relations.unmute", { username }) : t("card.mute", { username })}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => setBlockOpen(true)} className={ITEM}>
-                    <Ban className={ICON} />
-                    {t("card.block", { username })}
-                  </DropdownMenuItem>
+                  {hasCapability("muteUi") && (
+                    <DropdownMenuItem onSelect={() => setMuted(!isMuted)} className={ITEM}>
+                      <VolumeX className={ICON} />
+                      {isMuted ? t("relations.unmute", { username }) : t("card.mute", { username })}
+                    </DropdownMenuItem>
+                  )}
+                  {hasCapability("blockUi") && (
+                    <DropdownMenuItem onSelect={() => setBlockOpen(true)} className={ITEM}>
+                      <Ban className={ICON} />
+                      {t("card.block", { username })}
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
                 </>
               )}

@@ -32,6 +32,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslation } from "@/hooks/use-translation";
 import { LAYOUT } from "@/lib/constants/layout";
 import { useComposerOpen, useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
+import { hasCapability } from "@/lib/capabilities";
 import { authService } from "@/features/auth/services/auth-service";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { RightSidebar } from "./right-sidebar";
@@ -62,7 +63,7 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
   // Navigation config mapping to translation keys
   const navItems = [
     { href: "/", icon: Home, label: t("nav.home") },
-    { href: "/search", icon: Search, label: t("nav.search") },
+    ...(hasCapability("search") ? [{ href: "/search", icon: Search, label: t("nav.search") }] : []),
     { href: "/create", icon: PlusSquare, label: t("nav.write") },
     { href: "/notifications", icon: Bell, label: t("nav.notifications") },
     { href: profileHref, icon: User, label: t("nav.profile") },

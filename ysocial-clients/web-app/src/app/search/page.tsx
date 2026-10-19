@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { MainLayout } from "@/components/layout/main-layout";
+import { FeatureUnavailable } from "@/components/shared/feature-unavailable";
+import { hasCapability } from "@/lib/capabilities";
 import { isSearchTab, resolveDefaultTab, SearchContainer } from "@/features/search";
 
 interface PageProps {
@@ -21,6 +23,13 @@ export async function generateMetadata({ searchParams }: PageProps): Promise<Met
 
 export default async function SearchPage({ searchParams }: PageProps) {
   const params = await searchParams;
+  if (!hasCapability("search")) {
+    return (
+      <MainLayout>
+        <FeatureUnavailable />
+      </MainLayout>
+    );
+  }
   const query = first(params.q).trim();
   const rawTab = first(params.tab);
   const tab = isSearchTab(rawTab) ? rawTab : resolveDefaultTab(query);
