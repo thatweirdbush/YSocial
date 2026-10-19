@@ -240,7 +240,17 @@
     "toastOtpSent": "OTP code has been sent successfully!",
     "toastResetSuccess": "Password reset successfully! Please log in.",
     "errorUsernamePattern": "Username may only use lowercase letters, digits, dots or underscores (max 30 characters).",
-    "errorUsernameTaken": "This username is already taken."
+    "errorUsernameTaken": "This username is already taken.",
+    "errorInvalidCredentials": "Incorrect account or password",
+    "errorAccountInactive": "This account is deactivated",
+    "errorEmailTaken": "This email is already registered",
+    "errorInvalidOtp": "The OTP is wrong or expired",
+    "errorOtpAttemptsExceeded": "Too many attempts, request a new code",
+    "errorValidationFailed": "Some fields are invalid, please check",
+    "errorNetwork": "Cannot reach the server",
+    "errorUnexpected": "Something went wrong, try again",
+    "errorSessionExpired": "Your session has expired",
+    "registeredPleaseLogin": "Account created, please sign in"
   },
   "saved": {
     "title": "Saved",

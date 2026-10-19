@@ -240,7 +240,17 @@
     "toastOtpSent": "Mã OTP đã được gửi đi thành công!",
     "toastResetSuccess": "Đặt lại mật khẩu thành công! Vui lòng đăng nhập lại.",
     "errorUsernamePattern": "Tên tài khoản chỉ gồm chữ thường, số, dấu chấm hoặc gạch dưới (tối đa 30 ký tự).",
-    "errorUsernameTaken": "Tên tài khoản này đã được sử dụng."
+    "errorUsernameTaken": "Tên tài khoản này đã được sử dụng.",
+    "errorInvalidCredentials": "Tài khoản hoặc mật khẩu không đúng",
+    "errorAccountInactive": "Tài khoản đang bị vô hiệu hóa",
+    "errorEmailTaken": "Email này đã được đăng ký",
+    "errorInvalidOtp": "Mã OTP không đúng hoặc đã hết hạn",
+    "errorOtpAttemptsExceeded": "Nhập sai quá nhiều lần, hãy yêu cầu mã mới",
+    "errorValidationFailed": "Thông tin chưa hợp lệ, vui lòng kiểm tra lại",
+    "errorNetwork": "Không kết nối được máy chủ",
+    "errorUnexpected": "Có lỗi xảy ra, thử lại sau",
+    "errorSessionExpired": "Phiên đăng nhập đã hết hạn",
+    "registeredPleaseLogin": "Tạo tài khoản thành công, hãy đăng nhập"
   },
   "saved": {
     "title": "Mục đã lưu",

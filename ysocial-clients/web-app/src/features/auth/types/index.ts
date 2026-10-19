@@ -1,5 +1,6 @@
 import type { components } from "@/lib/api/generated";
 import { z } from "zod";
+import { isRealApi } from "@/lib/api-config";
 import { SEED_AUTHORS, SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import { SEED_FANS } from "@/mocks/seed-fans";
 import { USERNAME_PATTERN } from "../utils/mock-session";
@@ -12,6 +13,8 @@ export type LogoutRequest = Schemas["LogoutRequest"];
 export type RegisterAccountRequest = Schemas["RegisterAccountRequest"];
 export type ForgotPasswordRequest = Schemas["ForgotPasswordRequest"];
 export type ResetPasswordRequest = Schemas["ResetPasswordRequest"];
+export type LoginResponse = Schemas["LoginResponse"];
+export type MeDto = Schemas["MeDto"];
 // #endregion
 
 // #region Domain models
@@ -23,6 +26,21 @@ export interface AuthUser {
   avatarUrl?: string;
   bio?: string;
   username?: string;
+}
+
+/** Register form payload handed to `authService.register`. */
+export interface RegisterInput {
+  email: string;
+  password: string;
+  username: string;
+  phoneNumber?: string;
+}
+
+/** Reset-password payload (OTP flow) handed to `authService.resetPassword`. */
+export interface ResetPasswordInput {
+  loginId: string;
+  otp: string;
+  newPassword: string;
 }
 
 /** Identity mirrored into the mock session cookie (no mutable profile data). */
@@ -91,7 +109,8 @@ export const getRegisterSchema = (t: (key: any) => string) =>
         .min(3, { message: t("auth.errorUsernameLength") })
         // Must survive the mock session cookie (`parseMockSession`), else the own profile 404s
         .regex(USERNAME_PATTERN, { message: t("auth.errorUsernamePattern") })
-        .refine((value) => !RESERVED_USERNAMES.has(value), { message: t("auth.errorUsernameTaken") }),
+        // Mock-only rule: the real BE answers 409 `UsernameTaken` itself
+        .refine((value) => isRealApi("auth") || !RESERVED_USERNAMES.has(value), { message: t("auth.errorUsernameTaken") }),
       password: z
         .string()
         .min(1, { message: t("auth.errorPasswordRequired") })
