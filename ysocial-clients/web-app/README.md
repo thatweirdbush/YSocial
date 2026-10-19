@@ -22,7 +22,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ## Real BE (dev)
 
-Real API slices are opt-in: copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_REAL_API_SLICES` (cumulative: `auth`, `auth,content`, ...). Start the BE in Development on `https://localhost:49895`.
+All API slices use the real BE by default (`NEXT_PUBLIC_REAL_API_SLICES` unset = `auth,content,graph,activity`): start the BE in Development on `https://localhost:49895`. For the mock adapters only set `NEXT_PUBLIC_REAL_API_SLICES=none` (see `.env.example`; cumulative partial lists such as `auth,content` also work).
 
 Dev certificate (needed by the browser and by server-side fetches):
 

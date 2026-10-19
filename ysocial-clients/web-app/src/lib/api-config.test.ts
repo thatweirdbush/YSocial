@@ -8,9 +8,19 @@ afterEach(() => {
 });
 
 describe("parseRealSlices", () => {
-  it("empty env -> no real slice", () => {
-    expect(parseRealSlices(undefined)).toEqual([]);
+  it("unset env -> every wired slice is real (default)", () => {
+    expect(parseRealSlices(undefined)).toEqual([...API_SLICE_ORDER]);
+  });
+
+  it("empty string -> no real slice (a `.env` line with no value)", () => {
     expect(parseRealSlices("")).toEqual([]);
+  });
+
+  it('"none" -> explicit mock mode, no warning (shells delete an empty variable, so empty cannot mean mock)', () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(parseRealSlices("none")).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('"auth" -> auth real only', () => {
@@ -50,8 +60,10 @@ describe("isRealApi", () => {
     expect(isRealApi("auth")).toBe(true);
     expect(isRealApi("content")).toBe(true);
     expect(isRealApi("graph")).toBe(false);
-    setRealSlices(undefined);
+    setRealSlices("none");
     expect(isRealApi("auth")).toBe(false);
+    setRealSlices(undefined);
+    expect(isRealApi("activity")).toBe(true);
   });
 });
 

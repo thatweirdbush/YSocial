@@ -37,7 +37,7 @@ afterEach(() => {
 
 describe("mock mode", () => {
   it("shows the seed notifications with their display timestamps", async () => {
-    setRealSlices(undefined);
+    setRealSlices("none");
     render(<NotificationContainer />);
     expect(await screen.findAllByText("Nguyễn Hà My")).not.toHaveLength(0);
     expect(screen.getAllByText("10m ago")).not.toHaveLength(0);

@@ -67,7 +67,7 @@ describe("real adapter", () => {
 
 describe("mock adapter", () => {
   it("mock mode shows seed notifications", async () => {
-    setRealSlices(undefined);
+    setRealSlices("none");
     const page = await fetchNotifications(1);
     expect(page.items.length).toBeGreaterThan(0);
     expect(page.unreadCount).toBe(page.items.filter((entry) => !entry.isRead).length);
