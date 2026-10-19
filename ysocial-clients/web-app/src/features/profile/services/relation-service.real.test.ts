@@ -8,10 +8,12 @@ import {
   fetchFollowList,
   fetchFollowRequestCount,
   fetchFollowRequests,
+  fetchMutedUsers,
   fetchRelationSets,
   respondFollowRequest,
   setBlocked,
   setCloseFriend,
+  setMuted,
   setPrivateAccount,
 } from "./relation-service.real";
 
@@ -216,5 +218,37 @@ describe("writes", () => {
     await expect(setCloseFriend("author-01", true, ME)).rejects.toMatchObject({ status: 404 });
     await expect(respondFollowRequest("author-01", "accept", ME)).rejects.toMatchObject({ status: 404 });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("mute", () => {
+  it("mute PUT & unmute DELETE", async () => {
+    const calls = useFetch([{ status: 204 }, { status: 204 }]);
+    await setMuted(A, true, ME);
+    await setMuted(A, false, ME);
+    expect(calls.map((call) => [call.init?.method, path(call)])).toEqual([
+      ["PUT", `/api/users/${A}/relations/mute`],
+      ["DELETE", `/api/users/${A}/relations/mute`],
+    ]);
+  });
+
+  it("mute self -> CannotMuteSelf ApiError from BE", async () => {
+    useFetch([problem(400, "CannotMuteSelf")]);
+    await expect(setMuted(ME, true, ME)).rejects.toMatchObject({ code: "CannotMuteSelf" });
+  });
+
+  it("unmute of a hidden user is still 204 & non-GUID rejects locally", async () => {
+    const calls = useFetch([{ status: 204 }]);
+    await expect(setMuted(A, false, ME)).resolves.toBeUndefined();
+    await expect(setMuted("author-01", true, ME)).rejects.toMatchObject({ status: 404 });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("muted list is paged with query & items are marked isMuted", async () => {
+    const calls = useFetch([page([profile(A)], { hasNextPage: true })]);
+    const result = await fetchMutedUsers({ query: "an", page: 1 }, ME);
+    expect(path(calls[0])).toBe("/api/users/me/mutes?page=1&pageSize=20&query=an");
+    expect(result.users[0].isMuted).toBe(true);
+    expect(result.nextPage).toBe(2);
   });
 });

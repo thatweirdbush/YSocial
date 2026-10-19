@@ -79,6 +79,7 @@ export async function setBlocked(id: string, on: boolean, actorId: string): Prom
 }
 
 export async function setMuted(id: string, on: boolean, actorId: string): Promise<void> {
+  if (isRealApi("activity")) return real.setMuted(id, on, actorId);
   const viewer = requireViewer(actorId, isMuteFacade());
 
   setMutedEdge(viewer, id, on);
@@ -146,6 +147,7 @@ export async function fetchBlockedUsers(q: RelationListQuery, actorId: string): 
 }
 
 export async function fetchMutedUsers(q: RelationListQuery, actorId: string): Promise<FollowListPage> {
+  if (isRealApi("activity")) return real.fetchMutedUsers(q, actorId);
   if (isMuteFacade()) return { users: [] };
   await mockDelay();
 

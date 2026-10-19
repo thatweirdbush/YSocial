@@ -92,6 +92,18 @@ describe("graph real", () => {
     expect(graphWrite).not.toHaveBeenCalled();
   });
 
+  it("mute reaches the BE once activity is real", async () => {
+    setRealSlices("auth,content,graph,activity");
+    useAuthStore.getState().actions.setTokens("A1", "R1");
+    const fake = mockFetchSequence([{ status: 204 }]);
+    vi.stubGlobal("fetch", fake.fetchFn);
+    const graphWrite = vi.spyOn(relationGraph, "setMutedEdge");
+
+    await setMuted(OTHER, true, REAL_VIEWER);
+    expect(fake.calls[0].url.replace(API_BASE_URL, "")).toBe(`/api/users/${OTHER}/relations/mute`);
+    expect(graphWrite).not.toHaveBeenCalled();
+  });
+
   it("mute stays a facade until the activity slice", async () => {
     setRealSlices("auth,content,graph");
     expect(await fetchMutedUsers({}, REAL_VIEWER)).toEqual(EMPTY_PAGE);

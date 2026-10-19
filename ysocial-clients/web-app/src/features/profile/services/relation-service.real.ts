@@ -146,3 +146,18 @@ export async function respondFollowRequest(requesterId: string, decision: Reques
   await apiClient.post(`/api/users/${requireBackendId(requesterId)}/relations/follow-request`, { decision });
 }
 // #endregion
+
+// #region Mute
+/** Idempotent; 400 `CannotMuteSelf` rejects as `ApiError`. */
+export async function setMuted(id: string, on: boolean, _actorId: string): Promise<void> {
+  const path = `/api/users/${requireBackendId(id)}/relations/mute`;
+  if (on) await apiClient.put(path);
+  else await apiClient.delete(path);
+}
+
+/** Own mute list (the BE feed excludes these authors). */
+export async function fetchMutedUsers({ query, page = 1 }: RelationListQuery, _actorId: string): Promise<FollowListPage> {
+  const result = await readList("/api/users/me/mutes", page, query);
+  return { ...result, users: result.users.map((user) => ({ ...user, isMuted: true })) };
+}
+// #endregion
