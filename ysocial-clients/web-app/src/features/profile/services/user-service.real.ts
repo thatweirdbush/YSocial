@@ -9,6 +9,8 @@ import { toFollowStatus, toUserProfile } from "./user-mapper";
 // already identifies the viewer. 404 -> `null`, every other failure is rethrown (never shown as "not found").
 
 const FOLLOWING_PAGE_SIZE = 50;
+/** Safety cap against a BE that never reports the last page (1000 followed users). */
+const FOLLOWING_MAX_PAGES = 20;
 
 async function readProfile(path: string): Promise<UserProfile | null> {
   try {
@@ -62,7 +64,7 @@ export async function unfollowUser(id: string, _actorId: string): Promise<void> 
 export async function fetchFollowedIds(actorId: string): Promise<string[]> {
   if (!isBackendId(actorId)) return [];
   const ids: string[] = [];
-  for (let page = 1; ; page += 1) {
+  for (let page = 1; page <= FOLLOWING_MAX_PAGES; page += 1) {
     const result = await apiClient.get<FollowListPageDto>(`/api/users/${actorId}/following`, {
       params: { page, pageSize: FOLLOWING_PAGE_SIZE },
     });
@@ -72,6 +74,7 @@ export async function fetchFollowedIds(actorId: string): Promise<string[]> {
     }
     if (!result.hasNextPage) return ids;
   }
+  return ids;
 }
 
 /** The viewer is already a BE profile: nothing is registered anywhere, the profile is just read. */

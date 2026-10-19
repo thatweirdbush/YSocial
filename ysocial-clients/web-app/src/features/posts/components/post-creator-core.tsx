@@ -658,8 +658,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const handleRestoreDraft = useCallback((draft: any) => {
     setValue("content", draft.content);
     setImages(draft.images);
-    setAudience(draft.audience);
-    setVisibility(draft.visibility ?? "public");
+    setAudience(hasCapability("postAudience") ? draft.audience : "anyone");
+    // Drafts saved in mock mode may carry an audience/visibility the real BE cannot honor: never publish them silently
+    setVisibility(hasCapability("postAudience") ? (draft.visibility ?? "public") : "public");
     setActiveDraftId(draft.id);
     setIsDraftsOpen(false);
   }, [setValue]);
@@ -1130,7 +1131,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
               </>
             )}
 
-            {/* GIF Popover */}
+            {/* GIF Popover: a GIF is an image attachment, which the real BE keeps only on root posts (one per post) */}
+            {(!isReplyMode || hasCapability("multiImage")) && (
             <div className="relative">
               <Popover open={isGifOpen} onOpenChange={setIsGifOpen}>
                 <PopoverTrigger asChild>
@@ -1150,6 +1152,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                 {gifPickerContent}
               </Popover>
             </div>
+            )}
 
             {/* Emoji Popover */}
             <div className="relative">

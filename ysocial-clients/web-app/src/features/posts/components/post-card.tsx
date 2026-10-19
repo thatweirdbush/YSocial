@@ -151,7 +151,11 @@ function PostCardView({
   const handleLike = () => {
     const nextState = !isLiked;
     toggleLike(post.id, post);
-    void setPostLike(toPostRef(post), nextState);
+    // Server refused (blocked/deleted mid-session, expired token, offline): undo the optimistic flip
+    setPostLike(toPostRef(post), nextState).catch(() => {
+      toggleLike(post.id, post);
+      toast.error(t("common.error"));
+    });
 
     if (nextState) {
       setLikeAnimating(true);
@@ -167,7 +171,10 @@ function PostCardView({
   const handleBookmark = () => {
     const nextState = !isBookmarked;
     toggleBookmark(post.id, post);
-    void setPostBookmark(toPostRef(post), nextState);
+    setPostBookmark(toPostRef(post), nextState).catch(() => {
+      toggleBookmark(post.id, post);
+      toast.error(t("common.error"));
+    });
     setBookmarkAnimating(true);
 
     if (nextState) {

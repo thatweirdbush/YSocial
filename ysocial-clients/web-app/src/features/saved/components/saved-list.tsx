@@ -33,7 +33,7 @@ export const SavedList: React.FC = () => {
   const realApi = isRealApi("content");
   const viewerId = useViewerId();
   const hydrated = useAuthHydrated();
-  const { upsertPosts } = usePostActions();
+  const { upsertPosts, toggleBookmark } = usePostActions();
   const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "error">(realApi ? "loading" : "ready");
   const [loadAttempt, setLoadAttempt] = useState(0);
   // A signed-out visitor has nothing to load: the (empty) list is ready as soon as auth hydrated
@@ -200,6 +200,22 @@ export const SavedList: React.FC = () => {
 
   // 5. Unsave / Slide-Out Optimistic trigger
   const handleUnsaveOptimistic = (id: string) => {
+    // Real mode: the row only leaves once the BE confirmed the bookmark removal
+    const item = savedItems.find((candidate) => candidate.id === id);
+    if (realApi && item) {
+      setPostBookmark(toPostRef(item.post), false).then(
+        () => {
+          toggleBookmark(item.post.id, item.post);
+          removeSavedRow(id);
+        },
+        () => toast.error(t("saved.unsaveError")),
+      );
+      return;
+    }
+    removeSavedRow(id);
+  };
+
+  const removeSavedRow = (id: string) => {
     // Add to animating list first
     setAnimatingUnsaveIds((prev) => [...prev, id]);
 

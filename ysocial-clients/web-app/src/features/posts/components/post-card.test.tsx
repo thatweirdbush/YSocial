@@ -116,6 +116,20 @@ describe("PostCard store sync", () => {
     expect(bookmarkSpy).toHaveBeenCalledWith(ref, true);
   });
 
+  it("rolls back the optimistic like & bookmark when the service rejects", async () => {
+    vi.spyOn(service, "setPostLike").mockRejectedValue(new Error("404"));
+    vi.spyOn(service, "setPostBookmark").mockRejectedValue(new Error("404"));
+    render(<PostCard post={post} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Thích" }));
+    await userEvent.click(screen.getByRole("button", { name: "Lưu" }));
+
+    await vi.waitFor(() => {
+      expect(usePostStore.getState().posts["post-001"].isLikedByCurrentUser).toBe(false);
+      expect(usePostStore.getState().posts["post-001"].isBookmarkedByCurrentUser).toBe(false);
+    });
+  });
+
   it("toggles bookmark through the store", async () => {
     render(<PostCard post={post} />);
 
