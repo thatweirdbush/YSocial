@@ -1,127 +1,38 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { toast } from "sonner";
+import { SafeHydration } from "@/components/shared/safe-hydration";
+import { Button } from "@/components/ui/button";
 import { FollowRequestsBanner } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
-import { SafeHydration } from "@/components/shared/safe-hydration";
-import { isRealApi } from "@/lib/api-config";
 import { hasCapability } from "@/lib/capabilities";
+import {
+  commitMarkAllRead,
+  commitMarkRead,
+  loadMoreNotifications,
+  loadNotifications,
+  toggleNotificationFollow,
+  useNotificationStore,
+} from "../store/notification-store";
+import type { NotificationItemData, NotificationUser } from "../types";
 import { NotificationList } from "./notification-list";
-import { NotificationItemData, NotificationUser } from "../types";
-
-const INITIAL_NOTIFICATIONS: NotificationItemData[] = [
-  {
-    id: "notif-1",
-    kind: "reply",
-    user: {
-      id: "user-hamy",
-      username: "hamy_cute",
-      displayName: "Nguyễn Hà My",
-      avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80",
-      isFollowing: true,
-    },
-    createdAt: "10m ago",
-    isRead: false,
-    postContentPreview: "Cái này đỉnh thật sự luôn ấy! Lát inbox chỉ mình cách làm nhé.",
-    postId: "post-1",
-  },
-  {
-    id: "notif-2",
-    kind: "like",
-    user: {
-      id: "user-minh",
-      username: "minh_pvc",
-      displayName: "Phan Văn Minh",
-      avatarUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80",
-      isFollowing: false,
-    },
-    createdAt: "1h ago",
-    isRead: false,
-    postId: "post-1",
-  },
-  {
-    id: "notif-3",
-    kind: "follow",
-    user: {
-      id: "user-anquoc",
-      username: "anquoc.dev",
-      displayName: "Trần Anh Quốc",
-      avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80",
-      isFollowing: false,
-    },
-    createdAt: "3h ago",
-    isRead: true,
-  },
-  {
-    id: "notif-4",
-    kind: "reply",
-    user: {
-      id: "user-nam",
-      username: "nam_hoang",
-      displayName: "Hoàng Nam",
-      avatarUrl: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80",
-      isFollowing: false,
-    },
-    createdAt: "1d ago",
-    isRead: true,
-    postContentPreview: "Mình đã chạy thử code và kết quả thật sự bất ngờ! Tốc độ nhanh gấp đôi luôn.",
-    postId: "post-2",
-  },
-  {
-    id: "notif-5",
-    kind: "follow",
-    user: {
-      id: "user-maichi",
-      username: "maichi_ne",
-      displayName: "Mai Chi",
-      avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
-      isFollowing: true,
-    },
-    createdAt: "2d ago",
-    isRead: true,
-  },
-  {
-    id: "notif-6",
-    kind: "like",
-    user: {
-      id: "user-hamy",
-      username: "hamy_cute",
-      displayName: "Nguyễn Hà My",
-      avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80",
-      isFollowing: true,
-    },
-    createdAt: "3d ago",
-    isRead: true,
-    postId: "post-2",
-  },
-];
 
 export const NotificationContainer: React.FC = () => {
   const { t } = useTranslation();
-  const [notifications, setNotifications] = useState<NotificationItemData[]>(
-    // Mock items reference mock users (non-GUID ids): with real content the list stays empty until Phase N
-    isRealApi("content") ? [] : INITIAL_NOTIFICATIONS,
-  );
+  const items = useNotificationStore((state) => state.items);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const nextPage = useNotificationStore((state) => state.nextPage);
+  const status = useNotificationStore((state) => state.status);
+  const loadingMore = useNotificationStore((state) => state.loadingMore);
 
-  // Dynamic follow toggle action
+  // First page on mount; pushed items & later pages share the same store state
+  useEffect(() => {
+    void loadNotifications();
+  }, []);
+
   const handleFollowToggle = (user: NotificationUser) => {
-    setNotifications((prev) =>
-      prev.map((item) => {
-        if (item.user.id === user.id) {
-          const nextFollowing = !item.user.isFollowing;
-          return {
-            ...item,
-            user: {
-              ...item.user,
-              isFollowing: nextFollowing,
-            },
-          };
-        }
-        return item;
-      })
-    );
-
+    toggleNotificationFollow(user.id);
     if (user.isFollowing) {
       toast.info(`${t("card.unfollow")} @${user.username}`);
     } else {
@@ -129,24 +40,56 @@ export const NotificationContainer: React.FC = () => {
     }
   };
 
+  const handleOpen = (item: NotificationItemData) => {
+    if (item.isRead) return;
+    void commitMarkRead(item.id).then((ok) => {
+      if (!ok) toast.error(t("common.error"));
+    });
+  };
+
+  const handleMarkAll = () => {
+    void commitMarkAllRead().then((ok) => {
+      if (!ok) toast.error(t("common.error"));
+    });
+  };
+
+  const footer =
+    nextPage !== undefined && !loadingMore ? (
+      <div className="flex justify-center py-4">
+        <Button type="button" variant="outline" onClick={() => void loadMoreNotifications()} className="min-h-11 rounded-full px-5">
+          {t("notifications.loadMore")}
+        </Button>
+      </div>
+    ) : null;
+
   return (
     <SafeHydration>
       <div className="w-full border-zinc-100 dark:border-zinc-900 bg-white dark:bg-black min-h-screen flex flex-col">
         {/* Title Header */}
-        <div className="px-6 py-5">
+        <div className="flex items-center justify-between gap-3 px-6 py-5">
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             {t("notifications.title")}
           </h1>
+          {unreadCount > 0 && (
+            <Button type="button" variant="ghost" onClick={handleMarkAll} className="min-h-11 rounded-full px-4 text-sm">
+              {t("notifications.markAllRead")}
+            </Button>
+          )}
         </div>
 
         {/* Pending follow requests of a private account (hidden when there are none) */}
         {hasCapability("followRequestsUi") && <FollowRequestsBanner />}
 
-        {/* Dynamic Notification List */}
-        <NotificationList
-          items={notifications}
-          onFollowToggle={handleFollowToggle}
-        />
+        {status === "error" && items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 px-4 py-20 text-center">
+            <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">{t("notifications.loadError")}</p>
+            <Button type="button" variant="outline" onClick={() => void loadNotifications()} className="min-h-11 rounded-full px-5">
+              {t("notifications.retry")}
+            </Button>
+          </div>
+        ) : (
+          <NotificationList items={items} onFollowToggle={handleFollowToggle} onOpen={handleOpen} footer={footer} />
+        )}
       </div>
     </SafeHydration>
   );

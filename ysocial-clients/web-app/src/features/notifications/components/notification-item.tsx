@@ -11,19 +11,34 @@ import type { NotificationItemData, NotificationUser } from "../types";
 interface NotificationItemProps {
   item: NotificationItemData;
   onFollowToggle: (user: NotificationUser) => void;
+  /** Called when the item is opened (marks it read). */
+  onOpen?: (item: NotificationItemData) => void;
 }
 
 export const NotificationItem: React.FC<NotificationItemProps> = ({
   item,
   onFollowToggle,
+  onOpen,
 }) => {
   const { t } = useTranslation();
 
   // Determine redirection path
-  const redirectUrl =
-    item.kind === "follow"
-      ? `/@${item.user.username}`
-      : `/posts/${item.postId || ""}`;
+  const redirectUrl = (() => {
+    if (item.kind === "follow") return item.user.username ? `/@${item.user.username}` : "/notifications";
+    if (item.kind === "other") return "/notifications";
+    return `/posts/${item.postId || ""}`;
+  })();
+
+  // ISO timestamps (real) are shown relative; mock seed strings are already display text
+  const formatTime = (value: string) => {
+    const created = new Date(value).getTime();
+    if (Number.isNaN(created)) return value;
+    const minutes = Math.max(1, Math.floor((Date.now() - created) / 60000));
+    if (minutes < 60) return t("card.minutesAgo", { n: minutes });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return t("card.hoursAgo", { n: hours });
+    return t("card.daysAgo", { n: Math.floor(hours / 24) });
+  };
 
   // Get action text localized
   const getActionText = () => {
@@ -31,11 +46,13 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
       case "like":
         return t("notifications.actionLike");
       case "follow":
+        if (item.type === "FollowRequested") return t("notifications.actionFollowRequested");
+        if (item.type === "FollowAccepted") return t("notifications.actionFollowAccepted");
         return t("notifications.actionFollow");
       case "reply":
         return t("notifications.actionReply");
       default:
-        return "";
+        return item.message ?? "";
     }
   };
 
@@ -73,7 +90,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
                     after:border-b after:border-zinc-200/80 dark:after:border-zinc-900/40"
     >
       <div className="w-full flex gap-4 items-center justify-between">
-        <Link href={redirectUrl} className="flex gap-4 items-start flex-1 min-w-0 hover:opacity-95 transition-opacity">
+        <Link href={redirectUrl} onClick={() => onOpen?.(item)} className="flex gap-4 items-start flex-1 min-w-0 hover:opacity-95 transition-opacity">
           {/* Left Column: Avatar & Overlap Badge */}
           <div className="relative shrink-0">
             <Avatar className="size-10 border border-zinc-200 dark:border-zinc-900">
@@ -106,7 +123,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
             {/* Timestamp and isRead unread badge */}
             <div className="flex items-center gap-1.5 mt-1">
               <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                {item.createdAt}
+                {formatTime(item.createdAt)}
               </span>
               {!item.isRead && (
                 <span className="size-1.5 rounded-full bg-blue-500 shrink-0" aria-hidden="true" />
@@ -116,7 +133,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         </Link>
 
         {/* Right Column: Follow Button (with stopPropagation) */}
-        {item.kind === "follow" && (
+        {item.kind === "follow" && item.user.isFollowing !== undefined && (
           <Button
             onClick={(e) => {
               e.stopPropagation();

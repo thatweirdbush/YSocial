@@ -188,6 +188,12 @@
     "actionLike": "liked your post",
     "actionFollow": "started following you",
     "actionReply": "replied to your post",
+    "actionFollowRequested": "requested to follow you",
+    "actionFollowAccepted": "accepted your follow request",
+    "markAllRead": "Mark all as read",
+    "loadMore": "Load more",
+    "loadError": "Couldn't load notifications",
+    "retry": "Try again",
     "followRequests": "{count} follow requests",
     "followRequestsHint": "Review, approve or delete requests"
   },
