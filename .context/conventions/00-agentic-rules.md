@@ -42,13 +42,14 @@ MUST check & activate these core skills before ANY task.
    - Single source of truth for phase progress (`[x]`, `[-]`, `[ ]`)
 2. **Tier 2: Spec & Plan** (`docs/specs/` & `docs/plans/`)
    - `docs/specs/YYYY-MM-DD-<feature>-design.md`: WHAT & WHY - technical architecture, data flow, Zustand stores, mock definitions, edge cases
-      - **Note:** DO NOT list individual i18n keys. ONLY define Domains/Scope (e.g., auth.*). The full key-value mapping belongs in Plan phase
+      - **Note:** DO NOT list individual i18n keys. ONLY define Domains/Scope (e.g., auth.*). Full key-value mapping belongs in Plan phase
    - `docs/plans/YYYY-MM-DD-<feature>.md`: HOW & STEPS - bite-sized TDD tasks with checkboxes (`- [ ]`)
 3. **Tier 3: Feature Context / As-Built Doc** (`.context/features/<feature-name>.md`)
    - Created/Updated AFTER completion. Documents actual implemented state, API mappings, permanent Design Decisions & Pitfall Logs
+   - **MUST always match current implementation** (`Current implementation knowledge`): any task that changes behavior updates affected doc in same task. Rewrite stale parts (e.g. mock-only statements after slice goes real), never append contradicting notes. Specs & plans (Tier 2) stay history
 
 ### 4.2. Completion Protocol - Check off Progress
-- Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if a phase/feature is done
+- Mark `[x]` finished tasks in Tier 2 plan files & update Tier 1 roadmap status if phase/feature is done
 - If decisions/architecture shifted during execution, update Tier 2 spec 7 plan to reflect new reality (or note the change)
 
 ### 4.3 Deferred Minor Triage Before Completion
@@ -89,6 +90,6 @@ After EVERY completed task (new feature or bug fix), MUST update docs in `.conte
 
 ### Systematic Debugging: Rule of Two Failures
 IF 2 consecutive fix attempts based on code reasoning fail -> STOP guessing, switch to evidence-based debugging:
-1. **Drop assumptions:** Accept an underlying assumption is wrong (e.g. API payload, user context...)
+1. **Drop assumptions:** Accept underlying assumption is wrong (e.g. API payload, user context...)
 2. **Inject temporary traces / integration tests:** Log 3 components - Input (`IUserContext`, params), State Transition (Old -> New), Output/Exception
 3. **Clean up:** Remove ALL temporary trace code immediately after confirming root cause & verifying fix
