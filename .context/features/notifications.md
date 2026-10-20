@@ -57,4 +57,5 @@ NotificationContainer (tabs, mark-on-view) | NotificationNavBadge (unread) | Not
 
 ## Open
 - BE aggregation for grouping ("N others" over unloaded pages), mention notifications, reply preview text (BG §10)
-- Real-BE smoke needs the dev DB migration `AddNotificationPreferences` applied (default `true` for existing rows)
+- Smoke 2026-10-20 (real BE on hosted PostgreSQL, migration `AddNotificationPreferences` applied, existing rows read `true`): kind filter, bounded read-all (older read, newer unread, 403/404), preferences stop & resume notifications, live push + badge, fresh highlight, grouping, settings persist; UI at desktop dark & 375px dark. NOT covered: light theme, 768/1440px, keyboard pass (7.5)
+- Pitfall: a full page navigation right after a switch toggle aborts the in-flight save (client navigation keeps the store, so no loss)

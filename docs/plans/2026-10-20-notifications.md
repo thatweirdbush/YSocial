@@ -111,7 +111,7 @@ FE: `features/notifications/{types,services,store,components,mocks}`, `lib/capab
 
 ### Task F7: verify & exit
 - [x] `npm run test`, `typecheck`, `lint` (exact results); `dotnet test` (exact counts)
-- [ ] Real-BE smoke (BE + `npm run dev`): like/comment/follow from seed users -> tabs filter + paging, badge live, mark-on-view bounded, preference off stops new notifications; mock mode (`NEXT_PUBLIC_REAL_API_SLICES=none`): Mentions tab, grouping; 375/768/1440 px, light/dark, keyboard focus
+- [x] Real-BE smoke (done 2026-10-20: API script vs PostgreSQL + browser at desktop dark & 375px dark; NOT covered: light theme, 768 & 1440px, keyboard pass) (BE + `npm run dev`): like/comment/follow from seed users -> tabs filter + paging, badge live, mark-on-view bounded, preference off stops new notifications; mock mode (`NEXT_PUBLIC_REAL_API_SLICES=none`): Mentions tab, grouping; 375/768/1440 px, light/dark, keyboard focus
 - [x] Docs (same task): `.context/features/notifications.md` (new) + INDEX entry; BG §7.5 & §11 counts; DM §2; `backend-unit-test.md`; roadmap ticks (3.1, 3.2, 3.4 `[x]`, 3.3 closed rationale); spec §8 mismatch log; this plan checkboxes
 - [x] Deferred-minor triage (00-agentic-rules 4.3), report: resolved MAP unread-count row, `notificationSettings` capability, mention icon colour; deferred real-BE smoke, "N others" BE aggregation, mention model, reply preview, inactive-tab `aria-controls` (7.5)
 - [ ] Offer commit (no `Co-Authored-By`)
