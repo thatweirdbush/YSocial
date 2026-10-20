@@ -11,9 +11,9 @@ updated: 2026-10-20
 
 | Project | Layer | Tests (all passing) |
 |---|---|---|
-| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos) | 60 |
+| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos) | 77 |
 | `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes | 73 |
-| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 430 |
+| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 468 |
 | `tests/YSocial.TestSupport` (no tests) | shared harness: `SqliteTestDatabase`, `Store` facade | - |
 
 - **All:** net8.0
@@ -218,6 +218,16 @@ updated: 2026-10-20
 ### `Notifications/NotificationTests.cs` (4)
 - `TargetId` kept, self notification throws, mark-read by non-recipient throws, mark-read idempotent
 
+### `Notifications/NotificationKindTests.cs` (10), `NotificationPreferencesTests.cs` (7)
+- `NotificationKind.Of` maps all 5 types & covers every declared type, `TryParse` case-insensitive (blank/unknown/null rejected)
+- `NotificationPreferences`: default all on, `Allows` false only for the disabled kind (3 kinds x types), `User.UpdateNotificationPreferences` replaces
+
+### API `Notifications/` (D26-D28)
+- `NotificationKindFilterTests` (14): each kind, absent/empty/blank = all, case-insensitive, unknown/malformed 400 + `errors.kind`, repeated param observed (1 value), paging counts follow filtered list, blocked senders still excluded, `unreadCount` overall
+- `NotificationReadAllUpToTests` (8): bound marks that & older only, newest = all, absent = all, idempotent, unknown 404, foreign 403 `NotNotificationRecipient`, blocked sender id accepted & hidden rows untouched, 401
+- `NotificationPreferencesTests` (14): GET defaults, PUT full replace, missing/null field 400 & unchanged, 401; publisher skips per kind (post like, comment like, reply, new follow, follow requested, follow accepted for requester), no backfill when re-enabled, other recipients unaffected
+- `Contract/SwaggerTests`: `preferences` GET/PUT response schema rows
+
 ### Business Rules Direct Tests (~48 rule files)
 - Only 3 rule test classes exist (UserRelations); all rules are covered by classification reflection tests + API tests
 - Each rule test class SHOULD implement 2 boundary tests:
@@ -260,7 +270,7 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 # 4. VERIFICATION PLAN
 
 - [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
-- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (60 pass)
+- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (77 pass)
 - [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (73 pass)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (430 pass, serialized, identical seed per test)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (468 pass, serialized, identical seed per test)
 - [x] **All:** `dotnet test YSocial.sln`
