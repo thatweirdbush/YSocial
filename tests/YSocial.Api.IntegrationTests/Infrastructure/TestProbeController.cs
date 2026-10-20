@@ -5,6 +5,7 @@ using Microservice.BuildingBlocks.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using YSocial.Api.Controllers;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Application.CQRS.Results;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
@@ -37,6 +38,7 @@ public class TestProbeController : ApiController
         "rule" => new BusinessRuleValidationException(new UnclassifiedRule()),
         "rulestring" => new BusinessRuleValidationException("custom failure"),
         "notfound" => new EntityNotFoundException("thing missing"),
+        "concurrency" => new ConcurrencyConflictException("stale data"),
         _ => new InvalidOperationException("secret internal detail")
     };
 

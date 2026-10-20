@@ -1,5 +1,5 @@
 using Xunit;
-using YSocial.Infrastructure.Data;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
@@ -12,7 +12,8 @@ public abstract class ApiTestBase
     protected ApiTestBase(ApiFixture fixture)
     {
         Factory = fixture.Factory;
-        MockDataStore.ResetForTests();
+        Store.Use(fixture.Database);
+        Store.Reset();
         Factory.Logs.Clear();
         Client = Factory.CreateApiClient();
     }

@@ -1,11 +1,11 @@
-using FluentAssertions;
 using System.Net;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.UserRelations;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Relations;
 
@@ -19,7 +19,7 @@ public class MuteTests(ApiFixture fixture) : ApiTestBase(fixture)
     private static string FollowRoute(Guid id) => $"/api/users/{id}/relations/follow";
 
     private static UserRelation? Edge(Guid observer, Guid target)
-        => MockDataStore.UserRelations.Values.SingleOrDefault(r => r.ObserverId.Value == observer && r.TargetId.Value == target);
+        => Store.UserRelations.Values.SingleOrDefault(r => r.ObserverId.Value == observer && r.TargetId.Value == target);
 
     private static IReadOnlyList<string> Usernames(JsonElement page)
         => page.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("username").GetString()!).ToList();
@@ -35,7 +35,7 @@ public class MuteTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         first.StatusCode.Should().Be(HttpStatusCode.NoContent);
         second.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        MockDataStore.UserRelations.Values.Count(r => r.ObserverId.Value == Test && r.TargetId.Value == Demo).Should().Be(1);
+        Store.UserRelations.Values.Count(r => r.ObserverId.Value == Test && r.TargetId.Value == Demo).Should().Be(1);
         Edge(Test, Demo)!.IsMuted.Should().BeTrue();
         Edge(Test, Demo)!.MutedAt.Should().Be(mutedAt);
     }
@@ -107,8 +107,9 @@ public class MuteTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         await test.PutAsync(MuteRoute(Demo), null);
 
-        edge.IsMuted.Should().BeTrue();
-        edge.UpdatedAt.Should().Be(updatedAt, "follow lists order by UpdatedAt");
+        var stored = Store.UserRelations[edge.Id];
+        stored.IsMuted.Should().BeTrue();
+        stored.UpdatedAt.Should().Be(updatedAt, "follow lists order by UpdatedAt");
     }
 
     [Fact]
@@ -206,7 +207,7 @@ public class MuteTests(ApiFixture fixture) : ApiTestBase(fixture)
         }
 
         await test.PostAsync($"/api/users/{blocked.Id.Value}/blocks", null);
-        deleted.Delete();
+        Store.Users.Update(deleted.Id, x => x.Delete());
 
         var page = await (await test.GetAsync("/api/users/me/mutes")).ReadJsonAsync();
 

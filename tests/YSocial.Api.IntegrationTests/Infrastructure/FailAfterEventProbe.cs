@@ -1,28 +1,29 @@
 using Microservice.BuildingBlocks.CQRS.Commands;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Domain.Posts;
+using YSocial.Infrastructure.Persistence.Seeding;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
 /// <summary>
-/// Raises a domain event on a static aggregate, then fails (throws or returns failed Result).
+/// Raises a domain event on a tracked aggregate, then fails (throws or returns failed Result): the request must save nothing.
 /// </summary>
 public sealed record FailAfterEventCommand(bool ThrowException) : ResultCommand;
 
-internal sealed class FailAfterEventHandler : ICommandHandler<FailAfterEventCommand, Result>
+internal sealed class FailAfterEventHandler(IPostRepository posts) : ICommandHandler<FailAfterEventCommand, Result>
 {
-    public Task<Result> Handle(FailAfterEventCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(FailAfterEventCommand request, CancellationToken cancellationToken)
     {
-        // Adds PostDeletedEvent to the shared aggregate
-        MockDataStore.Posts[SeedIds.TestPost].Delete(SeedIds.TestUser);
+        // Soft-deletes the tracked post & adds PostDeletedEvent
+        var post = await posts.GetByIdAsync(SeedIds.TestPost, cancellationToken);
+        post!.Delete(SeedIds.TestUser);
 
         if (request.ThrowException)
         {
             throw new InvalidOperationException("boom after event");
         }
 
-        return Task.FromResult(Result.Fail("failed after event"));
+        return Result.Fail("failed after event");
     }
 }

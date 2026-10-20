@@ -1,21 +1,19 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Identities;
-using YSocial.Domain.Identities.Events;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
-using YSocial.Infrastructure.Identity;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Identities;
 
 public class SessionTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
-    private static Account TestAccount => MockDataStore.Accounts[SeedIds.TestAccount];
+    private static Account TestAccount => Store.Accounts[SeedIds.TestAccount];
 
     private static int ActiveTokens(Account account) => account.RefreshTokens.Count(t => t.IsActive);
 
@@ -63,8 +61,7 @@ public class SessionTests(ApiFixture fixture) : ApiTestBase(fixture)
     public async Task Logout_ExpiredToken_Returns204()
     {
         var tokens = await TokensAsync();
-        typeof(RefreshToken).GetProperty(nameof(RefreshToken.ExpiryTime))!.GetSetMethod(true)!
-            .Invoke(Find(tokens.RefreshToken), [DateTime.UtcNow.AddDays(-1)]);
+        AccountArrange.ExpireToken(SeedIds.TestAccount, tokens.RefreshToken, DateTime.UtcNow.AddDays(-1));
 
         (await LogoutAsync(tokens.RefreshToken)).StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
@@ -188,7 +185,7 @@ public class SessionTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Login_UnknownWrongPasswordDeleted_IdenticalBody401()
     {
-        MockDataStore.Accounts[SeedIds.DemoAccount].Delete();
+        Store.Accounts.Update(SeedIds.DemoAccount, x => x.Delete());
 
         var unknown = await LoginFailureAsync("nobody@example.com", Seed.Password);
         var wrongPassword = await LoginFailureAsync(Seed.TestLogin, "WrongPassword!");
@@ -203,8 +200,7 @@ public class SessionTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Login_InactiveWithWrongPassword_Returns401()
     {
-        TestAccount.Deactivate();
-        TestAccount.ClearDomainEvents();
+        Store.Accounts.Update(SeedIds.TestAccount, x => x.Deactivate());
 
         var failure = await LoginFailureAsync(Seed.TestLogin, "WrongPassword!");
 
@@ -214,8 +210,7 @@ public class SessionTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Login_InactiveWithValidPassword_Returns403()
     {
-        TestAccount.Deactivate();
-        TestAccount.ClearDomainEvents();
+        Store.Accounts.Update(SeedIds.TestAccount, x => x.Deactivate());
 
         var response = await Client.PostAsJsonAsync("/api/identities/login", new { loginId = Seed.TestLogin, password = Seed.Password, deviceId = "x" });
 
@@ -244,10 +239,7 @@ public class SessionTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     private static string IssueOtp()
     {
-        TestAccount.GeneratePasswordResetToken(new BCryptPasswordHasher());
-        var otp = TestAccount.DomainEvents.OfType<PasswordResetTokenGeneratedEvent>().Last().PlainToken;
-        TestAccount.ClearDomainEvents();
-        return otp;
+        return AccountArrange.IssueOtp(SeedIds.TestAccount);
     }
 
     #endregion

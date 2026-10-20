@@ -1,14 +1,14 @@
-using FluentAssertions;
-using MediatR;
-using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Application.CQRS.Behaviors.UnitOfWork;
 using YSocial.Application.Features.Posts.GetPost;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
 
 namespace YSocial.Api.IntegrationTests.Pagination;
 

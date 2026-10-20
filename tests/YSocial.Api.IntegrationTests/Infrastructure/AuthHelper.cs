@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 

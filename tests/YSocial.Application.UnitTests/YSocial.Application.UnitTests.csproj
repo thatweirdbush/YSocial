@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\YSocial.Application\YSocial.Application.csproj" />
     <ProjectReference Include="..\..\src\YSocial.Domain\YSocial.Domain.csproj" />
     <ProjectReference Include="..\..\src\YSocial.Infrastructure\YSocial.Infrastructure.csproj" />
+    <ProjectReference Include="..\YSocial.TestSupport\YSocial.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

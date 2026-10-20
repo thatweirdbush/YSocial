@@ -6,10 +6,11 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using YSocial.Application.CQRS.Results;
 using YSocial.Infrastructure.Notifications.Outbox;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
-public class ApiFactory : WebApplicationFactory<Program>
+public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Program>
 {
     /// <summary>
     /// Every log message of the host (redaction tests).
@@ -23,8 +24,15 @@ public class ApiFactory : WebApplicationFactory<Program>
         // appsettings.Development.json opts into raw OTP logging for manual dev: redaction tests need it off
         builder.UseSetting("Messaging:LogOtpInDevelopment", "false");
 
+        // The test database is created & seeded by SqliteTestDatabase: no migrations (Npgsql only), no dev dataset
+        builder.UseSetting("Database:AutoMigrate", "false");
+        builder.UseSetting("Database:SeedData", "false");
+
         builder.ConfigureServices(services =>
         {
+            // Never the real (Postgres) database
+            database.ReplaceDatabaseOf(services);
+
             // Background polling job mutates shared state: outbox tests process messages directly
             var job = services.Where(d => d.ImplementationType == typeof(ProcessNotificationOutboxJob)
                                           && d.ServiceType == typeof(IHostedService)).ToList();

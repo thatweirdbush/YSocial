@@ -27,6 +27,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YSocial.Api.IntegrationTest
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YSocial.Application.UnitTests", "tests\YSocial.Application.UnitTests\YSocial.Application.UnitTests.csproj", "{878BA418-0C9C-4ACC-B405-34ECC8DAF550}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YSocial.TestSupport", "tests\YSocial.TestSupport\YSocial.TestSupport.csproj", "{D3DEC55C-65B0-4243-B640-8C525796695C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -145,6 +147,18 @@ Global
 		{878BA418-0C9C-4ACC-B405-34ECC8DAF550}.Release|x64.Build.0 = Release|Any CPU
 		{878BA418-0C9C-4ACC-B405-34ECC8DAF550}.Release|x86.ActiveCfg = Release|Any CPU
 		{878BA418-0C9C-4ACC-B405-34ECC8DAF550}.Release|x86.Build.0 = Release|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Debug|x64.Build.0 = Debug|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Debug|x86.Build.0 = Debug|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Release|x64.ActiveCfg = Release|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Release|x64.Build.0 = Release|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Release|x86.ActiveCfg = Release|Any CPU
+		{D3DEC55C-65B0-4243-B640-8C525796695C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -159,6 +173,7 @@ Global
 		{F105B166-AFD6-4864-8129-1EFE0A02F4D2} = {78B00078-730F-411F-B6FE-F3DA356DE3F4}
 		{C059084B-F36F-4407-9AA5-08085D43A84E} = {78B00078-730F-411F-B6FE-F3DA356DE3F4}
 		{878BA418-0C9C-4ACC-B405-34ECC8DAF550} = {78B00078-730F-411F-B6FE-F3DA356DE3F4}
+		{D3DEC55C-65B0-4243-B640-8C525796695C} = {78B00078-730F-411F-B6FE-F3DA356DE3F4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BEEFFC87-27B5-4422-9071-995D2586D76E}

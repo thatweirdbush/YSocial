@@ -1,12 +1,12 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Interactions;
 
@@ -18,7 +18,7 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
     private static Guid DemoPost => SeedIds.DemoPost.Value;
 
     private static void MakePrivate(UserId id)
-        => MockDataStore.Users[id].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        => Store.Users.Update(id, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
     private static async Task BlockAsync(HttpClient blocker, UserId target)
         => (await blocker.PostAsync($"/api/users/{target.Value}/blocks", null)).EnsureSuccessStatusCode();
@@ -30,8 +30,8 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.PutAsync($"/api/posts/{DemoPost}/like", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
-        MockDataStore.Likes.Should().BeEmpty();
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
+        Store.Likes.Should().BeEmpty();
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         MakePrivate(SeedIds.DemoUser);
         var test = await LoginAsync(Seed.TestLogin);
         await test.PostAsync($"/api/users/{SeedIds.DemoUser.Value}/relations/follow", null);
-        MockDataStore.UserRelations.Values.Single().AcceptFollow();
+        Store.UserRelations.UpdateSingle(x => x.AcceptFollow());
 
         (await test.PutAsync($"/api/posts/{DemoPost}/like", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
@@ -48,7 +48,7 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
     [Fact]
     public async Task Like_FollowersOnlyPost_NonFollower_404()
     {
-        MockDataStore.Posts[SeedIds.DemoPost].UpdateSettings(PostVisibility.FollowersOnly, true);
+        Store.Posts.Update(SeedIds.DemoPost, x => x.UpdateSettings(PostVisibility.FollowersOnly, true));
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.PutAsync($"/api/posts/{DemoPost}/like", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -105,7 +105,7 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         await BlockAsync(test, SeedIds.DemoUser);
 
         (await test.PutAsync($"/api/posts/{DemoPost}/bookmark", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
-        MockDataStore.SavedItems.Should().BeEmpty();
+        Store.SavedItems.Should().BeEmpty();
     }
 
     [Fact]
@@ -130,7 +130,7 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         var response = await test.PostAsJsonAsync("/api/comments", new { postId = DemoPost, content = "hi", parentCommentId = (Guid?)null });
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        MockDataStore.Comments.Should().BeEmpty();
+        Store.Comments.Should().BeEmpty();
 
         // and the other direction
         var reverse = await demo.PostAsJsonAsync("/api/comments", new { postId = SeedIds.TestPost.Value, content = "hi", parentCommentId = (Guid?)null });
@@ -154,13 +154,13 @@ public class InteractionEnforcementTests(ApiFixture fixture) : ApiTestBase(fixtu
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.PostAsync($"/api/users/{Guid.NewGuid()}/blocks", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
-        MockDataStore.UserBlocks.Should().BeEmpty();
+        Store.UserBlocks.Should().BeEmpty();
     }
 
     [Fact]
     public async Task BlockDeletedUser_404()
     {
-        MockDataStore.Users[SeedIds.TestUserAlt].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.TestUserAlt, x => x.Delete(isAccountDeletion: true));
         var demo = await LoginAsync(Seed.DemoLogin);
 
         (await demo.PostAsync($"/api/users/{SeedIds.TestUserAlt.Value}/blocks", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);

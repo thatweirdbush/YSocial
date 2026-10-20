@@ -1,18 +1,16 @@
+using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NSubstitute;
-using System.Net.Http.Json;
-using System.Text.RegularExpressions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Identities;
-using YSocial.Domain.Identities.Events;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
-using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Security;
 
@@ -25,13 +23,11 @@ public class LogRedactionTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     private string AllLogs => string.Join('\n', Factory.Logs.Entries.Select(e => e.Message));
 
-    private static Account TestAccount => MockDataStore.Accounts[SeedIds.TestAccount];
+    private static Account TestAccount => Store.Accounts[SeedIds.TestAccount];
 
     private static string IssueOtp()
     {
-        TestAccount.GeneratePasswordResetToken(new BCryptPasswordHasher());
-        var otp = TestAccount.DomainEvents.OfType<PasswordResetTokenGeneratedEvent>().Last().PlainToken;
-        TestAccount.ClearDomainEvents();
+        var otp = AccountArrange.IssueOtp(SeedIds.TestAccount);
         return otp;
     }
 

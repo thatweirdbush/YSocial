@@ -1,10 +1,10 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
 
 namespace YSocial.Api.IntegrationTests.Errors;
 
