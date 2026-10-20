@@ -2,6 +2,7 @@ using FluentValidation;
 using Microservice.BuildingBlocks.Domain.BusinessRules;
 using Microservice.BuildingBlocks.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Domain.Common.Errors;
 using YSocial.Domain.Common.Rules;
 
@@ -55,6 +56,10 @@ public sealed class GlobalExceptionHandler(
 
             case EntityNotFoundException:
                 return ApiProblems.Create(context, StatusCodes.Status404NotFound, ErrorCodes.NotFound, "Resource not found.");
+
+            case ConcurrencyConflictException:
+                return ApiProblems.Create(context, StatusCodes.Status409Conflict, ErrorCodes.Conflict,
+                    "The resource was changed by another request. Retry.");
 
             default:
                 var detail = environment.IsDevelopment() ? exception.Message : "An unexpected error occurred.";

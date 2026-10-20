@@ -1,26 +1,23 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using YSocial.Api.Infrastructure.Errors;
 using YSocial.Api.Infrastructure.Serialization;
 using YSocial.Api.Infrastructure.Swagger;
 using YSocial.Application;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Infrastructure;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Notifications;
+using YSocial.Infrastructure.Persistence;
+using YSocial.Infrastructure.Persistence.Seeding;
 
-AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// The seed holds well-known passwords: Development only. MUST run before MockDataStore is first touched
-MockSeedOptions.Enabled = builder.Environment.IsDevelopment();
 
 // Signing key: required outside Development (no fallback), a missing or short Jwt:SecretKey fails the startup
 var jwtSettings = JwtSettings.FromConfiguration(builder.Configuration, builder.Environment.IsDevelopment());
@@ -147,60 +144,50 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Schema & seed. Migrate: Development default (opt in elsewhere). Seed holds well-known passwords: Development ONLY
+await DatabaseInitializer.InitializeAsync(app.Services, new DatabaseInitOptions(
+    Migrate: builder.Configuration.GetValue("Database:AutoMigrate", builder.Environment.IsDevelopment()),
+    SeedData: builder.Environment.IsDevelopment() && builder.Configuration.GetValue("Database:SeedData", true)));
+
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
-    // Auto-generate admin token for development & attach to Swagger
-    using var scope = app.Services.CreateScope();
-    var jwtProvider = scope.ServiceProvider.GetRequiredService<IJwtProvider>();
+    // Auto-generate admin token for development & attach to Swagger (convenience only: never blocks startup)
+    var adminToken = await TryCreateDevelopmentAdminTokenAsync(app.Services);
 
-    // Get admin account and user
-    var mockAccount = MockDataStore.Accounts.Values.First(a => a.Email == "admin@admin.com");
-    var mockUser = MockDataStore.Users.Values.First(u => u.AccountId == mockAccount.Id);
-    var posts = MockDataStore.Posts.Values;
-    var adminToken = jwtProvider.GenerateToken(mockUser, mockAccount);
-
-    // Log to terminal
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-    logger.LogInformation("\n=======================================================================\n" +
-                          "DEVELOPMENT ADMIN TOKEN (admin@admin.com):\n" +
-                          "{Token}\n" +
-                          "=======================================================================\n", adminToken);
-
-    logger.LogInformation("Sample posts in the system:");
-    posts.ToList().ForEach(p =>
-        logger.LogInformation("{PostId} (AuthorId: {AuthorId})", p.Id, p.AuthorId));
-
-    // Serve script to auto-inject token to Swagger UI
-    app.MapGet("/swagger-custom.js", () =>
+    if (adminToken is not null)
     {
-        var js = $$"""
-        window.addEventListener("load", function() {
-            setTimeout(function() {
-                var ui = window.ui;
-                if(ui) {
-                    ui.authActions.authorize({
-                        Bearer: {
-                            name: "Bearer",
-                            schema: {
-                                type: "http",
-                                scheme: "bearer",
-                                bearerFormat: "JWT",
-                                in: "header",
-                                name: "Authorization",
-                                description: "Enter the token in the format: Bearer {your_token}"
-                            },
-                            value: "{{adminToken}}"
-                        }
-                    });
-                }
-            }, 1000);
+        // Serve script to auto-inject token to Swagger UI
+        app.MapGet("/swagger-custom.js", () =>
+        {
+            var js = $$"""
+            window.addEventListener("load", function() {
+                setTimeout(function() {
+                    var ui = window.ui;
+                    if(ui) {
+                        ui.authActions.authorize({
+                            Bearer: {
+                                name: "Bearer",
+                                schema: {
+                                    type: "http",
+                                    scheme: "bearer",
+                                    bearerFormat: "JWT",
+                                    in: "header",
+                                    name: "Authorization",
+                                    description: "Enter the token in the format: Bearer {your_token}"
+                                },
+                                value: "{{adminToken}}"
+                            }
+                        });
+                    }
+                }, 1000);
+            });
+            """;
+            return Results.Text(js, "application/javascript");
         });
-        """;
-        return Results.Text(js, "application/javascript");
-    });
+    }
 
     // Configure Swagger
     app.UseSwagger();
@@ -223,5 +210,38 @@ app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
+
+static async Task<string?> TryCreateDevelopmentAdminTokenAsync(IServiceProvider services)
+{
+    using var scope = services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<YSocialDbContext>();
+        var account = await db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Email == "admin@admin.com");
+        var user = account is null ? null : await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.AccountId == account.Id);
+
+        if (account is null || user is null)
+        {
+            logger.LogInformation("No development admin account (database not seeded): Swagger auto-authorize is off");
+            return null;
+        }
+
+        var token = scope.ServiceProvider.GetRequiredService<IJwtProvider>().GenerateToken(user, account);
+
+        logger.LogInformation("\n=======================================================================\n" +
+                              "DEVELOPMENT ADMIN TOKEN (admin@admin.com):\n" +
+                              "{Token}\n" +
+                              "=======================================================================\n", token);
+
+        return token;
+    }
+    catch (Exception exception)
+    {
+        logger.LogWarning(exception, "Could not create the development admin token (Swagger auto-authorize is off)");
+        return null;
+    }
+}
 
 public partial class Program;
