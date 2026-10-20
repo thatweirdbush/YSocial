@@ -12,6 +12,10 @@ public sealed class Like : AggregateRoot<LikeId>
     public UserId UserId { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
+#pragma warning disable CS8618
+    private Like() { }
+#pragma warning restore CS8618
+
     private Like(Guid targetId, LikeTargetType targetType, UserId userId)
     {
         Id = LikeId.New();

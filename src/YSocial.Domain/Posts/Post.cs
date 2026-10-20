@@ -20,6 +20,10 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     public int LikeCount { get; private set; }
     public int SavedCount { get; private set; }
 
+#pragma warning disable CS8618
+    private Post() { }
+#pragma warning restore CS8618
+
     private Post(UserId authorId, string content, string? imageUrl, PostVisibility visibility, bool allowComments)
     {
         Id = PostId.New();

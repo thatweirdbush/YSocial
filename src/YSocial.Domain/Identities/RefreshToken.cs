@@ -25,6 +25,10 @@ public class RefreshToken : Entity<RefreshTokenId>
 
     public bool IsActive => RevokedAt == null && ExpiryTime > DateTime.UtcNow;
 
+#pragma warning disable CS8618
+    private RefreshToken() { }
+#pragma warning restore CS8618
+
     internal RefreshToken(AccountId accountId, UserId userId, string token, DateTime expiryTime, string deviceId)
     {
         Id = RefreshTokenId.New();

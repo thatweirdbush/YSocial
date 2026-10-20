@@ -27,6 +27,10 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
     public PrivacySettings PrivacySettings { get; private set; }
     #endregion
 
+#pragma warning disable CS8618
+    private User() { }
+#pragma warning restore CS8618
+
     private User(AccountId accountId, string username, UserProfileInfo profileInfo, Country country, bool isDefault)
     {
         Id = UserId.New();

@@ -13,6 +13,10 @@ public sealed record UserProfileInfo : ValueObject
     public DateTime? DateOfBirth { get; private set; }
     public ProfileType ProfileType { get; private set; }
 
+#pragma warning disable CS8618
+    private UserProfileInfo() { }
+#pragma warning restore CS8618
+
     public UserProfileInfo(
         string displayName,
         string? bio,

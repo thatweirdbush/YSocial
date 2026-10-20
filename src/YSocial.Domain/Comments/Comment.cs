@@ -21,6 +21,10 @@ public class Comment : AggregateRoot<CommentId>, ISoftDeletable
     public int LikeCount { get; private set; }
     public int SavedCount { get; private set; }
 
+#pragma warning disable CS8618
+    private Comment() { }
+#pragma warning restore CS8618
+
     private Comment(PostId postId, UserId authorId, string content, CommentId? parentCommentId)
     {
         Id = CommentId.New();
