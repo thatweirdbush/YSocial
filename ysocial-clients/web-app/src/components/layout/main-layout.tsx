@@ -36,6 +36,7 @@ import { hasCapability } from "@/lib/capabilities";
 import { authService } from "@/features/auth/services/auth-service";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { RightSidebar } from "./right-sidebar";
+import { NotificationNavBadge } from "@/features/notifications";
 import { PostCreatorDialog } from "@/features/posts";
 
 interface MainLayoutProps {
@@ -159,11 +160,14 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
                             : "text-zinc-650 dark:text-zinc-400 hover:text-black dark:hover:text-zinc-100 hover:bg-zinc-100/30 dark:hover:bg-zinc-900/20"
                             } ${isCollapsed ? "justify-center" : "justify-center xl:justify-start"}`}
                         >
-                          <Icon
-                            className={`h-5.5 w-5.5 transition-transform duration-300 ${isActive ? "scale-105" : "hover:scale-105"} shrink-0`}
-                            fill={isActive ? "currentColor" : "none"}
-                            strokeWidth={isActive ? 2.5 : 2}
-                          />
+                          <span className="relative inline-flex shrink-0">
+                            <Icon
+                              className={`h-5.5 w-5.5 transition-transform duration-300 ${isActive ? "scale-105" : "hover:scale-105"} shrink-0`}
+                              fill={isActive ? "currentColor" : "none"}
+                              strokeWidth={isActive ? 2.5 : 2}
+                            />
+                            {item.href === "/notifications" && <NotificationNavBadge />}
+                          </span>
                           {!isCollapsed && (
                             <span className="hidden xl:inline text-[14.5px]">{item.label}</span>
                           )}
@@ -312,7 +316,11 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
                 className={`p-3 rounded-full active:scale-90 transition-all ${isActive ? "text-black dark:text-white" : "text-zinc-400"
                   }`}
               >
-                <Icon className="h-6 w-6" />
+                <span className="relative inline-flex">
+                  <Icon className="h-6 w-6" />
+                  {item.href === "/notifications" && <NotificationNavBadge />}
+                </span>
+                <span className="sr-only">{item.label}</span>
               </Link>
             );
           })}

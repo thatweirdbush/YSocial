@@ -195,7 +195,14 @@
     "loadError": "Không tải được thông báo",
     "retry": "Thử lại",
     "followRequests": "{count} yêu cầu theo dõi",
-    "followRequestsHint": "Duyệt hoặc xoá yêu cầu"
+    "followRequestsHint": "Duyệt hoặc xoá yêu cầu",
+    "filterMentions": "Nhắc đến",
+    "emptyMentions": "Chưa có lượt nhắc đến nào.",
+    "actionMention": "đã nhắc đến bạn",
+    "groupedLike": "{name} và {count} người khác đã thích bài viết của bạn",
+    "groupedLikeOne": "{name} và 1 người khác đã thích bài viết của bạn",
+    "unread": "Chưa đọc",
+    "unreadCount": "{count} chưa đọc"
   },
   "auth": {
     "loginTitle": "Đăng nhập vào YSocial",
@@ -429,6 +436,14 @@
     "goPublicRequests": "{count} yêu cầu theo dõi sẽ được tự động chấp nhận.",
     "goPublicConfirm": "Chuyển sang công khai",
     "guestTitle": "Đăng nhập để mở cài đặt",
-    "guestCta": "Đăng nhập"
+    "guestCta": "Đăng nhập",
+    "notifications": "Thông báo",
+    "notificationsDescription": "Chọn loại thông báo bạn muốn nhận. Tắt một loại sẽ ngừng nhận thông báo mới; thông báo cũ vẫn giữ nguyên.",
+    "notifyLikes": "Lượt thích",
+    "notifyLikesHint": "Lượt thích bài viết và bình luận của bạn.",
+    "notifyReplies": "Trả lời",
+    "notifyRepliesHint": "Trả lời bài viết của bạn.",
+    "notifyFollows": "Theo dõi",
+    "notifyFollowsHint": "Người theo dõi mới, yêu cầu theo dõi và yêu cầu được chấp nhận."
   }
 }

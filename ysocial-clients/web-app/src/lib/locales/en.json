@@ -195,7 +195,14 @@
     "loadError": "Couldn't load notifications",
     "retry": "Try again",
     "followRequests": "{count} follow requests",
-    "followRequestsHint": "Review, approve or delete requests"
+    "followRequestsHint": "Review, approve or delete requests",
+    "filterMentions": "Mentions",
+    "emptyMentions": "No mentions yet.",
+    "actionMention": "mentioned you",
+    "groupedLike": "{name} and {count} others liked your post",
+    "groupedLikeOne": "{name} and 1 other liked your post",
+    "unread": "Unread",
+    "unreadCount": "{count} unread"
   },
   "auth": {
     "loginTitle": "Log in to YSocial",
@@ -429,6 +436,14 @@
     "goPublicRequests": "{count} follow requests will be accepted automatically.",
     "goPublicConfirm": "Go public",
     "guestTitle": "Sign in to open settings",
-    "guestCta": "Sign in"
+    "guestCta": "Sign in",
+    "notifications": "Notifications",
+    "notificationsDescription": "Choose which notifications you receive. Turning one off stops new ones; earlier ones stay.",
+    "notifyLikes": "Likes",
+    "notifyLikesHint": "Likes on your posts and replies.",
+    "notifyReplies": "Replies",
+    "notifyRepliesHint": "Replies to your posts.",
+    "notifyFollows": "Follows",
+    "notifyFollowsHint": "New followers, follow requests and accepted requests."
   }
 }

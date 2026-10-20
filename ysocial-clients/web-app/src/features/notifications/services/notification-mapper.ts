@@ -1,5 +1,13 @@
 import { ApiError } from "@/lib/api-error";
-import type { NotificationDto, NotificationItemData, NotificationKind, NotificationPage, NotificationPageDto } from "../types";
+import type {
+  NotificationDto,
+  NotificationItemData,
+  NotificationKind,
+  NotificationPage,
+  NotificationPageDto,
+  NotificationPreferences,
+  NotificationPreferencesDto,
+} from "../types";
 
 // DTO -> domain (MAP §2.7): `kind` groups the list (like | reply | follow); `type` keeps the finer BE wording.
 // Both are plain strings in swagger, so an unknown value renders generic (`other`) instead of breaking the list.
@@ -45,4 +53,9 @@ export function toNotificationPage(dto: NotificationPageDto): NotificationPage {
     nextPage: dto.hasNextPage ? (dto.page ?? 1) + 1 : undefined,
     unreadCount: dto.unreadCount ?? 0,
   };
+}
+
+/** The BE always sends all three (required on PUT); a missing field would mean "on", the BE default. */
+export function toNotificationPreferences(dto: NotificationPreferencesDto): NotificationPreferences {
+  return { likes: dto.likes ?? true, replies: dto.replies ?? true, follows: dto.follows ?? true };
 }

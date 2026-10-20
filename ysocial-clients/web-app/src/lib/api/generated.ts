@@ -1158,6 +1158,7 @@ export interface paths {
                 query?: {
                     page?: number;
                     pageSize?: number;
+                    kind?: string;
                 };
                 header?: never;
                 path?: never;
@@ -1278,6 +1279,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notifications/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["NotificationPreferencesDto"];
+                        "application/json": components["schemas"]["NotificationPreferencesDto"];
+                        "text/json": components["schemas"]["NotificationPreferencesDto"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
+                    "text/json": components["schemas"]["UpdateNotificationPreferencesRequest"];
+                    "application/*+json": components["schemas"]["UpdateNotificationPreferencesRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["NotificationPreferencesDto"];
+                        "application/json": components["schemas"]["NotificationPreferencesDto"];
+                        "text/json": components["schemas"]["NotificationPreferencesDto"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifications/{id}/read": {
         parameters: {
             query?: never;
@@ -1378,7 +1498,9 @@ export interface paths {
         get?: never;
         put: {
             parameters: {
-                query?: never;
+                query?: {
+                    upToId?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1394,6 +1516,28 @@ export interface paths {
                 };
                 /** @description Unauthorized */
                 401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -4133,6 +4277,11 @@ export interface components {
             /** Format: int32 */
             unreadCount?: number;
         };
+        NotificationPreferencesDto: {
+            likes?: boolean;
+            replies?: boolean;
+            follows?: boolean;
+        };
         PostAuthorDto: {
             /** Format: uuid */
             id?: string;
@@ -4251,6 +4400,11 @@ export interface components {
         };
         UpdateCommentRequest: {
             content?: string | null;
+        };
+        UpdateNotificationPreferencesRequest: {
+            likes?: boolean | null;
+            replies?: boolean | null;
+            follows?: boolean | null;
         };
         UpdatePostRequest: {
             content?: string | null;

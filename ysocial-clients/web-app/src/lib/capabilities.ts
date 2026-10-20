@@ -19,7 +19,9 @@ export type Capability =
   | "closeFriendsUi"
   | "privacyUi"
   | "followRequestsUi"
-  | "muteUi";
+  | "muteUi"
+  | "notificationSettings"
+  | "mentionNotifications";
 
 type Slices = ReadonlySet<ApiSlice>;
 
@@ -48,6 +50,12 @@ export const CAPABILITY_RULES: Record<Capability, (slices: Slices) => boolean> =
   followRequestsUi: unlessGraphPending,
   // Mute needs the activity slice: a local-only mute would not affect the real feed
   muteUi: (slices) => !slices.has("content") || slices.has("activity"),
+  // Preferences are written to the activity BE: off while content is real & activity is still mock (a local-only
+  // switch would change nothing real), same rule as mute
+  notificationSettings: (slices) => !slices.has("content") || slices.has("activity"),
+  // Mention notifications exist only in the mock seed (BE has no mention model): on only when NEITHER the activity list
+  // (real BE, no mentions) NOR content (seed hidden) is real
+  mentionNotifications: (slices) => !slices.has("activity") && !slices.has("content"),
 };
 
 /** Whether `capability` is usable with the current `NEXT_PUBLIC_REAL_API_SLICES` (read per call). */

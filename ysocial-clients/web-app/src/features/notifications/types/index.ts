@@ -5,11 +5,25 @@ type Schemas = components["schemas"];
 
 export type NotificationDto = Schemas["NotificationDto"];
 export type NotificationPageDto = Schemas["NotificationPageDto"];
+export type NotificationPreferencesDto = Schemas["NotificationPreferencesDto"];
 // #endregion
 
 // #region Domain models
-/** `other` = a BE type this FE does not know yet: rendered generic with the BE `message`. */
-export type NotificationKind = "like" | "follow" | "reply" | "other";
+/**
+ * `mention` exists in the mock seed only (BE has no mention model). `other` = a BE type this FE does not know yet:
+ * rendered generic with the BE `message`.
+ */
+export type NotificationKind = "like" | "follow" | "reply" | "mention" | "other";
+
+/** List tabs: `all` plus one per kind (`mentions` is gated by the `mentionNotifications` capability). */
+export type NotificationFilter = "all" | "mentions" | "replies" | "follows" | "likes";
+
+/** Kinds the viewer receives (BE `NotificationPreferencesDto`, all fields required there). */
+export interface NotificationPreferences {
+  likes: boolean;
+  replies: boolean;
+  follows: boolean;
+}
 
 export interface NotificationUser {
   id: string;
@@ -26,7 +40,7 @@ export interface NotificationItemData {
   /** BE `type` (`NewFollow`, `FollowRequested`, `FollowAccepted`...) for finer wording than `kind`. */
   type?: string;
   user: NotificationUser;
-  /** ISO timestamp (real) or a ready display string (mock seed). */
+  /** ISO timestamp (real and mock seed). */
   createdAt: string;
   isRead: boolean;
   postContentPreview?: string; // Used in Replies

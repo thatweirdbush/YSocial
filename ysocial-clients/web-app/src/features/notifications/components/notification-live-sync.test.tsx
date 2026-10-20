@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import { setRealSlices } from "@/test/api-test-utils";
 import type { NotificationPayload } from "@/lib/signalr-client";
-import { resetNotificationStore, useNotificationStore } from "../store/notification-store";
+import * as service from "../services/notification-service";
+import { resetNotificationStore, selectItems, useNotificationStore } from "../store/notification-store";
 import { NotificationLiveSync } from "./notification-live-sync";
 
 const hub = vi.hoisted(() => {
@@ -57,11 +58,15 @@ const push = (overrides: Partial<NotificationPayload> = {}): NotificationPayload
   senderUsername: "sender",
   ...overrides,
 });
+/** Marks the `all` list as opened (pushes only land in lists that are loaded). */
+const openList = () => useNotificationStore.setState((state) => ({ lists: { ...state.lists, all: { ...state.lists.all, status: "ready" } } }));
+const items = () => selectItems(useNotificationStore.getState(), "all");
 const signIn = () =>
   useAuthStore.setState({ user: { id: "viewer-1", email: "v@x.dev", username: "v", displayName: "V" }, accessToken: "A1", refreshToken: "R1", isAuthenticated: true });
 const signOut = () => useAuthStore.setState({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
 
 beforeEach(() => {
+  vi.spyOn(service, "fetchUnreadCount").mockResolvedValue(0);
   hub.start.mockClear();
   hub.stop.mockClear();
   blocked.ids.clear();
@@ -69,7 +74,10 @@ beforeEach(() => {
   setRealSlices("auth,content,graph,activity");
   signOut();
 });
-afterEach(() => signOut());
+afterEach(() => {
+  vi.restoreAllMocks();
+  signOut();
+});
 
 describe("NotificationLiveSync", () => {
   it("starts only when authenticated & activity is real", () => {
@@ -97,51 +105,56 @@ describe("NotificationLiveSync", () => {
 
   it("stops & clears the list on logout", () => {
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push()));
-    expect(useNotificationStore.getState().items).toHaveLength(1);
+    expect(items()).toHaveLength(1);
 
     act(signOut);
     expect(hub.stop).toHaveBeenCalled();
-    expect(useNotificationStore.getState().items).toEqual([]);
+    expect(useNotificationStore.getState().byId).toEqual({});
   });
 
   it("push inserts the item at the top & bumps unread", () => {
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push({ id: "a1111111-1111-4111-8111-111111111111" })));
     act(() => hub.emit(push({ id: "b1111111-1111-4111-8111-111111111111", type: "NewFollow", kind: "follow", targetId: null })));
-    const { items, unreadCount } = useNotificationStore.getState();
-    expect(items.map((entry) => entry.kind)).toEqual(["follow", "like"]);
-    expect(unreadCount).toBe(2);
+    expect(items().map((entry) => entry.kind)).toEqual(["follow", "like"]);
+    expect(useNotificationStore.getState().unreadCount).toBe(2);
   });
 
   it("duplicate push for the same id is ignored", () => {
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push()));
     act(() => hub.emit(push()));
-    expect(useNotificationStore.getState().items).toHaveLength(1);
+    expect(items()).toHaveLength(1);
     expect(useNotificationStore.getState().unreadCount).toBe(1);
   });
 
   it("unknown type still renders generic (kind other)", () => {
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push({ type: "Brand", kind: "weird", message: "hi" })));
-    expect(useNotificationStore.getState().items[0]).toMatchObject({ kind: "other", message: "hi" });
+    expect(items()[0]).toMatchObject({ kind: "other", message: "hi" });
   });
 
   it("push from a sender the viewer blocked is never shown", () => {
     blocked.ids.add(SENDER);
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push()));
-    expect(useNotificationStore.getState().items).toEqual([]);
+    expect(items()).toEqual([]);
   });
 
   it("blocking a sender removes their items from the open list & recounts unread", () => {
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push()));
     act(() => hub.emit(push({ id: "a1111111-1111-4111-8111-111111111111", senderId: "44444444-4444-4444-8444-444444444444" })));
@@ -149,17 +162,17 @@ describe("NotificationLiveSync", () => {
 
     blocked.ids.add(SENDER);
     act(() => relationListeners.forEach((listener) => listener()));
-    const { items, unreadCount } = useNotificationStore.getState();
-    expect(items).toHaveLength(1);
-    expect(unreadCount).toBe(1);
+    expect(items()).toHaveLength(1);
+    expect(useNotificationStore.getState().unreadCount).toBe(1);
   });
 
   it("a malformed push (no id) is dropped without breaking the stream", () => {
     signIn();
+    openList();
     render(<NotificationLiveSync />);
     act(() => hub.emit(push({ id: undefined })));
     act(() => hub.emit(push()));
-    expect(useNotificationStore.getState().items).toHaveLength(1);
+    expect(items()).toHaveLength(1);
   });
 
   it("a resumed socket refreshes the list once (catch-up), and stops listening on unmount", () => {
@@ -170,6 +183,46 @@ describe("NotificationLiveSync", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     unmount();
     expect(hub.hasResume()).toBe(false);
+  });
+
+  it("loads the unread count at once for a signed-in viewer (the nav badge needs it before the page is opened)", async () => {
+    vi.spyOn(service, "fetchUnreadCount").mockResolvedValue(5);
+    signIn();
+    render(<NotificationLiveSync />);
+    await vi.waitFor(() => expect(useNotificationStore.getState().unreadCount).toBe(5));
+  });
+
+  it("mock mode: the count still loads, the hub never starts, logout still drops the state", async () => {
+    setRealSlices("none");
+    vi.spyOn(service, "fetchUnreadCount").mockResolvedValue(3);
+    signIn();
+    render(<NotificationLiveSync />);
+    await vi.waitFor(() => expect(useNotificationStore.getState().unreadCount).toBe(3));
+    expect(hub.start).not.toHaveBeenCalled();
+    act(signOut);
+    expect(useNotificationStore.getState().unreadCount).toBe(0);
+  });
+
+  it("a guest makes no count request", () => {
+    const spy = vi.spyOn(service, "fetchUnreadCount");
+    render(<NotificationLiveSync />);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("blocking re-syncs the count once for several new blocks; unblocking re-syncs again (their rows are back in the BE count)", async () => {
+    const spy = vi.spyOn(service, "fetchUnreadCount").mockResolvedValue(0);
+    signIn();
+    render(<NotificationLiveSync />);
+    await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+
+    blocked.ids.add(SENDER);
+    blocked.ids.add("44444444-4444-4444-8444-444444444444");
+    act(() => relationListeners.forEach((listener) => listener()));
+    await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(2));
+
+    blocked.ids.delete(SENDER);
+    act(() => relationListeners.forEach((listener) => listener()));
+    await vi.waitFor(() => expect(spy).toHaveBeenCalledTimes(3));
   });
 
   it("unsubscribes on unmount", () => {
