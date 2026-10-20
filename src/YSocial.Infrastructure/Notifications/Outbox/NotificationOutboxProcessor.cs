@@ -1,17 +1,21 @@
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using YSocial.Application.Models;
-using YSocial.Infrastructure.Data;
+using YSocial.Infrastructure.Persistence;
 
 namespace YSocial.Infrastructure.Notifications.Outbox;
 
 /// <summary>
-/// One outbox batch: pushes unprocessed messages through the hub, REMOVES the delivered ones from the store and keeps
-/// failed ones for retry until <see cref="MaxAttempts"/> (then they are dropped and logged).
+/// One outbox batch: pushes unprocessed messages through the hub, DELETES the delivered ones and keeps failed ones for
+/// retry until <see cref="MaxAttempts"/> (then they are deleted & logged).
 /// </summary>
+/// <remarks>
+/// Single-instance: 2 instances polling the same table could push a message twice.
+/// </remarks>
 public sealed class NotificationOutboxProcessor(
-    MockNotificationOutboxStore outboxStore,
+    YSocialDbContext db,
     IHubContext<NotificationHub> hubContext,
     ILogger<NotificationOutboxProcessor> logger)
 {
@@ -21,15 +25,11 @@ public sealed class NotificationOutboxProcessor(
     /// <returns>Number of messages delivered in this batch.</returns>
     public async Task<int> ProcessBatchAsync(CancellationToken cancellationToken = default)
     {
-        List<NotificationOutboxMessage> batch;
-        lock (outboxStore.Messages)
-        {
-            batch = outboxStore.Messages
-                .Where(m => m.ProcessedOnUtc == null && m.Attempts < MaxAttempts)
-                .OrderBy(m => m.OccurredOnUtc)
-                .Take(BatchSize)
-                .ToList();
-        }
+        var batch = await db.NotificationOutboxMessages
+            .Where(m => m.ProcessedOnUtc == null && m.Attempts < MaxAttempts)
+            .OrderBy(m => m.OccurredOnUtc)
+            .Take(BatchSize)
+            .ToListAsync(cancellationToken);
 
         var delivered = 0;
         foreach (var message in batch)
@@ -53,11 +53,9 @@ public sealed class NotificationOutboxProcessor(
             }
         }
 
-        // Delivered messages leave the store (the list must not grow forever); exhausted ones are dropped too
-        lock (outboxStore.Messages)
-        {
-            outboxStore.Messages.RemoveAll(m => m.ProcessedOnUtc != null || m.Attempts >= MaxAttempts);
-        }
+        // Delivered messages leave the table (it must not grow forever); exhausted ones are dropped too
+        db.NotificationOutboxMessages.RemoveRange(batch.Where(m => m.ProcessedOnUtc != null || m.Attempts >= MaxAttempts));
+        await db.SaveChangesAsync(cancellationToken);
 
         return delivered;
     }
