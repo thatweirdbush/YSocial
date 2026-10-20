@@ -515,6 +515,31 @@ namespace YSocial.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("YSocial.Domain.Users.User", b =>
                 {
+                    b.OwnsOne("YSocial.Domain.Users.NotificationPreferences", "NotificationPreferences", b1 =>
+                        {
+                            b1.Property<Guid>("UserId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<bool>("Follows")
+                                .HasColumnType("boolean")
+                                .HasColumnName("NotifyFollows");
+
+                            b1.Property<bool>("Likes")
+                                .HasColumnType("boolean")
+                                .HasColumnName("NotifyLikes");
+
+                            b1.Property<bool>("Replies")
+                                .HasColumnType("boolean")
+                                .HasColumnName("NotifyReplies");
+
+                            b1.HasKey("UserId");
+
+                            b1.ToTable("Users");
+
+                            b1.WithOwner()
+                                .HasForeignKey("UserId");
+                        });
+
                     b.OwnsOne("YSocial.Domain.Users.PrivacySettings", "PrivacySettings", b1 =>
                         {
                             b1.Property<Guid>("UserId")
@@ -585,6 +610,9 @@ namespace YSocial.Infrastructure.Persistence.Migrations
                             b1.WithOwner()
                                 .HasForeignKey("UserId");
                         });
+
+                    b.Navigation("NotificationPreferences")
+                        .IsRequired();
 
                     b.Navigation("PrivacySettings")
                         .IsRequired();

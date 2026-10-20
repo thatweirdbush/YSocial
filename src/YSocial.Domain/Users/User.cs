@@ -25,6 +25,7 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
 
     // Settings
     public PrivacySettings PrivacySettings { get; private set; }
+    public NotificationPreferences NotificationPreferences { get; private set; }
     #endregion
 
 #pragma warning disable CS8618
@@ -44,6 +45,7 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
 
         // Default values
         PrivacySettings = PrivacySettings.Default();
+        NotificationPreferences = NotificationPreferences.Default();
         FollowersCount = 0;
         FollowingCount = 0;
     }
@@ -68,6 +70,11 @@ public class User : AggregateRoot<UserId>, ISoftDeletable
     public void UpdatePrivacySettings(PrivacySettings settings)
     {
         PrivacySettings = settings;
+    }
+
+    public void UpdateNotificationPreferences(NotificationPreferences preferences)
+    {
+        NotificationPreferences = preferences;
     }
 
     public void SetAsDefault()
