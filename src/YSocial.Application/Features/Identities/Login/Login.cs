@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
@@ -32,6 +33,7 @@ internal sealed class LoginCommandHandler(
     IJwtProvider jwtProvider,
     IPasswordHasher passwordHasher,
     IAccountSessionLock sessionLock,
+    IUnitOfWork unitOfWork,
     UserProfileService userProfileService)
     : ICommandHandler<LoginCommand, Result<LoginResponse>>
 {
@@ -40,23 +42,24 @@ internal sealed class LoginCommandHandler(
 
     public async Task<Result<LoginResponse>> Handle(LoginCommand request, CancellationToken cancellationToken)
     {
-        var (account, profiles) = await accountRepository.GetAccountWithProfilesByIdentifierAsync(request.LoginId, cancellationToken);
+        // Untracked snapshot: password check & profile resolution only, the account is re-loaded under the lock
+        var (found, profiles) = await accountRepository.GetAccountWithProfilesByIdentifierAsync(request.LoginId, cancellationToken);
 
         // Unknown, deleted & wrong password are indistinguishable (D3)
-        if (account is null)
+        if (found is null)
         {
             _dummyHash ??= passwordHasher.Hash("dummy-password-for-timing");
             passwordHasher.Verify(_dummyHash, request.Password);
             return InvalidCredentials();
         }
 
-        if (!account.VerifyPassword(request.Password, passwordHasher))
+        if (!found.VerifyPassword(request.Password, passwordHasher))
         {
             return InvalidCredentials();
         }
 
         // Account state is revealed only to the credential holder
-        account.EnsureCanLogin();
+        found.EnsureCanLogin();
 
         var targetUser = userProfileService.ResolveProfile(request.LoginId, profiles);
 
@@ -65,12 +68,21 @@ internal sealed class LoginCommandHandler(
             return Result<LoginResponse>.Fail("No user profile found for this account.", ErrorType.Business);
         }
 
-        var accessToken = jwtProvider.GenerateToken(targetUser, account);
+        var accessToken = jwtProvider.GenerateToken(targetUser, found);
 
-        await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
+        await using var _ = await sessionLock.AcquireAsync(found.Id, cancellationToken);
+
+        var account = await accountRepository.GetByIdAsync(found.Id, cancellationToken);
+        if (account is null)
+        {
+            return InvalidCredentials();
+        }
 
         var refreshToken = account.AddRefreshToken(request.DeviceId, targetUser.Id);
         accountRepository.Update(account);
+
+        // Saved INSIDE the lock: the next login must see this session when it applies the cap
+        await unitOfWork.CommitAsync(cancellationToken);
 
         return Result<LoginResponse>.Success(new LoginResponse(accessToken, refreshToken.Token, refreshToken.ExpiryTime));
     }

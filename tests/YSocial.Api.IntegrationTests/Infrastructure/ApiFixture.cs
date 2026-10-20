@@ -1,4 +1,5 @@
 using Xunit;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
@@ -7,9 +8,22 @@ namespace YSocial.Api.IntegrationTests.Infrastructure;
 /// </summary>
 public sealed class ApiFixture : IDisposable
 {
-    public ApiFactory Factory { get; } = new();
+    public ApiFixture()
+    {
+        Database = new SqliteTestDatabase();
+        Store.Use(Database);
+        Factory = new ApiFactory(Database);
+    }
 
-    public void Dispose() => Factory.Dispose();
+    public SqliteTestDatabase Database { get; }
+
+    public ApiFactory Factory { get; }
+
+    public void Dispose()
+    {
+        Factory.Dispose();
+        Database.Dispose();
+    }
 }
 
 [CollectionDefinition(Name)]

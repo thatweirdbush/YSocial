@@ -1,12 +1,12 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Threads;
 
@@ -161,7 +161,7 @@ public class ThreadTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var test = await LoginAsync(Seed.TestLogin);
         var comment = await ReplyAsync(test, PostId, null, "under demo post");
-        MockDataStore.Users[SeedIds.DemoUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.DemoUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
         var admin = await LoginAsync(Seed.AdminLogin, "admin");
 
         (await admin.GetAsync(Thread(PostId))).StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -260,7 +260,7 @@ public class ThreadTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         (await response.ReadJsonAsync()).GetProperty("code").GetString().Should().Be("ParentCommentMismatch");
-        MockDataStore.Comments.Should().HaveCount(1);
+        Store.Comments.Should().HaveCount(1);
     }
 
     [Fact]

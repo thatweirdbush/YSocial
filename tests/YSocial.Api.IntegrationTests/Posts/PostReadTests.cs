@@ -1,13 +1,13 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Posts;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Posts;
 
@@ -124,7 +124,7 @@ public class PostReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task GetPost_PrivateAuthorNonFollower_404()
     {
-        MockDataStore.Users[SeedIds.DemoUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.DemoUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
         (await Client.GetAsync(PostUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await (await LoginAsync(Seed.TestLogin)).GetAsync(PostUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -134,10 +134,10 @@ public class PostReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task GetPost_PrivateAuthor_AcceptedFollowerSees()
     {
-        MockDataStore.Users[SeedIds.DemoUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.DemoUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
         var test = await LoginAsync(Seed.TestLogin);
         await test.PostAsync($"/api/users/{SeedIds.DemoUser.Value}/relations/follow", null);
-        MockDataStore.UserRelations.Values.Single().AcceptFollow();
+        Store.UserRelations.UpdateSingle(x => x.AcceptFollow());
 
         (await test.GetAsync(PostUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -147,7 +147,7 @@ public class PostReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var demo = await LoginAsync(Seed.DemoLogin);
         var test = await LoginAsync(Seed.TestLogin);
-        MockDataStore.Posts[SeedIds.DemoPost].UpdateSettings(PostVisibility.FollowersOnly, true);
+        Store.Posts.Update(SeedIds.DemoPost, x => x.UpdateSettings(PostVisibility.FollowersOnly, true));
 
         (await test.GetAsync(PostUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await demo.GetAsync(PostUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.OK);
@@ -168,7 +168,7 @@ public class PostReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task GetPost_DeletedAuthorProfile_404()
     {
-        MockDataStore.Users[SeedIds.DemoUser].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.DemoUser, x => x.Delete(isAccountDeletion: true));
 
         (await Client.GetAsync(PostUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

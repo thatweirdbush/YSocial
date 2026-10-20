@@ -12,6 +12,10 @@ public sealed class PasswordResetToken : Entity<Guid>
     public bool IsUsed { get; private set; }
     public int AttemptCount { get; private set; }
 
+#pragma warning disable CS8618
+    private PasswordResetToken() { }
+#pragma warning restore CS8618
+
     private PasswordResetToken(string hashedToken, DateTime expiryTime)
     {
         Id = Guid.NewGuid();

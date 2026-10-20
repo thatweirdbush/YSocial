@@ -1,11 +1,11 @@
-using FluentAssertions;
 using System.Net;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Notifications;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Notifications;
 
@@ -40,8 +40,8 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         (await test.PutAsync($"/api/posts/{TestPost}/like", null)).EnsureSuccessStatusCode();
 
-        MockDataStore.Notifications.Should().BeEmpty();
-        MockDataStore.Messages.Should().BeEmpty();
+        Store.Notifications.Should().BeEmpty();
+        Store.Messages.Should().BeEmpty();
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         await test.AddCommentAsync(TestPost, "note to self");
 
-        MockDataStore.Notifications.Should().BeEmpty();
+        Store.Notifications.Should().BeEmpty();
     }
 
     #endregion
@@ -198,7 +198,7 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         (await response.ReadJsonAsync()).GetProperty("code").GetString().Should().Be("NotNotificationRecipient");
-        MockDataStore.Notifications.Values.Should().OnlyContain(n => !n.IsRead);
+        Store.Notifications.Values.Should().OnlyContain(n => !n.IsRead);
     }
 
     [Fact]
@@ -223,8 +223,8 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         first.StatusCode.Should().Be(HttpStatusCode.NoContent);
         second.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        MockDataStore.Notifications.Values.Where(n => n.RecipientId == SeedIds.TestUser).Should().OnlyContain(n => n.IsRead);
-        MockDataStore.Notifications.Values.Where(n => n.RecipientId == SeedIds.DemoUser).Should().OnlyContain(n => !n.IsRead);
+        Store.Notifications.Values.Where(n => n.RecipientId == SeedIds.TestUser).Should().OnlyContain(n => n.IsRead);
+        Store.Notifications.Values.Where(n => n.RecipientId == SeedIds.DemoUser).Should().OnlyContain(n => !n.IsRead);
     }
 
     #endregion
@@ -244,7 +244,7 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
         var item = page.GetProperty("items")[0];
         item.GetProperty("kind").GetString().Should().Be("follow");
         item.GetProperty("targetId").GetGuid().Should().Be(SeedIds.TestUser.Value, "follow notifications point to the follower");
-        MockDataStore.Notifications.Values.Should().ContainSingle(n => n.Type == NotificationType.NewFollow);
+        Store.Notifications.Values.Should().ContainSingle(n => n.Type == NotificationType.NewFollow);
     }
 
     [Fact]
@@ -252,8 +252,8 @@ public class NotificationTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var (_, _) = await LikeAndCommentAsync();
 
-        MockDataStore.Messages.Should().HaveCount(2);
-        using var doc = JsonDocument.Parse(MockDataStore.Messages[0].Content);
+        Store.Messages.Should().HaveCount(2);
+        using var doc = JsonDocument.Parse(Store.Messages[0].Content);
         doc.RootElement.GetProperty("RecipientId").GetGuid().Should().Be(SeedIds.TestUser.Value);
         doc.RootElement.GetProperty("Payload").GetProperty("Type").GetString().Should().Be("NewLike");
     }

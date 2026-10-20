@@ -12,7 +12,6 @@ using YSocial.Domain.SavedItems;
 using YSocial.Domain.UserBlocks;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
 
 namespace YSocial.Application.UnitTests.Posts;
 
@@ -185,31 +184,5 @@ public class PostProjectorTests
 
         items[post.Id.Value].CommentsCount.Should().Be(1);
         items[top.Id.Value].CommentsCount.Should().Be(2);
-    }
-
-    [Fact]
-    public async Task CommentCount_PostIdAndCommentIdQueriesNeverMix()
-    {
-        MockDataStore.ResetForTests();
-        var repository = new MockCommentRepository();
-        var postId = PostId.New();
-        var top = Comment.Create(postId, UserId.New(), "top");
-        var reply = Comment.Create(postId, UserId.New(), "reply", top.Id);
-        var deleted = Comment.Create(postId, UserId.New(), "deleted");
-        deleted.Delete(deleted.AuthorId, UserId.New());
-        foreach (var comment in new[] { top, reply, deleted }) await repository.AddAsync(comment);
-
-        var topLevel = await repository.GetTopLevelCommentsByPostIdsAsync([postId]);
-        var children = await repository.GetChildCommentsByParentIdsAsync([top.Id]);
-        var topLevelByCommentId = await repository.GetTopLevelCommentsByPostIdsAsync([new PostId(top.Id.Value)]);
-        var childrenByPostId = await repository.GetChildCommentsByParentIdsAsync([new CommentId(postId.Value)]);
-
-        topLevel.Select(r => r.CommentId).Should().Equal([top.Id], "replies & deleted comments are not top-level");
-        topLevel.Single().ParentKey.Should().Be(postId.Value);
-        children.Select(r => r.CommentId).Should().Equal([reply.Id]);
-        children.Single().ParentKey.Should().Be(top.Id.Value);
-        topLevelByCommentId.Should().BeEmpty("a comment id is never a post id");
-        childrenByPostId.Should().BeEmpty("a post id is never a parent comment id");
-        MockDataStore.ResetForTests();
     }
 }

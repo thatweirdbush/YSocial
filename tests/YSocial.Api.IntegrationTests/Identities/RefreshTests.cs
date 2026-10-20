@@ -1,20 +1,20 @@
-using FluentAssertions;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Identities;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Identities;
 
 public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
-    private static Account TestAccount => MockDataStore.Accounts[SeedIds.TestAccount];
+    private static Account TestAccount => Store.Accounts[SeedIds.TestAccount];
 
     private static int ActiveTokens(Account account) => account.RefreshTokens.Count(t => t.IsActive);
 
@@ -112,8 +112,7 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     public async Task Refresh_ExpiredToken_Returns401()
     {
         var tokens = await LoginTokensAsync();
-        typeof(RefreshToken).GetProperty(nameof(RefreshToken.ExpiryTime))!.GetSetMethod(true)!
-            .Invoke(Find(tokens.RefreshToken), [DateTime.UtcNow.AddMinutes(-1)]);
+        AccountArrange.ExpireToken(SeedIds.TestAccount, tokens.RefreshToken, DateTime.UtcNow.AddMinutes(-1));
 
         await AssertInvalidRefreshAsync(await RefreshAsync(tokens.RefreshToken));
     }
@@ -144,7 +143,7 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var tokens = await LoginTokensAsync();
         var switched = await JsonAsync(await SwitchAsync(tokens, SeedIds.TestUserAlt.Value));
-        MockDataStore.Users[SeedIds.TestUserAlt].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.TestUserAlt, x => x.Delete(isAccountDeletion: true));
 
         await AssertInvalidRefreshAsync(await RefreshAsync(switched.GetProperty("refreshToken").GetString()!));
     }
@@ -153,8 +152,7 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     public async Task Refresh_DeletedAccount_Returns401()
     {
         var tokens = await LoginTokensAsync();
-        TestAccount.Delete();
-        TestAccount.ClearDomainEvents();
+        Store.Accounts.Update(SeedIds.TestAccount, x => x.Delete());
 
         await AssertInvalidRefreshAsync(await RefreshAsync(tokens.RefreshToken));
     }
@@ -163,8 +161,7 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     public async Task Refresh_InactiveAccount_Returns401()
     {
         var tokens = await LoginTokensAsync();
-        TestAccount.Deactivate();
-        TestAccount.ClearDomainEvents();
+        Store.Accounts.Update(SeedIds.TestAccount, x => x.Deactivate());
 
         await AssertInvalidRefreshAsync(await RefreshAsync(tokens.RefreshToken));
     }
@@ -261,7 +258,7 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         for (var i = 0; i < 50; i++)
         {
-            MockDataStore.ResetForTests();
+            Store.Reset();
             var tokens = await LoginTokensAsync($"rl{i}");
 
             var results = await RaceAsync(() => RefreshAsync(tokens.RefreshToken), () => LogoutAsync(tokens.RefreshToken));
@@ -292,7 +289,7 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         for (var i = 0; i < 50; i++)
         {
-            MockDataStore.ResetForTests();
+            Store.Reset();
             var tokens = await LoginTokensAsync($"sw{i}");
 
             var results = await RaceAsync(
@@ -310,11 +307,9 @@ public class RefreshTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         for (var i = 0; i < 20; i++)
         {
-            MockDataStore.ResetForTests();
+            Store.Reset();
             var tokens = await LoginTokensAsync($"rp{i}");
-            TestAccount.GeneratePasswordResetToken(new YSocial.Infrastructure.Identity.BCryptPasswordHasher(4));
-            var otp = TestAccount.DomainEvents.OfType<YSocial.Domain.Identities.Events.PasswordResetTokenGeneratedEvent>().Last().PlainToken;
-            TestAccount.ClearDomainEvents();
+            var otp = AccountArrange.IssueOtp(SeedIds.TestAccount);
 
             var results = await RaceAsync(
                 () => RefreshAsync(tokens.RefreshToken),

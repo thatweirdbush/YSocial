@@ -1,23 +1,25 @@
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
-using System.Text.Json;
 using Xunit;
 using YSocial.Application.Models;
-using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Notifications;
 using YSocial.Infrastructure.Notifications.Outbox;
+using YSocial.Infrastructure.Persistence;
+using YSocial.TestSupport;
 
 namespace YSocial.Application.UnitTests.Notifications;
 
-public class NotificationOutboxProcessorTests
+public sealed class NotificationOutboxProcessorTests : IDisposable
 {
-    // Own list: the static store list is reset by other test classes running in parallel
-    private readonly MockNotificationOutboxStore _store = new() { Messages = [] };
+    private readonly SqliteTestDatabase _database = new();
     private readonly IClientProxy _proxy = Substitute.For<IClientProxy>();
     private readonly IHubContext<NotificationHub> _hub = Substitute.For<IHubContext<NotificationHub>>();
+    private readonly YSocialDbContext _db;
     private readonly NotificationOutboxProcessor _processor;
 
     public NotificationOutboxProcessorTests()
@@ -25,7 +27,15 @@ public class NotificationOutboxProcessorTests
         var clients = Substitute.For<IHubClients>();
         clients.User(Arg.Any<string>()).Returns(_proxy);
         _hub.Clients.Returns(clients);
-        _processor = new NotificationOutboxProcessor(_store, _hub, NullLogger<NotificationOutboxProcessor>.Instance);
+
+        _db = _database.NewContext();
+        _processor = new NotificationOutboxProcessor(_db, _hub, NullLogger<NotificationOutboxProcessor>.Instance);
+    }
+
+    public void Dispose()
+    {
+        _db.Dispose();
+        _database.Dispose();
     }
 
     private static NotificationEnvelope Envelope(Guid recipientId)
@@ -33,10 +43,17 @@ public class NotificationOutboxProcessorTests
 
     private void Enqueue(NotificationEnvelope envelope)
     {
-        lock (_store.Messages)
-        {
-            _store.Messages.Add(new NotificationOutboxMessage(Guid.NewGuid(), "NewLike", JsonSerializer.Serialize(envelope)));
-        }
+        _db.NotificationOutboxMessages.Add(new NotificationOutboxMessage(Guid.NewGuid(), "NewLike", JsonSerializer.Serialize(envelope)));
+        _db.SaveChanges();
+    }
+
+    /// <summary>
+    /// Messages as stored (fresh context: the processor's tracker must not hide what really was saved).
+    /// </summary>
+    private List<NotificationOutboxMessage> Stored()
+    {
+        using var fresh = _database.NewContext();
+        return fresh.NotificationOutboxMessages.AsNoTracking().ToList();
     }
 
     [Fact]
@@ -49,7 +66,7 @@ public class NotificationOutboxProcessorTests
         var delivered = await _processor.ProcessBatchAsync();
 
         delivered.Should().Be(1);
-        _store.Messages.Should().BeEmpty();
+        Stored().Should().BeEmpty();
         _hub.Clients.Received(1).User(recipient.ToString());
         await _proxy.Received(1).SendCoreAsync(
             "ReceiveNotification",
@@ -65,14 +82,14 @@ public class NotificationOutboxProcessorTests
 
         await _processor.ProcessBatchAsync();
 
-        _store.Messages.Should().ContainSingle().Which.Attempts.Should().Be(1);
+        Stored().Should().ContainSingle().Which.Attempts.Should().Be(1);
 
         for (var i = 1; i < NotificationOutboxProcessor.MaxAttempts; i++)
         {
             await _processor.ProcessBatchAsync();
         }
 
-        _store.Messages.Should().BeEmpty("exhausted messages are dropped");
+        Stored().Should().BeEmpty("exhausted messages are dropped");
     }
 
     [Fact]
@@ -88,7 +105,23 @@ public class NotificationOutboxProcessorTests
 
         first.Should().Be(NotificationOutboxProcessor.BatchSize);
         second.Should().Be(3);
-        _store.Messages.Should().BeEmpty();
+        Stored().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Outbox_OldestMessagesFirst()
+    {
+        var recipients = Enumerable.Range(0, NotificationOutboxProcessor.BatchSize + 1).Select(_ => Guid.NewGuid()).ToList();
+        foreach (var recipient in recipients)
+        {
+            Enqueue(Envelope(recipient));
+            await Task.Delay(2);
+        }
+
+        await _processor.ProcessBatchAsync();
+
+        var left = Stored().Single();
+        JsonSerializer.Deserialize<NotificationEnvelope>(left.Content)!.RecipientId.Should().Be(recipients[^1], "the newest message waits for the next batch");
     }
 
     [Fact]

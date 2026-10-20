@@ -1,10 +1,10 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Interactions;
 
@@ -22,7 +22,7 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
         return (await response.ReadJsonAsync()).AsId();
     }
 
-    private static int ActiveSaved() => MockDataStore.SavedItems.Values.Count(s => !s.IsDeleted);
+    private static int ActiveSaved() => Store.SavedItems.Values.Count(s => !s.IsDeleted);
 
     [Fact]
     public async Task PutPostLike_Twice_LikeCountIs1()
@@ -32,8 +32,8 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await test.PutAsync(PostLikeUrl(SeedIds.DemoPost.Value), null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await test.PutAsync(PostLikeUrl(SeedIds.DemoPost.Value), null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(1);
-        MockDataStore.Likes.Should().HaveCount(1);
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(1);
+        Store.Likes.Should().HaveCount(1);
     }
 
     [Fact]
@@ -45,8 +45,8 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await test.DeleteAsync(PostLikeUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await test.DeleteAsync(PostLikeUrl(SeedIds.DemoPost.Value))).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
-        MockDataStore.Likes.Should().BeEmpty();
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
+        Store.Likes.Should().BeEmpty();
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await test.DeleteAsync(PostLikeUrl(SeedIds.DemoPost.Value));
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
     }
 
     [Fact]
@@ -69,11 +69,11 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         (await test.PutAsync($"/api/comments/{commentId}/like", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        MockDataStore.Comments.Values.Single().LikeCount.Should().Be(1);
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
+        Store.Comments.Values.Single().LikeCount.Should().Be(1);
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
 
         (await test.DeleteAsync($"/api/comments/{commentId}/like")).StatusCode.Should().Be(HttpStatusCode.NoContent);
-        MockDataStore.Comments.Values.Single().LikeCount.Should().Be(0);
+        Store.Comments.Values.Single().LikeCount.Should().Be(0);
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await test.PutAsync(url, null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
         (await test.PutAsync(url, null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        MockDataStore.SavedItems.Should().HaveCount(1);
-        MockDataStore.Posts[SeedIds.DemoPost].SavedCount.Should().Be(1);
+        Store.SavedItems.Should().HaveCount(1);
+        Store.Posts[SeedIds.DemoPost].SavedCount.Should().Be(1);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await test.DeleteAsync(url)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         ActiveSaved().Should().Be(0);
-        MockDataStore.Posts[SeedIds.DemoPost].SavedCount.Should().Be(0);
+        Store.Posts[SeedIds.DemoPost].SavedCount.Should().Be(0);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         (await test.PutAsync($"/api/comments/{commentId}/bookmark", null)).StatusCode.Should().Be(HttpStatusCode.NoContent);
 
-        MockDataStore.SavedItems.Values.Should().ContainSingle(s => s.TargetId == commentId && !s.IsDeleted);
+        Store.SavedItems.Values.Should().ContainSingle(s => s.TargetId == commentId && !s.IsDeleted);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public class SetLikeAndBookmarkTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         like.StatusCode.Should().Be(HttpStatusCode.NotFound);
         save.StatusCode.Should().Be(HttpStatusCode.NotFound);
-        MockDataStore.Likes.Should().BeEmpty();
-        MockDataStore.SavedItems.Should().BeEmpty();
+        Store.Likes.Should().BeEmpty();
+        Store.SavedItems.Should().BeEmpty();
     }
 }

@@ -2,7 +2,7 @@ using YSocial.Domain.Countries;
 using YSocial.Domain.Identities;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
@@ -20,7 +20,7 @@ public static class StoreData
         }
 
         user.ClearDomainEvents();
-        MockDataStore.Users.TryAdd(user.Id, user);
+        Store.Users.TryAdd(user.Id, user);
         return user;
     }
 
@@ -29,7 +29,7 @@ public static class StoreData
         var relation = UserRelation.Create(follower, target);
         relation.RequestFollow(isTargetPrivate: false);
         relation.ClearDomainEvents();
-        MockDataStore.UserRelations.TryAdd(relation.Id, relation);
+        Store.UserRelations.TryAdd(relation.Id, relation);
         return relation;
     }
 }

@@ -1,10 +1,10 @@
-using FluentAssertions;
 using System.Net;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Interactions;
 
@@ -15,7 +15,7 @@ public class HiddenTargetOwnershipTests(ApiFixture fixture) : ApiTestBase(fixtur
 {
     private static readonly Guid TestPost = SeedIds.TestPost.Value;
 
-    private static void MakePrivate(UserId id) => MockDataStore.Users[id].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+    private static void MakePrivate(UserId id) => Store.Users.Update(id, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
     private async Task<HttpClient> AdminAsync() => await LoginAsync(Seed.AdminLogin, "admin");
 
@@ -42,7 +42,7 @@ public class HiddenTargetOwnershipTests(ApiFixture fixture) : ApiTestBase(fixtur
         var admin = await AdminAsync();
 
         await AssertCodeAsync(await admin.DeleteAsync($"/api/posts/{TestPost}"), HttpStatusCode.NotFound, "NotFound");
-        MockDataStore.Posts[SeedIds.TestPost].IsDeleted.Should().BeFalse();
+        Store.Posts[SeedIds.TestPost].IsDeleted.Should().BeFalse();
     }
 
     [Fact]

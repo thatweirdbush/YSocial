@@ -18,12 +18,13 @@ using YSocial.Domain.UserBlocks;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.UserRelations.Services;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
 using YSocial.Infrastructure.Identity;
 using YSocial.Infrastructure.Messaging;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
 using YSocial.Infrastructure.Notifications;
 using YSocial.Infrastructure.Notifications.Outbox;
+using YSocial.Infrastructure.Persistence;
+using YSocial.Infrastructure.Persistence.Repositories;
 using YSocial.Infrastructure.Persistence.UnitOfWork;
 
 namespace YSocial.Infrastructure;
@@ -34,20 +35,27 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Connect database
-        services.AddDbContext<MockDataStore>(opt =>
-            opt.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        // Database (connection string resolved lazily: hosts/tests may replace the provider before first use)
+        services.AddDbContext<YSocialDbContext>((serviceProvider, options) =>
+        {
+            var connectionString = ConnectionStrings.Normalize(
+                serviceProvider.GetRequiredService<IConfiguration>().GetConnectionString("DefaultConnection"));
+
+            options.UseNpgsql(connectionString, npgsql => npgsql
+                .EnableRetryOnFailure()
+                .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+        });
 
         // Repositories
-        services.AddSingleton<IPostRepository, MockPostRepository>();
-        services.AddSingleton<IAccountRepository, MockAccountRepository>();
-        services.AddSingleton<ILikeRepository, MockLikeRepository>();
-        services.AddSingleton<IUserRepository, MockUserRepository>();
-        services.AddSingleton<ICommentRepository, MockCommentRepository>();
-        services.AddSingleton<ISavedItemRepository, MockSavedItemRepository>();
-        services.AddSingleton<IUserRelationRepository, MockUserRelationRepository>();
-        services.AddSingleton<IUserBlockRepository, MockUserBlockRepository>();
-        services.AddSingleton<INotificationRepository, MockNotificationRepository>();
+        services.AddScoped<IPostRepository, PostRepository>();
+        services.AddScoped<IAccountRepository, AccountRepository>();
+        services.AddScoped<ILikeRepository, LikeRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICommentRepository, CommentRepository>();
+        services.AddScoped<ISavedItemRepository, SavedItemRepository>();
+        services.AddScoped<IUserRelationRepository, UserRelationRepository>();
+        services.AddScoped<IUserBlockRepository, UserBlockRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
@@ -59,7 +67,6 @@ public static class DependencyInjection
         services.AddScoped<ISmsSender, MockSmsSender>();
         services.AddScoped<INotificationOutboxService, EfNotificationOutboxService>();
         services.AddSingleton<IUserIdProvider, SignalRUserIdProvider>();
-        services.AddSingleton<MockNotificationOutboxStore>();
 
         // Domain Services
         services.AddTransient<LikeToggleService>();
@@ -68,13 +75,10 @@ public static class DependencyInjection
         services.AddTransient<UserProfileService>();
         services.AddTransient<UserRelationManager>();
 
-        // Database
-        //services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());
-        //services.AddScoped<IDomainEventsProvider>(sp => sp.GetRequiredService<YSocialDbContext>());
-
-        services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<MockDataStore>());
-        services.AddScoped<IDomainEventsProvider>(sp => sp.GetRequiredService<MockDataStore>());
-        services.AddScoped<IPendingDomainEvents>(sp => sp.GetRequiredService<MockDataStore>());
+        // Unit of work: the request's DbContext is storage + domain event source
+        services.AddScoped<IDataStorage>(sp => sp.GetRequiredService<YSocialDbContext>());
+        services.AddScoped<IDomainEventsProvider>(sp => sp.GetRequiredService<YSocialDbContext>());
+        services.AddScoped<IPendingDomainEvents>(sp => sp.GetRequiredService<YSocialDbContext>());
 
         // Domain Events Dispatcher
         services.AddScoped<IDomainEventsDispatcher, DomainEventsDispatcher>();

@@ -1,20 +1,27 @@
 ﻿using Microservice.BuildingBlocks.Domain.Events;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
+using Microsoft.EntityFrameworkCore;
+using YSocial.Application.Abstractions.Persistence;
 
 namespace YSocial.Infrastructure.Persistence.UnitOfWork;
 
-public partial class UnitOfWork(IDataStorage dataStorageDispatcher, IDomainEventsDispatcher domainEventsDispatcher) : IUnitOfWork
+public partial class UnitOfWork(IDataStorage dataStorage, IDomainEventsDispatcher domainEventsDispatcher) : IUnitOfWork
 {
+    /// <summary>
+    /// Dispatches domain events FIRST (handlers change data that must be saved together with the handler's changes),
+    /// then saves everything in 1 database transaction.
+    /// </summary>
     public async Task<int> CommitAsync(CancellationToken cancellationToken = default)
     {
-        // In Social Application, we need to dispatch domain events before saving the data,
-        // because some of the domain events can cause changes in the data,
-        // that should be saved together with the changes, that were made in the command handlers.
-
         await domainEventsDispatcher.DispatchEventsAsync(cancellationToken);
 
-        var result = await dataStorageDispatcher.SaveChangesAsync(cancellationToken);
-
-        return result;
+        try
+        {
+            return await dataStorage.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ConcurrencyConflictException("The data was changed by another request.", exception);
+        }
     }
 }

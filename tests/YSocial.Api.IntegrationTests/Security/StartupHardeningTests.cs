@@ -1,9 +1,10 @@
+using System.Net;
 using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using System.Net;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Security;
 
@@ -16,7 +17,7 @@ public class StartupHardeningTests
     private const string ValidSecret = "production-test-secret-0123456789-abcdefghij";
 
     private static WebApplicationFactory<Program> Production(string? secret)
-        => new ApiFactory().WithWebHostBuilder(builder =>
+        => new ApiFactory(Store.Database).WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");
             if (secret is not null)
@@ -60,7 +61,7 @@ public class StartupHardeningTests
     [Fact]
     public async Task Production_ConfiguredSecret_Starts_WithoutDevelopmentArtifacts()
     {
-        var factory = new ApiFactory();
+        var factory = new ApiFactory(Store.Database);
         using var production = factory.WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Production");

@@ -1,8 +1,8 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Countries;
@@ -10,8 +10,8 @@ using YSocial.Domain.Identities;
 using YSocial.Domain.UserBlocks;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Relations;
 
@@ -24,7 +24,7 @@ public class ReviewFixTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var user = User.Create(AccountId.New(), username, Country.Vietnam, isDefault: true);
         user.ClearDomainEvents();
-        MockDataStore.Users.TryAdd(user.Id, user);
+        Store.Users.TryAdd(user.Id, user);
         return user;
     }
 
@@ -36,25 +36,25 @@ public class ReviewFixTests(ApiFixture fixture) : ApiTestBase(fixture)
     [InlineData("{\"isPrivate\":null}")]
     public async Task Privacy_MissingOrNullFlag_400_AndNothingChanges(string body)
     {
-        MockDataStore.Users[SeedIds.DemoUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.DemoUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
         var requester = AddUser("requester");
         var edge = UserRelation.Create(requester.Id, SeedIds.DemoUser);
         edge.RequestFollow(isTargetPrivate: true);
         edge.ClearDomainEvents();
-        MockDataStore.UserRelations.TryAdd(edge.Id, edge);
+        Store.UserRelations.TryAdd(edge.Id, edge);
         var demo = await LoginAsync(Seed.DemoLogin);
 
         var response = await demo.PutAsync("/api/users/profiles/me/privacy", Json(body));
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-        MockDataStore.Users[SeedIds.DemoUser].PrivacySettings.IsPrivateProfile.Should().BeTrue();
-        edge.FollowStatus.Should().Be(FollowStatus.Pending);
+        Store.Users[SeedIds.DemoUser].PrivacySettings.IsPrivateProfile.Should().BeTrue();
+        Store.UserRelations[edge.Id].FollowStatus.Should().Be(FollowStatus.Pending);
     }
 
     [Fact]
     public async Task Privacy_GoPublic_AcceptedCount_ExcludesDeletedRequester()
     {
-        MockDataStore.Users[SeedIds.DemoUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.DemoUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
         var live = AddUser("liveuser");
         var gone = AddUser("goneuser");
         foreach (var user in new[] { live, gone })
@@ -62,10 +62,10 @@ public class ReviewFixTests(ApiFixture fixture) : ApiTestBase(fixture)
             var edge = UserRelation.Create(user.Id, SeedIds.DemoUser);
             edge.RequestFollow(isTargetPrivate: true);
             edge.ClearDomainEvents();
-            MockDataStore.UserRelations.TryAdd(edge.Id, edge);
+            Store.UserRelations.TryAdd(edge.Id, edge);
         }
 
-        gone.Delete(isAccountDeletion: true);
+        Store.Users.Update(gone.Id, x => x.Delete(isAccountDeletion: true));
         var demo = await LoginAsync(Seed.DemoLogin);
 
         var response = await demo.PutAsJsonAsync("/api/users/profiles/me/privacy", new { isPrivate = false });
@@ -80,7 +80,7 @@ public class ReviewFixTests(ApiFixture fixture) : ApiTestBase(fixture)
         var edge = UserRelation.Create(follower.Id, SeedIds.DemoUser);
         edge.RequestFollow(isTargetPrivate: false);
         edge.ClearDomainEvents();
-        MockDataStore.UserRelations.TryAdd(edge.Id, edge);
+        Store.UserRelations.TryAdd(edge.Id, edge);
         var test = await LoginAsync(Seed.TestLogin);
 
         var page = await test.GetFromJsonAsync<JsonElement>($"/api/users/{SeedIds.DemoUser.Value}/followers?page={int.MaxValue}&pageSize=50");
@@ -95,7 +95,7 @@ public class ReviewFixTests(ApiFixture fixture) : ApiTestBase(fixture)
         var test = await LoginAsync(Seed.TestLogin);
         var block = UserBlock.Create(SeedIds.DemoUser, SeedIds.TestUser);
         block.ClearDomainEvents();
-        MockDataStore.UserBlocks.TryAdd(block.Id, block);
+        Store.UserBlocks.TryAdd(block.Id, block);
 
         var blocked = await test.PostAsync($"/api/users/{SeedIds.DemoUser.Value}/relations/follow", null);
         var unknown = await test.PostAsync($"/api/users/{Guid.NewGuid()}/relations/follow", null);
@@ -114,8 +114,8 @@ public class ReviewFixTests(ApiFixture fixture) : ApiTestBase(fixture)
         var gone = AddUser("goneuser");
         var block = UserBlock.Create(SeedIds.TestUser, gone.Id);
         block.ClearDomainEvents();
-        MockDataStore.UserBlocks.TryAdd(block.Id, block);
-        gone.Delete(isAccountDeletion: true);
+        Store.UserBlocks.TryAdd(block.Id, block);
+        Store.Users.Update(gone.Id, x => x.Delete(isAccountDeletion: true));
         var test = await LoginAsync(Seed.TestLogin);
 
         var sets = await test.GetFromJsonAsync<JsonElement>("/api/users/me/relation-sets");

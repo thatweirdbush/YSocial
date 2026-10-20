@@ -1,13 +1,13 @@
-using FluentAssertions;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.UserRelations;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Characterization;
 
@@ -52,7 +52,7 @@ public class CharacterizationTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await JsonAsync(first)).GetProperty("followStatus").GetString().Should().Be("accepted");
         (await JsonAsync(second)).GetProperty("followStatus").GetString().Should().Be("accepted");
 
-        var edges = MockDataStore.UserRelations.Values
+        var edges = Store.UserRelations.Values
             .Where(r => r.ObserverId == SeedIds.TestUser && r.TargetId == SeedIds.DemoUser)
             .ToList();
         edges.Should().ContainSingle();

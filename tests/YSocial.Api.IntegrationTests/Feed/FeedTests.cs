@@ -1,11 +1,11 @@
-using FluentAssertions;
 using System.Net;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Feed;
 
@@ -25,7 +25,7 @@ public class FeedTests(ApiFixture fixture) : ApiTestBase(fixture)
 
     private static string FollowRoute(Guid id) => $"/api/users/{id}/relations/follow";
 
-    private static void MakePrivate(UserId id) => MockDataStore.Users[id].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+    private static void MakePrivate(UserId id) => Store.Users.Update(id, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
     [Fact]
     public async Task Feed_Following_OnlyAcceptedAndSelf()

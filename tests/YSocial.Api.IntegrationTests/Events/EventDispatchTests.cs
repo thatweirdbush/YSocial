@@ -1,14 +1,14 @@
+using System.Net;
+using System.Net.Http.Json;
 using FluentAssertions;
 using Microservice.BuildingBlocks.Domain.Events;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net;
-using System.Net.Http.Json;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Notifications;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
 using YSocial.Infrastructure.Messaging.DomainEventsDispatching;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Events;
 
@@ -29,7 +29,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     private static (int Followers, int Following) Counts(Domain.Users.UserId id)
-        => (MockDataStore.Users[id].FollowersCount, MockDataStore.Users[id].FollowingCount);
+        => (Store.Users[id].FollowersCount, Store.Users[id].FollowingCount);
 
     [Fact]
     public async Task FollowPublicUser_IncrementsCounts()
@@ -72,11 +72,11 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.PutAsync(PostLike(SeedIds.DemoPost.Value), null)).EnsureSuccessStatusCode();
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(1);
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(1);
 
         (await test.DeleteAsync(PostLike(SeedIds.DemoPost.Value))).EnsureSuccessStatusCode();
 
-        MockDataStore.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
+        Store.Posts[SeedIds.DemoPost].LikeCount.Should().Be(0);
     }
 
     [Fact]
@@ -89,11 +89,11 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
         var commentId = (await add.ReadJsonAsync()).AsId();
 
         (await test.PutAsync(CommentLike(commentId), null)).EnsureSuccessStatusCode();
-        MockDataStore.Comments.Values.Single().LikeCount.Should().Be(1);
+        Store.Comments.Values.Single().LikeCount.Should().Be(1);
 
         (await test.DeleteAsync(CommentLike(commentId))).EnsureSuccessStatusCode();
 
-        MockDataStore.Comments.Values.Single().LikeCount.Should().Be(0);
+        Store.Comments.Values.Single().LikeCount.Should().Be(0);
     }
 
     [Fact]
@@ -107,7 +107,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         (await test.PostAsync(Block(SeedIds.DemoUser.Value), null)).EnsureSuccessStatusCode();
 
-        MockDataStore.UserRelations.Values.Should().OnlyContain(r => r.IsDeleted);
+        Store.UserRelations.Values.Should().OnlyContain(r => r.IsDeleted);
         Counts(SeedIds.TestUser).Should().Be((0, 0));
         Counts(SeedIds.DemoUser).Should().Be((0, 0));
     }
@@ -120,7 +120,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         (await test.DeleteAsync(Block(SeedIds.DemoUser.Value))).EnsureSuccessStatusCode();
 
-        MockDataStore.UserBlocks.Should().BeEmpty();
+        Store.UserBlocks.Should().BeEmpty();
         DrainPending().Should().BeEmpty();
     }
 
@@ -131,7 +131,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         (await test.PostAsync(Follow(SeedIds.DemoUser.Value), null)).EnsureSuccessStatusCode();
 
-        var notification = MockDataStore.Notifications.Values.Should().ContainSingle().Subject;
+        var notification = Store.Notifications.Values.Should().ContainSingle().Subject;
         notification.RecipientId.Should().Be(SeedIds.DemoUser);
         notification.Type.Should().Be(NotificationType.NewFollow);
     }
@@ -142,11 +142,11 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
         var test = await LoginAsync(Seed.TestLogin);
         var demo = await LoginAsync(Seed.DemoLogin);
         (await test.PutAsync($"/api/posts/{SeedIds.DemoPost.Value}/bookmark", null)).EnsureSuccessStatusCode();
-        MockDataStore.SavedItems.Values.Should().ContainSingle().Which.IsDeleted.Should().BeFalse();
+        Store.SavedItems.Values.Should().ContainSingle().Which.IsDeleted.Should().BeFalse();
 
         (await demo.DeleteAsync($"/api/posts/{SeedIds.DemoPost.Value}")).EnsureSuccessStatusCode();
 
-        MockDataStore.SavedItems.Values.Should().ContainSingle().Which.IsDeleted.Should().BeTrue();
+        Store.SavedItems.Values.Should().ContainSingle().Which.IsDeleted.Should().BeTrue();
         DrainPending().Should().BeEmpty();
     }
 
@@ -158,7 +158,7 @@ public class EventDispatchTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await Client.PostAsync($"/api/testprobe/fail-after-event/{throwException.ToString().ToLowerInvariant()}", null);
 
         response.StatusCode.Should().Be(expected);
-        MockDataStore.Posts[SeedIds.TestPost].DomainEvents.Should().BeEmpty("failed requests must discard pending events");
+        Store.Posts[SeedIds.TestPost].IsDeleted.Should().BeFalse("a failed request saves nothing");
 
         // Next unrelated command must not dispatch the leaked event
         var test = await LoginAsync(Seed.TestLogin);

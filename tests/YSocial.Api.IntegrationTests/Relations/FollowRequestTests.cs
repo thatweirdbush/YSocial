@@ -1,7 +1,7 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Countries;
@@ -9,8 +9,8 @@ using YSocial.Domain.Identities;
 using YSocial.Domain.Notifications;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Relations;
 
@@ -21,7 +21,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
     private static string Respond(Guid requesterId) => $"/api/users/{requesterId}/relations/follow-request";
 
     private static void MakePrivate(UserId id)
-        => MockDataStore.Users[id].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        => Store.Users.Update(id, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
     private static User AddUser(string username, string? displayName = null)
     {
@@ -32,7 +32,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         }
 
         user.ClearDomainEvents();
-        MockDataStore.Users.TryAdd(user.Id, user);
+        Store.Users.TryAdd(user.Id, user);
         return user;
     }
 
@@ -46,7 +46,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         relation.ClearDomainEvents();
         typeof(UserRelation).GetProperty(nameof(UserRelation.UpdatedAt))!.GetSetMethod(true)!
             .Invoke(relation, [DateTime.UtcNow - (age ?? TimeSpan.Zero)]);
-        MockDataStore.UserRelations.TryAdd(relation.Id, relation);
+        Store.UserRelations.TryAdd(relation.Id, relation);
         return relation;
     }
 
@@ -55,7 +55,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         var relation = UserRelation.Create(follower.Id, target);
         relation.RequestFollow(isTargetPrivate: false);
         relation.ClearDomainEvents();
-        MockDataStore.UserRelations.TryAdd(relation.Id, relation);
+        Store.UserRelations.TryAdd(relation.Id, relation);
         return relation;
     }
 
@@ -79,8 +79,8 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await test.PostAsync($"/api/users/{SeedIds.DemoUser.Value}/relations/follow", null);
 
         (await response.ReadJsonAsync()).GetProperty("followStatus").GetString().Should().Be("pending");
-        MockDataStore.Users[SeedIds.DemoUser].FollowersCount.Should().Be(0);
-        MockDataStore.Notifications.Values.Should().ContainSingle(n => n.RecipientId == SeedIds.DemoUser && n.Type == NotificationType.FollowRequested);
+        Store.Users[SeedIds.DemoUser].FollowersCount.Should().Be(0);
+        Store.Notifications.Values.Should().ContainSingle(n => n.RecipientId == SeedIds.DemoUser && n.Type == NotificationType.FollowRequested);
     }
 
     [Fact]
@@ -95,9 +95,9 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         (await response.ReadJsonAsync()).GetProperty("acceptedCount").GetInt32().Should().Be(3);
-        pending.Should().OnlyContain(r => r.FollowStatus == FollowStatus.Accepted);
-        MockDataStore.Users[SeedIds.DemoUser].PrivacySettings.IsPrivateProfile.Should().BeFalse();
-        MockDataStore.Users[SeedIds.DemoUser].FollowersCount.Should().Be(3, "events fire per accepted edge (old edges were seeded without events)");
+        Store.UserRelations.Values.Where(r => pending.Any(p => p.Id == r.Id)).Should().OnlyContain(r => r.FollowStatus == FollowStatus.Accepted);
+        Store.Users[SeedIds.DemoUser].PrivacySettings.IsPrivateProfile.Should().BeFalse();
+        Store.Users[SeedIds.DemoUser].FollowersCount.Should().Be(3, "events fire per accepted edge (old edges were seeded without events)");
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await response.ReadJsonAsync()).GetProperty("acceptedCount").GetInt32().Should().Be(0);
         follower.FollowStatus.Should().Be(FollowStatus.Accepted);
         follower.IsDeleted.Should().BeFalse();
-        MockDataStore.Users[SeedIds.DemoUser].PrivacySettings.IsPrivateProfile.Should().BeTrue();
+        Store.Users[SeedIds.DemoUser].PrivacySettings.IsPrivateProfile.Should().BeTrue();
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         await demo.PutAsJsonAsync("/api/users/profiles/me/privacy", new { isPrivate = false });
 
-        MockDataStore.Notifications.Values.Should().ContainSingle(n => n.RecipientId == requester.Id && n.Type == NotificationType.FollowAccepted);
+        Store.Notifications.Values.Should().ContainSingle(n => n.RecipientId == requester.Id && n.Type == NotificationType.FollowAccepted);
     }
 
     [Fact]
@@ -161,10 +161,10 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await demo.PostAsJsonAsync(Respond(SeedIds.TestUser.Value), new { decision = "accept" });
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        MockDataStore.UserRelations.Values.Single().FollowStatus.Should().Be(FollowStatus.Accepted);
-        MockDataStore.Users[SeedIds.DemoUser].FollowersCount.Should().Be(1);
-        MockDataStore.Users[SeedIds.TestUser].FollowingCount.Should().Be(1);
-        MockDataStore.Notifications.Values.Should().Contain(n => n.RecipientId == SeedIds.TestUser && n.Type == NotificationType.FollowAccepted,
+        Store.UserRelations.Values.Single().FollowStatus.Should().Be(FollowStatus.Accepted);
+        Store.Users[SeedIds.DemoUser].FollowersCount.Should().Be(1);
+        Store.Users[SeedIds.TestUser].FollowingCount.Should().Be(1);
+        Store.Notifications.Values.Should().Contain(n => n.RecipientId == SeedIds.TestUser && n.Type == NotificationType.FollowAccepted,
             "accepting notifies the requester");
     }
 
@@ -178,8 +178,8 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await demo.PostAsJsonAsync(Respond(SeedIds.TestUser.Value), new { decision = "decline" });
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-        MockDataStore.UserRelations.Values.Single().IsDeleted.Should().BeTrue();
-        MockDataStore.Users[SeedIds.DemoUser].FollowersCount.Should().Be(0);
+        Store.UserRelations.Values.Single().IsDeleted.Should().BeTrue();
+        Store.Users[SeedIds.DemoUser].FollowersCount.Should().Be(0);
         (await (await test.GetAsync($"/api/users/{SeedIds.DemoUser.Value}")).ReadJsonAsync()).GetProperty("followStatus").GetString().Should().Be("none");
     }
 
@@ -210,7 +210,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var demo = await DemoAsync();
         AddAccepted(AddUser("follower"), SeedIds.DemoUser);
-        var followerId = MockDataStore.UserRelations.Values.Single().ObserverId.Value;
+        var followerId = Store.UserRelations.Values.Single().ObserverId.Value;
 
         (await demo.PostAsJsonAsync(Respond(followerId), new { decision = "decline" })).StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -281,7 +281,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         foreach (var user in users)
         {
             var edge = AddRequest(user, SeedIds.DemoUser);
-            typeof(UserRelation).GetProperty(nameof(UserRelation.UpdatedAt))!.GetSetMethod(true)!.Invoke(edge, [when]);
+            Store.UserRelations.Update(edge.Id, x => typeof(UserRelation).GetProperty(nameof(UserRelation.UpdatedAt))!.GetSetMethod(true)!.Invoke(x, [when]));
         }
 
         var first = Usernames(await (await demo.GetAsync(Requests)).ReadJsonAsync());
@@ -337,7 +337,7 @@ public class FollowRequestTests(ApiFixture fixture) : ApiTestBase(fixture)
         AddRequest(AddUser("alive"), SeedIds.DemoUser);
         var gone = AddUser("gone");
         AddRequest(gone, SeedIds.DemoUser);
-        gone.Delete(isAccountDeletion: true);
+        Store.Users.Update(gone.Id, x => x.Delete(isAccountDeletion: true));
 
         var list = await (await demo.GetAsync(Requests)).ReadJsonAsync();
         var count = await (await demo.GetAsync($"{Requests}/count")).ReadJsonAsync();

@@ -11,6 +11,10 @@ public class UserBlock : AggregateRoot<UserBlockId>
     public UserId TargetId { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
+#pragma warning disable CS8618
+    private UserBlock() { }
+#pragma warning restore CS8618
+
     private UserBlock(UserId observerId, UserId targetId)
     {
         Id = UserBlockId.New();

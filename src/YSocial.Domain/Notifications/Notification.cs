@@ -20,6 +20,10 @@ public sealed class Notification : AggregateRoot<NotificationId>
     public DateTime CreatedAt { get; private set; }
     public DateTime? ReadAt { get; private set; }
 
+#pragma warning disable CS8618
+    private Notification() { }
+#pragma warning restore CS8618
+
     private Notification(
         UserId recipientId,
         UserId senderId,

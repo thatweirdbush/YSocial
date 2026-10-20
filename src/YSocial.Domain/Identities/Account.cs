@@ -1,6 +1,6 @@
+using System.Security.Cryptography;
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
-using System.Security.Cryptography;
 using YSocial.Domain.Identities.Events;
 using YSocial.Domain.Identities.Rules;
 using YSocial.Domain.Users;
@@ -22,14 +22,17 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     public bool IsDeleted { get; private set; }
     public DateTime? DeletedAt { get; private set; }
 
-    // Copy-on-write: replaced wholesale (never mutated in place) so lock-free readers enumerate a stable snapshot
-    private volatile IReadOnlyList<RefreshToken> _refreshTokens = [];
-    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens;
+    private readonly List<RefreshToken> _refreshTokens = [];
+    public IReadOnlyCollection<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
 
     private readonly List<PasswordResetToken> _passwordResetTokens = [];
     public IReadOnlyCollection<PasswordResetToken> PasswordResetTokens => _passwordResetTokens.AsReadOnly();
 
     #endregion
+
+#pragma warning disable CS8618
+    private Account() { }
+#pragma warning restore CS8618
 
     private Account(string email, string? phoneNumber, PasswordHash passwordHash)
     {
@@ -178,7 +181,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
         var expiryTime = DateTime.UtcNow.AddDays(DefaultRefreshTokenExpiryDays);
 
         var refreshTokenEntity = RefreshToken.Create(Id, userId, tokenValue, expiryTime, deviceId);
-        _refreshTokens = [.. _refreshTokens, refreshTokenEntity];
+        _refreshTokens.Add(refreshTokenEntity);
 
         return refreshTokenEntity;
     }
@@ -196,8 +199,8 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     /// </summary>
     public void RemoveExpiredTokens()
     {
-        var tokens = _refreshTokens;
-        _refreshTokens = tokens.Where(t => t.IsActive || HasActiveSuccessor(tokens, t)).ToList();
+        var tokens = _refreshTokens.ToList();
+        _refreshTokens.RemoveAll(t => !t.IsActive && !HasActiveSuccessor(tokens, t));
     }
 
     private static bool HasActiveSuccessor(IReadOnlyList<RefreshToken> tokens, RefreshToken token)

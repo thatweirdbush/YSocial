@@ -1,5 +1,7 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using Microservice.BuildingBlocks.Domain.BusinessRules;
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
@@ -29,22 +31,44 @@ internal sealed class ResetPasswordCommandValidator : AbstractValidator<ResetPas
 internal sealed class ResetPasswordCommandHandler(
     IAccountRepository accountRepository,
     IPasswordHasher passwordHasher,
-    IAccountSessionLock sessionLock)
+    IAccountSessionLock sessionLock,
+    IUnitOfWork unitOfWork)
     : ICommandHandler<ResetPasswordCommand, Result>
 {
     public async Task<Result> Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
-        var account = await accountRepository.GetByIdentifierAsync(request.LoginId, cancellationToken);
+        // Advisory id lookup, then lock, then load: the account is read after any concurrent token change was saved
+        var accountId = await accountRepository.GetIdByIdentifierAsync(request.LoginId, cancellationToken);
+
+        if (accountId is null)
+        {
+            return Result.Fail("Invalid request.", ErrorType.Business);
+        }
+
+        await using var _ = await sessionLock.AcquireAsync(accountId.Value, cancellationToken);
+
+        var account = await accountRepository.GetByIdAsync(accountId.Value, cancellationToken);
 
         if (account is null)
         {
             return Result.Fail("Invalid request.", ErrorType.Business);
         }
 
-        await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
+        try
+        {
+            account.ResetPassword(request.Otp, request.NewPassword, passwordHasher);
+        }
+        catch (BusinessRuleValidationException)
+        {
+            // A wrong OTP counts as an attempt: that change MUST outlive the failed request (a failed request saves nothing)
+            await unitOfWork.CommitAsync(cancellationToken);
+            throw;
+        }
 
-        account.ResetPassword(request.Otp, request.NewPassword, passwordHasher);
         accountRepository.Update(account);
+
+        // Saved INSIDE the lock (see refresh)
+        await unitOfWork.CommitAsync(cancellationToken);
 
         return Result.Success();
     }

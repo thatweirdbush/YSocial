@@ -1,12 +1,12 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Users;
 
@@ -29,7 +29,7 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     private static void MakePrivate(Domain.Users.UserId id)
-        => MockDataStore.Users[id].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        => Store.Users.Update(id, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
     [Fact]
     public async Task GetProfile_ById_CountsAfterFollow()
@@ -53,7 +53,7 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
         var admin = await LoginAsync(Seed.AdminLogin, "admin");
         await test.PostAsync(Follow(SeedIds.DemoUser.Value), null);
         await admin.PostAsync(Follow(SeedIds.DemoUser.Value), null);
-        MockDataStore.Users[SeedIds.AdminUser].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.AdminUser, x => x.Delete(isAccountDeletion: true));
 
         var demo = await JsonAsync(await Client.GetAsync(ById(SeedIds.DemoUser.Value)));
 
@@ -95,7 +95,7 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task GetProfile_Deleted_404()
     {
-        MockDataStore.Users[SeedIds.TestUserAlt].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.TestUserAlt, x => x.Delete(isAccountDeletion: true));
 
         (await Client.GetAsync(ById(SeedIds.TestUserAlt.Value))).StatusCode.Should().Be(HttpStatusCode.NotFound);
         (await Client.GetAsync("/api/users/by-username/test_user_alt")).StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -174,7 +174,7 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
         pending.GetProperty("followStatus").GetString().Should().Be("pending");
         pending.GetProperty("isFollowing").GetBoolean().Should().BeFalse();
 
-        MockDataStore.UserRelations.Values.Single().AcceptFollow();
+        Store.UserRelations.UpdateSingle(x => x.AcceptFollow());
         var accepted = await JsonAsync(await test.GetAsync(ById(SeedIds.DemoUser.Value)));
         accepted.GetProperty("followStatus").GetString().Should().Be("accepted");
         accepted.GetProperty("isFollowing").GetBoolean().Should().BeTrue();
@@ -267,15 +267,15 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     public async Task UpdateProfile_OmittedGenderAndBirthDate_KeepStoredValues()
     {
         var birth = new DateTime(1990, 5, 17, 0, 0, 0, DateTimeKind.Utc);
-        var stored = MockDataStore.Users[SeedIds.TestUser];
-        stored.UpdateProfile(new UserProfileInfo(stored.ProfileInfo.DisplayName, null, null, null, Gender.Female, birth, stored.ProfileInfo.ProfileType));
+        Store.Users.Update(SeedIds.TestUser, stored =>
+            stored.UpdateProfile(new UserProfileInfo(stored.ProfileInfo.DisplayName, null, null, null, Gender.Female, birth, stored.ProfileInfo.ProfileType)));
         var test = await LoginAsync(Seed.TestLogin);
 
         var response = await test.PutAsJsonAsync("/api/users/profiles/me",
             new { displayName = "Only Name", bio = "Hi", avatarUrl = (string?)null, coverUrl = (string?)null });
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var info = MockDataStore.Users[SeedIds.TestUser].ProfileInfo;
+        var info = Store.Users[SeedIds.TestUser].ProfileInfo;
         info.DisplayName.Should().Be("Only Name");
         info.Gender.Should().Be(Gender.Female);
         info.DateOfBirth.Should().Be(birth);
@@ -289,6 +289,6 @@ public class ProfileReadTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await test.PutAsJsonAsync("/api/users/profiles/me",
             new { displayName = "N", bio = (string?)null, avatarUrl = (string?)null, coverUrl = (string?)null, gender = 1 })).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        MockDataStore.Users[SeedIds.TestUser].ProfileInfo.Gender.Should().Be(Gender.Male);
+        Store.Users[SeedIds.TestUser].ProfileInfo.Gender.Should().Be(Gender.Male);
     }
 }

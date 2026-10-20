@@ -1,12 +1,12 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Status;
 
@@ -43,7 +43,7 @@ public class StatusCodeTests(ApiFixture fixture) : ApiTestBase(fixture)
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var body = await JsonAsync(response);
         var accountId = body.GetProperty("accountId").GetGuid();
-        MockDataStore.Accounts.Keys.Should().Contain(a => a.Value == accountId);
+        Store.Accounts.Keys.Should().Contain(a => a.Value == accountId);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public class StatusCodeTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Follow_PrivateTarget_ReturnsPending()
     {
-        MockDataStore.Users[SeedIds.DemoUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.DemoUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
         var test = await LoginAsync(Seed.TestLogin);
 
         var response = await test.PostAsync($"/api/users/{SeedIds.DemoUser.Value}/relations/follow", null);

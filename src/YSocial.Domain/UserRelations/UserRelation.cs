@@ -19,6 +19,10 @@ public class UserRelation : AggregateRoot<UserRelationId>, ISoftDeletable
     public bool IsDeleted { get; private set; }
     public DateTime? DeletedAt { get; private set; }
 
+#pragma warning disable CS8618
+    private UserRelation() { }
+#pragma warning restore CS8618
+
     private UserRelation(UserId observerId, UserId targetId)
     {
         Id = UserRelationId.New();

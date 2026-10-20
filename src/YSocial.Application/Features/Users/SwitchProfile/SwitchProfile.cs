@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using YSocial.Application.Abstractions.Identity;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Application.Features.Identities.Login;
@@ -26,6 +28,7 @@ internal sealed class SwitchProfileCommandHandler(
     IAccountRepository accountRepository,
     IJwtProvider jwtProvider,
     IAccountSessionLock sessionLock,
+    IUnitOfWork unitOfWork,
     IUserContext userContext)
     : ICommandHandler<SwitchProfileCommand, Result<LoginResponse>>
 {
@@ -37,13 +40,15 @@ internal sealed class SwitchProfileCommandHandler(
         }
 
         var accountId = new AccountId(userContext.AccountId);
+
+        // Lock BEFORE loading: the account (& its tokens) must be read after any concurrent rotation was saved
+        await using var _ = await sessionLock.AcquireAsync(accountId, cancellationToken);
+
         var account = await accountRepository.GetByIdAsync(accountId, cancellationToken);
         if (account is null)
         {
             return Result<LoginResponse>.Unauthorized();
         }
-
-        await using var _ = await sessionLock.AcquireAsync(account.Id, cancellationToken);
 
         // Foreign, deleted & unknown profiles look the same (no id probing)
         var targetUser = await userRepository.GetByIdAndAccountIdAsync(new UserId(request.ProfileId), account.Id, cancellationToken);
@@ -57,6 +62,17 @@ internal sealed class SwitchProfileCommandHandler(
         var newAccessToken = jwtProvider.GenerateToken(targetUser, account);
 
         accountRepository.Update(account);
+
+        // Saved INSIDE the lock (see refresh)
+        try
+        {
+            await unitOfWork.CommitAsync(cancellationToken);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            // Another instance rotated the token first (contract: unusable refresh token = 401)
+            return Result<LoginResponse>.Unauthorized("Invalid or expired refresh token.", ErrorCodes.InvalidRefreshToken);
+        }
 
         return Result<LoginResponse>.Success(new LoginResponse(newAccessToken, newRefreshToken.Token, newRefreshToken.ExpiryTime));
     }

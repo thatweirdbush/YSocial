@@ -15,6 +15,10 @@ public sealed class SavedItem : AggregateRoot<SavedItemId>, ISoftDeletable
     public bool IsDeleted { get; private set; }
     public DateTime? DeletedAt { get; private set; }
 
+#pragma warning disable CS8618
+    private SavedItem() { }
+#pragma warning restore CS8618
+
     private SavedItem(Guid targetId, SavedItemTargetType targetType, UserId userId)
     {
         Id = SavedItemId.New();

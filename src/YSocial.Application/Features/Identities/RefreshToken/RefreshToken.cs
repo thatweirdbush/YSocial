@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microservice.BuildingBlocks.CQRS.Commands;
+using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using YSocial.Application.Abstractions.Identity;
+using YSocial.Application.Abstractions.Persistence;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
 using YSocial.Application.Features.Identities.Login;
@@ -27,12 +29,13 @@ internal sealed class RefreshTokenCommandHandler(
     IAccountRepository accountRepository,
     IUserRepository userRepository,
     IJwtProvider jwtProvider,
-    IAccountSessionLock sessionLock)
+    IAccountSessionLock sessionLock,
+    IUnitOfWork unitOfWork)
     : ICommandHandler<RefreshTokenCommand, Result<LoginResponse>>
 {
     public async Task<Result<LoginResponse>> Handle(RefreshTokenCommand request, CancellationToken cancellationToken)
     {
-        // Advisory lookup without lock; everything is re-validated under the lock
+        // Advisory lookup without lock (untracked snapshot); everything is re-loaded & re-validated under the lock
         var found = await accountRepository.GetByRefreshTokenAsync(request.RefreshToken, cancellationToken);
         if (found is null)
         {
@@ -58,6 +61,17 @@ internal sealed class RefreshTokenCommandHandler(
         var newRefreshToken = account.RotateRefreshToken(request.RefreshToken);
         var accessToken = jwtProvider.GenerateToken(profile, account);
         accountRepository.Update(account);
+
+        // Saved INSIDE the lock: the next request for this account must see the rotation
+        try
+        {
+            await unitOfWork.CommitAsync(cancellationToken);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            // Another instance changed the account first: same outcome as losing the single-instance race (contract: any failure = 401)
+            return Invalid();
+        }
 
         return Result<LoginResponse>.Success(new LoginResponse(accessToken, newRefreshToken.Token, newRefreshToken.ExpiryTime));
     }

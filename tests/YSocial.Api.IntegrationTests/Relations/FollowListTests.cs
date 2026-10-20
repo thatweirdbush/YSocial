@@ -1,7 +1,7 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Countries;
@@ -9,8 +9,8 @@ using YSocial.Domain.Identities;
 using YSocial.Domain.UserBlocks;
 using YSocial.Domain.UserRelations;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Relations;
 
@@ -21,7 +21,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
     private static string Following(Guid id, string qs = "") => $"/api/users/{id}/following{qs}";
 
     private static void MakePrivate(UserId id)
-        => MockDataStore.Users[id].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        => Store.Users.Update(id, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
 
     private static User AddUser(string username, string? displayName = null)
     {
@@ -32,7 +32,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         }
 
         user.ClearDomainEvents();
-        MockDataStore.Users.TryAdd(user.Id, user);
+        Store.Users.TryAdd(user.Id, user);
         return user;
     }
 
@@ -41,7 +41,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         var relation = UserRelation.Create(observer, target);
         relation.RequestFollow(isTargetPrivate: !accepted);
         relation.ClearDomainEvents();
-        MockDataStore.UserRelations.TryAdd(relation.Id, relation);
+        Store.UserRelations.TryAdd(relation.Id, relation);
         return relation;
     }
 
@@ -49,7 +49,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var block = UserBlock.Create(observer, target);
         block.ClearDomainEvents();
-        MockDataStore.UserBlocks.TryAdd(block.Id, block);
+        Store.UserBlocks.TryAdd(block.Id, block);
     }
 
     private static IReadOnlyList<string> Usernames(JsonElement page)
@@ -68,7 +68,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         AddEdge(pending.Id, SeedIds.DemoUser, accepted: false);
         AddEdge(blocked.Id, SeedIds.DemoUser);
         AddEdge(deleted.Id, SeedIds.DemoUser);
-        deleted.Delete(isAccountDeletion: true);
+        Store.Users.Update(deleted.Id, x => x.Delete(isAccountDeletion: true));
         var test = await LoginAsync(Seed.TestLogin);
         AddBlock(SeedIds.TestUser, blocked.Id);
 
@@ -155,7 +155,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
     public async Task Followers_ViewerBlockedTarget_UnknownAndDeletedUser_404()
     {
         AddBlock(SeedIds.TestUser, SeedIds.DemoUser);
-        MockDataStore.Users[SeedIds.AdminUser].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.AdminUser, x => x.Delete(isAccountDeletion: true));
         var test = await LoginAsync(Seed.TestLogin);
 
         (await test.GetAsync(Followers(SeedIds.DemoUser.Value))).StatusCode.Should().Be(HttpStatusCode.NotFound);
@@ -263,10 +263,13 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         var requester = AddUser("requester");
 
         var closeEdge = AddEdge(SeedIds.TestUser, close.Id);
-        closeEdge.ToggleCloseFriend(true);
-        closeEdge.Delete();                       // unfollowed -> flag dormant but still listed
+        Store.UserRelations.Update(closeEdge.Id, x =>
+        {
+            x.ToggleCloseFriend(true);
+            x.Delete();                           // unfollowed -> flag dormant but still listed
+        });
         var muteEdge = AddEdge(SeedIds.TestUser, muted.Id);
-        muteEdge.SetMuted(true);
+        Store.UserRelations.Update(muteEdge.Id, x => x.SetMuted(true));
         AddBlock(SeedIds.TestUser, blocked.Id);
         AddEdge(requester.Id, SeedIds.TestUser, accepted: false);
         MakePrivate(SeedIds.TestUser);
@@ -312,7 +315,7 @@ public class FollowListTests(ApiFixture fixture) : ApiTestBase(fixture)
         await Task.Delay(15);
         AddBlock(SeedIds.TestUser, two.Id);
         AddBlock(SeedIds.TestUser, gone.Id);
-        gone.Delete(isAccountDeletion: true);
+        Store.Users.Update(gone.Id, x => x.Delete(isAccountDeletion: true));
         AddBlock(one.Id, SeedIds.TestUser);   // reverse block must not leak into my list
 
         var page = await test.GetFromJsonAsync<JsonElement>("/api/users/me/blocks");

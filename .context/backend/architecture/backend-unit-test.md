@@ -2,21 +2,23 @@
 module: Backend Testing
 description: Test layers (Domain/Application unit, API integration), harness rules & test matrix
 stack: xUnit / NSubstitute / FluentAssertions / Mvc.Testing / .NET 8
-updated: 2026-10-15
+updated: 2026-10-20
 ---
 
 # 1. INFRASTRUCTURE & STANDARDS
 
 ## 1.1 Projects & Visibility
 
-| Project | Layer | Tests (2026-10-15, all passing) |
+| Project | Layer | Tests (all passing) |
 |---|---|---|
-| `tests/YSocial.Domain.UnitTests` (`net8.0`) | Domain: aggregates, rules, services (mock repos) | 60 |
-| `tests/YSocial.Application.UnitTests` (`net8.0`) | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction, notification outbox | 41 |
-| `tests/YSocial.Api.IntegrationTests` (`net8.0`) | real HTTP pipeline over `WebApplicationFactory<Program>` (see 1.3) | 422 |
+| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos) | 60 |
+| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes | 73 |
+| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 430 |
+| `tests/YSocial.TestSupport` (no tests) | shared harness: `SqliteTestDatabase`, `Store` facade | - |
 
-- **Packages (all 3):** `xunit` 2.7.1, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `NSubstitute`, `FluentAssertions` 8.3.0; integration adds `Microsoft.AspNetCore.Mvc.Testing` 8.0.26
-- **Visibility:** MUST add `[assembly: InternalsVisibleTo("YSocial.<Layer>.UnitTests")]` / `("YSocial.Api.IntegrationTests")` to `YSocial.Domain.csproj`, `YSocial.Application.csproj` & `YSocial.Infrastructure.csproj` for direct testing of `internal sealed record` rules, handlers & mock repos
+- **All:** net8.0
+- **Packages (all 3):** `xunit` 2.7.1, `xunit.runner.visualstudio`, `Microsoft.NET.Test.Sdk`, `NSubstitute`, `FluentAssertions` 8.3.0; integration adds `Microsoft.AspNetCore.Mvc.Testing` 8.0.26; TestSupport adds `Microsoft.EntityFrameworkCore.Sqlite` 9.0.4
+- **Visibility:** MUST add `[assembly: InternalsVisibleTo("YSocial.<Layer>.UnitTests")]` / `("YSocial.Api.IntegrationTests")` to `YSocial.Domain.csproj`, `YSocial.Application.csproj` & `YSocial.Infrastructure.csproj` for direct testing of `internal sealed record` rules, handlers & repos
 - **Matrix status:** tables in sections 2-3 mix EXISTING tests & TARGET backlog; "Existing" lines list what is really in project; most handler behavior is covered end-to-end by integration layer instead of per-handler unit tests
 
 ## 1.2 Data & Execution Conventions
@@ -28,17 +30,18 @@ updated: 2026-10-15
 
 > Acceptance of every contract (status, `code`, DTO shape, access rules) = tests over real HTTP pipeline; Swagger != source of truth
 
-- **Host:** `ApiFactory : WebApplicationFactory<Program>` (`public partial class Program;`); removes hosted `ProcessNotificationOutboxJob` (it mutates shared state; outbox tests call processing directly); adds test-only `TestProbeController` (generic error mapping, fail-after-event probe); client base `https://localhost`, no auto-redirect
-- **Fixture & base:** 1 host per run (`ApiFixture` via `[CollectionDefinition("Api")]` `ICollectionFixture`); every test class derives `ApiTestBase` (`[Collection("Api")]`), whose ctor calls `MockDataStore.ResetForTests()` -> each test starts from identical seed; `LoginAsync(loginId)` returns bearer client (`AuthHelper`; `Seed.*` constants name seed logins, credentials live in `SeedIds` & are NOT repeated in docs)
-- **Serialized:** `[assembly: CollectionBehavior(DisableTestParallelization = true)]` (static in-memory store is shared by whole assembly)
-- **Reset rule:** `MockDataStore.ResetForTests()` clears every static collection IN PLACE (`Clear()`, NEVER reassign: singleton repos & `MockNotificationOutboxStore` hold references), also clears removed-events queue & outbox, then reseeds; any new static mutable state MUST be added to reset
-- **Deterministic seed:** `SeedIds` (fixed GUIDs, `BaseTime`) + `MockSeeder` (reflection on private setters allowed ONLY there; bcrypt work factor 4); tests may reference seed ids directly
+- **Host:** `ApiFactory(SqliteTestDatabase) : WebApplicationFactory<Program>` (`public partial class Program;`); replaces database registration by SQLite (never PostgreSQL, guard `Host_UsesTheSqliteTestDatabase_NeverPostgres`), turns `Database:AutoMigrate`/`SeedData` off; removes hosted `ProcessNotificationOutboxJob` (outbox tests call processing directly); adds test-only `TestProbeController` (generic error mapping, fail-after-event probe); client base `https://localhost`, no auto-redirect
+- **Fixture & base:** 1 host per run (`ApiFixture` via `[CollectionDefinition("Api")]` `ICollectionFixture`); every test class derives `ApiTestBase` (`[Collection("Api")]`), whose ctor calls `Store.Reset()` (delete every row, re-seed core baseline) -> each test starts from identical seed; `LoginAsync(loginId)` returns bearer client (`AuthHelper`; `Seed.*` constants name seed logins, credentials live in `SeedIds` & are NOT repeated in docs)
+- **Serialized:** `[assembly: CollectionBehavior(DisableTestParallelization = true)]` (1 shared SQLite database & static `Store` pointer for whole assembly)
+- **Database:** `SqliteTestDatabase` = temp file (WAL, busy timeout: concurrent requests get own connections like PostgreSQL), schema by `EnsureCreated` (production model, no migrations), `Reset()` = `DELETE` of every table in model (new tables are covered automatically) + `CoreSeeder`
+- **Deterministic seed:** `SeedIds` (fixed GUIDs, `BaseTime`) + `CoreSeeder` (3 accounts, 4 profiles, 2 posts; reflection on private setters allowed ONLY in `SeedFactory`; bcrypt work factor 4); tests may reference seed ids directly; `DevelopmentSeeder` data is NOT part of baseline
 - **Characterization & probe tests** (`Characterization/`): pinned behavior that must survive recovery + probes of BG §12; target-behavior tests started as `[Fact(Skip = "T1.x")]` & were un-skipped by their owner task (0 skipped now)
-- **Layout (by area):** `Characterization`, `Config` (CORS), `Contract` (Swagger), `Errors` (pipeline, `RuleCodesTests`, framework 405/415), `Events` (dispatch), `Feed`, `Identities` (register, session, refresh, race tests), `Interactions` (like/bookmark, write enforcement, hidden-target ownership 404-before-403), `Notifications`, `Pagination`, `Posts` (incl. share link), `Relations` (follow lists, requests, privacy, mute), `Security` (log redaction, Production startup), `Smoke`, `Status` (status codes), `Threads`, `Users` (profile reads)
-- **Helpers:** `StoreData.AddUser/AddAccepted` (direct store seeding: many users/edges, events cleared); `ApiFactory.Logs` = `CapturingLoggerProvider` (every host log line; cleared per test by `ApiTestBase`) for redaction tests
-- **Static-store isolation:** unit tests that need outbox use their OWN list (`new MockNotificationOutboxStore { Messages = [] }`): other classes call `MockDataStore.ResetForTests()` in parallel
+- **Layout (by area):** `Characterization`, `Config` (CORS), `Contract` (Swagger), `Errors` (pipeline, `RuleCodesTests`, framework 405/415), `Events` (dispatch), `Feed`, `Identities` (register, session, refresh, race tests), `Interactions` (like/bookmark, write enforcement, hidden-target ownership 404-before-403), `Notifications`, `Pagination`, `Persistence` (atomic save, rollback, restart durability, 409, OTP attempts, forgot-password vs refresh race), `Posts` (incl. share link), `Relations` (follow lists, requests, privacy, mute), `Security` (log redaction, Production startup), `Smoke`, `Status` (status codes), `Threads`, `Users` (profile reads)
+- **`Store` facade (`TestSupport`):** dictionary-like view of each aggregate table: reads = fresh snapshots (own context per call), writes (`Add`, `TryAdd`, `Update(id, change)`, `UpdateSingle`) save immediately WITHOUT dispatching events; arrange state through it, NEVER by mutating returned snapshot (changes are lost)
+- **Helpers:** `StoreData.AddUser/AddAccepted` (direct seeding: many users/edges, no events), `AccountArrange.IssueOtp/ExpireToken`; `ApiFactory.Logs` = `CapturingLoggerProvider` (every host log line; cleared per test by `ApiTestBase`) for redaction tests
+- **Isolation in unit tests:** every class that needs data creates its OWN `SqliteTestDatabase` (unique temp file, disposed with class), safe under xUnit parallelism
 - **Non-Development hosts:** `Factory.WithWebHostBuilder(b => b.UseEnvironment("Production"))` MUST also `UseSetting("Jwt:SecretKey", <value with >= 32 chars>)`, else startup fails by design
-- **Race tests:** parallel requests released by barrier, repeated (e.g. 50x); assert exactly 1 winner / no active token left / active <= 5
+- **Race tests:** parallel requests released by barrier, repeated (e.g. 50x); assert exactly 1 winner / no active token left / active <= 5; they rely on session lock + commit inside lock (BG §6.4)
 - **Naming:** `[Subject]_[Scenario]_[Expected]` (e.g. `Refresh_RotatedToken_Returns401`)
 - **Contract guards elsewhere:** `RuleClassificationTests` (Domain: `AllRules_AreClassified`, `AllRuleCodes_ExistInCatalog`, `CodesSnapshot_MatchesApprovedList`), `SwaggerTests` (Api: `Swagger_Builds`, response schemas, `ProblemDetails` errors, DTO schemas)
 
@@ -225,12 +228,17 @@ updated: 2026-10-15
 
 # 3. APPLICATION TEST MATRIX (`YSocial.Application.UnitTests`)
 
-## 3.1 Existing (41)
+## 3.1 Existing (73)
 - `Access/ViewerAccessPolicyTests` (16): owner/anonymous/pending/accepted vs private, block either direction, deleted author, FollowersOnly & Private posts, dormant close-friend flag, comment under inaccessible root, filter helpers, `GetContext_CallsEachRepoOnce_For50Candidates`
-- `Posts/PostProjectorTests` (8): post/comment kind & parent, viewer flags per kind, anonymous = no viewer lookups, fixed repo calls per page, dropped inaccessible items, direct-children counting (`CommentCount_PostIdAndCommentIdQueriesNeverMix`)
+- `Posts/PostProjectorTests` (7): post/comment kind & parent, viewer flags per kind, anonymous = no viewer lookups, fixed repo calls per page, dropped inaccessible items, direct-children counting
 - `Cqrs/EventDispatchUnitTests` (6): dispatcher max passes, drain-until-empty, failure discards remaining; `TransactionBehavior` success commits, failed `Result`/exception skips commit & discards
 - `Identity/AccountSessionLockTests` (2): same account serialized & different accounts parallel, double dispose releases once
-- `Notifications/NotificationOutboxProcessorTests` (4): delivered message removed & payload sent to recipient, failed message retried then dropped after `MaxAttempts`, bounded batch, FE payload field set
+- `Identity/SessionConflictTests` (5): optimistic-concurrency conflict on in-lock commit ends in documented status (refresh & switch 401 `InvalidRefreshToken`, logout & forgot-password success), lock released
+- `Notifications/NotificationOutboxProcessorTests` (5, SQLite): delivered row deleted & payload sent to recipient, failed row retried then dropped after `MaxAttempts`, bounded batch, oldest first, FE payload field set
+- `Persistence/RepositoryTests` (15, SQLite, every reload = new context): account round trip with tokens, child insert (no update of new rows), dropped tokens deleted, concurrent writers -> `ConcurrencyConflictException`, untracked advisory lookup, login id (email/phone/username, case-insensitive, deleted hidden), username/email reservation incl. soft-deleted, enumeration/country/date round trip, comment post-id vs comment-id queries never mix, soft-deleted posts hidden, unique like index, event drain incl. hard-removed aggregates, discard, `Update` semantics, failed request saves nothing
+- `Persistence/ModelTests` (3, Npgsql options, no connection): no pending model changes vs migration snapshot, no cross-aggregate foreign keys, all `DateTime` = timestamptz
+- `Persistence/SeederTests` (3): core idempotent & = baseline, development dataset rich + idempotent + every counter matches rows + blocked pairs unrelated, all demo accounts accept known password
+- `Persistence/ConnectionStringsTests` (6): `postgres://` URI -> Npgsql string (escapes, default port, ssl mode), key=value passthrough, missing -> error
 - `Cqrs/LogRedactorTests` (5): password/OTP/token members masked by name, attribute marks other names, nested & collections, failed `Result`, null
 
 ## 3.2 Command handlers (CQRS) - target backlog
@@ -253,6 +261,6 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 
 - [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
 - [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (60 pass)
-- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (41 pass)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (422 pass, serialized, identical seed per test)
+- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (73 pass)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (430 pass, serialized, identical seed per test)
 - [x] **All:** `dotnet test YSocial.sln`

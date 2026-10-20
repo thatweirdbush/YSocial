@@ -1,13 +1,13 @@
-using FluentAssertions;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Countries;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Identities;
 
@@ -28,7 +28,7 @@ public class RegisterTests(ApiFixture fixture) : ApiTestBase(fixture)
         var response = await RegisterAsync(username: "chosen.name_1");
 
         response.IsSuccessStatusCode.Should().BeTrue();
-        MockDataStore.Users.Values.Should().ContainSingle(u => u.Username == "chosen.name_1" && u.IsDefault);
+        Store.Users.Values.Should().ContainSingle(u => u.Username == "chosen.name_1" && u.IsDefault);
     }
 
     [Theory]
@@ -46,7 +46,7 @@ public class RegisterTests(ApiFixture fixture) : ApiTestBase(fixture)
         var body = await JsonAsync(response);
         body.GetProperty("code").GetString().Should().Be("ValidationFailed");
         body.GetProperty("errors").TryGetProperty("username", out _).Should().BeTrue();
-        MockDataStore.Accounts.Should().HaveCount(3);
+        Store.Accounts.Should().HaveCount(3);
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class RegisterTests(ApiFixture fixture) : ApiTestBase(fixture)
     {
         var mixed = User.Create(SeedIds.AdminAccount, "Mixed.Case", Country.Vietnam);
         mixed.ClearDomainEvents();
-        MockDataStore.Users.TryAdd(mixed.Id, mixed);
+        Store.Users.TryAdd(mixed.Id, mixed);
 
         var response = await RegisterAsync(username: "mixed.case");
 
@@ -82,7 +82,7 @@ public class RegisterTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task Register_UsernameOfSoftDeletedProfile_Returns409()
     {
-        MockDataStore.Users[SeedIds.TestUserAlt].Delete(isAccountDeletion: true);
+        Store.Users.Update(SeedIds.TestUserAlt, x => x.Delete(isAccountDeletion: true));
 
         var response = await RegisterAsync(username: "test_user_alt");
 
@@ -104,9 +104,9 @@ public class RegisterTests(ApiFixture fixture) : ApiTestBase(fixture)
         await RegisterAsync(username: "test_user"); // duplicate username
         await RegisterAsync(email: "other@example.com", username: "valid_name", phone: "not-a-phone"); // account rule fails
 
-        MockDataStore.Accounts.Should().HaveCount(3);
-        MockDataStore.Users.Should().HaveCount(4);
-        MockDataStore.Accounts.Values.Should().NotContain(a => a.Email == "other@example.com");
+        Store.Accounts.Should().HaveCount(3);
+        Store.Users.Should().HaveCount(4);
+        Store.Accounts.Values.Should().NotContain(a => a.Email == "other@example.com");
     }
 
     [Fact]

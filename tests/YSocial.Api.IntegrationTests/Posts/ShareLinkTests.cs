@@ -1,10 +1,10 @@
-using FluentAssertions;
 using System.Net;
+using FluentAssertions;
 using Xunit;
 using YSocial.Api.IntegrationTests.Infrastructure;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Data;
-using YSocial.Infrastructure.Data.Seed;
+using YSocial.Infrastructure.Persistence.Seeding;
+using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Posts;
 
@@ -46,7 +46,7 @@ public class ShareLinkTests(ApiFixture fixture) : ApiTestBase(fixture)
     [Fact]
     public async Task ShareLink_HiddenPost_404()
     {
-        MockDataStore.Users[SeedIds.TestUser].UpdatePrivacySettings(new PrivacySettings(true, true, true));
+        Store.Users.Update(SeedIds.TestUser, x => x.UpdatePrivacySettings(new PrivacySettings(true, true, true)));
         var demo = await LoginAsync(Seed.DemoLogin);
 
         (await demo.PostAsync($"/api/posts/{TestPost}/share-link", null)).StatusCode.Should().Be(HttpStatusCode.NotFound);
