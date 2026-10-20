@@ -1,6 +1,6 @@
 ---
 module: Backend Domain Model
-updated: 2026-10-16
+updated: 2026-10-20
 ---
 
 # DOMAIN MODEL
@@ -22,12 +22,13 @@ updated: 2026-10-16
 - Social graph, content & notifications are **per profile (`UserId`)**, not per account; switching profile changes actor
 - Username belongs to `User`, chosen at register (format `^[a-z0-9._]{3,30}$`), unique case-insensitive INCLUDING soft-deleted profiles (never recycled); emails also stay reserved after soft-delete; not editable (`UpdateProfileCommand` has no username)
 - Source: `Domain/Identities/Account.cs`, `Domain/Users/User.cs`, `Infrastructure/Identity/JwtProvider.cs`
+- **Persistence mapping** (tables, converters, indexes, no cross-aggregate FK): `backend-guide.md` §7.3
 
 ## 2. Aggregates & boundaries
 
 | Aggregate root | Children / value objects | Soft-delete | Repo contract | Notes |
 |---|---|---|---|---|
-| `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens live inside aggregate (copy-on-write list); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
+| `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens are child rows of aggregate (`RefreshTokens` / `PasswordResetTokens` tables, cascade); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
 | `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
 | `Post` | - | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
 | `Comment` | - | yes | `ICommentRepository` | nested via `ParentCommentId`; counts inline |
@@ -39,7 +40,7 @@ updated: 2026-10-16
 
 - Cross-aggregate links are by id only (no navigation): comment -> `PostId`, `UserId`; relation -> `UserId` x2
 - Domain services (transient, stateless): `UserRelationManager` (follow/unfollow/block/unblock/close-friend; uses 3 repos), `CommentPostingService`, `LikeToggleService`, `SavedItemToggleService`, `UserProfileService`
-- **Soft-delete contract:** domain method sets `IsDeleted`; mock `Remove()` merely re-stores entity; `GetByIdAsync(id)` hides deleted, `GetByIdAsync(id, includeDeleted: true)` returns them
+- **Soft-delete contract:** domain method sets `IsDeleted` (tracked change; repo `Remove()` is no-op for soft-deletable aggregates); Like, UserBlock & Notification are hard-deleted by `Remove()`; `GetByIdAsync(id)` hides deleted, `GetByIdAsync(id, includeDeleted: true)` returns them
 - **Shared-kernel contract (`BB:Domain/Repositories/IRepository.cs`):** `IRepository<T,TId>` = `UnitOfWork`, `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove`, `T : IAggregateRoot`
 - **Base types (`BB:Domain`):** `Entity<TId>` equality by id (transient entities never equal), `ISoftDeletable` = `IsDeleted` + `DeletedAt` (+ `WhereNotDeleted`), `ValueObject`/`Enumeration<T>` are records (value equality)
 - Kernel `EntityMustBeDeletedToRestoreRule` is NOT used: it cannot implement `IClassifiedRule`; replaced by `PostMustBeDeletedToRestoreRule` & `CommentMustBeDeletedToRestoreRule`
@@ -206,7 +207,8 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 | `ICommentRepository` | `GetTopLevelCommentsByPostIdsAsync(postIds)`, `GetChildCommentsByParentIdsAsync(parentIds)` (both return `CommentChildRow(ParentKey, CommentId, AuthorId)`), `GetTopLevelByPostIdAsync(postId)`, `GetChildrenAsync(parentIds)` | typed on purpose: post ids & comment ids never mixed |
 | `INotificationRepository` | `GetByRecipientAsync(recipient)` (all, unordered) | `AccessibleNotifications` filters by sender access, orders & pages |
 
-- Unit of Work: `IUnitOfWork` (BuildingBlocks) implemented by `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`; mock repos return `UnitOfWork => null!`
+- Unit of Work: `IUnitOfWork` (BuildingBlocks) implemented by `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs` (dispatch events, then 1 `SaveChanges`); repos are scoped & load TRACKED, except advisory lookups
+- **Untracked advisory lookups:** `IAccountRepository.GetByRefreshTokenAsync`, `GetAccountWithProfilesByIdentifierAsync`, `GetIdByIdentifierAsync` (re-load by id under session lock before mutating, BG §6.4)
 
 ## 8. Open items
 - Debt & deferred (`Post.UpdateSettings`/audience, account lifecycle, stored counters at EF migration): `backend-guide.md` §10

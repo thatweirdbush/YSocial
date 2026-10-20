@@ -1,7 +1,7 @@
 ---
 module: Backend Implementation
-stack: ASP.NET Core 8 / MediatR 14 / FluentValidation 12 / in-memory store
-updated: 2026-10-16
+stack: ASP.NET Core 8 / MediatR 14 / FluentValidation 12 / EF Core 9 + Npgsql (PostgreSQL)
+updated: 2026-10-20
 ---
 
 # BACKEND GUIDE
@@ -11,21 +11,23 @@ updated: 2026-10-16
 - **Companions:** domain detail in `domain-model.md` | FE contract (endpoints, error codes, DTOs) in `../integration/frontend-backend-mapping.md` | recovery plan & decisions D1-D20 in `../plans/2026-10-15-backend-recovery-&-fe-integration.md`
 - **Generic conventions** (strongly-typed IDs, `IBusinessRule`, `IClassifiedRule`, `Result`, projectors, access gates) in `.context/conventions/backend.md`
 - **Architecture:** Clean Architecture & DDD
-- **State:** BE recovery implemented (T0-T4: auth, reads, graph, mute, feed, notifications, security hardening); NOT production-ready: in-memory store, process-global events, no rollback (§7.2, §10)
+- **State:** BE recovery implemented (T0-T4: auth, reads, graph, mute, feed, notifications, security hardening); persistence = EF Core + PostgreSQL (§7, MAP D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (§10)
 
 ## 1. Solution & project map
 
 | Project | Refs | Role | Key packages |
 |---|---|---|---|
-| `src/YSocial.Api` | Application, Infrastructure | controllers, `Program.cs`, error pipeline, JSON/Swagger plumbing | JwtBearer 8.0.26, Swashbuckle 6.6.2 |
+| `src/YSocial.Api` | Application, Infrastructure | controllers, `Program.cs`, error pipeline, JSON/Swagger plumbing | JwtBearer 8.0.26, Swashbuckle 6.6.2, EF Core Design 9.0.4 |
 | `src/YSocial.Application` | BuildingBlocks.CQRS, Domain | commands, queries, behaviors, projectors, access policy, event handlers | MediatR 14.1.0, FluentValidation 12.1.1 |
 | `src/YSocial.Domain` | BuildingBlocks.Domain | aggregates, rules, events, repo contracts, error catalog | StronglyTypedId 0.2.1, CommunityToolkit.Common 8.4.0 |
-| `src/YSocial.Infrastructure` | Application | mock repos, JWT, UoW, outbox, SignalR, session lock | BCrypt.Net-Next 4.2.0, Npgsql.EFCore.PostgreSQL 9.0.4, System.IdentityModel.Tokens.Jwt 8.18.0 |
+| `src/YSocial.Infrastructure` | Application | `YSocialDbContext`, configurations, repos, migrations, seeds, JWT, UoW, outbox, SignalR, session lock | BCrypt.Net-Next 4.2.0, Npgsql.EntityFrameworkCore.PostgreSQL 9.0.4, System.IdentityModel.Tokens.Jwt 8.18.0 |
 | `tests/YSocial.Domain.UnitTests` | Domain | xUnit 2.7.1, NSubstitute 5.3.0, FluentAssertions 8.3.0 | see §11 |
-| `tests/YSocial.Application.UnitTests` | Application, Domain, Infrastructure | same stack | see §11 |
-| `tests/YSocial.Api.IntegrationTests` | Api, Domain | same stack + `Microsoft.AspNetCore.Mvc.Testing` 8.0.26 | see §11 |
+| `tests/YSocial.Application.UnitTests` | Application, Domain, Infrastructure, TestSupport | same stack | see §11 |
+| `tests/YSocial.Api.IntegrationTests` | Api, Domain, TestSupport | same stack + `Microsoft.AspNetCore.Mvc.Testing` 8.0.26 | see §11 |
+| `tests/YSocial.TestSupport` | Infrastructure, Domain | `SqliteTestDatabase` (throw-away SQLite file with prod model) & `Store` facade | Microsoft.EntityFrameworkCore.Sqlite 9.0.4 |
 
 - All projects target `net8.0`; Api `Nullable` enabled; `InternalsVisibleTo` for test projects on Domain, Application, Infrastructure
+- **Tools:** `.config/dotnet-tools.json` pins `dotnet-ef` 9.0.4 (`dotnet tool restore`)
 - **Source:** `YSocial.sln`, each `*.csproj`
 - **Shared kernel:** `Microservice.BuildingBlocks.{CQRS,Domain}`, net8.0; CQRS refs Domain (MediatR 14.1.0, FluentValidation 12.1.1 unused there); Domain uses MediatR.Contracts 2.0.1; NOT modified by recovery
   - `IRepository<T,TId>`: `UnitOfWork`, `GetByIdAsync(id[, includeDeleted], ct)`, `AddAsync`, `Update`, `Remove` (`BB:Domain/Repositories/IRepository.cs`)
@@ -38,15 +40,14 @@ updated: 2026-10-16
 
 | Name | Reality | Source |
 |---|---|---|
-| `TransactionBehavior` | opens no transaction; commits (`UnitOfWork.CommitAsync`) only successful commands; failed `Result`/exception -> skip commit & discard pending events (§7.1) | `Application/CQRS/Behaviors/UnitOfWork/TransactionBehavior.cs` |
-| `MockDataStore : DbContext` | static `ConcurrentDictionary` store; `SaveChangesAsync` returns 1, persists nothing; also implements `IDomainEventsProvider` & `IPendingDomainEvents` | `Infrastructure/Data/MockDataStore.cs` |
-| `AddDbContext<MockDataStore>(UseNpgsql)` | registered, never queried; no EF query or migration | `Infrastructure/DependencyInjection.cs` |
-| `YSocialDbContext` | has only `DbSet<Post>`; its registration is commented out | `Infrastructure/Data/YSocialDbContext.cs`, `DependencyInjection.cs` |
-| `EfNotificationOutboxService` | writes to in-memory `List`, no EF (processor deletes delivered messages) | `Infrastructure/Notifications/Outbox/EfNotificationOutboxService.cs` |
+| `TransactionBehavior` | opens no explicit transaction: commits only successful commands (`UnitOfWork.CommitAsync` = dispatch events, then 1 `SaveChanges` = 1 DB transaction); failed `Result`/exception -> nothing saved, pending events discarded (§7.1) | `Application/CQRS/Behaviors/UnitOfWork/TransactionBehavior.cs` |
+| `YSocialDbContext` | also per-request change tracker & domain event source (`IDataStorage`, `IDomainEventsProvider`, `IPendingDomainEvents` all resolve to it) | `Infrastructure/Persistence/YSocialDbContext.cs` |
+| `repo.Update(x)` | no-op for tracked entities (changes are already tracked); attaches detached ones | `Infrastructure/Persistence/Repositories/RepositoryBase.cs` |
+| `repo.Remove(x)` | soft-deletable aggregates: no-op (domain method flagged row); Like, UserBlock, Notification: hard delete | `RepositoryBase.cs` |
+| `IAccountRepository.GetByRefreshTokenAsync`, `GetAccountWithProfilesByIdentifierAsync` | advisory UNTRACKED snapshots (never mutate; re-load by id under session lock) | `Persistence/Repositories/AccountRepository.cs` |
 | `InitializePostStatsHandler` | logs only (runs, does nothing else) | `Application/Features/Posts/CreatePost/EventHandlers/` |
 | `ErrorType.Business` | maps to HTTP 400 `BusinessRuleViolated`, not domain exception | `Api/Controllers/ApiController.cs` |
 | `IUserContext.UserId` | profile id (JWT `user_id`), NEVER account id; `GetViewerId()` = null for anonymous | §6.2 |
-| `MockDataStore.ResetForTests()` | test-only, in-place clear + reseed; never called by production code | `Infrastructure/Data/MockDataStore.cs` |
 
 ## 3. Request lifecycle
 
@@ -56,8 +57,8 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
      -> MapControllers -> [Authorize]? -> model binding ([ApiController]; invalid -> ProblemDetails `ValidationFailed`)
      -> controller: Mediator.Send(request [, ct])
      -> ValidationBehavior -> LoggingBehavior -> MetricsBehavior -> TransactionBehavior (commands only) -> handler
-        (TransactionBehavior: next() ok -> UnitOfWork.CommitAsync -> dispatch loop -> SaveChanges no-op;
-         exception | failed Result -> discard pending events, NO commit)
+        (TransactionBehavior: next() ok -> UnitOfWork.CommitAsync -> dispatch loop -> SaveChanges (1 DB transaction);
+         exception | failed Result -> discard pending events, NO commit, nothing saved)
      -> Result -> ApiController.HandleResult | HandleCreated -> HTTP (errors: RFC 7807 ProblemDetails, §5)
 ```
 
@@ -71,7 +72,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Logging:** `LoggingBehavior` logs `LogRedactor.Describe(request|response)` at Information; members named `*password*`, `*otp*`, `*token*`, `*secret*` or marked `[SensitiveData]` print `***` (also inside `Result<T>` & nested objects); compiler `ToString()` of requests is NEVER logged (T4.3). Any new secret-bearing member MUST follow naming rule or carry attribute
 - **Mock sender logs:** email/SMS mock senders log no body outside Development; in Development digit runs of 4+ are masked unless `Messaging:LogOtpInDevelopment=true` (Development-only opt-in, default false, ignored elsewhere; set in local gitignored `appsettings.Development.json` with `Cors:AllowedOrigins`; `ApiFactory` forces it off so redaction tests stay valid)
 - **Metrics:** only stopwatch log line
-- **No rollback:** repos mutate shared static dictionaries immediately; failure after mutation leaves state changed (§7.2)
+- **Rollback:** every request has its own `YSocialDbContext` (scoped): failed request saves nothing, so handlers may mutate freely before failing; state that MUST outlive failure (OTP attempt counter) is committed explicitly before throwing (`ResetPasswordCommandHandler`)
 - **Notification (event) pipeline:** domain events published with `mediator.Publish` sequentially per event; open-generic behaviors do not wrap notifications (`IPipelineBehavior` is request-only; MediatR convention)
 - **Decorators:** none
 - **Nested dispatch:** see §7
@@ -83,15 +84,16 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 | Lifetime | Registrations |
 |---|---|
-| Singleton | all `Mock*Repository`, `JwtSettings` (instance from `Program.cs`), `IJwtProvider`, `IPasswordHasher`, `IAccountSessionLock` (`AccountSessionLock`), `IUserIdProvider`, `MockNotificationOutboxStore` |
-| Scoped | `IUserContext`, `IEmailSender`/`ISmsSender` (mocks), `INotificationOutboxService`, `IDataStorage` / `IDomainEventsProvider` / `IPendingDomainEvents` (all 3 -> `MockDataStore`), `IDomainEventsDispatcher`, `IUnitOfWork`, `IViewerAccessPolicy`, `UserProfileProjector`, `PostProjector`, `InteractionGuard`, `AccessibleFollowRequests`, `NotificationPublisher`, `AccessibleNotifications`, `NotificationOutboxProcessor`, validators (FluentValidation default) |
+| Singleton | `JwtSettings` (instance from `Program.cs`), `IJwtProvider`, `IPasswordHasher`, `IAccountSessionLock` (`AccountSessionLock`), `IUserIdProvider` |
+| Scoped | `YSocialDbContext` (also as `IDataStorage` / `IDomainEventsProvider` / `IPendingDomainEvents`), all 9 repos (`PostRepository`...), `IUserContext`, `IEmailSender`/`ISmsSender` (mocks), `INotificationOutboxService`, `IDomainEventsDispatcher`, `IUnitOfWork`, `IViewerAccessPolicy`, `UserProfileProjector`, `PostProjector`, `InteractionGuard`, `AccessibleFollowRequests`, `NotificationPublisher`, `AccessibleNotifications`, `NotificationOutboxProcessor`, validators (FluentValidation default) |
 | Transient | domain services `LikeToggleService`, `CommentPostingService`, `SavedItemToggleService`, `UserProfileService`, `UserRelationManager`; MediatR handlers (default) |
 | Hosted | `ProcessNotificationOutboxJob` (runs 1 `NotificationOutboxProcessor` batch every 1s; removed by test host) |
 
 - **Assembly scanning:** `AddValidatorsFromAssembly(Application, includeInternalTypes: true)`; MediatR `RegisterServicesFromAssembly(Application)`; handlers, projectors & `InteractionGuard` are `internal sealed`
-- **Overrides:** none in production; repositories are interface -> mock only (no alternative implementation registered)
-- **Config reads:** `Jwt:SecretKey|Issuer|Audience|AccessTokenMinutes` read ONCE by `JwtSettings.FromConfiguration` in `Program.cs` (singleton; key >= 32 chars REQUIRED outside Development, startup fails otherwise; Development falls back to constant `JwtSettings.DevelopmentSecretKey`; `AccessTokenMinutes` default 15), `Cors:AllowedOrigins` (array; `appsettings.json` empty, `appsettings.Development.json` = FE dev origin), `App:FrontendUrl`, `ConnectionStrings:DefaultConnection` (empty)
+- **Overrides:** none in production; tests replace database registration by SQLite (`SqliteTestDatabase.ReplaceDatabaseOf`)
+- **Config reads:** `Jwt:SecretKey|Issuer|Audience|AccessTokenMinutes` read ONCE by `JwtSettings.FromConfiguration` in `Program.cs` (singleton; key >= 32 chars REQUIRED outside Development, startup fails otherwise; Development falls back to constant `JwtSettings.DevelopmentSecretKey`; `AccessTokenMinutes` default 15), `Cors:AllowedOrigins` (array; `appsettings.json` empty, `appsettings.Development.json` = FE dev origin), `App:FrontendUrl`, `ConnectionStrings:DefaultConnection` (read lazily at first context use; Npgsql key=value OR `postgres://` URI, normalized by `ConnectionStrings.Normalize`; Development value lives in user-secrets, NEVER in files), `Database:AutoMigrate` (default = Development), `Database:SeedData` (Development ONLY, default true)
 - **Hub:** `MapHub<NotificationHub>("/hubs/notifications")`
+- **Startup:** `Program.cs` runs `DatabaseInitializer` (migrate, then seed core + development dataset, both idempotent) BEFORE pipeline is built; Production never seeds & migrates only when `Database:AutoMigrate=true`
 
 ## 5. Errors, exceptions & `Result` mapping
 
@@ -168,7 +170,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
   - **Order (D3):** account lookup -> password verify (unknown account runs 1 dummy bcrypt verify) -> only then `EnsureCanLogin` (`403 AccountInactive`) -> profile resolve -> token
   - **Failures:** unknown account, deleted account & wrong password -> identical `401 InvalidCredentials`; inactive account + wrong password -> 401 (state revealed ONLY to credential holder)
   - Response `LoginResponse(AccessToken, RefreshToken, RefreshTokenExpiry)`; **no user id/profile in body** -> FE decodes `user_id` from JWT (or calls `GET /api/users/me`)
-- **Refresh tokens:** opaque GUID strings stored on `Account.RefreshTokens` (copy-on-write list: replaced wholesale, lock-free readers see stable snapshot); each token bound to profile (`RefreshToken.UserId`) & linked to its successor (`ReplacedByTokenId`, token family)
+- **Refresh tokens:** opaque GUID strings stored as child rows of `Account` (`RefreshTokens` table, cascade); each token bound to profile (`RefreshToken.UserId`) & linked to its successor (`ReplacedByTokenId`, token family)
   - **Cap (D4):** max `Account.MaxActiveSessions` = 5 active; 6th login evicts (revokes) oldest active token, no error (`DeviceSessionLimitRule` removed)
   - **Purge:** expired/revoked tokens dropped on next login, EXCEPT rotated tokens whose family still has active member (so logout of old token still finds it)
 - **Refresh (D5):** `POST /api/identities/refresh-token {refreshToken}` anonymous -> 200 `LoginResponse`; token must exist, be active (not expired/revoked/rotated), account active & not deleted, bound profile exists & not deleted -> rotate (old revoked, `ReplacedByTokenId` set) else `401 InvalidRefreshToken`; stays bound to same profile
@@ -184,89 +186,106 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 | Path | Handler | Notes |
 |---|---|---|
-| login | `LoginCommandHandler` | cleanup, eviction, add token |
-| refresh | `RefreshTokenCommandHandler` | token-keyed: lock-free lookup, lock, re-read & re-validate |
+| login | `LoginCommandHandler` | untracked password check, lock, load account, cleanup, eviction, add token, commit |
+| forgot password | `ForgotPasswordCommandHandler` | untracked id lookup, lock, load, add reset token, commit (reset token bumps `Account.Version`, so it races with every other path otherwise) |
+| refresh | `RefreshTokenCommandHandler` | token-keyed: untracked lookup, lock, load, re-validate, commit |
 | logout | `LogoutUserCommandHandler` | token-keyed, same pattern |
-| switch profile | `SwitchProfileCommandHandler` | rotation under lock |
-| reset password | `ResetPasswordCommandHandler` | `RevokeAllRefreshTokens` |
-| delete account | `DeleteAccountCommandHandler` | `RevokeAllRefreshTokens` |
+| switch profile | `SwitchProfileCommandHandler` | lock first (id from JWT), then load, rotate, commit |
+| reset password | `ResetPasswordCommandHandler` | untracked id lookup, lock, load; wrong OTP commits attempt counter before throwing |
+| delete account | `DeleteAccountCommandHandler` | lock first, load, `Delete`, commit (profiles soft-deleted by event in same save) |
 
-- **Rule for new code:** any future path mutating `Account.RefreshTokens` MUST acquire lock; review = grep `RefreshToken` mutators vs `IAccountSessionLock` usage
-- **Concurrent outcomes (pinned by race tests, 50x barrier):** 2x refresh same token -> exactly 1 x 200, other 401 | refresh + logout same token -> logout always 204, 0 active tokens in family afterwards | login + login at cap -> active never > 5 | switch + refresh same token -> exactly 1 rotation | reset-password + refresh -> no active token survives
-- **Scope limit:** lock is process-local (single instance); multi-instance needs DB concurrency token (deferred with EF)
+- **Rule for new code (MUST):** (1) lookups BEFORE lock are untracked (tracked pre-lock load would pin stale tokens in identity map), (2) take lock, THEN load `Account` by id, (3) `unitOfWork.CommitAsync` INSIDE lock (release happens when handler returns, i.e. BEFORE `TransactionBehavior` commits: next request would read old state); review = grep `RefreshToken` mutators vs `IAccountSessionLock` usage
+- **Optimistic concurrency (multi-instance safety net):** `Account` has shadow int concurrency token `Version`, bumped by `YSocialDbContext.SaveChanges` whenever account, refresh token or reset token changes; concurrent writer fails with `DbUpdateConcurrencyException` -> `UnitOfWork` throws `ConcurrencyConflictException`; on 1 instance session lock makes this unreachable
+- **Conflict outcome per endpoint (frozen MAP statuses hold):** refresh & switch -> 401 `InvalidRefreshToken`, logout & forgot-password -> 204 (handlers catch exception around their in-lock commit); login, reset password, delete account (& any unlocked path) -> 409 `Conflict` via `GlobalExceptionHandler` (client retries). Pinned by `SessionConflictTests`
+- **Concurrent outcomes (pinned by race tests, 50x barrier, SQLite; refresh race also verified on real PostgreSQL):** 2x refresh same token -> exactly 1 x 200, other 401 | refresh + logout same token -> logout always 204, 0 active tokens in family afterwards | login + login at cap -> active never > 5 | switch + refresh same token -> exactly 1 rotation | reset-password + refresh -> no active token survives
+- **Scope limit:** lock is process-local; across instances `Version` token turns races into outcomes above instead of corruption (winner is not guaranteed to be "first" caller)
 
 ## 7. Unit of Work, persistence & domain events
 
 ### 7.1 Commit & dispatch sequence
 
 > `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs`
+> `Infrastructure/Persistence/YSocialDbContext.cs`
 > `Infrastructure/Messaging/DomainEventsDispatching/{DomainEventsDispatcher,IDomainEventsProvider}.cs`
-> `Application/Abstractions/Persistence/IPendingDomainEvents.cs`
+> `Application/Abstractions/Persistence/{IPendingDomainEvents,ConcurrencyConflictException}.cs`
 
-1. Handler mutates aggregates through mock repos (immediate, in-process) & raises events on them
+1. Handler loads aggregates through repos (TRACKED by request's `YSocialDbContext`), mutates them & aggregates raise events
 2. `TransactionBehavior` success path -> `UnitOfWork.CommitAsync` -> `DomainEventsDispatcher.DispatchEventsAsync`
-3. **Dispatch loop:** `IDomainEventsProvider.DrainDomainEvents()` (atomic take + clear, oldest first by `OccurredOn`) -> `Publish` each event sequentially -> repeat until drain is empty (handlers may raise new events); max `DomainEventsDispatcher.MaxPasses` = 5, then leftovers are discarded, error logged & `InvalidOperationException` thrown (request -> 500 `InternalError`)
-4. `SaveChangesAsync` (no-op)
+3. **Dispatch loop:** `DrainDomainEvents()` (events of every tracked aggregate in ANY state, hard-removed ones included; clears them; oldest first by `OccurredOn`) -> `Publish` each event sequentially -> repeat until drain is empty (handlers may change data & raise new events); max `DomainEventsDispatcher.MaxPasses` = 5, then leftovers are discarded, error logged & `InvalidOperationException` thrown (request -> 500 `InternalError`)
+4. `SaveChangesAsync` = 1 DB transaction for handler changes + event-handler changes + outbox rows; `DbUpdateConcurrencyException` -> `ConcurrencyConflictException` -> 409 `Conflict`
 
-- **Failure path:** handler exception OR failed `Result` -> `TransactionBehavior` skips commit, `IPendingDomainEvents.Discard()` drops pending events & logs warning (request name, event types); dispatch failure mid-loop discards remaining drained events (never re-queued), logs error, request -> 500
-- `IPendingDomainEvents` exists because `TransactionBehavior` (Application) cannot see Infrastructure-local `IDomainEventsProvider`; both are implemented by `MockDataStore`
+- **Failure path:** handler exception OR failed `Result` -> `TransactionBehavior` skips commit, `IPendingDomainEvents.Discard()` drops pending events & logs warning (request name, event types); context is never saved, so nothing of request persists; dispatch failure mid-loop discards remaining drained events, logs error, request -> 500
+- `IPendingDomainEvents` exists because `TransactionBehavior` (Application) cannot see Infrastructure-local `IDomainEventsProvider`; both resolve to `YSocialDbContext`
 
 ### 7.2 Event semantics & concurrency
-- **Scan:** drain covers ALL aggregate sets: `Accounts, Users, UserRelations, UserBlocks, Posts, Likes, Comments, SavedItems, Notifications`
-- **Removed aggregates:** hard-removing mock repos (`MockLikeRepository`, `MockUserBlockRepository`, `MockNotificationRepository`) call `MockDataStore.CaptureRemovedEvents` before `TryRemove`, moving pending events to `RemovedAggregateEvents` (drained with the rest) -> `LikeRemovedEvent` & `UserUnblockedEvent` are no longer lost; queue is cleared by `ResetForTests()`
-- **Handler-raised events:** re-collected by next dispatch pass within same request (no leak into later unrelated request)
-- **Ordering:** events published by `OccurredOn` per pass
-- **Atomicity:** snapshot + clear is 1 critical section (lock), double publish is impossible
-- **Failure semantics:** in-memory mutations are NOT rolled back; events of failed request are discarded, so side effects of already-mutated state (counters, notifications, saved-item cleanup) are skipped. Validators run before handlers & uniqueness checks run before creation to keep common failures side-effect free
-- **CONCURRENCY & NON-PRODUCTION STATEMENT:** event provider is PROCESS-GLOBAL (static dictionaries), not per request scope. Lock only makes snapshot + clear atomic:
-  - a drain can take events raised by CONCURRENT request (published in wrong request context)
-  - discard-on-failure can drop events another request just raised
-  - shared aggregates (counters, `Account`) are mutated without per-entity concurrency control except account session lock (§6.4)
-  - this architecture is NOT production-ready; real fix = per-scope change tracking (EF `DbContext` tracker) + DB transactions + concurrency tokens (deferred migration)
+- **Scope:** events live on aggregates tracked by request's own context: no cross-request leak, no cross-request drain (old process-global store removed)
+- **Atomicity:** all-or-nothing per request (1 `SaveChanges`); explicit extra commits exist only inside session-lock handlers (§6.4) & wrong-OTP attempt persistence
+- **Handler-raised events:** re-collected by next dispatch pass within same request
+- **Lost updates (ACCEPTED, §10):** stored counters (`LikeCount`, `SavedCount`, follower/following) are read-modify-write without concurrency token; only `Account` has `Version`
+- **Duplicates:** unique indexes reject double like, double follow edge, double block, duplicate email/username/token (race surfaces as 500 `DbUpdateException`; sequential duplicates are handled idempotently by handlers)
 
-### 7.3 Persistence reality
-- State = static `ConcurrentDictionary` fields on `MockDataStore` (9 sets) + outbox `Messages` list; seed = deterministic & Development-only (`MockSeedOptions`, `Infrastructure/Data/Seed/{MockSeeder,SeedIds}.cs`): 3 accounts, 4 profiles (1 account has 2), 2 posts, fixed ids & timestamps (`SeedIds.BaseTime`); credentials are in `SeedIds` (NOT reproduced here); seed bcrypt work factor 4 (mock data only)
-- **Restart** re-seeds identical ids; user data is lost
-- **`ResetForTests()`:** `Clear()` IN PLACE every static collection then reseed; NEVER reassign (singleton repos & `MockNotificationOutboxStore` hold references to collections); also clears `RemovedAggregateEvents`
-- Soft vs hard `Remove`: soft-delete is performed by domain method; mock `Remove` just re-stores entity for Account, Comment, Post, SavedItem, UserRelation, User; **hard** removal for Like, Notification, UserBlock
-- No unique constraints (follow, like...) beyond application checks; queries are full scans (set-based repo members keep fixed number of calls per page, conventions/backend.md)
-- `appsettings`/connection string/migrations: not yet; `AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true)` irrelevant until real DB exists
+### 7.3 Persistence
+- **Provider:** PostgreSQL (Npgsql) in app; tests run SAME model on SQLite: keep LINQ provider-neutral (`ToLower()` compares, no `ILike`/provider functions); `jsonb` for outbox content is set only when `Database.IsNpgsql()`; split queries (`AutoInclude` of 2 child collections on `Account`)
+- **Model (`YSocialDbContext`):** per-aggregate `IEntityTypeConfiguration` in `Persistence/Configurations` (+ outbox config next to its class); conventions in context: every key client-generated (`ValueGeneratedNever`), strongly-typed ids & `Enumeration` types (int; `Country` = ISO code) detected by shape/base type (new id or enumeration needs NO mapping code), `DateTime` = `timestamptz` UTC (`DateOfBirth` = `date`, no shifting), `DomainEvents` ignored
+- **Mapping:** `User.ProfileInfo` & `PrivacySettings` = owned value objects (inline columns); `PasswordHash` = converted string; `Account` owns `RefreshTokens` & `PasswordResetTokens` (cascade, `AutoInclude`, backing fields)
+- **Integrity:** NO cross-aggregate foreign keys (ids only, DM §2); only Account -> its tokens. Unique: `Account.Email`, `User.Username` (registered lowercase), `RefreshToken.Token`, `Like(user,type,target)`, `UserRelation(observer,target)`, `UserBlock(observer,target)`; indexes for reads by author, post, parent, recipient, target
+- **Soft vs hard delete:** soft (flag set by domain method, row stays): Account, User, Post, Comment, SavedItem, UserRelation; hard (`Remove`): Like, Notification, UserBlock, delivered outbox rows, dropped tokens
+- **Queries:** set-based repo members (DM §7) translate to SQL; paging, ordering & policy filtering stay in memory (DEBT §10)
+- **Migrations:** `Infrastructure/Persistence/Migrations` (Npgsql SQL only); `ModelTests.Model_MatchesLatestMigrationSnapshot` fails when model changed without migration
+- **Seeds (`Persistence/Seeding`):** `CoreSeeder` = deterministic test baseline (3 accounts, 4 profiles, 2 posts, ids in `SeedIds`); `DevelopmentSeeder` = rich demo dataset (12 accounts / 13 profiles, 2 private, ~48 posts with images, threaded comments, likes, saves, follow graph with pending requests & close friends, 2 blocks, mutes, notifications; every stored counter matches rows); both idempotent, written directly without events, passwords NOT repeated here (see `SeedIds`); bcrypt work factor 4
+- **Restart:** state & sessions survive restarts (refresh tokens are rows)
+- **Real DB verification:** Development run against hosted PostgreSQL: migrate + seed, login, feed, refresh rotation, concurrent refresh x6 -> exactly 1 x 200
 
-### 7.4 Notifications pipeline
-- **Create:** handlers (`CreateNotificationWhenLiked`, `...CommentCreated`, `...FollowRequested`, `...FollowAccepted`) call `NotificationPublisher.PublishAsync`: self notifications are SKIPPED (no row, no outbox message), otherwise `Notification` is stored & `NotificationEnvelope(RecipientId, NotificationDto)` is enqueued
-- **Push:** `ProcessNotificationOutboxJob` runs 1 `NotificationOutboxProcessor.ProcessBatchAsync` per second (20 messages, oldest first): `ReceiveNotification` with `NotificationDto` to `Clients.User(recipientId)` (hub user id = claim `user_id`); delivered messages are REMOVED from in-memory list; failures stay with `Attempts++` & are dropped after `MaxAttempts` (5) with error log
+### 7.4 Database operations
+```
+dotnet tool restore
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<npgsql string or postgres:// URI>" --project src/YSocial.Api
+dotnet dotnet-ef migrations add <Name> -p src/YSocial.Infrastructure -s src/YSocial.Api -o Persistence/Migrations
+dotnet dotnet-ef database update -p src/YSocial.Infrastructure -s src/YSocial.Api
+dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.Api
+```
+- **Run API in Development:** migrates & seeds automatically (`Database:AutoMigrate`, `Database:SeedData`)
+- **Design-time connection:** `migrations add` needs none (`YSocialDbContextFactory` placeholder); `database update` reads env `YSOCIAL_DESIGN_CONNECTION` (never put real string in files)
+- **Reset dev data:** `database update 0` drops every table, next API start re-creates & re-seeds
+- **Tests never touch PostgreSQL:** host & unit tests use `SqliteTestDatabase`; guard `Host_UsesTheSqliteTestDatabase_NeverPostgres`
+
+### 7.5 Notifications pipeline
+- **Create:** handlers (`CreateNotificationWhenLiked`, `...CommentCreated`, `...FollowRequested`, `...FollowAccepted`) call `NotificationPublisher.PublishAsync`: self notifications are SKIPPED (no row, no outbox message), otherwise `Notification` row is stored & `NotificationEnvelope(RecipientId, NotificationDto)` is added as outbox row in SAME save (transactional outbox)
+- **Push:** `ProcessNotificationOutboxJob` runs 1 `NotificationOutboxProcessor.ProcessBatchAsync` per second (20 rows, oldest first, own scope & context): `ReceiveNotification` with `NotificationDto` to `Clients.User(recipientId)` (hub user id = claim `user_id`); delivered rows are DELETED; failures stay with `Attempts++` & are deleted after `MaxAttempts` (5) with error log
 - **Types:** `NewLike`, `NewComment`, `NewFollow` (plain follow of public user, notifies followed user), `FollowRequested`, `FollowAccepted` (accepted request, notifies REQUESTER); `kind` = like | reply | follow for FE grouping
 - **`NotificationDto.targetId`:** ROOT post id for like/comment (FE route `/posts/{id}`; comment like resolves comment's post), follower id for follow types; `senderUsername` + `senderName`; no preview text (deferred)
 - **HTTP:** `GET /api/notifications` (newest first, `unreadCount`), `GET .../unread-count`, `PUT .../{id}/read` (403 `NotNotificationRecipient`, 404 unknown), `PUT .../read-all`; `AccessibleNotifications` drops notifications of blocked/deleted senders BEFORE counting & paging (list, `totalCount`, `unreadCount`, count endpoint share it)
 - **Domain:** `Notification.Create` enforces `CannotSendNotificationToYourselfRule` (handlers pre-check, so dispatch never throws); `TargetId` replaced untyped `MetaData`
-- **Limits:** in-memory, lost on restart; push reaches only active profile connection; retrying failed push has no backoff
+- **Limits:** push reaches only active profile connection; retrying failed push has no backoff; poller is single-instance (2 instances could push row twice, §10)
 
 ## 8. Cross-cutting API behavior
 - **Routing:** `api/[controller]` + `LowercaseUrls`; Users/UserRelations/UserBlocks override routes (`api/users/{targetId}/relations`, `api/users/{targetId}/blocks`); like/bookmark idempotent routes use absolute templates (`/api/posts/{id}/like`...) declared in `LikesController`/`SavedItemsController`
 - **JSON:** System.Text.Json camelCase; `EnumerationJsonConverterFactory` -> every `Enumeration<T>` field is **integer** (strings rejected -> 400); read DTOs use string unions; strongly-typed IDs via generated `SystemTextJson` converter; contract details (omitted vs `null` fields): MAP §1
 - **CORS:** policy built from `Cors:AllowedOrigins` + `AllowCredentials`; empty list = no origin allowed; dev origin in `appsettings.Development.json` (T1.7; permissive `SetIsOriginAllowed` removed)
 - **HTTPS:** `UseHttpsRedirection` active; `launchSettings.json` https `49895` (matches FE)
-- **Cancellation:** every controller action forwards request `CancellationToken` to `Mediator.Send`; mock repos ignore tokens anyway
+- **Cancellation:** every controller action forwards request `CancellationToken` to `Mediator.Send` & on to EF queries
 - **Pagination (D16):** offset envelope `PagedResponse`, counts after access filter; defaults, limits & beyond-last behavior: MAP §1
 - **Rate limiting, health checks, request size limits, structured logging:** not found
 
 ## 9. Implementation boundaries (what exists vs not)
 - **Use-case-less domain behavior (no handler/endpoint):** `Post.UpdateSettings`, `Account.Deactivate/Activate/AssignRole`, `Account.ChangePassword` (only via reset)
 - **Not found (no code):** search, hashtags/mentions, trending, reposts, pin, hide-like-count, media upload, DMs, session list, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
-- **Planned (comments/dead code only):** EF Core + PostgreSQL (`YSocialDbContext`, outbox `jsonb` config, commented queries), cache/search-index hooks, push-notification service
+- **Planned (comments/dead code only):** cache/search-index hooks, push-notification service
 
 ## 10. Known limitations & technical debt (single live register)
 
-> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-8, 10-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link): history in plan T1-T4 & §12 probes
+> Owner of BE debt, accepted risks & deferred work; other docs point here. Resolved items 1-20 (error mapping, event dispatch, auth lifecycle, read/write access gates, security hardening, pagination, notifications, feed, mute, share link) & #9 (in-memory store, process-global events, no transactions: EF Core + PostgreSQL): history in plan T1-T4 & §12 probes
 
 ### 10.1 Open / accepted (architectural)
 
 | # | Item | Status |
 |---|---|---|
-| 9 | In-memory only; process-global event handling, no rollback or transactions | OPEN, ACCEPTED for FE integration (§7.2); fix = EF migration |
 | 22 | Access token valid after logout until expiry (15 min), no revocation list | ACCEPTED (D6) |
-| 23 | Session lock is process-local (multi-instance unsafe); new token-mutating paths MUST take it (§6.4) | ACCEPTED |
-| 24 | `likesCount` stored aggregate, not viewer-filtered; stored `FollowersCount`/`FollowingCount` unexposed, remove at EF migration | ACCEPTED |
+| 23 | Session lock is process-local; across instances only `Account.Version` (409 on race); new token-mutating paths MUST follow §6.4 rules | ACCEPTED |
+| 24 | `likesCount` stored aggregate, not viewer-filtered; stored `FollowersCount`/`FollowingCount` maintained by events but unexposed (removal candidate) | ACCEPTED |
+| 28 | Feed, user posts & lists load candidates (`PostRepository.GetAllAsync`...), then filter by access policy, order & page IN MEMORY: cost grows with data | DEBT: push policy + paging into SQL (keyset) |
+| 29 | Stored counters (likes, saves, followers) are read-modify-write without concurrency token (lost update under concurrent writers); duplicate like/follow race = unique-index violation = 500 | ACCEPTED (map to 409 when it shows up) |
+| 30 | Outbox poller is single-instance (no row lock / `SKIP LOCKED`): >1 instance may push row twice | ACCEPTED |
 
 ### 10.2 Deferred (minor / waits on others)
 
@@ -277,12 +296,12 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change, session list | design (re-activation, session identity, username reuse) |
 | 27 | Features without BE: search, tags, trending, suggestions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
-- **Remaining blockers for real deployment are architectural, not hardening:** persistence (EF + transactions + concurrency tokens), per-scope event tracking, multi-instance session lock, access-token revocation (items 9, §6.1, §6.4)
+- **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
 
 ## 11. Tests
-- 3 projects, 523 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 41, `Api.IntegrationTests` 422
+- 3 test projects + `TestSupport`, 563 tests, all passing: `Domain.UnitTests` 60, `Application.UnitTests` 73 (incl. persistence: repos, model snapshot guard, seeders, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 430 (incl. `Persistence/`: atomic save, rollback, restart durability, 409, forgot-password vs refresh race)
 - Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
-- Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth)
+- Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth); data layer runs on SQLite there, real PostgreSQL is verified manually (§7.3)
 
 ## 12. Evidence ledger
 
@@ -302,6 +321,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | `appsettings` values, ports | unverified | `launchSettings` https `49895`; `Cors:AllowedOrigins` from config | `Cors_AllowedOrigin_GetsHeaders`, `Cors_UnknownOrigin_NoAllowOrigin` |
 | Log redaction & Production startup | passwords/OTP/tokens printed by pipeline logger | `***`; Production without key fails, with key: no swagger, no seed, no dev token log | `Login_PipelineLogs_NoPasswordOrTokens`, `Production_MissingJwtSecret_FailsStartup`, manual `dotnet run` in Production |
 | Manual login -> refresh -> logout smoke | not performed | login 200, refresh rotates, old token 401, logout 204, refresh after logout 401 (real host, Development) | manual `dotnet run` |
+| EF Core on real PostgreSQL | in-memory only | migrate + seed + login (email, phone, username any case) + feed + thread with replies + create post + like + forgot/reset (wrong OTP 400 `InvalidOtp`) + follow requests + blocks + mutes + saved + notifications OK; concurrent refresh x6 on 1 token -> exactly 1 x 200 (hosted PostgreSQL) | manual `dotnet run` (Development) |
 
 - Test class locations: `tests/YSocial.Api.IntegrationTests/{Characterization,Errors,Identities,Status,Events,Config}`
 

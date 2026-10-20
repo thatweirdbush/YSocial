@@ -1,6 +1,6 @@
 ---
 module: FE <-> BE Integration Mapping
-updated: 2026-10-19
+updated: 2026-10-20
 contract: ysocial-clients/web-app/docs/swagger.json
 roadmap: .context/roadmap.md
 ---
@@ -10,9 +10,9 @@ roadmap: .context/roadmap.md
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
 - Decisions D1-D24 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
-- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 422 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
+- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 430 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
-- Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE NOT production-ready: in-memory store, no transactions (BG §7.2, §10); security hardening T4.3 done
+- Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE persists to PostgreSQL via EF Core (D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (BG §10); security hardening T4.3 done
 
 ## 1. Ground truth for integrators
 
@@ -43,7 +43,7 @@ roadmap: .context/roadmap.md
 | Generic | `Unauthenticated` | 401 | JWT missing/invalid on `[Authorize]`, or handler auth check |
 | Generic | `Forbidden` | 403 | generic forbidden / authorization denied |
 | Generic | `NotFound` | 404 | unknown, deleted, blocked either way, hidden by privacy/visibility, route not matched |
-| Generic | `Conflict` | 409 | generic conflict (specific 409s below) |
+| Generic | `Conflict` | 409 | generic conflict (specific 409s below); optimistic concurrency conflict (data changed by concurrent request: retry) |
 | Generic | `InternalError` | 500 | unexpected fault only (`detail` generic outside Development) |
 | Generic | `MethodNotAllowed` | 405 | known route, wrong HTTP method |
 | Generic | `UnsupportedMediaType` | 415 | request body is not JSON |
@@ -178,7 +178,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Event | `ReceiveNotification` with 1 `NotificationDto` (same item shape as list) | FE `NotificationPayload` = `NotificationDto`; `toNotificationItem` groups by `kind` (unknown -> generic `other`), `NotificationLiveSync` pushes into `notification-store` |
 | Types | `NewLike`, `NewComment`, `NewFollow` (public follow, notifies followed user), `FollowRequested`, `FollowAccepted` (notifies REQUESTER) | FE `NotificationKind` like \| follow \| reply = `kind` |
 | Self events | no notification (self like, self comment) | - |
-| Persistence | in-memory; delivered outbox messages removed; lost on restart; push reaches only active profile connection | - |
+| Persistence | notification rows in DB (saved with the change that caused them); delivered outbox rows deleted; push reaches only active profile connection | - |
 
 - Gaps: no `postContentPreview` for replies (FE shows snippet; fetch comment via `/api/threads/{targetId}`)
 
@@ -309,8 +309,9 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D22 | Feed = offset pagination (default 10), `forYou` anonymous, `following` authenticated, muted authors excluded, policy before paging | Implemented (T4.1) |
 | D23 | Notifications: 1 `NotificationDto` for HTTP & push, `NewFollow` type, self notifications skipped, foreign mark-read 403, blocked/deleted senders filtered before paging | Implemented (T4.2) |
 | D24 | Security: log redaction by member name/attribute, JWT key required outside Development, seed & dev token Development-only | Implemented (T4.3) |
+| D25 | Persistence: PostgreSQL via EF Core; 1 DB transaction per request (failed request saves nothing); data & sessions survive restarts; optimistic concurrency on `Account` (multi-instance only: refresh/switch 401, logout/forgot-password 204, other account writes 409 `Conflict`); routes, DTOs & codes UNCHANGED (FE impact: none, refresh tokens now outlive BE restarts) | Implemented |
 
-- **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, in-memory store, no transactions, restart wipes state (deterministic seed ids; FE treats refresh 401 as logout) full register: BG §10
+- **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 
 ## 8. Evidence
 - Probes of original behavior (T0.2) & their current results: `../architecture/backend-guide.md` §12

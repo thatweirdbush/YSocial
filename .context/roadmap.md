@@ -1,6 +1,6 @@
 ---
 module: Product Roadmap (FE + BE)
-updated: 2026-10-19
+updated: 2026-10-20
 ---
 
 # YSocial Roadmap
@@ -85,7 +85,8 @@ updated: 2026-10-19
 ## Open items & BE track
 - **Open for user/BE owner:** M12 BE option (nullable-reference swagger, wide type churn, no functional gain)
 - **BE gaps for FE-built features:** tabs `replies`/`media`, pin, hide-like-count, close-friends audience (D17); register: BG §10
-- **Needs EF migration first:** search/tags/trending, media upload
+- **Persistence:** DONE (EF Core + PostgreSQL, migrations, rich dev seed, SQLite test harness; BG §7); open debt: SQL-side paging, multi-instance lock/outbox (BG §10)
+- **Needs BE design first (DB ready):** search/tags/trending, media upload
 - **No FE counterpart yet:** DMs, reposts, polls, report, onboarding, session list
 
 ---
