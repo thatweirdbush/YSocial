@@ -297,6 +297,7 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 | 21 | Notification push: failed processing retried (max 5) without backoff; no reply preview text | minor |
 | 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
 | 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change (session list done, D30) | design (re-activation, username reuse) |
+| 28 | Token families grow without bound while a session stays active (~96 rotations/day, ancestors kept by `RemoveExpiredTokens`); `GetSessions`/`FindRoot`/`BelongsToSession` scan the list per hop (quadratic). Fix: dictionaries per call + prune ancestors older than access lifetime (carry family sign-in time forward) | OPEN (found in settings review) |
 | 27 | Features without BE: search, tags, trending, suggestions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
 - **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
