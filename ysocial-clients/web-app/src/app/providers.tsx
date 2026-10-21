@@ -4,6 +4,7 @@ import { registerAuthStorageSync, useAuthStore } from "@/features/auth";
 import { NotificationLiveSync } from "@/features/notifications";
 import { ViewerSync } from "@/features/profile";
 import { useSearchStore } from "@/features/search";
+import { SettingsEffects, useSettingsStore } from "@/features/settings";
 import { useUIStore } from "@/lib/store/ui-store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
@@ -30,6 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     useAuthStore.getState().actions.hydrate();
     useUIStore.getState().actions.hydrateLocale();
     void useSearchStore.persist.rehydrate();
+    void useSettingsStore.persist.rehydrate();
     return registerAuthStorageSync();
   }, []);
 
@@ -38,6 +40,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
         <ViewerSync />
         <NotificationLiveSync />
+        <SettingsEffects />
         {children}
         <Toaster position="top-center" richColors />
       </ThemeProvider>
