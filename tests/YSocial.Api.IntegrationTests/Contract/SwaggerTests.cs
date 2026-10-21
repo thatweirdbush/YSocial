@@ -68,6 +68,9 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         ["/api/users/{targetId}/relations/mute", "delete", "204", ""],
         ["/api/users/me/mutes", "get", "200", "UserProfileDtoPagedResponse"],
         ["/api/feed", "get", "200", "PostDtoPagedResponse"],
+        ["/api/trending/tags", "get", "200", "inline"],
+        ["/api/tags/{tag}/posts", "get", "200", "TagPostsPageDto"],
+        ["/api/users/suggestions", "get", "200", "UserProfileDtoPagedResponse"],
         ["/api/notifications", "get", "200", "NotificationPageDto"],
         ["/api/notifications/preferences", "get", "200", "NotificationPreferencesDto"],
         ["/api/notifications/preferences", "put", "200", "NotificationPreferencesDto"],
@@ -185,5 +188,17 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
             .EnumerateObject().Select(p => p.Name);
 
         properties.Should().BeEquivalentTo(["id", "userAgent", "profileUsername", "createdAt", "lastTokenIssuedAt", "isCurrent"]);
+    }
+
+    /// <summary>
+    /// Writes the document to the path in <c>YSOCIAL_EXPORT_SWAGGER</c> (FE copy, same content as <c>npm run api:fetch</c> without touching a real database).
+    /// </summary>
+    [Fact]
+    public async Task Export_WhenRequested()
+    {
+        var target = Environment.GetEnvironmentVariable("YSOCIAL_EXPORT_SWAGGER");
+        if (string.IsNullOrEmpty(target)) return;
+
+        await File.WriteAllTextAsync(target, (await Client.GetAsync("/swagger/v1/swagger.json")).Content.ReadAsStringAsync().Result);
     }
 }

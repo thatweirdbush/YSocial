@@ -9,7 +9,7 @@ roadmap: .context/roadmap.md
 
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
-- Decisions D1-D30 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
+- Decisions D1-D32 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
 - Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 494 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
 - Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE persists to PostgreSQL via EF Core (D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (BG §10); security hardening T4.3 done
@@ -127,7 +127,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/posts/user/{userId}` | anon | `?page&pageSize(10)` -> 200 `UserPostsPageDto` | root posts newest first, filtered BEFORE paging & counting; private non-permitted = `locked: true`; 404 blocked/deleted; `userId` = profile id | `fetchUserPosts(userId, "threads", page)` (tabs `replies`/`media` not supported) |
 | `POST /api/posts/{id}/share-link` | JWT | no body -> 200 `{postId, sharedUrl}` | URL `{App:FrontendUrl}/posts/{id}` (FE route); 404 unknown/deleted/hidden/blocked; legacy `?username=` ignored; 401 | client-built links in `PostCard` |
 
-- Not found: search, trending, tags, pin, hide-like-count, multi-image, media upload, drafts (`searchPosts`, `fetchPostsByTag`, `fetchTrendingTags`, `setPostPinned`, `setHideLikeCount` stay mock)
+- Not found: search, pin, hide-like-count, multi-image, media upload, drafts (`searchPosts`, `setPostPinned`, `setHideLikeCount` stay mock)
 
 ### 2.4 Threads & comments (FE models replies as posts: `PostDto` for both kinds)
 
@@ -192,6 +192,17 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 |---|---|---|---|---|
 | `GET /api/feed` | anon for `forYou`, JWT for `following` | `?tab=forYou\|following&page&pageSize(10)` -> 200 `PagedResponse<PostDto>` | root posts only, newest first; `forYou` = every post viewer may see; `following` = own + accepted followees (pending excluded); muted authors excluded in both tabs (dormant mutes too); policy & mute filter BEFORE `totalCount`/paging; page beyond last -> 200 empty + metadata; 400 bad `tab`/paging; 401 `following` anonymous | `fetchFeed(tab, page, viewerId)`; `nextPage = hasNextPage ? page + 1 : undefined`; new-posts pill stays FE-only (no push) |
 
+### 2.9 Discovery (`TrendingController`, `TagsController`, `UsersController`)
+
+| Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
+|---|---|---|---|---|
+| `GET /api/trending/tags` | anon | `?limit` (1..50, default 5) -> 200 `TrendingTagDto[]` | not paged; candidates = visible tagged posts, access policy BEFORE counting; window = first of 7 / 30 / 365 days with >= `limit` tags, else the 365-day result as is (maybe fewer, maybe empty); `postsCount` = visible posts in that window; order count desc, key asc; `tag` = most used casing (ties: newest post, then ordinal); 400 `ValidationFailed` bad `limit`; D31 | `fetchTrendingTags(limit)` (right panel, search landing) |
+| `GET /api/tags/{tag}/posts` | anon | `?sort=latest\|top&page&pageSize(10)` -> 200 `TagPostsPageDto` | `{tag}` with/without leading `#`, matched by folded key (case, diacritics, `đ`); unknown tag or nothing visible = 200 empty, never 404; `totalCount` = ALL visible matching posts (not window scoped, so >= trending count); `tag` = display casing, echo of input when none; invalid tag (empty, whitespace, `-`, > 50) / sort / paging -> 400 `ValidationFailed`; D31 | `fetchPostsByTag(tag, sort)` (`/tags/[tag]`) |
+| `GET /api/users/suggestions` | anon | `?page&pageSize(5)` -> 200 `PagedResponse<UserProfileDto>` | candidates: discoverable, not self, not own other profile, no active accepted/pending edge, not muted; score `10 * mutuals + min(followers, 50)` (blocked/deleted parties never count); ties newest user, id asc; anonymous = followers only; private profiles included; items carry viewer flags; 400 bad paging; D32 | `fetchSuggestedUsers(limit)` (right panel) |
+
+- Viewer = JWT `user_id` only; none of these routes accepts a viewer/actor id (query values are ignored)
+- Hashtag rules (shared with FE `lib/text.ts`, golden fixture `docs/fixtures/hashtag-parity.json`): `#` at start/after whitespace + letters, marks, digits, `_`; max 50 UTF-16 units (longer = not a tag), max 30 distinct tags per post; key = NFD, marks dropped, `đ` -> `d`, lowercase; root posts only; edit re-extracts; posts created before D31 have tags only after an edit
+
 ## 3. DTO shapes (JSON as serialized)
 
 ```yaml
@@ -230,6 +241,8 @@ SessionDto: { id (active head token id), userAgent|null, profileUsername|null, c
 PagedResponse<T>: { items: T[], page, pageSize, totalCount, hasNextPage }
 UserPostsPageDto: PagedResponse<PostDto> + { locked: bool }
 FollowListPageDto: PagedResponse<UserProfileDto> + { locked: bool }
+TrendingTagDto: { tag, postsCount }
+TagPostsPageDto: PagedResponse<PostDto> + { tag }
 RelationSetsDto: { blocked: guid[], muted: guid[], closeFriends: guid[], isPrivate, requestCount }
 FollowRequestCountDto: { count }
 PrivacyUpdatedDto: { acceptedCount }
@@ -258,7 +271,9 @@ SharePostLinkResponse: { postId, sharedUrl }
 | Pin, hide like count, reposts, polls, drafts | Unsupported | no domain concept (deferred, design needed) |
 | Like / bookmark | Done | idempotent PUT/DELETE routes |
 | Saved page (pagination) | Done | collections/drag sort/bulk unsave FE-only |
-| Search, trending, `/tags/[tag]`, hashtags/mentions | Unsupported | no search/tag/mention model |
+| Trending tags, `/tags/[tag]`, hashtags | Done | D31; hashtag model on posts |
+| Who to follow (right panel) | Done | D32 |
+| Search, mentions | Unsupported | no search/mention model |
 | Profile page (header, counts, tabs, `followStatus`, followers dialog) | Done | share link route differs; tabs `replies`/`media` unsupported |
 | Edit profile | Done | upload missing; username/email not editable |
 | Follow / unfollow, `FollowStatus` | Done | lowercase string |
@@ -324,8 +339,10 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D28 | Bounded read-all: `PUT read-all?upToId` marks that notification & older only (id not timestamp: JS ms vs Postgres microseconds); 404 unknown, 403 foreign, sender access filter skipped for lookup | Implemented |
 | D29 | Owner-only demographics: `GET me` -> `MeDto.gender` (read string union) & `dateOfBirth` (`yyyy-MM-dd`); never on `UserProfileDto` (D15 same field set for all viewers); `PUT profiles/me` unchanged (REPLACE semantics for displayName/bio/avatar/cover, omitted gender/dob keep stored); wire asymmetry: request `dateOfBirth` date-time, response `date` (FE concatenates `T00:00:00Z`, BE stores date part, no timezone shift) | Implemented (BE) |
 | D30 | Sessions: session = token family (`ReplacedByTokenId` chain), represented by active head token; `GET sessions` / `DELETE sessions/{id}`; JWT claim `sid` = refresh token id issued with the access token (login, refresh, switch); `RefreshToken.UserAgent` (max 256) from header at login, copied on rotation; `lastTokenIssuedAt` = head `CreatedAt` (not activity); revoke under `IAccountSessionLock` + `Account.Version` (409 on cross-instance race); revoked device's access token valid until expiry (D6); no new error codes | Implemented (BE) |
+| D31 | Hashtags, trending & tag posts: `Post.Hashtags` (folded key + display), `GET trending/tags` (7/30/365-day fallback, access policy before counting), `GET tags/{tag}/posts` (all-time count, unknown tag = 200 empty), FE parity pinned by golden fixture, viewer from JWT only, no new error codes | Implemented (BE) |
+| D32 | Suggestions: `GET users/suggestions` (10 per mutual + capped followers, deterministic ties, excludes self, own profiles, followed/requested, muted, blocked, deleted), anonymous allowed | Implemented (BE) |
 
-- **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
+- **Open:** media upload URL shape, search & mentions, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 
 ## 8. Evidence
 - Probes of original behavior (T0.2) & their current results: `../architecture/backend-guide.md` §12
