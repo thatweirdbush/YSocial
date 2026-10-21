@@ -1,6 +1,6 @@
 ---
 module: Product Roadmap (FE + BE)
-updated: 2026-10-20
+updated: 2026-10-21
 ---
 
 # YSocial Roadmap
@@ -44,7 +44,7 @@ updated: 2026-10-20
 - [x] **2.4 Close Friends manager:** list + toggle (match `ToggleCloseFriendRequest`), green ring badge on close-friends posts
 - [x] **2.5 Block / Mute** (Restrict deferred): `PostCard` menu & profile hide content for real, lists in `/settings/blocked|muted`
 - [x] **2.6 Share profile:** copy link + QR code dialog
-- [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(Phase C done: build real-first now, `backend/integration/fe-be-integration.md`)*
+- [x] **2.7 Multi-profile switcher** (`features/settings.md`): `GET me` + `PUT profiles/switch` in the account menu; cross-tab lock rule, at-most-once switch, central viewer reset
 
 ### Phase 3 - Notifications (P1)
 > Closed: `features/notifications.md`
@@ -54,9 +54,9 @@ updated: 2026-10-20
 - [x] **3.4 Notification settings** (toggle per kind: likes, replies, follows)
 
 ### Phase 4 - Settings & Account (P1)
-- [ ] **4.1 Settings hub** `/settings`, 2-col layout (desktop) / stack (mobile), child routes:
+- [x] **4.1 Settings hub** (`features/settings.md`) `/settings`, 2-col layout (desktop) / stack (mobile), child routes (`liked` became `content`; who can reply / mention & deactivate DEFERRED, see Open items):
   - `account` (email, username, birth date, gender - match `UpdateProfileRequest`), `privacy` (private account, who can reply/mention, `blocked`, `close-friends`), `notifications`, `appearance` (theme, font size, reduced motion - moved from dropdown), `language`, `liked` content preferences (`muted`, hide like & share count), `time-management` (daily average, chart), `sessions` (device list, remote logout - UI), `danger` (deactivate/delete account UI + confirm)
-- [ ] **4.2 `settings-store`** persisted to localStorage, `useShallow` when selecting multiple fields
+- [x] **4.2 `settings-store`** persisted to localStorage (per device), `useShallow` when selecting multiple fields
 
 ### Phase 5 - Direct Messages (P2)
 - [ ] **5.1 Inbox** `/messages` - conversation list (unread, typing, last message), search
@@ -88,7 +88,8 @@ updated: 2026-10-20
 - **BE gaps for FE-built features:** tabs `replies`/`media`, pin, hide-like-count, close-friends audience (D17); register: BG §10
 - **Persistence:** DONE (EF Core + PostgreSQL, migrations, rich dev seed, SQLite test harness; BG §7); open debt: SQL-side paging, multi-instance lock/outbox (BG §10)
 - **Needs BE design first (DB ready):** search/tags/trending, media upload
-- **No FE counterpart yet:** DMs, reposts, polls, report, onboarding, session list
+- **No FE counterpart yet:** DMs, reposts, polls, report, onboarding
+- **Settings deferrals (Phase 4):** who can reply / mention (no account policy, no mention model, BG §9), deactivate account (login rejects inactive accounts, no reactivation path, BG §10 #26), username / email change, create profile
 - **Notifications follow-ups (BE):** mention notifications, "N others" aggregation over unloaded pages, reply preview text
 
 ---

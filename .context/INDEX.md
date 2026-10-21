@@ -20,6 +20,7 @@
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
 
 - [Notifications Spec](features/notifications.md) - list tabs = server `kind` filters (D26), like grouping (24h, loaded members only), server-authoritative unread count (`countSeq`), bounded mark-all (D28) & mark-on-view, nav badge, per-kind preferences (D27, coalesced edits), stateful mock adapter
+- [Settings Spec](features/settings.md) - settings hub (9 sections), `settings-store` (per device), usage tracker, account demographics (D29), sessions (D30), delete account, profile switcher (cross-tab lock rule, at-most-once switch, atomic commit, viewer reset), pitfalls (RSC boundary, `api:check` CRLF)
 
 ## Backend Audit (`.context/backend/`)
 - [BE Guide](backend/architecture/backend-guide.md) - request lifecycle & behavior order, DI, error pipeline (ProblemDetails + `code`), auth lifecycle (refresh/logout/switch, session lock), UoW & event dispatch semantics, EF Core + PostgreSQL persistence (model, migrations, seeds, DB ops §7), single live debt & deferred register §10, notifications pipeline, probes ledger
