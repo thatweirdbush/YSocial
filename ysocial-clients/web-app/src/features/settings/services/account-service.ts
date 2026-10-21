@@ -58,3 +58,8 @@ export async function fetchSessions(): Promise<SessionItem[]> {
 export async function revokeSession(id: string): Promise<void> {
   await apiClient.delete(`/api/identities/sessions/${id}`);
 }
+
+/** Soft-deletes the account & its profiles (204, existing access tokens live until expiry); the caller ends the local session. */
+export async function deleteAccount(): Promise<void> {
+  await apiClient.delete("/api/identities/account");
+}

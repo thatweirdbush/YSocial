@@ -1,6 +1,6 @@
 import type { MeDto } from "@/features/auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchSessions, GENDER_TO_INT, parseGender, revokeSession, saveAccountProfile } from "./account-service";
+import { deleteAccount, fetchSessions, GENDER_TO_INT, parseGender, revokeSession, saveAccountProfile } from "./account-service";
 
 const api = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), delete: vi.fn() }));
 const put = api.put;
@@ -97,5 +97,13 @@ describe("sessions", () => {
     await revokeSession("0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10");
 
     expect(api.delete).toHaveBeenCalledWith("/api/identities/sessions/0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10");
+  });
+});
+
+describe("deleteAccount", () => {
+  it("calls DELETE /api/identities/account", async () => {
+    await deleteAccount();
+
+    expect(api.delete).toHaveBeenCalledWith("/api/identities/account");
   });
 });

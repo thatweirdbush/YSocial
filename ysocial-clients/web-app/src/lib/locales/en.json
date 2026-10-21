@@ -491,6 +491,12 @@
     "sessionRevoke": "Sign out session",
     "sessionRevokeConfirm": "Sign out this session?",
     "sessionRevokeNote": "That device may keep working for up to 15 minutes until its token expires",
-    "sessionUnknownDevice": "Unknown device"
+    "sessionUnknownDevice": "Unknown device",
+    "danger": "Danger zone",
+    "deleteAccount": "Delete account",
+    "deleteAccountWarn": "This cannot be undone",
+    "deleteAccountType": "Type your username to confirm",
+    "deleteAccountConfirm": "Delete forever",
+    "deleteAccountMismatch": "Username does not match"
   }
 }

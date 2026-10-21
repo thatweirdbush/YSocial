@@ -6,6 +6,7 @@ import { metadata as accountMetadata } from "./(sections)/account/page";
 import { metadata as appearanceMetadata } from "./(sections)/appearance/page";
 import { metadata as blockedMetadata } from "./(sections)/blocked/page";
 import { metadata as closeFriendsMetadata } from "./(sections)/close-friends/page";
+import { metadata as dangerMetadata } from "./(sections)/danger/page";
 import { metadata as contentMetadata } from "./(sections)/content/page";
 import { metadata as languageMetadata } from "./(sections)/language/page";
 import { metadata as mutedMetadata } from "./(sections)/muted/page";
@@ -66,8 +67,9 @@ describe("settings route metadata", () => {
       timeManagementMetadata,
       accountMetadata,
       sessionsMetadata,
+      dangerMetadata,
     ].map((metadata) => String(metadata.title));
-    expect(new Set(titles).size).toBe(12);
+    expect(new Set(titles).size).toBe(13);
     expect(titles.every((title) => title.endsWith("• YSocial"))).toBe(true);
   });
 });

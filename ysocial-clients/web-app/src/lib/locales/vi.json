@@ -491,6 +491,12 @@
     "sessionRevoke": "Đăng xuất phiên",
     "sessionRevokeConfirm": "Đăng xuất phiên này?",
     "sessionRevokeNote": "Thiết bị đó có thể vẫn dùng được tối đa 15 phút cho đến khi token hết hạn",
-    "sessionUnknownDevice": "Thiết bị không xác định"
+    "sessionUnknownDevice": "Thiết bị không xác định",
+    "danger": "Vùng nguy hiểm",
+    "deleteAccount": "Xoá tài khoản",
+    "deleteAccountWarn": "Hành động này không thể hoàn tác",
+    "deleteAccountType": "Nhập tên người dùng để xác nhận",
+    "deleteAccountConfirm": "Xoá vĩnh viễn",
+    "deleteAccountMismatch": "Tên người dùng không khớp"
   }
 }

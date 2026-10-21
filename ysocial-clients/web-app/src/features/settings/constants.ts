@@ -1,4 +1,4 @@
-import { Ban, Bell, Languages, Lock, MessageSquareText, Monitor, Palette, Star, Timer, UserRound, VolumeX } from "lucide-react";
+import { Ban, Bell, Languages, Lock, MessageSquareText, Monitor, Palette, Star, Timer, TriangleAlert, UserRound, VolumeX } from "lucide-react";
 import { hasCapability } from "@/lib/capabilities";
 import type { SettingsSection } from "./types";
 
@@ -15,6 +15,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { href: "/settings/content", titleKey: "settings.content", icon: MessageSquareText },
   { href: "/settings/time-management", titleKey: "settings.timeManagement", icon: Timer },
   { href: "/settings/sessions", titleKey: "settings.sessions", icon: Monitor, capability: "accountUi" },
+  { href: "/settings/danger", titleKey: "settings.danger", icon: TriangleAlert, capability: "accountUi" },
 ];
 
 /** Sections whose capability is on (a section without capability is always shown); read per call. */
