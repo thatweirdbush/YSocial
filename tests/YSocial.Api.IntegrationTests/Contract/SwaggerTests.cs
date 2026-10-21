@@ -62,6 +62,8 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         ["/api/posts/{id}/bookmark", "put", "204", ""],
         ["/api/comments/{id}/bookmark", "delete", "204", ""],
         ["/api/identities/logout", "post", "204", ""],
+        ["/api/identities/sessions", "get", "200", "inline"],
+        ["/api/identities/sessions/{id}", "delete", "204", ""],
         ["/api/users/{targetId}/relations/mute", "put", "204", ""],
         ["/api/users/{targetId}/relations/mute", "delete", "204", ""],
         ["/api/users/me/mutes", "get", "200", "UserProfileDtoPagedResponse"],
@@ -161,5 +163,27 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         properties.Should().BeEquivalentTo(
             ["id", "type", "kind", "title", "message", "createdAt", "isRead", "targetId", "senderId", "senderName", "senderUsername", "senderAvatar"]);
+    }
+
+    [Fact]
+    public async Task Swagger_MeDto_CarriesOwnerDemographics()
+    {
+        var document = await SwaggerAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("MeDto").GetProperty("properties");
+
+        properties.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(["profile", "email", "profiles", "gender", "dateOfBirth"]);
+        properties.GetProperty("dateOfBirth").GetProperty("format").GetString().Should().Be("date");
+    }
+
+    [Fact]
+    public async Task Swagger_SessionDto_MatchesContract()
+    {
+        var document = await SwaggerAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("SessionDto").GetProperty("properties")
+            .EnumerateObject().Select(p => p.Name);
+
+        properties.Should().BeEquivalentTo(["id", "userAgent", "profileUsername", "createdAt", "lastTokenIssuedAt", "isCurrent"]);
     }
 }

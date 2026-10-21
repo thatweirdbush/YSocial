@@ -8,6 +8,7 @@ using YSocial.Application.Abstractions.Persistence;
 using YSocial.Application.Features.Identities.ForgotPassword;
 using YSocial.Application.Features.Identities.LogoutUser;
 using YSocial.Application.Features.Identities.RefreshToken;
+using YSocial.Application.Features.Identities.RevokeSession;
 using YSocial.Application.Features.Users.SwitchProfile;
 using YSocial.Domain.Common.Errors;
 using YSocial.Domain.Countries;
@@ -19,7 +20,8 @@ namespace YSocial.Application.UnitTests.Identity;
 
 /// <summary>
 /// Another instance changing the account first (optimistic concurrency) must end in the documented outcome of each
-/// endpoint, never in a 409: refresh &amp; switch 401, logout &amp; forgot-password 204 (MAP 2.1, 2.2).
+/// endpoint: refresh &amp; switch 401, logout &amp; forgot-password 204 (MAP 2.1, 2.2). Revoke session is the exception: it lets the
+/// conflict propagate so <c>GlobalExceptionHandler</c> answers 409 (mapping pinned by <c>PersistenceTests.ConcurrencyConflict_Returns409_Conflict</c>).
 /// </summary>
 public class SessionConflictTests
 {
@@ -46,7 +48,7 @@ public class SessionConflictTests
         _accounts.GetByIdAsync(_account.Id, true, Arg.Any<CancellationToken>()).Returns(_account);
         _accounts.GetIdByIdentifierAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(_account.Id);
         _users.GetByIdAndAccountIdAsync(_profile.Id, _account.Id, Arg.Any<CancellationToken>()).Returns(_profile);
-        _jwt.GenerateToken(Arg.Any<User>(), Arg.Any<Account>()).Returns("jwt");
+        _jwt.GenerateToken(Arg.Any<User>(), Arg.Any<Account>(), Arg.Any<RefreshTokenId?>()).Returns("jwt");
         _userContext.IsAuthenticated.Returns(true);
         _userContext.AccountId.Returns(_account.Id.Value);
 
@@ -83,6 +85,17 @@ public class SessionConflictTests
 
         result.IsSuccess.Should().BeFalse();
         result.Code.Should().Be(ErrorCodes.InvalidRefreshToken);
+    }
+
+    [Fact]
+    public async Task Revoke_ConcurrencyConflict_Maps409()
+    {
+        var handler = new RevokeSessionCommandHandler(_accounts, _lock, _unitOfWork, _userContext);
+        var sessionId = _account.RefreshTokens.Single().Id.Value;
+
+        var act = () => handler.Handle(new RevokeSessionCommand(sessionId), CancellationToken.None);
+
+        await act.Should().ThrowAsync<ConcurrencyConflictException>("the client retries on 409, never a silent success");
     }
 
     [Fact]

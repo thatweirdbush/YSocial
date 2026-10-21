@@ -2,10 +2,13 @@ using Microsoft.AspNetCore.Authorization;
 using YSocial.Api.Models.Identities;
 using YSocial.Application.Features.Identities.DeleteAccount;
 using YSocial.Application.Features.Identities.ForgotPassword;
+using YSocial.Application.Features.Identities.GetSessions;
 using YSocial.Application.Features.Identities.LogoutUser;
 using YSocial.Application.Features.Identities.RefreshToken;
 using YSocial.Application.Features.Identities.RegisterAccount;
 using YSocial.Application.Features.Identities.ResetPassword;
+using YSocial.Application.Features.Identities.RevokeSession;
+using YSocial.Application.Models;
 
 namespace YSocial.Api.Controllers;
 
@@ -38,7 +41,8 @@ public class IdentitiesController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        var command = new LoginCommand(request.LoginId, request.Password, request.DeviceId);
+        var userAgent = Request.Headers.UserAgent.ToString();
+        var command = new LoginCommand(request.LoginId, request.Password, request.DeviceId, string.IsNullOrEmpty(userAgent) ? null : userAgent);
 
         var result = await Mediator.Send(command, cancellationToken);
 
@@ -95,6 +99,36 @@ public class IdentitiesController : ApiController
         var command = new ResetPasswordCommand(request.LoginId, request.Otp, request.NewPassword);
 
         var result = await Mediator.Send(command, cancellationToken);
+
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Active sign-ins of the account, newest token issue first; <c>isCurrent</c> marks the caller's own.
+    /// </summary>
+    [HttpGet("sessions")]
+    [Authorize]
+    [ProducesResponseType(typeof(IReadOnlyList<SessionDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetSessions(CancellationToken cancellationToken)
+    {
+        var result = await Mediator.Send(new GetSessionsQuery(), cancellationToken);
+
+        return HandleResult(result);
+    }
+
+    /// <summary>
+    /// Ends a session by ANY of its token ids; its access token stays valid until expiry.
+    /// </summary>
+    [HttpDelete("sessions/{id:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> RevokeSession(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await Mediator.Send(new RevokeSessionCommand(id), cancellationToken);
 
         return HandleResult(result);
     }
