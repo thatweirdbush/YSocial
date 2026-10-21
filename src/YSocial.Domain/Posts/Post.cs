@@ -1,5 +1,6 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
+using YSocial.Domain.Media;
 using YSocial.Domain.Posts.Events;
 using YSocial.Domain.Posts.Rules;
 using YSocial.Domain.Users;
@@ -27,6 +28,13 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     /// </summary>
     public IReadOnlyList<PostHashtag> Hashtags => _hashtags;
 
+    private readonly List<PostMedia> _media = [];
+
+    /// <summary>
+    /// Attached media snapshots in display order (immutable after create; always loaded with the post).
+    /// </summary>
+    public IReadOnlyList<PostMedia> Media => _media;
+
 #pragma warning disable CS8618
     private Post() { }
 #pragma warning restore CS8618
@@ -45,15 +53,29 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
         SavedCount = 0;
     }
 
-    public static Post Create(UserId authorId, string content, string? imageUrl = null, PostVisibility? visibility = null, bool allowComments = true)
+    public static Post Create(
+        UserId authorId,
+        string content,
+        string? imageUrl = null,
+        PostVisibility? visibility = null,
+        bool allowComments = true,
+        IReadOnlyList<PostMedia>? media = null)
     {
         visibility ??= PostVisibility.Public;
+        media ??= [];
 
-        CheckRule(new PostContentMustNotBeEmptyRule(content));
+        CheckRule(new PostContentMustNotBeEmptyRule(content, media.Count > 0 || imageUrl is not null));
         CheckRule(new PostContentLengthLimitRule(content));
+        CheckRule(new PostMediaLimitRule(media.Count));
 
         var post = new Post(authorId, content, imageUrl, visibility, allowComments);
         post.SyncHashtags(content);
+
+        for (var position = 0; position < media.Count; position++)
+        {
+            media[position].Place(position);
+            post._media.Add(media[position]);
+        }
 
         post.AddDomainEvent(new PostCreatedEvent(post.Id, post.AuthorId));
 
@@ -63,7 +85,7 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     public void UpdateContent(UserId editorId, string newContent)
     {
         CheckRule(new OnlyAuthorCanPerformActionOnPostRule(AuthorId, editorId));
-        CheckRule(new PostContentMustNotBeEmptyRule(newContent));
+        CheckRule(new PostContentMustNotBeEmptyRule(newContent, _media.Count > 0 || ImageUrl is not null));
         CheckRule(new PostContentLengthLimitRule(newContent));
 
         Content = newContent;
