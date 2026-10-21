@@ -360,6 +360,7 @@ export async function searchPosts(
 }
 
 export async function fetchPostsByTag(tag: string, sort: TagSort, actorId: string): Promise<TagPage> {
+  if (isRealApi("content")) return real.fetchPostsByTag(tag, sort, actorId);
   await simulateNetwork();
 
   const viewer = asViewer(actorId);
@@ -381,6 +382,7 @@ export async function fetchPostsByTag(tag: string, sort: TagSort, actorId: strin
  * friends posts never feed it): count desc, then normalized tag asc.
  */
 export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
+  if (isRealApi("content")) return real.fetchTrendingTags(limit);
   await simulateNetwork();
 
   return [...collectTagStats([...db.values()].filter((post) => canViewPost(null, post)))]

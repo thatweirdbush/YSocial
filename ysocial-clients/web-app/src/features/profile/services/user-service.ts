@@ -98,6 +98,7 @@ export async function searchUsers(query: string, actorId: string, limit = SEARCH
 
 /** Users the actor does not follow (never the actor, fans or blocked users), most followed first. */
 export async function fetchSuggestedUsers(limit: number, actorId: string): Promise<UserProfile[]> {
+  if (isRealApi("content")) return real.fetchSuggestedUsers(limit, actorId);
   await mockDelay();
 
   const followed = getFollowedIds(actorId);

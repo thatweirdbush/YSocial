@@ -37,9 +37,11 @@ const whenAuthReal = (slices: Slices): boolean => slices.has("auth");
 
 export const CAPABILITY_RULES: Record<Capability, (slices: Slices) => boolean> = {
   search: unlessContentReal,
-  tags: unlessContentReal,
-  trending: unlessContentReal,
-  suggestions: unlessContentReal,
+  tags: () => true,
+  // Discovery (D31, D32): real BE endpoints exist, mock adapters cover mock mode, so tags & trending are always on.
+  // Suggestions render follow buttons: same rule as the graph features (mock ids must not reach real routes)
+  trending: () => true,
+  suggestions: unlessGraphPending,
   pin: unlessContentReal,
   hideLikeCount: unlessContentReal,
   multiImage: unlessContentReal,

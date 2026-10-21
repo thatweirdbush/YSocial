@@ -8,6 +8,8 @@ import type {
   PostItem,
   PostThread,
   PostVisibility,
+  TagPage,
+  TagPostsPageDto,
   ThreadDto,
   UserPostsPage,
   UserPostsPageDto,
@@ -101,4 +103,9 @@ export function toFeedPage(dto: PostDtoPagedResponse): FeedPage {
 /** Threads tab only: the BE has no replies/media tabs, so `parents` is always empty. */
 export function toUserPostsPage(dto: UserPostsPageDto): UserPostsPage {
   return { posts: toPostItems(dto.items), parents: [], nextPage: nextPageOf(dto), locked: dto.locked ?? false };
+}
+
+/** `postsCount` = BE `totalCount` (all visible matching posts); `tag` falls back to the requested one. */
+export function toTagPage(dto: TagPostsPageDto, requestedTag: string): TagPage {
+  return { tag: dto.tag || requestedTag, postsCount: dto.totalCount ?? 0, posts: toPostItems(dto.items) };
 }

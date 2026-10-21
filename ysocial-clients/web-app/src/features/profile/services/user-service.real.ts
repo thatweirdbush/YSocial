@@ -2,8 +2,16 @@ import { apiClient } from "@/lib/api-client";
 import { isBackendId, requireBackendId } from "@/lib/backend-id";
 import { ForbiddenError } from "@/lib/errors";
 import { isNotFound } from "@/lib/server-api";
-import type { FollowListPageDto, FollowStatus, ProfilePatch, UserProfile, UserProfileDto, ViewerUserInput } from "../types";
-import { toFollowStatus, toUserProfile } from "./user-mapper";
+import type {
+  FollowListPageDto,
+  FollowStatus,
+  ProfilePatch,
+  UserProfile,
+  UserProfileDto,
+  UserProfileDtoPagedResponse,
+  ViewerUserInput,
+} from "../types";
+import { toFollowListPage, toFollowStatus, toUserProfile } from "./user-mapper";
 
 // Real BE adapter of `user-service` (MAP §2.2). Same signatures as the mock; `actorId` is unused where the JWT
 // already identifies the viewer. 404 -> `null`, every other failure is rethrown (never shown as "not found").
@@ -81,4 +89,10 @@ export async function upsertViewerUser(input: ViewerUserInput, actorId: string):
   const user = await fetchUser(input.id, actorId);
   if (!user) throw new Error(`Unknown user ${input.id}`);
   return user;
+}
+
+/** BE ranking (mutual followees, then popularity); the viewer comes from the JWT, `actorId` is never sent. */
+export async function fetchSuggestedUsers(limit: number, _actorId: string): Promise<UserProfile[]> {
+  const page = await apiClient.get<UserProfileDtoPagedResponse>("/api/users/suggestions", { params: { page: 1, pageSize: limit } });
+  return toFollowListPage(page).users;
 }

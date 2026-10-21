@@ -1,7 +1,14 @@
 // Text helpers shared by search, highlight & hashtag parsing. Matching is case & diacritics insensitive.
 
-/** `#tag` at start or after whitespace (never URL fragments / ids); letters + combining marks (NFD Vietnamese), digits, `_`. */
-export const HASHTAG_PATTERN = /(?<=^|\s)#([\p{L}\p{M}\p{N}_]+)/gu;
+/** Same limits as the BE hashtag parser (`HashtagParser`); a longer tag is plain text, tags past the cap are not indexed. */
+export const MAX_HASHTAG_LENGTH = 50;
+export const MAX_HASHTAGS_PER_POST = 30;
+
+/**
+ * `#tag` at start or after whitespace (never URL fragments / ids); letters + combining marks (NFD Vietnamese), digits, `_`,
+ * at most `MAX_HASHTAG_LENGTH` UTF-16 units (the lookahead rejects a longer run instead of cutting it).
+ */
+export const HASHTAG_PATTERN = /(?<=^|\s)#([\p{L}\p{M}\p{N}_]{1,50})(?![\p{L}\p{M}\p{N}_])/gu;
 
 /** `@username` at start or after whitespace (usernames are ASCII); a trailing `.` ends the sentence, not the name. */
 export const MENTION_PATTERN = /(?<=^|\s)@([a-zA-Z0-9._]*[a-zA-Z0-9_])/g;
@@ -33,6 +40,7 @@ export function extractHashtags(content: string): string[] {
     if (seen.has(key)) continue;
     seen.add(key);
     tags.push(match[1]);
+    if (tags.length === MAX_HASHTAGS_PER_POST) break;
   }
   return tags;
 }

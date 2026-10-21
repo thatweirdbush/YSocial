@@ -13,6 +13,8 @@ export type PostAuthorDto = Schemas["PostAuthorDto"];
 export type ThreadDto = Schemas["ThreadDto"];
 export type PostDtoPagedResponse = Schemas["PostDtoPagedResponse"];
 export type UserPostsPageDto = Schemas["UserPostsPageDto"];
+export type TrendingTagDto = Schemas["TrendingTagDto"];
+export type TagPostsPageDto = Schemas["TagPostsPageDto"];
 // #endregion
 
 // #region Domain models

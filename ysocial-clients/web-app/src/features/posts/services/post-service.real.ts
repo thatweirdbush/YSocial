@@ -1,10 +1,12 @@
 import { apiClient } from "@/lib/api-client";
 import { isBackendId, requireBackendId } from "@/lib/backend-id";
+import { isApiError } from "@/lib/api-error";
 import { isNotFound } from "@/lib/server-api";
 import type {
   CreatePostInput,
   FeedPage,
   FeedTab,
+  HashtagStat,
   PostAuthor,
   PostDto,
   PostDtoPagedResponse,
@@ -12,12 +14,16 @@ import type {
   PostRef,
   PostThread,
   SavedPostsPage,
+  TagPage,
+  TagPostsPageDto,
+  TagSort,
   ThreadDto,
+  TrendingTagDto,
   UserPostsPage,
   UserPostsPageDto,
   UserPostsTab,
 } from "../types";
-import { toFeedPage, toPostItem, toPostThread, toUserPostsPage } from "./post-mapper";
+import { toFeedPage, toPostItem, toPostThread, toTagPage, toUserPostsPage } from "./post-mapper";
 
 // Real BE adapter of `post-service` (MAP §2.3). Same signatures as the mock. Endpoint choice (`posts` vs
 // `comments`) always comes from `PostRef.kind`; non-GUID ids fail locally with a 404 and never reach the network.
@@ -93,3 +99,27 @@ export async function setPostBookmark(ref: PostRef, bookmarked: boolean): Promis
   const url = `${resource(ref)}/bookmark`;
   await (bookmarked ? apiClient.put(url) : apiClient.delete(url));
 }
+
+// #region Discovery (MAP 2.9): the viewer always comes from the JWT, `actorId` is never sent
+
+const TAG_PAGE_SIZE = 50;
+
+export async function fetchTrendingTags(limit: number): Promise<HashtagStat[]> {
+  const tags = await apiClient.get<TrendingTagDto[] | null>("/api/trending/tags", { params: { limit } });
+  return (tags ?? []).filter((entry) => entry.tag).map((entry) => ({ tag: entry.tag as string, postsCount: entry.postsCount ?? 0 }));
+}
+
+/** First page only. A tag the BE rejects (400: not a tag) is an empty page, like an unknown tag. */
+export async function fetchPostsByTag(tag: string, sort: TagSort, _actorId: string): Promise<TagPage> {
+  try {
+    const page = await apiClient.get<TagPostsPageDto>(`/api/tags/${encodeURIComponent(tag)}/posts`, {
+      params: { sort, page: 1, pageSize: TAG_PAGE_SIZE },
+    });
+    return toTagPage(page, tag);
+  } catch (error) {
+    if (isApiError(error) && error.kind === "http" && error.status === 400) return { tag, postsCount: 0, posts: [] };
+    throw error;
+  }
+}
+
+// #endregion

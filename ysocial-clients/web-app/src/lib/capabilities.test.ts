@@ -4,9 +4,6 @@ import { type Capability, CAPABILITY_RULES, hasCapability } from "./capabilities
 
 const BE_LESS: Capability[] = [
   "search",
-  "tags",
-  "trending",
-  "suggestions",
   "pin",
   "hideLikeCount",
   "multiImage",
@@ -16,7 +13,9 @@ const BE_LESS: Capability[] = [
   "closeFriendsBadge",
   "followingTabGuest",
 ];
-const GRAPH: Capability[] = ["followLists", "blockUi", "closeFriendsUi", "privacyUi", "followRequestsUi"];
+const GRAPH: Capability[] = ["followLists", "blockUi", "closeFriendsUi", "privacyUi", "followRequestsUi", "suggestions"];
+/** Real discovery endpoints exist (D31): on in every state */
+const ALWAYS: Capability[] = ["tags", "trending"];
 /** Need a real identity (no mock adapter): follow the auth slice only */
 const AUTH_ONLY: Capability[] = ["accountUi", "profileSwitcher"];
 
@@ -33,12 +32,13 @@ const STATES: Array<[string, boolean, boolean, boolean]> = [
 
 describe("capability table", () => {
   it("covers exactly the known capabilities", () => {
-    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, ...AUTH_ONLY, "muteUi", "notificationSettings", "mentionNotifications"].sort());
+    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, ...ALWAYS, ...AUTH_ONLY, "muteUi", "notificationSettings", "mentionNotifications"].sort());
   });
 
   it.each(STATES)("slices %j", (slices, content, graph, activity) => {
     setRealSlices(slices);
     for (const capability of BE_LESS) expect(hasCapability(capability), capability).toBe(!content);
+    for (const capability of ALWAYS) expect(hasCapability(capability), capability).toBe(true);
     for (const capability of GRAPH) expect(hasCapability(capability), capability).toBe(!content || graph);
     for (const capability of AUTH_ONLY) expect(hasCapability(capability), capability).toBe(slices.includes("auth"));
     expect(hasCapability("muteUi")).toBe(!content || activity);
