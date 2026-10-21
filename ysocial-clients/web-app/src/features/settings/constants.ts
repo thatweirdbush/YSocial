@@ -1,4 +1,5 @@
 import { Ban, Bell, Lock, Star, VolumeX } from "lucide-react";
+import { hasCapability } from "@/lib/capabilities";
 import type { SettingsSection } from "./types";
 
 /** Settings sections available now; roadmap 4.1 adds the remaining routes. */
@@ -9,3 +10,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { href: "/settings/muted", titleKey: "settings.muted", icon: VolumeX, capability: "muteUi" },
   { href: "/settings/close-friends", titleKey: "settings.closeFriends", icon: Star, capability: "closeFriendsUi" },
 ];
+
+/** Sections whose capability is on (a section without capability is always shown); read per call. */
+export const visibleSections = (sections: readonly SettingsSection[] = SETTINGS_SECTIONS): SettingsSection[] =>
+  sections.filter(({ capability }) => capability === undefined || hasCapability(capability));

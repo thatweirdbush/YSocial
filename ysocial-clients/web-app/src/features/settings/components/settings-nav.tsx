@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "@/hooks/use-translation";
 import { cn } from "@/lib/utils";
-import { hasCapability } from "@/lib/capabilities";
-import { SETTINGS_SECTIONS } from "../constants";
+import { visibleSections } from "../constants";
 
 /** Section menu shown as the aside of every settings section page (lg and up). */
 export function SettingsNav() {
@@ -15,7 +14,7 @@ export function SettingsNav() {
   return (
     <nav aria-label={t("settings.title")} className="flex flex-col gap-1 px-3">
       <h2 className="px-3 pb-2 text-lg font-bold text-zinc-900 dark:text-zinc-50">{t("settings.title")}</h2>
-      {SETTINGS_SECTIONS.filter(({ capability }) => hasCapability(capability)).map(({ href, titleKey, icon: Icon }) => {
+      {visibleSections().map(({ href, titleKey, icon: Icon }) => {
         const isActive = pathname === href;
         return (
           <Link

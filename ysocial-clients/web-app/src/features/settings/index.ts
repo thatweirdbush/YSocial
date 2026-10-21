@@ -5,7 +5,7 @@ export { SettingsIndex } from "./components/settings-index";
 export { SettingsNav } from "./components/settings-nav";
 export { SettingsPageHeader } from "./components/settings-page-header";
 export { BlockedSection, CloseFriendsSection, MutedSection, NotificationsSection, PrivacySection } from "./components/settings-sections";
-export { SETTINGS_SECTIONS } from "./constants";
+export { SETTINGS_SECTIONS, visibleSections } from "./constants";
 export { useDisplayPrefs, useFontSize, useReducedMotion, useSettingsActions, useSettingsStore } from "./store/settings-store";
 export type { FontSize, ReducedMotion } from "./store/settings-store";
 export type * from "./types";
