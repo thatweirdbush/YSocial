@@ -27,4 +27,19 @@ internal sealed class PostRepository(YSocialDbContext db, IUnitOfWork unitOfWork
     // DEBT: feed candidates are filtered, ordered & paged in memory (BG 10)
     public async Task<IReadOnlyList<Post>> GetAllAsync(CancellationToken cancellationToken = default)
         => await Set.WhereNotDeleted().ToListAsync(cancellationToken);
+
+    public async Task<Post?> GetByIdWithHashtagsAsync(PostId id, CancellationToken cancellationToken = default)
+        => await Set.WhereNotDeleted().Include(p => p.Hashtags).FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Post>> GetByHashtagKeyAsync(string key, CancellationToken cancellationToken = default)
+        => await Set.WhereNotDeleted()
+            .Where(p => p.Hashtags.Any(h => h.Key == key))
+            .Include(p => p.Hashtags)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<Post>> GetWithHashtagsSinceAsync(DateTime sinceUtc, CancellationToken cancellationToken = default)
+        => await Set.WhereNotDeleted()
+            .Where(p => p.CreatedAt >= sinceUtc && p.Hashtags.Any())
+            .Include(p => p.Hashtags)
+            .ToListAsync(cancellationToken);
 }

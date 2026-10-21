@@ -318,6 +318,27 @@ namespace YSocial.Infrastructure.Persistence.Migrations
                     b.ToTable("Posts", (string)null);
                 });
 
+            modelBuilder.Entity("YSocial.Domain.Posts.PostHashtag", b =>
+                {
+                    b.Property<Guid>("PostId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Key")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Display")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("PostId", "Key");
+
+                    b.HasIndex("Key");
+
+                    b.ToTable("PostHashtags", (string)null);
+                });
+
             modelBuilder.Entity("YSocial.Domain.SavedItems.SavedItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -517,6 +538,15 @@ namespace YSocial.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("YSocial.Domain.Posts.PostHashtag", b =>
+                {
+                    b.HasOne("YSocial.Domain.Posts.Post", null)
+                        .WithMany("Hashtags")
+                        .HasForeignKey("PostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("YSocial.Domain.Users.User", b =>
                 {
                     b.OwnsOne("YSocial.Domain.Users.NotificationPreferences", "NotificationPreferences", b1 =>
@@ -630,6 +660,11 @@ namespace YSocial.Infrastructure.Persistence.Migrations
                     b.Navigation("PasswordResetTokens");
 
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("YSocial.Domain.Posts.Post", b =>
+                {
+                    b.Navigation("Hashtags");
                 });
 #pragma warning restore 612, 618
         }

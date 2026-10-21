@@ -18,6 +18,33 @@ internal sealed class PostConfiguration : IEntityTypeConfiguration<Post>
 
         builder.HasIndex(p => new { p.AuthorId, p.CreatedAt });
         builder.HasIndex(p => p.CreatedAt);
+
+        // Child rows of the aggregate (same save as the content); NOT auto-included: only discovery & edit load them
+        builder.HasMany(p => p.Hashtags)
+            .WithOne()
+            .HasForeignKey("PostId")
+            .IsRequired()
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(p => p.Hashtags).HasField("_hashtags");
+    }
+}
+
+internal sealed class PostHashtagConfiguration : IEntityTypeConfiguration<PostHashtag>
+{
+    // Folded key can grow past the 50-char tag limit (Hangul decomposes 3x)
+    private const int MaxKeyLength = 200;
+
+    public void Configure(EntityTypeBuilder<PostHashtag> builder)
+    {
+        builder.ToTable("PostHashtags");
+
+        builder.Property<PostId>("PostId");
+        builder.HasKey("PostId", nameof(PostHashtag.Key));
+
+        builder.Property(h => h.Key).HasMaxLength(MaxKeyLength).IsRequired();
+        builder.Property(h => h.Display).HasMaxLength(HashtagParser.MaxTagLength).IsRequired();
+
+        builder.HasIndex(h => h.Key);
     }
 }
 

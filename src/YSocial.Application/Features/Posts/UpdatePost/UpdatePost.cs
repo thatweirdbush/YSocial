@@ -36,7 +36,7 @@ internal sealed class UpdatePostCommandHandler(IPostRepository postsRepository, 
         }
 
         var postId = new PostId(command.PostId);
-        var post = await postsRepository.GetByIdAsync(postId, cancellationToken);
+        var post = await postsRepository.GetByIdWithHashtagsAsync(postId, cancellationToken);
         var editorId = new UserId(userContext.UserId);
 
         // Hidden/blocked posts do not reveal their existence to a non-author editor

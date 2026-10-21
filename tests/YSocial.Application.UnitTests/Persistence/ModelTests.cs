@@ -29,9 +29,14 @@ public class ModelTests
 
         var foreignKeys = db.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()).ToList();
 
-        foreignKeys.Should().OnlyContain(
-            fk => fk.PrincipalEntityType.ClrType.Name == "Account" || fk.IsOwnership,
-            "aggregates reference each other by id only; the only foreign keys are Account -> its own tokens (& owned value objects)");
+        // Own children of an aggregate: Account -> tokens, Post -> hashtags
+        static bool IsOwnChild(Microsoft.EntityFrameworkCore.Metadata.IForeignKey fk)
+            => fk.IsOwnership
+               || fk.PrincipalEntityType.ClrType.Name == "Account"
+               || (fk.PrincipalEntityType.ClrType.Name == "Post" && fk.DeclaringEntityType.ClrType.Name == "PostHashtag");
+
+        foreignKeys.All(IsOwnChild).Should().BeTrue(
+            "aggregates reference each other by id only; the only foreign keys are aggregate -> its own children (Account tokens, Post hashtags) & owned value objects");
     }
 
     [Fact]
