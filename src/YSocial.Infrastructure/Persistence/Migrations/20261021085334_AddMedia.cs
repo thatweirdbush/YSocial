@@ -56,7 +56,8 @@ namespace YSocial.Infrastructure.Persistence.Migrations
                     PosterUrl = table.Column<string>(type: "character varying(2048)", maxLength: 2048, nullable: true),
                     Width = table.Column<int>(type: "integer", nullable: false),
                     Height = table.Column<int>(type: "integer", nullable: false),
-                    DurationSeconds = table.Column<double>(type: "double precision", nullable: true)
+                    DurationSeconds = table.Column<double>(type: "double precision", nullable: true),
+                    Bytes = table.Column<long>(type: "bigint", nullable: false)
                 },
                 constraints: table =>
                 {

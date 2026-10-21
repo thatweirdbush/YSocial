@@ -14,14 +14,14 @@ public class PostMediaTests
     private static readonly UserId Author = UserId.New();
 
     private static PostMedia Item(string name = "a", MediaKind? kind = null)
-        => PostMedia.Create(MediaAssetId.New(), kind ?? MediaKind.Image, $"https://res.cloudinary.com/demo/image/upload/{name}.jpg", null, 800, 600, null);
+        => PostMedia.Create(MediaAssetId.New(), kind ?? MediaKind.Image, $"https://res.cloudinary.com/demo/image/upload/{name}.jpg", null, 800, 600, null, 1000);
 
     private static IReadOnlyList<PostMedia> Items(int count) => Enumerable.Range(0, count).Select(i => Item(i.ToString())).ToList();
 
     [Fact]
     public void Create_KeepsInputOrderAsPosition_AndSnapshotsFields()
     {
-        var video = PostMedia.Create(MediaAssetId.New(), MediaKind.Video, "https://x/v.mp4", "https://x/v.jpg", 1920, 1080, 12.5);
+        var video = PostMedia.Create(MediaAssetId.New(), MediaKind.Video, "https://x/v.mp4", "https://x/v.jpg", 1920, 1080, 12.5, 2000);
         var first = Item("first");
 
         var post = Post.Create(Author, "hi", media: [first, video]);

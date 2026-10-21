@@ -12,7 +12,7 @@ using YSocial.Infrastructure.Persistence;
 namespace YSocial.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(YSocialDbContext))]
-    [Migration("20261021082936_AddMedia")]
+    [Migration("20261021085334_AddMedia")]
     partial class AddMedia
     {
         /// <inheritdoc />
@@ -621,6 +621,9 @@ namespace YSocial.Infrastructure.Persistence.Migrations
 
                             b1.Property<int>("Position")
                                 .HasColumnType("integer");
+
+                            b1.Property<long>("Bytes")
+                                .HasColumnType("bigint");
 
                             b1.Property<double?>("DurationSeconds")
                                 .HasColumnType("double precision");

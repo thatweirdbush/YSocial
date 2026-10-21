@@ -1,3 +1,3 @@
 ﻿namespace YSocial.Api.Models.Posts;
 
-public sealed record CreatePostRequest(string Content, string? ImageUrl);
+public sealed record CreatePostRequest(string Content, string? ImageUrl, IReadOnlyList<Guid>? MediaIds = null);

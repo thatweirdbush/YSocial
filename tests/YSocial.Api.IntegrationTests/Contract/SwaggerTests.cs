@@ -137,7 +137,7 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         properties.Should().BeEquivalentTo(
         [
             "id", "kind", "postId", "parentId", "content", "imageUrl", "createdAt", "isEdited", "likesCount", "commentsCount",
-            "isLikedByCurrentUser", "isBookmarkedByCurrentUser", "user", "visibility"
+            "isLikedByCurrentUser", "isBookmarkedByCurrentUser", "user", "visibility", "media"
         ]);
     }
 

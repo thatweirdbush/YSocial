@@ -1,4 +1,5 @@
 using YSocial.Application.Features.Access;
+using YSocial.Application.Features.Media;
 using YSocial.Application.Models;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Likes;
@@ -78,7 +79,8 @@ internal sealed class PostProjector(
                 post.Content, post.ImageUrl, post.CreatedAt, post.UpdatedAt is not null,
                 post.LikeCount, commentsCount,
                 flags.LikedPosts.Contains(post.Id.Value), flags.SavedPosts.Contains(post.Id.Value),
-                ToAuthor(context, post.AuthorId), ToCamel(post.Visibility.Name));
+                ToAuthor(context, post.AuthorId), ToCamel(post.Visibility.Name),
+                post.Media.Select(MediaMapping.ToDto).ToList());
         }
 
         foreach (var comment in visibleComments)
@@ -91,7 +93,7 @@ internal sealed class PostProjector(
                 comment.Content, null, comment.CreatedAt, comment.UpdatedAt is not null,
                 comment.LikeCount, commentsCount,
                 flags.LikedComments.Contains(comment.Id.Value), flags.SavedComments.Contains(comment.Id.Value),
-                ToAuthor(context, comment.AuthorId), ToCamel(root.Visibility.Name));
+                ToAuthor(context, comment.AuthorId), ToCamel(root.Visibility.Name), []);
         }
 
         return result;

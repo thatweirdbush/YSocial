@@ -13,6 +13,7 @@ namespace YSocial.Application.Models;
 /// <param name="LikesCount">Stored aggregate, NOT viewer-filtered (accepted exception: number only, no identities).</param>
 /// <param name="CommentsCount">DIRECT children only, same access filter as the thread replies.</param>
 /// <param name="Visibility"><c>public</c> | <c>followersOnly</c> | <c>private</c> (comments inherit the root post).</param>
+/// <param name="Media">Attached media in display order; always present (empty for comments and text posts).</param>
 public sealed record PostDto(
     Guid Id,
     string Kind,
@@ -27,6 +28,7 @@ public sealed record PostDto(
     bool IsLikedByCurrentUser,
     bool IsBookmarkedByCurrentUser,
     PostAuthorDto User,
-    string Visibility);
+    string Visibility,
+    IReadOnlyList<MediaDto> Media);
 
 public sealed record PostAuthorDto(Guid Id, string Username, string DisplayName, string? AvatarUrl, bool IsVerified);

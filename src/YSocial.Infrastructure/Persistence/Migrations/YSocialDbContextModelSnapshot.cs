@@ -619,6 +619,9 @@ namespace YSocial.Infrastructure.Persistence.Migrations
                             b1.Property<int>("Position")
                                 .HasColumnType("integer");
 
+                            b1.Property<long>("Bytes")
+                                .HasColumnType("bigint");
+
                             b1.Property<double?>("DurationSeconds")
                                 .HasColumnType("double precision");
 

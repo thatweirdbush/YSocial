@@ -36,9 +36,11 @@ public class PostsController : ApiController
     [ProducesResponseType(typeof(PostDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create([FromBody] CreatePostRequest request, CancellationToken cancellationToken)
     {
-        var command = new CreatePostCommand(request.Content, request.ImageUrl);
+        var command = new CreatePostCommand(request.Content, request.ImageUrl, request.MediaIds);
 
         var result = await Mediator.Send(command, cancellationToken);
         return HandleCreated(result, post => post, post => $"/api/posts/{post.Id}");

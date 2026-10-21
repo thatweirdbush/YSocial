@@ -161,12 +161,16 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(UserProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken cancellationToken)
     {
         var command = new UpdateProfileCommand(
             request.DisplayName,
             request.Bio,
             request.AvatarUrl,
+            request.AvatarUrlSpecified,
+            request.AvatarMediaId,
             request.CoverUrl,
             request.Gender,
             request.DateOfBirth);

@@ -237,7 +237,7 @@ public sealed class MediaAssetRepositoryTests : IDisposable
     public async Task PostMedia_RoundTrips_InOrder_WithoutExplicitInclude()
     {
         var items = Enumerable.Range(0, 3)
-            .Select(i => PostMedia.Create(MediaAssetId.New(), i == 1 ? MediaKind.Video : MediaKind.Image, $"https://res.cloudinary.com/demo/image/upload/{i}.jpg", i == 1 ? "https://p/p.jpg" : null, 100 + i, 200 + i, i == 1 ? 3.5 : null))
+            .Select(i => PostMedia.Create(MediaAssetId.New(), i == 1 ? MediaKind.Video : MediaKind.Image, $"https://res.cloudinary.com/demo/image/upload/{i}.jpg", i == 1 ? "https://p/p.jpg" : null, 100 + i, 200 + i, i == 1 ? 3.5 : null, 500 + i))
             .ToList();
         var post = Post.Create(Owner, "with media", media: items);
 
@@ -255,7 +255,7 @@ public sealed class MediaAssetRepositoryTests : IDisposable
         {
             loaded.Media.Select(m => m.Position).Should().Equal(0, 1, 2);
             loaded.Media.Select(m => m.MediaId).Should().Equal(items.Select(i => i.MediaId));
-            loaded.Media[1].Should().Match<PostMedia>(m => m.Kind == MediaKind.Video && m.PosterUrl == "https://p/p.jpg" && m.DurationSeconds == 3.5);
+            loaded.Media[1].Should().Match<PostMedia>(m => m.Kind == MediaKind.Video && m.PosterUrl == "https://p/p.jpg" && m.DurationSeconds == 3.5 && m.Bytes == 501);
         }
     }
 

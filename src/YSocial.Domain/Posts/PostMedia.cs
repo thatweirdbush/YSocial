@@ -15,12 +15,13 @@ public sealed class PostMedia
     public int Width { get; private set; }
     public int Height { get; private set; }
     public double? DurationSeconds { get; private set; }
+    public long Bytes { get; private set; }
 
 #pragma warning disable CS8618
     private PostMedia() { }
 #pragma warning restore CS8618
 
-    private PostMedia(MediaAssetId mediaId, MediaKind kind, string url, string? posterUrl, int width, int height, double? durationSeconds)
+    private PostMedia(MediaAssetId mediaId, MediaKind kind, string url, string? posterUrl, int width, int height, double? durationSeconds, long bytes)
     {
         MediaId = mediaId;
         Kind = kind;
@@ -29,10 +30,11 @@ public sealed class PostMedia
         Width = width;
         Height = height;
         DurationSeconds = durationSeconds;
+        Bytes = bytes;
     }
 
-    public static PostMedia Create(MediaAssetId mediaId, MediaKind kind, string url, string? posterUrl, int width, int height, double? durationSeconds)
-        => new(mediaId, kind, url, posterUrl, width, height, durationSeconds);
+    public static PostMedia Create(MediaAssetId mediaId, MediaKind kind, string url, string? posterUrl, int width, int height, double? durationSeconds, long bytes)
+        => new(mediaId, kind, url, posterUrl, width, height, durationSeconds, bytes);
 
     // Position = index in the create request, assigned by the owning post
     internal void Place(int position) => Position = position;

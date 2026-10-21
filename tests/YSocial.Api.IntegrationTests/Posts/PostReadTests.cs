@@ -16,7 +16,7 @@ public class PostReadTests(ApiFixture fixture) : ApiTestBase(fixture)
     private static readonly string[] PostFields =
     [
         "id", "kind", "postId", "content", "createdAt", "isEdited", "likesCount", "commentsCount",
-        "isLikedByCurrentUser", "isBookmarkedByCurrentUser", "user", "visibility"
+        "isLikedByCurrentUser", "isBookmarkedByCurrentUser", "user", "visibility", "media"
     ];
 
     private static string PostUrl(Guid id) => $"/api/posts/{id}";
@@ -55,7 +55,7 @@ public class PostReadTests(ApiFixture fixture) : ApiTestBase(fixture)
         user.GetProperty("username").GetString().Should().Be("test_user");
         user.GetProperty("displayName").GetString().Should().Be("test_user");
         user.GetProperty("isVerified").GetBoolean().Should().BeFalse();
-        body.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(PostFields, "posts carry neither parentId nor imageUrl when absent");
+        body.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(PostFields, "posts carry neither parentId nor imageUrl when absent, but always media (D33)");
     }
 
     [Fact]
