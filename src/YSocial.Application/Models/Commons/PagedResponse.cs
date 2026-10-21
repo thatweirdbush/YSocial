@@ -20,3 +20,10 @@ public record PagedResponse<T>(IReadOnlyList<T> Items, int Page, int PageSize, i
 /// </summary>
 public sealed record UserPostsPageDto(IReadOnlyList<PostDto> Items, int Page, int PageSize, int TotalCount, bool Locked)
     : PagedResponse<PostDto>(Items, Page, PageSize, TotalCount);
+
+/// <summary>
+/// <c>GET /api/tags/{tag}/posts</c>: <see cref="Tag"/> = most used casing of the tag over ALL matching visible posts
+/// (echo of the input without <c>#</c> when none).
+/// </summary>
+public sealed record TagPostsPageDto(IReadOnlyList<PostDto> Items, int Page, int PageSize, int TotalCount, string Tag)
+    : PagedResponse<PostDto>(Items, Page, PageSize, TotalCount);

@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using YSocial.Application.CQRS.Behaviors.Logging;
 using YSocial.Application.CQRS.Behaviors.Metrics;
 using YSocial.Application.CQRS.Behaviors.UnitOfWork;
@@ -19,6 +20,8 @@ public static class DependencyInjection
         services.AddScoped<Features.UserRelations.GetFollowRequests.AccessibleFollowRequests>();
         services.AddScoped<Features.Notifications.NotificationPublisher>();
         services.AddScoped<Features.Notifications.AccessibleNotifications>();
+
+        services.TryAddSingleton(TimeProvider.System);
 
         // Fluent Validation
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
