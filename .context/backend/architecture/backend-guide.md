@@ -131,7 +131,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ### 6.1 JWT (`Api/Program.cs`, `Infrastructure/Identity/JwtProvider.cs`)
 - Scheme `JwtBearer`; validates issuer, audience, lifetime & signing key (HS256, symmetric); `DefaultMapInboundClaims = false` (claim names kept as issued)
-- **Claims:** `sub` = AccountId | `user_id` = UserId (profile) | `email` | `jti`; no role claim, no profile username
+- **Claims:** `sub` = AccountId | `user_id` = UserId (profile) | `email` | `jti` | `sid` = id of refresh token issued with the access token (login, refresh, switch; D30); no role claim, no profile username
 - **Lifetime:** access token 15 min (`Jwt:AccessTokenMinutes`); refresh token 7 days (`Account.DefaultRefreshTokenExpiryDays`)
 - **No revocation check:** issued access tokens stay valid after logout/rotation/account delete/password change until expiry (D6, accepted; <= 15 min window); no per-request account or user lookup
 - **SignalR:** token accepted from query `access_token` only for paths starting `/hubs`
@@ -139,7 +139,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Secret:** no fallback outside Development (`JwtSettings`, §4; shipped dev key & old hard-coded key are rejected there); `Production_MissingJwtSecret_FailsStartup` pins it; `appsettings.Development.json` is git-ignored, so Development key lives in code
 
 ### 6.2 `IUserContext` (`Infrastructure/Identity/UserContext.cs`)
-- `UserId` <- claim `user_id`; `AccountId` <- claim `sub`; `Email`; `IsAuthenticated`
+- `UserId` <- claim `user_id`; `AccountId` <- claim `sub`; `SessionId` <- claim `sid` (`Guid.Empty` when missing: no `isCurrent`); `Email`; `IsAuthenticated`
 - Missing/invalid claim -> `Guid.Empty` (no throw)
 - **Viewer identity for reads:** `UserContextExtensions.GetViewerId()` = `UserId?` (null = anonymous); NEVER `AccountId`
 
@@ -147,7 +147,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 | Surface | `[Authorize]` | Handler `IsAuthenticated` check |
 |---|---|---|
-| `IdentitiesController` | `DELETE account` only | register, login, refresh-token, logout, forgot/reset: anonymous by design |
+| `IdentitiesController` | `DELETE account`, `GET sessions`, `DELETE sessions/{id}` | register, login, refresh-token, logout, forgot/reset: anonymous by design |
 | `PostsController` | POST, PUT, DELETE, restore, share-link | yes (share-link: none) |
 | `PostsController` | GET `{id}`, GET `user/{userId}` | anonymous reads; optional viewer from JWT |
 | `ThreadsController` | none | anonymous read; optional viewer |
@@ -166,7 +166,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Delete/restore of posts & comments:** `InteractionGuard.IsPostHiddenFromAsync` / `IsCommentHiddenFromAsync` answer 404 BEFORE ownership 403 for outsiders (hidden, blocked or deleted target); participants (author, post owner) still reach domain rules (403 only for visible targets)
 
 ### 6.4 Session lifecycle
-- **Login:** `LoginCommand(LoginId, Password, DeviceId)`; `LoginId` = email | phone | username (heuristics: contains `@` -> email; leading `+` or digits/space/dash -> phone; else username); profile used for token = profile whose username equals `LoginId`, else default profile (`UserProfileService.ResolveProfile`)
+- **Login:** `LoginCommand(LoginId, Password, DeviceId, UserAgent?)` (`UserAgent` from `User-Agent` header, controller-set); `LoginId` = email | phone | username (heuristics: contains `@` -> email; leading `+` or digits/space/dash -> phone; else username); profile used for token = profile whose username equals `LoginId`, else default profile (`UserProfileService.ResolveProfile`)
   - **Order (D3):** account lookup -> password verify (unknown account runs 1 dummy bcrypt verify) -> only then `EnsureCanLogin` (`403 AccountInactive`) -> profile resolve -> token
   - **Failures:** unknown account, deleted account & wrong password -> identical `401 InvalidCredentials`; inactive account + wrong password -> 401 (state revealed ONLY to credential holder)
   - Response `LoginResponse(AccessToken, RefreshToken, RefreshTokenExpiry)`; **no user id/profile in body** -> FE decodes `user_id` from JWT (or calls `GET /api/users/me`)
@@ -175,6 +175,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
   - **Purge:** expired/revoked tokens dropped on next login, EXCEPT rotated tokens whose family still has active member (so logout of old token still finds it)
 - **Refresh (D5):** `POST /api/identities/refresh-token {refreshToken}` anonymous -> 200 `LoginResponse`; token must exist, be active (not expired/revoked/rotated), account active & not deleted, bound profile exists & not deleted -> rotate (old revoked, `ReplacedByTokenId` set) else `401 InvalidRefreshToken`; stays bound to same profile
 - **Logout:** `POST /api/identities/logout {refreshToken}` anonymous; ALWAYS 204 for active, unknown, revoked, expired or rotated tokens (empty body -> 400 `ValidationFailed`); rotated token -> its active descendants are revoked too (logout ends session it names); issued access tokens stay valid until expiry
+- **Sessions (D30):** session = token family; `Account.GetSessions()` = 1 per active head, newest `LastTokenIssuedAt` first (ties: root `CreatedAt`, head id); `CreatedAt` of token is set once, so root = sign-in, head = last token issue (login/refresh/switch, NOT activity); `RevokeSession(id)` resolves ANY family member id, false = id not in account (404), true also for ended family; `BelongsToSession` backs `isCurrent`; revoke ends refresh only, issued access token valid until expiry (§6.1); `GET /api/identities/sessions`, `DELETE /api/identities/sessions/{id}` ([Authorize])
 - **Switch profile:** `PUT /api/users/profiles/switch {profileId, refreshToken}` ([Authorize]): foreign, deleted or unknown profile -> 403 `ProfileNotOwned` (no id probing); token of another account / inactive -> 401 `InvalidRefreshToken`; rotation binds successor to target profile
 - **Password reset:** `forgot-password` always 204, also for unknown ids; OTP 6 digits, bcrypt-hashed, 15 min, max 5 attempts; delivery = `MockEmailSender`/`MockSmsSender` (log only, includes OTP; OPEN debt T4.3); wrong/missing OTP -> 400 `InvalidOtp`, attempts exhausted -> 400 `OtpAttemptsExceeded`; unknown loginId on reset -> 400 `BusinessRuleViolated`; reset revokes all refresh tokens
 - **Register:** `RegisterAccountCommand(Email, Password, Username, PhoneNumber?)` -> 201 `{accountId}`, no tokens; validator = FORMAT only (username `^[a-z0-9._]{3,30}$`, email, password >= 6 -> 400); handler = uniqueness BEFORE account creation (`409 EmailTaken`, `409 UsernameTaken`; case-insensitive; deleted accounts/profiles keep their email/username reserved) -> no orphan account; username flows via `AccountCreatedEvent` to first (default) profile
@@ -193,10 +194,11 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | switch profile | `SwitchProfileCommandHandler` | lock first (id from JWT), then load, rotate, commit |
 | reset password | `ResetPasswordCommandHandler` | untracked id lookup, lock, load; wrong OTP commits attempt counter before throwing |
 | delete account | `DeleteAccountCommandHandler` | lock first, load, `Delete`, commit (profiles soft-deleted by event in same save) |
+| revoke session | `RevokeSessionCommandHandler` | lock first (id from JWT), load, `RevokeSession`, commit INSIDE lock; conflict NOT caught: 409 `Conflict` (client retries) |
 
 - **Rule for new code (MUST):** (1) lookups BEFORE lock are untracked (tracked pre-lock load would pin stale tokens in identity map), (2) take lock, THEN load `Account` by id, (3) `unitOfWork.CommitAsync` INSIDE lock (release happens when handler returns, i.e. BEFORE `TransactionBehavior` commits: next request would read old state); review = grep `RefreshToken` mutators vs `IAccountSessionLock` usage
 - **Optimistic concurrency (multi-instance safety net):** `Account` has shadow int concurrency token `Version`, bumped by `YSocialDbContext.SaveChanges` whenever account, refresh token or reset token changes; concurrent writer fails with `DbUpdateConcurrencyException` -> `UnitOfWork` throws `ConcurrencyConflictException`; on 1 instance session lock makes this unreachable
-- **Conflict outcome per endpoint (frozen MAP statuses hold):** refresh & switch -> 401 `InvalidRefreshToken`, logout & forgot-password -> 204 (handlers catch exception around their in-lock commit); login, reset password, delete account (& any unlocked path) -> 409 `Conflict` via `GlobalExceptionHandler` (client retries). Pinned by `SessionConflictTests`
+- **Conflict outcome per endpoint (frozen MAP statuses hold):** refresh & switch -> 401 `InvalidRefreshToken`, logout & forgot-password -> 204 (handlers catch exception around their in-lock commit); login, reset password, delete account, revoke session (& any unlocked path) -> 409 `Conflict` via `GlobalExceptionHandler` (client retries). Pinned by `SessionConflictTests`
 - **Concurrent outcomes (pinned by race tests, 50x barrier, SQLite; refresh race also verified on real PostgreSQL):** 2x refresh same token -> exactly 1 x 200, other 401 | refresh + logout same token -> logout always 204, 0 active tokens in family afterwards | login + login at cap -> active never > 5 | switch + refresh same token -> exactly 1 rotation | reset-password + refresh -> no active token survives
 - **Scope limit:** lock is process-local; across instances `Version` token turns races into outcomes above instead of corruption (winner is not guaranteed to be "first" caller)
 
@@ -270,7 +272,7 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 
 ## 9. Implementation boundaries (what exists vs not)
 - **Use-case-less domain behavior (no handler/endpoint):** `Post.UpdateSettings`, `Account.Deactivate/Activate/AssignRole`, `Account.ChangePassword` (only via reset)
-- **Not found (no code):** search, hashtags/mentions, trending, reposts, pin, hide-like-count, media upload, DMs, session list, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
+- **Not found (no code):** search, hashtags/mentions, trending, reposts, pin, hide-like-count, media upload, DMs, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
 - **Planned (comments/dead code only):** cache/search-index hooks, push-notification service
 
 ## 10. Known limitations & technical debt (single live register)
@@ -294,13 +296,13 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 |---|---|---|
 | 21 | Notification push: failed processing retried (max 5) without backoff; no reply preview text | minor |
 | 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
-| 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change, session list | design (re-activation, session identity, username reuse) |
+| 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change (session list done, D30) | design (re-activation, username reuse) |
 | 27 | Features without BE: search, tags, trending, suggestions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
 - **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
 
 ## 11. Tests
-- 3 test projects + `TestSupport`, 618 tests, all passing: `Domain.UnitTests` 77, `Application.UnitTests` 73 (incl. persistence: repos, model snapshot guard, seeders, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 468 (incl. `Persistence/`: atomic save, rollback, restart durability, 409, forgot-password vs refresh race)
+- 3 test projects + `TestSupport`, 656 tests, all passing: `Domain.UnitTests` 88, `Application.UnitTests` 74 (incl. persistence: repos, model snapshot guard, seeders, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 494 (incl. `Persistence/`: atomic save, rollback, restart durability, 409, forgot-password vs refresh race)
 - Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth); data layer runs on SQLite there, real PostgreSQL is verified manually (§7.3)
 

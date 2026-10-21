@@ -9,8 +9,8 @@ roadmap: .context/roadmap.md
 
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
-- Decisions D1-D28 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
-- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 468 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
+- Decisions D1-D30 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
+- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 494 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
 - Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE persists to PostgreSQL via EF Core (D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (BG §10); security hardening T4.3 done
 
@@ -21,11 +21,11 @@ roadmap: .context/roadmap.md
 | FE integration state | **FE calls BE through `src/lib/api-client.ts` (JWT, single-flight refresh) & `src/lib/signalr-client.ts`**; each `features/*/services/*.ts` dispatches per function to `*.real.ts` adapter by `isRealApi(slice)` (default: all real); mock adapters (`mockDelay`, `src/mocks/*`) stay for BE-less features & mock mode | `fe-be-integration.md`, plan `2026-10-16-fe-be-integration.md` |
 | Base URL | `https://localhost:49895` (FE default, override via `NEXT_PUBLIC_API_BASE_URL`; BE `launchSettings.json` matches); BE forces HTTPS redirect; CORS origin from `Cors:AllowedOrigins` (dev `http://localhost:3000`), credentials allowed | BG §8 |
 | Auth header | `Authorization: Bearer <accessToken>`; SignalR via `?access_token=` | `Program.cs` `OnMessageReceived` |
-| Actor id | decode JWT claim **`user_id`** (profile id), or read `GET /api/users/me`; login body has no user info; `sub` = account id, NEVER sent to social routes | `JwtProvider.cs`, `LoginResponse` |
+| Actor id | decode JWT claim **`user_id`** (profile id), or read `GET /api/users/me`; login body has no user info; `sub` = account id, NEVER sent to social routes; `sid` = id of refresh token issued with this access token (session marker, D30) | `JwtProvider.cs`, `LoginResponse` |
 | Token lifetimes | access 15 min (`Jwt:AccessTokenMinutes`); refresh 7 days, rotated on every refresh & switch; max 5 active sessions per account (6th login evicts oldest); logout does NOT invalidate issued access tokens (valid until expiry) | BG §6 |
 | Refresh contract | `POST /api/identities/refresh-token {refreshToken}` anonymous -> `{accessToken, refreshToken, refreshTokenExpiry}`; any failure -> 401 `InvalidRefreshToken`; matches FE `api-client.ts` (route, body, fields) | `RefreshTests` |
 | **Cross-tab refresh (FE done, CP1)** | refresh tokens are single-use: 2 tabs refreshing same token -> exactly 1 x 200, loser gets 401 `InvalidRefreshToken`. FE implements cross-tab single-flight (`navigator.locks`) and, after acquiring lock, re-reads stored refresh token & skips call if already rotated (adoption) | `Refresh_ConcurrentSameToken_ExactlyOne200` |
-| JSON | camelCase; request enums = integers (`gender`, `targetType`), read DTO enums = lowercase strings; ids GUID strings; `DateTime` ISO UTC; `PostDto.parentId`/`imageUrl` omitted when null, other nullable fields (`bio`, `avatarUrl`, `coverUrl`, author `avatarUrl`) serialize as `null` (FE types must accept `null`, not only `undefined`) | BG §8 |
+| JSON | camelCase; request enums = integers (`gender`, `targetType`), read DTO enums = lowercase strings; ids GUID strings; `DateTime` ISO UTC; `MeDto.dateOfBirth` = `yyyy-MM-dd` (D29); `PostDto.parentId`/`imageUrl` omitted when null, other nullable fields (`bio`, `avatarUrl`, `coverUrl`, author `avatarUrl`) serialize as `null` (FE types must accept `null`, not only `undefined`) | BG §8 |
 | Error body | RFC 7807 `ProblemDetails` on EVERY error: `type, title, status, detail, instance, code, traceId`; validation adds `errors: { field: string[] }` (camelCase keys); FE switches on `code` (list below) | BG §5, `ErrorPipelineTests` |
 | Pagination | offset `page` (1-based) & `pageSize` (default 10; follow lists, follow requests, block & mute lists, notifications 20; max 50); invalid -> 400 `ValidationFailed`; page beyond last -> 200 empty `items` + real metadata; FE `nextPage = hasNextPage ? page + 1 : undefined` | `PaginationTests` |
 | Id types | profile `UserId` everywhere (authors, targets, viewer); AccountId only in `register` response | DM §1 |
@@ -85,18 +85,20 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
 | `POST /api/identities/register` | anon | `{email, password(>=6), username(^[a-z0-9._]{3,30}$), phoneNumber?}` -> 201 `{accountId}` | 400 `ValidationFailed` (+`errors`); 409 `EmailTaken` / `UsernameTaken`; no tokens (login next); no orphan account on failure | `auth-service.register` (real adapter, then auto-login); FE username pattern matches |
-| `POST /api/identities/login` | anon | `{loginId, password, deviceId}` -> 200 `{accessToken, refreshToken, refreshTokenExpiry}` | `loginId` = email/phone/username; 401 `InvalidCredentials` (unknown/deleted/wrong password identical); 403 `AccountInactive` (valid password only); 400 `ValidationFailed` | `auth-service.login` (real adapter bootstraps viewer from `GET me`); FE identity step validates format only |
+| `POST /api/identities/login` | anon | `{loginId, password, deviceId}` -> 200 `{accessToken, refreshToken, refreshTokenExpiry}` | `loginId` = email/phone/username; `User-Agent` header stored per session (max 256, header only, never body); 401 `InvalidCredentials` (unknown/deleted/wrong password identical); 403 `AccountInactive` (valid password only); 400 `ValidationFailed` | `auth-service.login` (real adapter bootstraps viewer from `GET me`); FE identity step validates format only |
 | `POST /api/identities/refresh-token` | anon | `{refreshToken}` -> 200 same as login | 401 `InvalidRefreshToken`; 400 empty body; single-use: see §1 cross-tab | `token-refresh.ts` via `api-client.ts` (cross-tab `navigator.locks` single-flight, rotation adoption) |
 | `POST /api/identities/logout` | anon | `{refreshToken}` -> 204 | ALWAYS 204 for active/unknown/revoked/expired/rotated; revokes token family; 400 empty body | `auth-service.logout` (best-effort POST, then local clear) |
+| `GET /api/identities/sessions` | JWT | -> 200 `SessionDto[]` newest `lastTokenIssuedAt` first | 401; 1 entry per active token family; `isCurrent` = JWT `sid` in family (tokens without `sid` -> none current); D30 | `settings` sessions section |
+| `DELETE /api/identities/sessions/{id}` | JWT | -> 204 | `id` = ANY token id of one of THIS account's families (rotated id resolves); unknown/foreign -> 404 `NotFound` (no probing); ended family -> 204; revoking current = logout; ends REFRESH only: revoked device's access token valid until expiry (<= 15 min, D6); multi-instance race -> 409 `Conflict` (retry); D30 | `settings` sessions section |
 | `POST /api/identities/forgot-password` | anon | `{loginId}` -> 204 | always 204 (also unknown ids); OTP only delivered to mock senders (logged); FE cannot receive | `auth-service.forgotPassword` |
 | `POST /api/identities/reset-password` | anon | `{loginId, otp(6), newPassword(>=6)}` -> 204 | 400 `InvalidOtp` / `OtpAttemptsExceeded` / `ValidationFailed` / `BusinessRuleViolated` (unknown loginId); success revokes all refresh tokens | `auth-service.resetPassword` |
-| `DELETE /api/identities/account` | JWT | -> 204 | 401; soft-deletes account + profiles; existing access token works until expiry | `settings` danger zone (not built) |
+| `DELETE /api/identities/account` | JWT | -> 204 | 401; soft-deletes account + profiles; existing access token works until expiry | `settings` danger section (Phase 4) |
 
 ### 2.2 Users & profile (`UsersController`)
 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
-| `GET /api/users/me` | JWT | -> 200 `MeDto` | 401; ONLY place exposing `email` & account `profiles` (switcher) | `ensureViewerUser` |
+| `GET /api/users/me` | JWT | -> 200 `MeDto` | 401; ONLY place exposing `email`, account `profiles` (switcher) & owner-only `gender` (`unspecified|male|female|other`), `dateOfBirth` (`yyyy-MM-dd`|null) (D29); NEVER on `UserProfileDto` | `ensureViewerUser` |
 | `GET /api/users/{id}` | anon | -> 200 `UserProfileDto` | 404 unknown/deleted/blocked either way; private non-follower = 200 same field set | `user-service.fetchUser` |
 | `GET /api/users/by-username/{username}` | anon | -> 200 `UserProfileDto` | case-insensitive; 404 as above; 400 over 30 chars | `fetchUserByUsername`, route `/[@username]` |
 | `GET /api/users/{id}/followers` | anon | `?page&pageSize(20)&query` -> 200 `FollowListPageDto` | accepted edges only, newest first; private non-permitted = 200 `locked: true` (`totalCount` 0); 404 blocked/deleted; `query` <= 50 chars (username or display name, case & diacritics insensitive) | `fetchFollowList` |
@@ -107,8 +109,8 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/users/me/blocks` | JWT | `?page&pageSize(20)&query` -> 200 `PagedResponse<UserProfileDto>` (items `isBlocked: true`, no `locked`) | newest block first; deleted users omitted; `query` = RelationSearch (max 50, applied before paging) | `fetchBlockedUsers` |
 | `GET /api/users/me/mutes` | JWT | `?page&pageSize(20)&query` -> 200 `PagedResponse<UserProfileDto>` (items `isMuted: true`) | newest mute first (`MutedAt`); dormant mutes included; blocked/deleted users excluded BEFORE paging & `totalCount`; `query` <= 50 chars (relation search rule); 400 bad paging; 401 | `fetchMutedUsers` |
 | `PUT /api/users/profiles/me/privacy` | JWT | `{isPrivate}` -> 200 `{acceptedCount}` | going public accepts ONLY pending requests (count = transitions); going private/same value -> 0 | `setPrivateAccount` |
-| `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, coverUrl?, gender?(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; omitted `gender`/`dateOfBirth` keep stored values (read DTO exposes neither); 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; urls are plain strings (no upload API) | `updateProfile` |
-| `PUT /api/users/profiles/switch` | JWT | `{profileId, refreshToken}` -> 200 `LoginResponse` | rotates refresh token, new JWT; 403 `ProfileNotOwned` (foreign/deleted/unknown profile); 401 `InvalidRefreshToken` | profile switcher (roadmap 2.7) |
+| `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, coverUrl?, gender?(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; omitted `gender`/`dateOfBirth` keep stored values; request `dateOfBirth` = date-time, only date part stored (FE sends `yyyy-MM-ddT00:00:00Z`), future = 400 `ValidationFailed` (D29) (read DTO exposes neither); 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; urls are plain strings (no upload API) | `updateProfile` |
+| `PUT /api/users/profiles/switch` | JWT | `{profileId, refreshToken}` -> 200 `LoginResponse` | rotates refresh token, new JWT; 403 `ProfileNotOwned` (foreign/deleted/unknown profile); 401 `InvalidRefreshToken` (replayed token = 401, never a second rotation: at-most-once); new JWT carries new `sid` | `auth-service.switchProfile` (`withRefreshLock`, Phase 4) |
 | `PATCH /api/users/profiles/{id}/default` | JWT | -> 204 | 403 `ProfileNotOwned`; 400 `AccountRequiresProfile` | none |
 | `DELETE /api/users/profiles/{id}` | JWT | -> 204 | 404 foreign/unknown; 400 `CannotDeleteDefaultProfile` / `AccountRequiresProfile` | none |
 
@@ -223,7 +225,8 @@ UserProfileDto:                # SAME field set for every viewer incl. owner (no
   isMuted: bool                # viewer's mute flag (dormant flag included)
   isBlocked: bool              # true ONLY inside GET /api/users/me/blocks
   isBlockedBy: bool            # ALWAYS false (any such read is 404); kept for FE type compat
-MeDto: { profile: UserProfileDto, email, profiles: [{ id, username, displayName, avatarUrl|null, isDefault }] }
+MeDto: { profile: UserProfileDto, email, profiles: [{ id, username, displayName, avatarUrl|null, isDefault }], gender: "unspecified"|"male"|"female"|"other", dateOfBirth: "yyyy-MM-dd"|null }
+SessionDto: { id (active head token id), userAgent|null, profileUsername|null, createdAt (sign-in), lastTokenIssuedAt (last login/refresh/switch, NOT activity), isCurrent }
 PagedResponse<T>: { items: T[], page, pageSize, totalCount, hasNextPage }
 UserPostsPageDto: PagedResponse<PostDto> + { locked: bool }
 FollowListPageDto: PagedResponse<UserProfileDto> + { locked: bool }
@@ -268,7 +271,9 @@ SharePostLinkResponse: { postId, sharedUrl }
 | Notifications list, unread, mark read, realtime | Done | HTTP API + push of 5 types; no reply preview text |
 | Notification filter tabs (like/reply/follow), bounded mark-all, per-kind preferences | Done | D26-D28; Mentions tab unsupported (no mention model, mock only) |
 | Profile switcher | Done | `GET me` + `PUT profiles/switch` (replace both tokens, reset viewer stores) |
-| Settings: sessions, language, deactivate | Unsupported | delete account exists |
+| Settings: account (gender, birth date), sessions list & remote logout, delete account | Done | D29, D30; `DELETE account` existed |
+| Settings: deactivate, who can reply / mention | Unsupported | login rejects inactive accounts & no reactivation path (BG §10 #26); no account reply policy or mention model |
+| Settings: appearance, language, content display, time usage | FE-only | local per device, no BE |
 | DMs, report, onboarding | Unsupported | no code |
 
 ## 5. Integration risks (closed)
@@ -317,6 +322,8 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D26 | Notification list `kind` filter: `like\|reply\|follow` (case-insensitive), order access filter -> kind -> count -> page, `unreadCount` overall, blank = all, unknown = 400 `ValidationFailed`; no new code | Implemented |
 | D27 | Notification preferences: per-profile `{likes, replies, follows}` (owned VO on `User`, migration default `true`), full-replace PUT with required fields, disabled kind skipped at publish (no row, no push, no backfill) | Implemented |
 | D28 | Bounded read-all: `PUT read-all?upToId` marks that notification & older only (id not timestamp: JS ms vs Postgres microseconds); 404 unknown, 403 foreign, sender access filter skipped for lookup | Implemented |
+| D29 | Owner-only demographics: `GET me` -> `MeDto.gender` (read string union) & `dateOfBirth` (`yyyy-MM-dd`); never on `UserProfileDto` (D15 same field set for all viewers); `PUT profiles/me` unchanged (REPLACE semantics for displayName/bio/avatar/cover, omitted gender/dob keep stored); wire asymmetry: request `dateOfBirth` date-time, response `date` (FE concatenates `T00:00:00Z`, BE stores date part, no timezone shift) | Implemented (BE) |
+| D30 | Sessions: session = token family (`ReplacedByTokenId` chain), represented by active head token; `GET sessions` / `DELETE sessions/{id}`; JWT claim `sid` = refresh token id issued with the access token (login, refresh, switch); `RefreshToken.UserAgent` (max 256) from header at login, copied on rotation; `lastTokenIssuedAt` = head `CreatedAt` (not activity); revoke under `IAccountSessionLock` + `Account.Version` (409 on cross-instance race); revoked device's access token valid until expiry (D6); no new error codes | Implemented (BE) |
 
 - **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 
