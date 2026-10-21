@@ -12,6 +12,11 @@ interface UIState {
   isCollapsed: boolean;
   /** Global post composer dialog (rendered once by `MainLayout`). */
   composerOpen: boolean;
+  /**
+   * Video sound preference of THIS session (never persisted): starts muted, the toggle applies to every video that
+   * comes into view next. Autoplay with sound would be blocked by browsers anyway.
+   */
+  videoMuted: boolean;
   actions: {
     setLocale: (locale: LocaleType) => void;
     /** Applies the persisted / browser locale. Call once after mount on the client. */
@@ -20,6 +25,8 @@ interface UIState {
     toggleSidebar: () => void;
     openComposer: () => void;
     setComposerOpen: (open: boolean) => void;
+    setVideoMuted: (muted: boolean) => void;
+    toggleVideoMuted: () => void;
   };
 }
 
@@ -40,6 +47,7 @@ export const useUIStore = create<UIState>((set) => ({
   locale: DEFAULT_LOCALE,
   isCollapsed: false,
   composerOpen: false,
+  videoMuted: true,
   actions: {
     setLocale: (locale) => {
       try {
@@ -54,6 +62,8 @@ export const useUIStore = create<UIState>((set) => ({
     toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
     openComposer: () => set({ composerOpen: true }),
     setComposerOpen: (composerOpen) => set({ composerOpen }),
+    setVideoMuted: (videoMuted) => set({ videoMuted }),
+    toggleVideoMuted: () => set((state) => ({ videoMuted: !state.videoMuted })),
   },
 }));
 
@@ -61,4 +71,5 @@ export const useUIStore = create<UIState>((set) => ({
 export const useLocale = () => useUIStore((state) => state.locale);
 export const useIsCollapsed = () => useUIStore((state) => state.isCollapsed);
 export const useComposerOpen = () => useUIStore((state) => state.composerOpen);
+export const useVideoMuted = () => useUIStore((state) => state.videoMuted);
 export const useUIActions = () => useUIStore((state) => state.actions);

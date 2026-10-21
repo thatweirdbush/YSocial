@@ -501,5 +501,13 @@
     "deleteAccountType": "Type your username to confirm",
     "deleteAccountConfirm": "Delete forever",
     "deleteAccountMismatch": "Username does not match"
+  },
+  "media": {
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "play": "Play",
+    "pause": "Pause",
+    "openImage": "Open image {n}",
+    "openVideo": "Open video {n}"
   }
 }

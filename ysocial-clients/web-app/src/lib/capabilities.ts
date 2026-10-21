@@ -9,6 +9,7 @@ export type Capability =
   | "pin"
   | "hideLikeCount"
   | "multiImage"
+  | "mediaUpload"
   | "postAudience"
   | "profileRepliesMedia"
   | "newPostsPill"
@@ -44,7 +45,9 @@ export const CAPABILITY_RULES: Record<Capability, (slices: Slices) => boolean> =
   suggestions: unlessGraphPending,
   pin: unlessContentReal,
   hideLikeCount: unlessContentReal,
-  multiImage: unlessContentReal,
+  // The grid renders `media[]` / `imageUrls` in every mode; uploading needs the real BE (D33)
+  multiImage: () => true,
+  mediaUpload: (slices) => slices.has("content"),
   postAudience: unlessContentReal,
   profileRepliesMedia: unlessContentReal,
   newPostsPill: unlessContentReal,

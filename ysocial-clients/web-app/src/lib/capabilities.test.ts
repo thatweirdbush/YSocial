@@ -6,7 +6,6 @@ const BE_LESS: Capability[] = [
   "search",
   "pin",
   "hideLikeCount",
-  "multiImage",
   "postAudience",
   "profileRepliesMedia",
   "newPostsPill",
@@ -15,7 +14,8 @@ const BE_LESS: Capability[] = [
 ];
 const GRAPH: Capability[] = ["followLists", "blockUi", "closeFriendsUi", "privacyUi", "followRequestsUi", "suggestions"];
 /** Real discovery endpoints exist (D31): on in every state */
-const ALWAYS: Capability[] = ["tags", "trending"];
+/** multiImage: the grid renders `media[]`/`imageUrls` in every mode; the upload itself is `mediaUpload` */
+const ALWAYS: Capability[] = ["tags", "trending", "multiImage"];
 /** Need a real identity (no mock adapter): follow the auth slice only */
 const AUTH_ONLY: Capability[] = ["accountUi", "profileSwitcher"];
 
@@ -32,7 +32,7 @@ const STATES: Array<[string, boolean, boolean, boolean]> = [
 
 describe("capability table", () => {
   it("covers exactly the known capabilities", () => {
-    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, ...ALWAYS, ...AUTH_ONLY, "muteUi", "notificationSettings", "mentionNotifications"].sort());
+    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, ...ALWAYS, ...AUTH_ONLY, "muteUi", "notificationSettings", "mentionNotifications", "mediaUpload"].sort());
   });
 
   it.each(STATES)("slices %j", (slices, content, graph, activity) => {
@@ -41,6 +41,7 @@ describe("capability table", () => {
     for (const capability of ALWAYS) expect(hasCapability(capability), capability).toBe(true);
     for (const capability of GRAPH) expect(hasCapability(capability), capability).toBe(!content || graph);
     for (const capability of AUTH_ONLY) expect(hasCapability(capability), capability).toBe(slices.includes("auth"));
+    expect(hasCapability("mediaUpload"), "mediaUpload").toBe(content);
     expect(hasCapability("muteUi")).toBe(!content || activity);
     expect(hasCapability("notificationSettings")).toBe(!content || activity);
     expect(hasCapability("mentionNotifications")).toBe(!content && !activity);
