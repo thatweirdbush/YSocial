@@ -84,7 +84,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 | Lifetime | Registrations |
 |---|---|
-| Singleton | `JwtSettings` (instance from `Program.cs`), `IJwtProvider`, `IPasswordHasher`, `IAccountSessionLock` (`AccountSessionLock`), `IUserIdProvider` |
+| Singleton | `JwtSettings` (instance from `Program.cs`), `IJwtProvider`, `IPasswordHasher`, `IAccountSessionLock` (`AccountSessionLock`), `IUserIdProvider`, `TimeProvider` (`TimeProvider.System`, replaced by tests that need a clock) |
 | Scoped | `YSocialDbContext` (also as `IDataStorage` / `IDomainEventsProvider` / `IPendingDomainEvents`), all 9 repos (`PostRepository`...), `IUserContext`, `IEmailSender`/`ISmsSender` (mocks), `INotificationOutboxService`, `IDomainEventsDispatcher`, `IUnitOfWork`, `IViewerAccessPolicy`, `UserProfileProjector`, `PostProjector`, `InteractionGuard`, `AccessibleFollowRequests`, `NotificationPublisher`, `AccessibleNotifications`, `NotificationOutboxProcessor`, validators (FluentValidation default) |
 | Transient | domain services `LikeToggleService`, `CommentPostingService`, `SavedItemToggleService`, `UserProfileService`, `UserRelationManager`; MediatR handlers (default) |
 | Hosted | `ProcessNotificationOutboxJob` (runs 1 `NotificationOutboxProcessor` batch every 1s; removed by test host) |
@@ -235,6 +235,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Queries:** set-based repo members (DM §7) translate to SQL; paging, ordering & policy filtering stay in memory (DEBT §10)
 - **Migrations:** `Infrastructure/Persistence/Migrations` (Npgsql SQL only); `ModelTests.Model_MatchesLatestMigrationSnapshot` fails when model changed without migration
 - **Seeds (`Persistence/Seeding`):** `CoreSeeder` = deterministic test baseline (3 accounts, 4 profiles, 2 posts, ids in `SeedIds`); `DevelopmentSeeder` = rich demo dataset (12 accounts / 13 profiles, 2 private, ~48 posts with images, threaded comments, likes, saves, follow graph with pending requests & close friends, 2 blocks, mutes, notifications; every stored counter matches rows); both idempotent, written directly without events, passwords NOT repeated here (see `SeedIds`); bcrypt work factor 4
+- **Discovery seed stage (`DiscoverySeeder`, D31/D32):** runs after the base stage on fresh AND already-seeded DBs, own sentinel `Account(100)`: removes the old stage 1 stock image URLs (seed ids + exact patterns only), adds 18 profiles (3 private), 72 tagged posts over 12 days, likes & a follow graph with mutuals; counters match rows; seeds no longer carry stock images (avatar/cover/post image null)
 - **Restart:** state & sessions survive restarts (refresh tokens are rows)
 - **Real DB verification:** Development run against hosted PostgreSQL: migrate + seed, login, feed, refresh rotation, concurrent refresh x6 -> exactly 1 x 200
 
@@ -272,7 +273,7 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 
 ## 9. Implementation boundaries (what exists vs not)
 - **Use-case-less domain behavior (no handler/endpoint):** `Post.UpdateSettings`, `Account.Deactivate/Activate/AssignRole`, `Account.ChangePassword` (only via reset)
-- **Not found (no code):** search, hashtags/mentions, trending, reposts, pin, hide-like-count, media upload, DMs, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
+- **Not found (no code):** search, mentions, reposts, pin, hide-like-count, media upload, DMs, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
 - **Planned (comments/dead code only):** cache/search-index hooks, push-notification service
 
 ## 10. Known limitations & technical debt (single live register)
@@ -290,6 +291,9 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 | 29 | Stored counters (likes, saves, followers) are read-modify-write without concurrency token (lost update under concurrent writers); duplicate like/follow race = unique-index violation = 500 | ACCEPTED (map to 409 when it shows up) |
 | 30 | Outbox poller is single-instance (no row lock / `SKIP LOCKED`): >1 instance may push row twice | ACCEPTED |
 
+| 31 | Discovery (D31, D32) loads window rows (`GetWithHashtagsSinceAsync`, 365 days max), every active profile & accepted edge (suggestions) and aggregates IN MEMORY; hashtag rows load only through explicit includes | DEBT: SQL group-by, cached suggestions |
+| 32 | Posts created before D31 have no tag rows until edited (no backfill job, no production data) | ACCEPTED |
+
 ### 10.2 Deferred (minor / waits on others)
 
 | # | Item | Waits on |
@@ -298,12 +302,12 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 | 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
 | 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change (session list done, D30) | design (re-activation, username reuse) |
 | 28 | Token families grow without bound while a session stays active (~96 rotations/day, ancestors kept by `RemoveExpiredTokens`); `GetSessions`/`FindRoot`/`BelongsToSession` scan the list per hop (quadratic). Fix: dictionaries per call + prune ancestors older than access lifetime (carry family sign-in time forward) | OPEN (found in settings review) |
-| 27 | Features without BE: search, tags, trending, suggestions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
+| 27 | Features without BE: search, mentions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
 - **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
 
 ## 11. Tests
-- 3 test projects + `TestSupport`, 656 tests, all passing: `Domain.UnitTests` 88, `Application.UnitTests` 74 (incl. persistence: repos, model snapshot guard, seeders, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 494 (incl. `Persistence/`: atomic save, rollback, restart durability, 409, forgot-password vs refresh race)
+- 3 test projects + `TestSupport`, 734 tests run, all passing (+3 PostgreSQL opt-in tests, skipped unless `YSOCIAL_TEST_POSTGRES` holds a disposable server's admin connection string): `Domain.UnitTests` 130, `Application.UnitTests` 81 (incl. persistence: repos, hashtag rows, model snapshot guard, seeders incl. discovery stage, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 523 (incl. `Discovery/`: trending, tag posts, suggestions)
 - Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth); data layer runs on SQLite there, real PostgreSQL is verified manually (§7.3)
 

@@ -30,7 +30,7 @@ updated: 2026-10-20
 |---|---|---|---|---|
 | `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`, `UserAgent` max 256; family = session, `SessionInfo`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens are child rows of aggregate (`RefreshTokens` / `PasswordResetTokens` tables, cascade); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
 | `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `NotificationPreferences` (VO: likes, replies, follows; default all on), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
-| `Post` | - | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
+| `Post` | `PostHashtag` (child rows `(PostId, Key)` + `Display`, not auto-loaded) | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
 | `Comment` | - | yes | `ICommentRepository` | nested via `ParentCommentId`; counts inline |
 | `Like` | - | no | `ILikeRepository` | polymorphic target (`LikeTargetType` Post/Comment) |
 | `SavedItem` | - | yes | `ISavedItemRepository` | polymorphic target (`SavedItemTargetType`) |
@@ -137,6 +137,7 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 
 ### 5.3 Post
 - `Create` (Public, AllowComments true, no input for either; text-only allowed, optional single `imageUrl`) -> `PostCreatedEvent` (log-only handler)
+- **Hashtags (D31):** `Create` & `UpdateContent` re-extract tags with `HashtagParser` (FE `lib/text.ts` parity, golden fixture `docs/fixtures/hashtag-parity.json`): `Key` = folded (NFD, marks dropped, `đ` -> `d`, lowercase), `Display` = first casing in the post, tag <= 50 UTF-16 units, <= 30 distinct per post; edit keeps surviving rows (display refreshed), drops missing, adds new, all in the content save; callers MUST load the post with `GetByIdWithHashtagsAsync` before editing
 - `UpdateContent` (author; text only; `ImageUrl` immutable) -> `PostUpdatedEvent` (no handler); non-author who cannot see post gets 404, who can see it gets 403
 - `Delete` (author) -> soft; hidden from every read; `PostDeletedEvent` -> saved items soft-removed in same request; comments & likes untouched
 - `Restore` (author, deleted) -> `PostRestoredEvent` (no handler); not-deleted -> 400 `PostNotDeleted`; saved items are not restored
@@ -197,8 +198,8 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 
 | Contract | Extra members | Notes |
 |---|---|---|
-| `IPostRepository` | `GetByAuthorIdAsync`, `GetByIdsAsync(ids)` (non-deleted only), `GetByAuthorIdsAsync(authorIds)`, `GetAllAsync()` | user posts & feed handlers filter via access policy, then order & page in memory |
-| `IUserRepository` | `IsEmailUniqueAsync` (all accounts incl. deleted), `IsUsernameTakenAsync` (case-insensitive, incl. soft-deleted), `GetByAccountIdAsync`, `GetByIdAndAccountIdAsync`, `GetByUsernameAsync` (case-insensitive, not deleted), `GetUsersByIdsAsync` (incl. deleted flag) | username & email stay reserved |
+| `IPostRepository` | `GetByAuthorIdAsync`, `GetByIdsAsync(ids)` (non-deleted only), `GetByAuthorIdsAsync(authorIds)`, `GetAllAsync()`, `GetByIdWithHashtagsAsync(id)` (tracked, tags included), `GetByHashtagKeyAsync(key)`, `GetWithHashtagsSinceAsync(since)` (tags included) | user posts & feed handlers filter via access policy, then order & page in memory |
+| `IUserRepository` | `IsEmailUniqueAsync` (all accounts incl. deleted), `IsUsernameTakenAsync` (case-insensitive, incl. soft-deleted), `GetByAccountIdAsync`, `GetByIdAndAccountIdAsync`, `GetByUsernameAsync` (case-insensitive, not deleted), `GetAllActiveAsync` (suggestion candidates), `GetUsersByIdsAsync` (incl. deleted flag) | username & email stay reserved |
 | `IAccountRepository` | `GetByEmail/Phone/Identifier`, `GetAccountWithProfilesByIdentifierAsync`, `GetByRefreshTokenAsync` (lock-free, any token state) | identifier heuristic in mock (BG §6.4) |
 | `IUserRelationRepository` | `GetRelationAsync(observer,target[,includeDeleted])`, `GetRelationsAsync(observer, targetIds)` (incl. soft-deleted, dormant flags), `GetByObserverAsync(observer)` (incl. soft-deleted), `GetAcceptedEdgesAsync(userIds)` (active accepted, both directions), `GetPendingRequestsAsync(target)` (unordered) | callers filter by access policy, order & page |
 | `IUserBlockRepository` | `IsBlockedAsync`, `GetBlockAsync`, `GetBlocksBetweenAsync`, `GetByObserverAsync(observer)`, `GetBlockedEitherWayAsync(userId, candidateIds)` (single set query, both directions) | block list = observer's own blocks |

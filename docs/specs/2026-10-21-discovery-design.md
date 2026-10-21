@@ -65,7 +65,7 @@ Out of scope (proposed, register in roadmap): search endpoint (`search` stays BE
 - Order: candidate filter -> score -> count -> page
 
 ## 3. Persistence
-- `PostHashtags` table (owned collection of `Post`, key `(PostId, Key)`, `Display` max 50, index on `Key`); migration `AddPostHashtags`
+- `PostHashtags` table (child rows of `Post`, regular entity: owned types are always auto-included by EF, key `(PostId, Key)`, `Display` max 50, index on `Key`); migration `AddPostHashtags`
 - **NOT auto-included:** feed, thread, saved, profile & write paths never load hashtags. Loaded only via explicit `Include` in: `GetRootPostsByHashtagAsync(key)`, `GetRootPostsWithHashtagsSinceAsync(since)` & `GetByIdWithHashtagsAsync(id)` (used by create/update). Projection of `PostDto` needs none
 - **Atomic sync:** hashtag rows are children of the `Post` aggregate: create/edit change them in the SAME `SaveChanges` as content (failed request saves nothing). Edit diffs (remove missing, add new, refresh display of kept). Soft delete keeps rows, every discovery query filters `IsDeleted`; restore needs no resync; no hard post delete exists (cascade on FK if one is added)
 - `IUserRepository.GetAllActiveAsync()` (unordered candidates, in-memory scoring) & window aggregation in memory = documented MVP debt (BG §10): bounded by window / user count, no unrelated graphs loaded (users only; posts only with their tags)

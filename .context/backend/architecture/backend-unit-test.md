@@ -11,9 +11,9 @@ updated: 2026-10-20
 
 | Project | Layer | Tests (all passing) |
 |---|---|---|
-| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos) | 88 |
-| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes | 74 |
-| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 494 |
+| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos), hashtag parser parity | 130 |
+| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes | 81 (+3 PostgreSQL opt-in, skipped without `YSOCIAL_TEST_POSTGRES`) |
+| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 523 |
 | `tests/YSocial.TestSupport` (no tests) | shared harness: `SqliteTestDatabase`, `Store` facade | - |
 
 - **All:** net8.0
@@ -270,7 +270,7 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 # 4. VERIFICATION PLAN
 
 - [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
-- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (88 pass)
-- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (74 pass)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (494 pass, serialized, identical seed per test)
+- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (130 pass)
+- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (81 pass, 3 PostgreSQL opt-in skipped)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (523 pass, serialized, identical seed per test)
 - [x] **All:** `dotnet test YSocial.sln`
