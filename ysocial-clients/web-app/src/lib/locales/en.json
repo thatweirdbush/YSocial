@@ -463,6 +463,10 @@
     "hideLikeCounts": "Hide like counts",
     "hideShareCounts": "Hide share counts",
     "mutedLink": "Muted accounts",
-    "privacyLinks": "Blocked & close friends"
+    "privacyLinks": "Blocked & close friends",
+    "timeManagement": "Time management",
+    "usageToday": "Today",
+    "usageAverage": "7-day average",
+    "usageEmpty": "No data yet"
   }
 }

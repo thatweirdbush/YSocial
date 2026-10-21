@@ -19,6 +19,7 @@ const SECTION_HREFS = [
   "/settings/appearance",
   "/settings/language",
   "/settings/content",
+  "/settings/time-management",
 ];
 
 beforeEach(() => {
@@ -26,7 +27,7 @@ beforeEach(() => {
 });
 
 describe("SettingsNav", () => {
-  it("links to the 8 sections and marks the active one", () => {
+  it("links to the 9 sections and marks the active one", () => {
     render(<SettingsNav />);
 
     const nav = screen.getByRole("navigation", { name: "Cài đặt" });
@@ -45,7 +46,7 @@ describe("SettingsNav", () => {
 });
 
 describe("SettingsIndex", () => {
-  it("renders a title and the 8 section links, without the section nav landmark", () => {
+  it("renders a title and the 9 section links, without the section nav landmark", () => {
     navigation.pathname = "/settings";
     render(<SettingsIndex />);
 

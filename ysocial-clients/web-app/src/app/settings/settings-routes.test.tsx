@@ -10,6 +10,7 @@ import { metadata as languageMetadata } from "./(sections)/language/page";
 import { metadata as mutedMetadata } from "./(sections)/muted/page";
 import { metadata as notificationsMetadata } from "./(sections)/notifications/page";
 import { metadata as privacyMetadata } from "./(sections)/privacy/page";
+import { metadata as timeManagementMetadata } from "./(sections)/time-management/page";
 import SettingsLayout, { metadata as settingsMetadata } from "./layout";
 import SettingsPage, { metadata as indexMetadata } from "./page";
 
@@ -60,8 +61,9 @@ describe("settings route metadata", () => {
       appearanceMetadata,
       languageMetadata,
       contentMetadata,
+      timeManagementMetadata,
     ].map((metadata) => String(metadata.title));
-    expect(new Set(titles).size).toBe(9);
+    expect(new Set(titles).size).toBe(10);
     expect(titles.every((title) => title.endsWith("• YSocial"))).toBe(true);
   });
 });
@@ -92,10 +94,10 @@ describe("root settings layout", () => {
 });
 
 describe("/settings index page", () => {
-  it("lists the 8 sections in the center column and uses the default right sidebar (no SettingsNav)", () => {
+  it("lists the 9 sections in the center column and uses the default right sidebar (no SettingsNav)", () => {
     render(<SettingsPage />);
 
-    expect(settingsLinks()).toHaveLength(8);
+    expect(settingsLinks()).toHaveLength(9);
     expect(screen.queryByRole("navigation")).toBeNull();
     expect(shell.props.every((props) => !props.hasAside)).toBe(true);
   });

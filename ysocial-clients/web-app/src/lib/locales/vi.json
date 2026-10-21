@@ -463,6 +463,10 @@
     "hideLikeCounts": "Ẩn số lượt thích",
     "hideShareCounts": "Ẩn số lượt chia sẻ",
     "mutedLink": "Danh sách đã ẩn",
-    "privacyLinks": "Danh sách chặn & bạn thân"
+    "privacyLinks": "Danh sách chặn & bạn thân",
+    "timeManagement": "Quản lý thời gian",
+    "usageToday": "Hôm nay",
+    "usageAverage": "Trung bình 7 ngày",
+    "usageEmpty": "Chưa có dữ liệu"
   }
 }

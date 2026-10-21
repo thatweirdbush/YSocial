@@ -3,6 +3,8 @@ export { AppearanceSection } from "./components/appearance-section";
 export { ContentSection } from "./components/content-section";
 export { LanguageSection } from "./components/language-section";
 export { SettingsEffects } from "./components/settings-effects";
+export { TimeManagementSection } from "./components/time-management-section";
+export { UsageTrackerMount } from "./components/usage-tracker-mount";
 export { SettingsGuestGate } from "./components/settings-guest-gate";
 export { SettingsIndex } from "./components/settings-index";
 export { SettingsNav } from "./components/settings-nav";
