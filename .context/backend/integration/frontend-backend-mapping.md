@@ -34,7 +34,7 @@ roadmap: .context/roadmap.md
 | Idempotency | follow, unfollow, block, unblock, close-friend, PUT/DELETE like & bookmark are idempotent; post/comment delete is not idempotent (second call 404) | §2 |
 | Validator precedence | FluentValidation runs first: empty/over-long content yields `ValidationFailed` + `errors`; domain rule codes (`PostContentInvalid`, `CommentContentInvalid`) appear only when validator did not catch case | `PostContentInvalid` |
 
-### 1.1 Published error codes (37, pinned by `CodesSnapshot_MatchesApprovedList`; rename = contract change, update this table)
+### 1.1 Published error codes (40, pinned by `CodesSnapshot_MatchesApprovedList`; rename = contract change, update this table)
 
 | Area | Code | HTTP | When |
 |---|---|---|---|
@@ -47,6 +47,9 @@ roadmap: .context/roadmap.md
 | Generic | `InternalError` | 500 | unexpected fault only (`detail` generic outside Development) |
 | Generic | `MethodNotAllowed` | 405 | known route, wrong HTTP method |
 | Generic | `UnsupportedMediaType` | 415 | request body is not JSON |
+| Generic | `PayloadTooLarge` | 413 | `POST /api/media` body over the 102 MiB cap (D33) |
+| Generic | `TooManyRequests` | 429 | `POST /api/media` concurrency gates (per user 1, per instance `Media:MaxConcurrentUploads`), `Retry-After: 5` (D33) |
+| Generic | `MediaStorageUnavailable` | 503 | media storage keys missing or provider unreachable (D33) |
 | Auth | `InvalidCredentials` | 401 | login: unknown, deleted or wrong password (identical body) |
 | Auth | `InvalidRefreshToken` | 401 | refresh/switch: unknown, expired, revoked, rotated token; bound profile or account gone |
 | Auth | `AccountInactive` | 403 | login with VALID password on inactive account |
@@ -341,6 +344,8 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D30 | Sessions: session = token family (`ReplacedByTokenId` chain), represented by active head token; `GET sessions` / `DELETE sessions/{id}`; JWT claim `sid` = refresh token id issued with the access token (login, refresh, switch); `RefreshToken.UserAgent` (max 256) from header at login, copied on rotation; `lastTokenIssuedAt` = head `CreatedAt` (not activity); revoke under `IAccountSessionLock` + `Account.Version` (409 on cross-instance race); revoked device's access token valid until expiry (D6); no new error codes | Implemented (BE) |
 | D31 | Hashtags, trending & tag posts: `Post.Hashtags` (folded key + display), `GET trending/tags` (7/30/365-day fallback, access policy before counting), `GET tags/{tag}/posts` (all-time count, unknown tag = 200 empty), FE parity pinned by golden fixture, viewer from JWT only, no new error codes | Implemented (BE) |
 | D32 | Suggestions: `GET users/suggestions` (10 per mutual + capped followers, deterministic ties, excludes self, own profiles, followed/requested, muted, blocked, deleted), anonymous allowed | Implemented (BE) |
+| D33 | Media (draft): `POST /api/media` multipart (`files` 1..10, `purpose` post\|avatar) -> `MediaDto[]` assets `Pending`; `DELETE /api/media/{id}` discards own pending; `PostDto.media[]`, `CreatePostRequest.mediaIds`, media-only posts; write-ahead asset rows + sweep (no Cloudinary litter); codes `PayloadTooLarge`, `TooManyRequests`, `MediaStorageUnavailable`; spec `docs/specs/2026-10-21-media-design.md` | Draft (A1) |
+| D34 | Avatar upload (draft): `PUT users/profiles/me` gains `avatarMediaId`; `avatarMediaId` + `avatarUrl` key together = 400; our storage urls rejected in `avatarUrl`/`imageUrl` (`OwnsUrl`); replaced avatar asset `Released` then swept; payload matrix in spec 2.4 | Draft (A1) |
 
 - **Open:** media upload URL shape, search & mentions, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 

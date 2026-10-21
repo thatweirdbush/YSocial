@@ -51,10 +51,10 @@ public class RuleClassificationTests
         [
             "AccountInactive", "AccountRequiresProfile", "BusinessRuleViolated", "CannotBlockSelf", "CannotDeleteDefaultProfile",
             "CannotFollowSelf", "CannotMuteSelf", "CloseFriendRequiresAcceptedFollow", "CommentContentInvalid", "CommentNotDeleted", "CommentsDisabled",
-            "Conflict", "EmailTaken", "Forbidden", "InternalError", "InvalidCredentials", "InvalidOtp", "InvalidRefreshToken", "MethodNotAllowed",
+            "Conflict", "EmailTaken", "Forbidden", "InternalError", "InvalidCredentials", "InvalidOtp", "InvalidRefreshToken", "MediaStorageUnavailable", "MethodNotAllowed",
             "NotCommentAuthor", "NotCommentAuthorOrPostOwner", "NotCommentDeleter", "NotFound", "NotNotificationRecipient",
-            "NotPostAuthor", "NotificationContentInvalid", "OtpAttemptsExceeded", "ParentCommentMismatch", "PostContentInvalid",
-            "PostDeleted", "PostNotDeleted", "ProfileFieldInvalid", "ProfileNotOwned", "Unauthenticated", "UnsupportedMediaType", "UsernameTaken",
+            "NotPostAuthor", "NotificationContentInvalid", "OtpAttemptsExceeded", "ParentCommentMismatch", "PayloadTooLarge", "PostContentInvalid",
+            "PostDeleted", "PostNotDeleted", "ProfileFieldInvalid", "ProfileNotOwned", "TooManyRequests", "Unauthenticated", "UnsupportedMediaType", "UsernameTaken",
             "ValidationFailed"
         ];
 

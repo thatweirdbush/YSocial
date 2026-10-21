@@ -15,6 +15,9 @@ public static class ErrorCodes
     public const string InternalError = nameof(InternalError);
     public const string MethodNotAllowed = nameof(MethodNotAllowed);
     public const string UnsupportedMediaType = nameof(UnsupportedMediaType);
+    public const string PayloadTooLarge = nameof(PayloadTooLarge);
+    public const string TooManyRequests = nameof(TooManyRequests);
+    public const string MediaStorageUnavailable = nameof(MediaStorageUnavailable);
     #endregion
 
     #region Auth

@@ -81,7 +81,10 @@ public static class ApiProblems
         StatusCodes.Status404NotFound => ErrorCodes.NotFound,
         StatusCodes.Status405MethodNotAllowed => ErrorCodes.MethodNotAllowed,
         StatusCodes.Status409Conflict => ErrorCodes.Conflict,
+        StatusCodes.Status413PayloadTooLarge => ErrorCodes.PayloadTooLarge,
         StatusCodes.Status415UnsupportedMediaType => ErrorCodes.UnsupportedMediaType,
+        StatusCodes.Status429TooManyRequests => ErrorCodes.TooManyRequests,
+        StatusCodes.Status503ServiceUnavailable => ErrorCodes.MediaStorageUnavailable,
         _ => ErrorCodes.InternalError
     };
 
@@ -93,7 +96,10 @@ public static class ApiProblems
         StatusCodes.Status404NotFound => "Not Found",
         StatusCodes.Status405MethodNotAllowed => "Method Not Allowed",
         StatusCodes.Status409Conflict => "Conflict",
+        StatusCodes.Status413PayloadTooLarge => "Payload Too Large",
         StatusCodes.Status415UnsupportedMediaType => "Unsupported Media Type",
+        StatusCodes.Status429TooManyRequests => "Too Many Requests",
+        StatusCodes.Status503ServiceUnavailable => "Service Unavailable",
         StatusCodes.Status500InternalServerError => "Internal Server Error",
         _ => "Error"
     };
@@ -106,7 +112,10 @@ public static class ApiProblems
         StatusCodes.Status404NotFound => "https://tools.ietf.org/html/rfc9110#section-15.5.5",
         StatusCodes.Status405MethodNotAllowed => "https://tools.ietf.org/html/rfc9110#section-15.5.6",
         StatusCodes.Status409Conflict => "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+        StatusCodes.Status413PayloadTooLarge => "https://tools.ietf.org/html/rfc9110#section-15.5.14",
         StatusCodes.Status415UnsupportedMediaType => "https://tools.ietf.org/html/rfc9110#section-15.5.16",
+        StatusCodes.Status429TooManyRequests => "https://tools.ietf.org/html/rfc6585#section-4",
+        StatusCodes.Status503ServiceUnavailable => "https://tools.ietf.org/html/rfc9110#section-15.6.4",
         _ => "https://tools.ietf.org/html/rfc9110#section-15.6.1"
     };
 }
