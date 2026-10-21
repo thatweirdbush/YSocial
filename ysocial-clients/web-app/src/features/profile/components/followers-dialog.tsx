@@ -4,7 +4,7 @@ import { AlertCircle, Lock, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -219,10 +219,7 @@ function FollowRow({ id, onNavigate }: { id: string; onNavigate: () => void }) {
   return (
     <li className="flex items-center justify-between gap-3 border-b border-zinc-200/50 py-3 last:border-0 dark:border-zinc-900/50">
       <Link href={`/@${user.username}`} onClick={onNavigate} className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-100">
-        <Avatar className="size-9 shrink-0 border border-zinc-300 dark:border-zinc-900">
-          <AvatarImage src={user.avatarUrl} alt="" />
-          <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">{user.displayName.charAt(0).toUpperCase() || "U"}</AvatarFallback>
-        </Avatar>
+        <UserAvatar src={user.avatarUrl} name={user.displayName} className="size-9 shrink-0 border border-zinc-300 dark:border-zinc-900" />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">{user.displayName}</span>
           <span className="truncate text-xs text-zinc-400">@{user.username}</span>

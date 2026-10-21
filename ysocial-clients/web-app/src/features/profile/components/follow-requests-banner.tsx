@@ -3,7 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
 import { useTranslation } from "@/hooks/use-translation";
 import { fetchFollowRequests } from "../services/relation-service";
@@ -49,12 +49,7 @@ export function FollowRequestsBanner() {
     >
       <div className="flex -space-x-3" aria-hidden="true">
         {preview.map((user) => (
-          <Avatar key={user.id} className="size-9 border-2 border-white dark:border-black">
-            <AvatarImage src={user.avatarUrl} alt="" />
-            <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">
-              {user.displayName.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar key={user.id} src={user.avatarUrl} name={user.displayName} className="size-9 border-2 border-white dark:border-black" />
         ))}
       </div>
       <div className="flex min-w-0 flex-1 flex-col">

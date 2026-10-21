@@ -13,7 +13,7 @@ import {
   Pin,
   Star,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { ensureUser, FollowButton, useUser, UserHoverCard } from "@/features/profile";
 import { useDisplayPrefs } from "@/features/settings/store/settings-store";
 import { useTranslation } from "@/hooks/use-translation";
@@ -31,6 +31,7 @@ import { hasCapability } from "@/lib/capabilities";
 import { RichContent } from "../utils/rich-content";
 import { PostCardMenu } from "./post-card-menu";
 import { PostInlineEditor } from "./post-inline-editor";
+import { mediaItemsOf } from "../utils/post-media";
 import { PostLightbox } from "./post-lightbox";
 import { PostMediaGrid } from "./post-media-grid";
 
@@ -113,7 +114,7 @@ function PostCardView({
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Safely capture single image fallback or multi-image lists
-  const images = post.imageUrls || (post.imageUrl ? [post.imageUrl] : []);
+  const mediaItems = mediaItemsOf(post);
 
   // Parse relative time dynamically matching i18n
   const formatTime = (dateStr: string) => {
@@ -230,12 +231,12 @@ function PostCardView({
       <div className="flex flex-col items-center self-stretch shrink-0">
         <UserHoverCard userId={post.user.id}>
           <Link href={`/@${post.user.username}`}>
-            <Avatar className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity ${isCloseFriends ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-black" : ""}`}>
-              <AvatarImage src={author.avatarUrl} alt={author.displayName} />
-              <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                {author.displayName?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar
+              src={author.avatarUrl}
+              name={author.displayName ?? ""}
+              alt={author.displayName}
+              className={`${variant === "compact" ? "size-8" : "size-10"} border border-zinc-150 dark:border-zinc-850 shrink-0 hover:opacity-85 transition-opacity ${isCloseFriends ? "ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-black" : ""}`}
+            />
           </Link>
         </UserHoverCard>
         {/* Thread connector line running through */}
@@ -310,7 +311,7 @@ function PostCardView({
         {isEditing ? (
           <PostInlineEditor
             initialContent={live.content}
-            hasImages={images.length > 0}
+            hasImages={mediaItems.length > 0}
             disabled={owner?.pendingOp !== undefined}
             onSave={saveEdit}
             onCancel={() => setIsEditing(false)}
@@ -325,7 +326,7 @@ function PostCardView({
         )}
 
         {/* Dynamic Multi-image Grid rendering */}
-        <PostMediaGrid images={images} onOpen={setLightboxIndex} />
+        <PostMediaGrid items={mediaItems} onOpen={setLightboxIndex} />
 
         {isDetail && (
           <div className="flex items-center gap-4 pt-3 mt-1 border-t border-zinc-200/60 dark:border-zinc-900/60 text-sm text-zinc-500 dark:text-zinc-400">
@@ -431,7 +432,7 @@ function PostCardView({
       </div>
 
       <PostLightbox
-        images={images}
+        items={mediaItems}
         index={lightboxIndex}
         onIndexChange={setLightboxIndex}
         onClose={() => setLightboxIndex(null)}

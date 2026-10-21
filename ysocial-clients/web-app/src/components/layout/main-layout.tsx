@@ -16,7 +16,7 @@ import {
   Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -190,12 +190,7 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
                       } hover:bg-zinc-100 dark:hover:bg-zinc-900 text-left transition-all active:scale-98`}
                   >
                     <div className="flex items-center gap-3 w-full justify-center xl:justify-start">
-                      <Avatar className="h-9 w-9 border border-zinc-200 dark:border-zinc-800 shrink-0">
-                        <AvatarImage src={user?.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80"} alt={user?.displayName || "User"} />
-                        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                          {user?.displayName?.charAt(0).toUpperCase() || "Y"}
-                        </AvatarFallback>
-                      </Avatar>
+                      <UserAvatar src={user?.avatarUrl} name={user?.displayName ?? ""} className="h-9 w-9 border border-zinc-200 dark:border-zinc-800 shrink-0" alt={user?.displayName || "User"} />
                       {!isCollapsed && (
                         <>
                           <div className="hidden xl:flex flex-col flex-1 min-w-0">

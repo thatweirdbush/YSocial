@@ -4,7 +4,7 @@ import { AlertCircle, SearchX, UserX } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -152,12 +152,7 @@ export function RelationUserList({ fetchPage, renderAction, emptyTitle, emptyDes
               href={`/@${item.username}`}
               className="flex min-w-0 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:focus-visible:ring-zinc-100"
             >
-              <Avatar className="size-10 shrink-0 border border-zinc-300 dark:border-zinc-900">
-                <AvatarImage src={item.avatarUrl} alt="" />
-                <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">
-                  {item.displayName.charAt(0).toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar src={item.avatarUrl} name={item.displayName} className="size-10 shrink-0 border border-zinc-300 dark:border-zinc-900" />
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-50">{item.displayName}</span>
                 <span className="truncate text-xs text-zinc-400">@{item.username}</span>

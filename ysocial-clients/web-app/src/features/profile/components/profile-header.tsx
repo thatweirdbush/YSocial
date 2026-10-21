@@ -2,7 +2,7 @@
 
 import { BadgeCheck, Link2, Lock, QrCode, Share2 } from "lucide-react";
 import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useTranslation } from "@/hooks/use-translation";
@@ -59,10 +59,7 @@ export function ProfileHeader({ user, isOwn, onOpenFollowers, onShare, canOpenLi
           <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">@{user.username}</span>
         </div>
 
-        <Avatar className="size-20 shrink-0 border-2 border-zinc-150 shadow-sm sm:size-24 dark:border-zinc-850">
-          <AvatarImage src={user.avatarUrl} alt={user.displayName} />
-          <AvatarFallback className="bg-zinc-200 text-xl font-bold dark:bg-zinc-800">{user.displayName.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar src={user.avatarUrl} name={user.displayName} className="size-20 shrink-0 border-2 border-zinc-150 shadow-sm sm:size-24 dark:border-zinc-850" fallbackClassName="text-xl font-bold" alt={user.displayName} />
       </div>
 
       {user.bio && (

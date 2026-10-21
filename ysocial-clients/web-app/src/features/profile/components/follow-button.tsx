@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GUEST_ACTOR_ID, useActorId } from "@/features/auth";
@@ -122,12 +122,7 @@ export function FollowButton({ userId, className, reserveSpace = false, confirmU
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <DialogContent showCloseButton={false} className="z-[100] flex w-[320px] flex-col items-center gap-4 rounded-3xl border-zinc-200 bg-white p-6 text-center dark:border-zinc-900 dark:bg-zinc-950">
             <DialogHeader className="flex w-full flex-col items-center gap-3">
-              <Avatar className="mx-auto size-18 border border-zinc-100 shadow-sm dark:border-zinc-900">
-                <AvatarImage src={user.avatarUrl} alt="" />
-                <AvatarFallback className="bg-zinc-200 text-xl font-bold dark:bg-zinc-800">
-                  {user.displayName.charAt(0).toUpperCase() || "U"}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar src={user.avatarUrl} name={user.displayName} className="mx-auto size-18 border border-zinc-100 shadow-sm dark:border-zinc-900" fallbackClassName="text-xl font-bold" />
               <DialogTitle className="mx-auto text-base font-semibold leading-tight text-zinc-900 dark:text-zinc-50">
                 {t("profile.unfollowConfirmTitle", { username: user.username })}
               </DialogTitle>

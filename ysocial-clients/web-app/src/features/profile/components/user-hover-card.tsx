@@ -3,7 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useActorId } from "@/features/auth";
@@ -77,12 +77,7 @@ export function UserHoverCard({ userId, children }: UserHoverCardProps) {
           <div className="flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <Link href={`/@${user.username}`} className="shrink-0">
-                <Avatar className="size-12 border border-zinc-100 dark:border-zinc-900">
-                  <AvatarImage src={user.avatarUrl} alt="" />
-                  <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-sm font-semibold">
-                    {user.displayName.charAt(0).toUpperCase() || "U"}
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatar src={user.avatarUrl} name={user.displayName} className="size-12 border border-zinc-100 dark:border-zinc-900" fallbackClassName="text-sm" />
               </Link>
               <FollowButton userId={user.id} />
             </div>

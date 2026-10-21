@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { Layers } from "lucide-react";
-import { useIsDeleted, usePost } from "@/features/posts";
+import { MediaImage } from "@/components/shared/media-image";
+import { mediaItemsOf, useIsDeleted, usePost } from "@/features/posts";
+import { posterOf } from "@/lib/media/media-loader";
 import { useTranslation } from "@/hooks/use-translation";
 
 interface ProfileMediaGridProps {
@@ -26,10 +28,14 @@ function MediaTile({ id, username }: { id: string; username: string }) {
   const post = usePost(id);
   const isDeleted = useIsDeleted(id);
 
-  const images = post?.imageUrls?.length ? post.imageUrls : post?.imageUrl ? [post.imageUrl] : [];
-  if (!post || isDeleted || images.length === 0) return null;
+  const items = post ? mediaItemsOf(post) : [];
+  if (!post || isDeleted || items.length === 0) return null;
 
-  const isMulti = images.length > 1;
+  const first = items[0];
+  const cover = first.kind === "video" ? (first.posterUrl ?? posterOf(first.url)) : first.url;
+  if (!cover) return null;
+
+  const isMulti = items.length > 1;
   const alt = t("profile.mediaAlt", { username });
 
   return (
@@ -37,14 +43,7 @@ function MediaTile({ id, username }: { id: string; username: string }) {
       href={`/posts/${id}`}
       className="group relative block aspect-square overflow-hidden bg-zinc-100 outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:bg-zinc-900 dark:focus-visible:ring-zinc-100"
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- remote/blob post images, no next/image remote config (spec D16) */}
-      <img
-        src={images[0]}
-        alt={isMulti ? `${alt} (1/${images.length})` : alt}
-        loading="lazy"
-        decoding="async"
-        className="size-full object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
-      />
+      <MediaImage src={cover} alt={isMulti ? `${alt} (1/${items.length})` : alt} fill sizes="(min-width: 640px) 200px, 33vw" className="object-cover" />
       {isMulti && (
         <span
           role="img"

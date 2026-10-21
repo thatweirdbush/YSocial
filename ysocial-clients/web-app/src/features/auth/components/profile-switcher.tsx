@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { useCachedResource } from "@/hooks/use-cached-resource";
 import { useTranslation } from "@/hooks/use-translation";
@@ -62,12 +62,7 @@ function ProfileList() {
           onSelect={() => void handleSelect(profile)}
           className="cursor-pointer rounded-xl px-3 py-2 focus:bg-zinc-100 dark:focus:bg-zinc-900"
         >
-          <Avatar className="size-7 shrink-0 border border-zinc-200 dark:border-zinc-800">
-            <AvatarImage src={profile.avatarUrl ?? undefined} alt="" />
-            <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">
-              {(profile.displayName ?? profile.username ?? "?").charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar src={profile.avatarUrl ?? undefined} name={profile.displayName ?? profile.username ?? "?"} className="size-7 shrink-0 border border-zinc-200 dark:border-zinc-800" />
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium">{profile.displayName}</span>
             <span className="truncate text-xs text-zinc-400">@{profile.username}</span>

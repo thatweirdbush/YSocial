@@ -1,6 +1,8 @@
 import { ApiError } from "@/lib/api-error";
 import type {
   FeedPage,
+  MediaDto,
+  PostMediaItem,
   PostAuthor,
   PostAuthorDto,
   PostDto,
@@ -42,6 +44,25 @@ const toAuthor = (dto: PostAuthorDto | undefined): PostAuthor => ({
   isVerified: dto?.isVerified ?? false,
 });
 
+/** A media item the UI cannot render (unknown kind, no url) is dropped: the post still shows its text and the other media. */
+function toMediaItems(dtos: readonly MediaDto[] | null | undefined): PostMediaItem[] {
+  const items: PostMediaItem[] = [];
+
+  for (const dto of dtos ?? []) {
+    if ((dto.kind !== "image" && dto.kind !== "video") || !dto.url) continue;
+
+    const item: PostMediaItem = { kind: dto.kind, url: dto.url };
+    if (dto.id) item.id = dto.id;
+    if (dto.posterUrl) item.posterUrl = dto.posterUrl;
+    if (typeof dto.width === "number") item.width = dto.width;
+    if (typeof dto.height === "number") item.height = dto.height;
+    if (typeof dto.durationSeconds === "number") item.durationSeconds = dto.durationSeconds;
+    items.push(item);
+  }
+
+  return items;
+}
+
 export function toPostItem(dto: PostDto): PostItem {
   const item: PostItem = {
     id: required(dto.id, "id"),
@@ -57,9 +78,12 @@ export function toPostItem(dto: PostDto): PostItem {
     user: toAuthor(dto.user),
   };
   if (dto.parentId) item.parentId = dto.parentId;
+  const media = toMediaItems(dto.media);
+  if (media.length > 0) item.media = media;
   if (dto.imageUrl) {
     item.imageUrl = dto.imageUrl;
-    item.imageUrls = [dto.imageUrl];
+    // With uploaded media the grid reads `media`; the list stays for posts that only have the legacy image
+    if (media.length === 0) item.imageUrls = [dto.imageUrl];
   }
   const visibility = toVisibility(dto.visibility);
   if (visibility) item.visibility = visibility;

@@ -37,6 +37,56 @@ describe("toPostItem", () => {
     expect(item.imageUrls).toEqual(["https://x/y.png"]);
   });
 
+  describe("media (D33)", () => {
+    const MEDIA_ID = "33333333-3333-4333-8333-333333333333";
+    const media = (overrides: Record<string, unknown> = {}) => ({
+      id: MEDIA_ID,
+      kind: "image",
+      url: "https://res.cloudinary.com/demo/image/upload/v1/a.jpg",
+      posterUrl: null,
+      width: 640,
+      height: 480,
+      durationSeconds: null,
+      bytes: 1234,
+      ...overrides,
+    });
+
+    it("maps media in order, nulls become undefined", () => {
+      const item = toPostItem(dto({ media: [media(), media({ id: "44444444-4444-4444-8444-444444444444", kind: "video", url: "https://res.cloudinary.com/demo/video/upload/v1/a.mp4", posterUrl: "https://x/p.jpg", durationSeconds: 12.5 })] }));
+
+      expect(item.media).toEqual([
+        { id: MEDIA_ID, kind: "image", url: "https://res.cloudinary.com/demo/image/upload/v1/a.jpg", width: 640, height: 480 },
+        {
+          id: "44444444-4444-4444-8444-444444444444",
+          kind: "video",
+          url: "https://res.cloudinary.com/demo/video/upload/v1/a.mp4",
+          posterUrl: "https://x/p.jpg",
+          width: 640,
+          height: 480,
+          durationSeconds: 12.5,
+        },
+      ]);
+    });
+
+    it("with media, imageUrl stays (first uploaded image) but imageUrls is not duplicated", () => {
+      const item = toPostItem(dto({ imageUrl: "https://res.cloudinary.com/demo/image/upload/v1/a.jpg", media: [media()] }));
+
+      expect(item.imageUrl).toBe("https://res.cloudinary.com/demo/image/upload/v1/a.jpg");
+      expect(item.imageUrls).toBeUndefined();
+    });
+
+    it("drops a malformed item (unknown kind, no url) and keeps the rest", () => {
+      const item = toPostItem(dto({ media: [media({ kind: "audio" }), media({ url: null }), media()] }));
+
+      expect(item.media).toHaveLength(1);
+    });
+
+    it("an empty or absent media array leaves no media field", () => {
+      expect(toPostItem(dto({ media: [] })).media).toBeUndefined();
+      expect(toPostItem(dto()).media).toBeUndefined();
+    });
+  });
+
   it("omitted imageUrl/parentId stay undefined", () => {
     const item = toPostItem(dto());
     expect(item.imageUrl).toBeUndefined();
@@ -145,4 +195,4 @@ describe("one malformed item never fails the whole page", () => {
   it("the thread's own post stays strict", () => {
     expect(() => toPostThread({ post: bad } as ThreadDto)).toThrow(/missing id/);
   });
-});
+});

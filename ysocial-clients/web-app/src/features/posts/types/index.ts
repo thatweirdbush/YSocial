@@ -10,6 +10,7 @@ export type AddCommentRequest = Schemas["AddCommentRequest"];
 export type UpdateCommentRequest = Schemas["UpdateCommentRequest"];
 export type PostDto = Schemas["PostDto"];
 export type PostAuthorDto = Schemas["PostAuthorDto"];
+export type MediaDto = Schemas["MediaDto"];
 export type ThreadDto = Schemas["ThreadDto"];
 export type PostDtoPagedResponse = Schemas["PostDtoPagedResponse"];
 export type UserPostsPageDto = Schemas["UserPostsPageDto"];
@@ -26,11 +27,28 @@ export interface PostAuthor {
   isVerified?: boolean;
 }
 
+/** One attached picture or video, in display order (BE `MediaDto`; mock posts only carry `imageUrls`). */
+export interface PostMediaItem {
+  /** Absent for legacy image urls (no asset behind them). */
+  id?: string;
+  kind: "image" | "video";
+  url: string;
+  /** Videos: frame 0. */
+  posterUrl?: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+}
+
 export interface PostItem {
   id: string;
   content: string;
+  /** Legacy single image: first uploaded image, or an external url (GIF picker). */
   imageUrl?: string;
-  imageUrls?: string[]; // Added supporting multiple media uploads
+  /** Mock posts & drafts; real posts use `media` (build items with `mediaItemsOf`). */
+  imageUrls?: string[];
+  /** Uploaded media (BE `PostDto.media`); empty = none. */
+  media?: PostMediaItem[];
   createdAt: string;
   likesCount: number;
   commentsCount: number;

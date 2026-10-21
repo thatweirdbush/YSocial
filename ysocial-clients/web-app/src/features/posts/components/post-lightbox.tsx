@@ -2,19 +2,28 @@
 
 import { ChevronLeft, ChevronRight, Maximize2, Minimize2, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
+
+import { MediaImage } from "@/components/shared/media-image";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { videoCoordinator } from "@/lib/media/video-coordinator";
+
+import type { PostMediaItem } from "../types";
 
 interface PostLightboxProps {
-  images: string[];
-  /** Open image index; null = closed. */
+  items: PostMediaItem[];
+  /** Open item index; null = closed. */
   index: number | null;
   onIndexChange: (index: number) => void;
   onClose: () => void;
 }
 
-/** Fullscreen-capable media viewer with paging for multi-image posts. */
-export function PostLightbox({ images, index, onIndexChange, onClose }: PostLightboxProps) {
+const FALLBACK_SIZE = { width: 1600, height: 1200 };
+
+/** Fullscreen-capable media viewer: images and videos (with controls), paging for multi-media posts. */
+export function PostLightbox({ items, index, onIndexChange, onClose }: PostLightboxProps) {
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const active = index === null ? null : (items[index] ?? null);
+  const isOpen = active !== null;
 
   // Monitor fullscreen API events to maintain exact UI states
   useEffect(() => {
@@ -27,23 +36,32 @@ export function PostLightbox({ images, index, onIndexChange, onClose }: PostLigh
     };
   }, []);
 
+  // Feed videos stay paused while the viewer is open (also if the card unmounts while open)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const coordinator = videoCoordinator();
+    coordinator.suspend("lightbox");
+    return () => coordinator.resume("lightbox");
+  }, [isOpen]);
+
   const close = () => {
     onClose();
     if (document.fullscreenElement) {
-      document.exitFullscreen().catch(() => { });
+      document.exitFullscreen().catch(() => {});
     }
   };
 
-  const handlePrevImage = (e?: React.MouseEvent) => {
+  const handlePrev = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (index === null) return;
-    onIndexChange((index - 1 + images.length) % images.length);
+    onIndexChange((index - 1 + items.length) % items.length);
   };
 
-  const handleNextImage = (e?: React.MouseEvent) => {
+  const handleNext = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (index === null) return;
-    onIndexChange((index + 1) % images.length);
+    onIndexChange((index + 1) % items.length);
   };
 
   const toggleFullscreen = (e: React.MouseEvent) => {
@@ -59,11 +77,9 @@ export function PostLightbox({ images, index, onIndexChange, onClose }: PostLigh
     }
   };
 
-  const activeImage = index === null ? null : images[index];
-
   return (
     <Dialog
-      open={activeImage !== null}
+      open={isOpen}
       onOpenChange={(open) => {
         if (!open) close();
       }}
@@ -74,56 +90,60 @@ export function PostLightbox({ images, index, onIndexChange, onClose }: PostLigh
       >
         {/* Top Toolbar Actions */}
         <div className="absolute top-6 right-6 z-55 flex items-center gap-4">
-          {/* Fullscreen Button */}
-          <button
-            onClick={toggleFullscreen}
-            className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
-          >
+          <button onClick={toggleFullscreen} className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90">
             {isFullscreen ? <Minimize2 className="size-5" /> : <Maximize2 className="size-5" />}
           </button>
 
-          {/* Close Button */}
-          <button
-            onClick={close}
-            className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90"
-          >
+          <button onClick={close} className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-90">
             <X className="size-5" />
           </button>
         </div>
 
-        {/* Left navigation arrows for multi-image lightbox */}
-        {images.length > 1 && (
+        {items.length > 1 && (
           <button
-            onClick={handlePrevImage}
+            onClick={handlePrev}
             className="absolute left-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
           >
             <ChevronLeft className="size-6 stroke-[3px]" />
           </button>
         )}
 
-        {/* Main high-resolution image container */}
-        {activeImage && (
-          <img
-            src={activeImage}
-            alt="Full resolution viewer"
-            className="max-w-[90vw] max-h-[85vh] object-contain select-none transition-transform duration-300"
+        {active?.kind === "video" && (
+          <video
+            key={active.url}
+            src={active.url}
+            poster={active.posterUrl}
+            controls
+            autoPlay
+            playsInline
+            className="max-h-[85vh] max-w-[90vw] select-none"
           />
         )}
 
-        {/* Right navigation arrows for multi-image lightbox */}
-        {images.length > 1 && (
+        {active?.kind === "image" && (
+          <MediaImage
+            key={active.url}
+            src={active.url}
+            alt="Full resolution viewer"
+            width={active.width ?? FALLBACK_SIZE.width}
+            height={active.height ?? FALLBACK_SIZE.height}
+            sizes="90vw"
+            className="h-auto max-h-[85vh] w-auto max-w-[90vw] select-none object-contain"
+          />
+        )}
+
+        {items.length > 1 && (
           <button
-            onClick={handleNextImage}
+            onClick={handleNext}
             className="absolute right-6 top-1/2 -translate-y-1/2 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-80 z-55 hidden md:block"
           >
             <ChevronRight className="size-6 stroke-[3px]" />
           </button>
         )}
 
-        {/* Image pagination counter at the bottom */}
-        {images.length > 1 && index !== null && (
+        {items.length > 1 && index !== null && (
           <div className="absolute bottom-6 px-4 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold tracking-wider z-55">
-            {index + 1} / {images.length}
+            {index + 1} / {items.length}
           </div>
         )}
       </DialogContent>

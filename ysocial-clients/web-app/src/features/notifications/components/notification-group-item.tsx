@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { Heart } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import type { NotificationItemData } from "../types";
 import { formatNotificationTime } from "./format-notification-time";
@@ -41,12 +41,7 @@ export const NotificationGroupItem: React.FC<NotificationGroupItemProps> = ({ it
       >
         <div className="relative shrink-0 flex items-center -space-x-3" aria-hidden="true">
           {items.slice(0, MAX_AVATARS).map((entry) => (
-            <Avatar key={entry.id} className="size-10 border-2 border-white dark:border-black">
-              <AvatarImage src={entry.user.avatarUrl} alt="" />
-              <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                {entry.user.displayName.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar key={entry.id} src={entry.user.avatarUrl} name={entry.user.displayName} className="size-10 border-2 border-white dark:border-black" />
           ))}
           <div className="absolute -bottom-1 -right-1 bg-white dark:bg-zinc-950 border border-zinc-100 dark:border-zinc-900 rounded-full p-1 flex items-center justify-center">
             <Heart className="size-3 fill-red-500 text-red-500" />

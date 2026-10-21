@@ -4,7 +4,7 @@ import { Hash, History, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { HighlightText } from "@/components/shared/highlight-text";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useActorId } from "@/features/auth";
 import type { HashtagStat } from "@/features/posts/types";
 import type { UserProfile } from "@/features/profile/types";
@@ -203,12 +203,7 @@ export function SearchBox({ defaultValue = "", autoFocus, variant }: SearchBoxPr
       case "user":
         return (
           <>
-            <Avatar className="size-8 shrink-0 border border-zinc-100 dark:border-zinc-900">
-              <AvatarImage src={option.user.avatarUrl} alt="" />
-              <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">
-                {option.user.displayName.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar src={option.user.avatarUrl} name={option.user.displayName} className="size-8 shrink-0 border border-zinc-100 dark:border-zinc-900" />
             <span className="flex min-w-0 flex-1 flex-col">
               <span className="truncate font-semibold">
                 <HighlightText text={option.user.displayName} tokens={tokens} />

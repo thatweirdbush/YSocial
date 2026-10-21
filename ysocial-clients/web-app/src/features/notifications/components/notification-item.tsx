@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { AtSign, Heart, User, MessageCircle } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 import type { NotificationItemData, NotificationUser } from "../types";
@@ -94,12 +94,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         <Link href={redirectUrl} onClick={() => onOpen?.(item)} className="flex gap-4 items-start flex-1 min-w-0 hover:opacity-95 transition-opacity">
           {/* Left Column: Avatar & Overlap Badge */}
           <div className="relative shrink-0">
-            <Avatar className="size-10 border border-zinc-200 dark:border-zinc-900">
-              <AvatarImage src={item.user.avatarUrl} alt={item.user.displayName} />
-              <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                {item.user.displayName.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar src={item.user.avatarUrl} name={item.user.displayName} className="size-10 border border-zinc-200 dark:border-zinc-900" alt={item.user.displayName} />
             {renderOverlapIcon()}
           </div>
 

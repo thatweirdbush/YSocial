@@ -1,107 +1,124 @@
 "use client";
 
+import { Maximize2, Play } from "lucide-react";
+
+import { MediaImage } from "@/components/shared/media-image";
+import { VideoPlayer } from "@/components/shared/video-player";
+import { useTranslation } from "@/hooks/use-translation";
+import { aspectClassOf } from "@/lib/media/aspect";
+import { posterOf } from "@/lib/media/media-loader";
+import { cn } from "@/lib/utils";
+
+import type { PostMediaItem } from "../types";
+
 interface PostMediaGridProps {
-  images: string[];
+  items: PostMediaItem[];
   onOpen: (index: number) => void;
 }
 
-/** Multi-image grid matching Threads/X layouts (1, 2, 3, 4+ images). */
-export function PostMediaGrid({ images, onOpen }: PostMediaGridProps) {
-  if (images.length === 0) return null;
+const FRAME = "mt-2 w-full overflow-hidden rounded-2xl border border-zinc-200/50 shadow-sm dark:border-zinc-800/40";
+const TILE = "relative block size-full cursor-zoom-in overflow-hidden bg-zinc-150 outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 dark:bg-zinc-900 dark:focus-visible:ring-zinc-100";
 
-  if (images.length === 1) {
-    return (
-      <div
-        onClick={() => onOpen(0)}
-        className="mt-2 rounded-2xl overflow-hidden border border-zinc-200/50 dark:border-zinc-800/40 max-h-[350px] w-full bg-zinc-150 dark:bg-zinc-900 flex items-center justify-center relative shadow-sm cursor-zoom-in transition-all duration-300"
-      >
-        <img
-          src={images[0]}
-          alt="Post attachment"
-          className="w-full h-full object-cover max-h-[350px] transition-transform duration-700 hover:scale-101"
-          loading="lazy"
-        />
-      </div>
-    );
-  }
+const SINGLE_SIZES = "(min-width: 640px) 560px, 100vw";
+const TILE_SIZES = "(min-width: 640px) 280px, 50vw";
 
-  if (images.length === 2) {
+/** Multi-media grid (Threads/X layouts for 1, 2, 3, 4+ items); no hover scaling, so nothing ever shifts layout. */
+export function PostMediaGrid({ items, onOpen }: PostMediaGridProps) {
+  if (items.length === 0) return null;
+
+  if (items.length === 1) return <SingleMedia item={items[0]} onOpen={onOpen} />;
+
+  if (items.length === 2) {
     return (
-      <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden max-h-[280px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-        {images.map((img, idx) => (
-          <div
-            key={idx}
-            onClick={() => onOpen(idx)}
-            className="w-full h-full min-h-[160px] max-h-[280px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-          >
-            <img
-              src={img}
-              alt={`Attachment ${idx + 1}`}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-            />
-          </div>
+      <div className={cn(FRAME, "grid max-h-[280px] grid-cols-2 gap-1.5")}>
+        {items.map((item, index) => (
+          <Tile key={index} item={item} index={index} onOpen={onOpen} className="min-h-[160px]" />
         ))}
       </div>
     );
   }
 
-  if (images.length === 3) {
+  if (items.length === 3) {
     return (
-      <div className="mt-2 grid grid-cols-2 gap-1.5 rounded-2xl overflow-hidden max-h-[320px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-        <div
-          onClick={() => onOpen(0)}
-          className="w-full h-full min-h-[240px] max-h-[320px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img row-span-2"
-        >
-          <img
-            src={images[0]}
-            alt="Attachment 1"
-            className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-          />
-        </div>
-        <div className="grid grid-rows-2 gap-1.5 h-full">
-          {images.slice(1, 3).map((img, idx) => (
-            <div
-              key={idx}
-              onClick={() => onOpen(idx + 1)}
-              className="w-full h-full min-h-[110px] max-h-[155px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-            >
-              <img
-                src={img}
-                alt={`Attachment ${idx + 2}`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-              />
-            </div>
+      <div className={cn(FRAME, "grid max-h-[320px] grid-cols-2 gap-1.5")}>
+        <Tile item={items[0]} index={0} onOpen={onOpen} className="row-span-2 min-h-[240px]" />
+        <div className="grid h-full grid-rows-2 gap-1.5">
+          {items.slice(1, 3).map((item, index) => (
+            <Tile key={index} item={item} index={index + 1} onOpen={onOpen} className="min-h-[110px]" />
           ))}
         </div>
       </div>
     );
   }
 
-  // 4 or more images grid configuration
+  const extra = items.length - 4;
+
   return (
-    <div className="mt-2 grid grid-cols-2 grid-rows-2 gap-1.5 rounded-2xl overflow-hidden max-h-[350px] w-full border border-zinc-200/50 dark:border-zinc-800/40 shadow-sm">
-      {images.slice(0, 4).map((img, idx) => {
-        const isFourth = idx === 3;
-        const extraCount = images.length - 4;
-        return (
-          <div
-            key={idx}
-            onClick={() => onOpen(idx)}
-            className="w-full h-full min-h-[120px] max-h-[170px] bg-zinc-150 dark:bg-zinc-900 cursor-zoom-in overflow-hidden relative group/img"
-          >
-            <img
-              src={img}
-              alt={`Attachment ${idx + 1}`}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-102"
-            />
-            {isFourth && extraCount > 0 && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-bold text-lg select-none">
-                +{extraCount}
-              </div>
-            )}
-          </div>
-        );
-      })}
+    <div className={cn(FRAME, "grid max-h-[350px] grid-cols-2 grid-rows-2 gap-1.5")}>
+      {items.slice(0, 4).map((item, index) => (
+        <Tile key={index} item={item} index={index} onOpen={onOpen} className="min-h-[120px]" overlay={index === 3 && extra > 0 ? `+${extra}` : undefined} />
+      ))}
     </div>
+  );
+}
+
+function SingleMedia({ item, onOpen }: { item: PostMediaItem; onOpen: (index: number) => void }) {
+  const { t } = useTranslation();
+
+  if (item.kind === "video") {
+    return (
+      <div className="group/video relative mt-2">
+        <VideoPlayer src={item.url} poster={item.posterUrl ?? posterOf(item.url)} width={item.width} height={item.height} className="max-h-[420px]" />
+        <button
+          type="button"
+          aria-label={t("media.openVideo", { n: 1 })}
+          onClick={() => onOpen(0)}
+          className="absolute top-2 right-2 flex size-8 items-center justify-center rounded-full bg-black/50 text-white opacity-0 transition-opacity group-hover/video:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
+        >
+          <Maximize2 className="size-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn(FRAME, "relative max-h-[350px]", aspectClassOf(item.width, item.height))}>
+      <button type="button" onClick={() => onOpen(0)} className={TILE}>
+        <MediaImage src={item.url} alt="Post attachment" fill sizes={SINGLE_SIZES} className="object-cover" />
+      </button>
+    </div>
+  );
+}
+
+function Tile({
+  item,
+  index,
+  onOpen,
+  className,
+  overlay,
+}: {
+  item: PostMediaItem;
+  index: number;
+  onOpen: (index: number) => void;
+  className?: string;
+  overlay?: string;
+}) {
+  const isVideo = item.kind === "video";
+  const source = isVideo ? (item.posterUrl ?? posterOf(item.url)) : item.url;
+
+  return (
+    <button type="button" onClick={() => onOpen(index)} className={cn(TILE, className)}>
+      {source ? (
+        <MediaImage src={source} alt={isVideo ? `Video ${index + 1}` : `Attachment ${index + 1}`} fill sizes={TILE_SIZES} className="object-cover" />
+      ) : (
+        <span className="absolute inset-0 bg-zinc-300 dark:bg-zinc-800" />
+      )}
+      {isVideo && (
+        <span className="absolute top-1/2 left-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/60 text-white">
+          <Play className="size-5" />
+        </span>
+      )}
+      {overlay && <span className="absolute inset-0 flex select-none items-center justify-center bg-black/60 text-lg font-bold text-white">{overlay}</span>}
+    </button>
   );
 }

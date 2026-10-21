@@ -2,7 +2,7 @@
 
 import { ArrowUp } from "lucide-react";
 import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import { usePendingFeed } from "../hooks/use-pending-feed";
 import { useFeedMeta, usePostActions } from "../store/post-store";
@@ -56,12 +56,7 @@ export function NewPostsPill({ tab, onRefetch }: NewPostsPillProps) {
             {authors.length > 0 && (
               <span className="flex -space-x-2" aria-hidden="true">
                 {authors.map((author) => (
-                  <Avatar key={author.id} className="size-6 ring-2 ring-white dark:ring-zinc-900">
-                    <AvatarImage src={author.avatarUrl} alt="" />
-                    <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-[10px] font-semibold">
-                      {author.displayName.charAt(0).toUpperCase() || "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar key={author.id} src={author.avatarUrl} name={author.displayName} className="size-6 ring-2 ring-white dark:ring-zinc-900" fallbackClassName="text-[10px]" />
                 ))}
               </span>
             )}

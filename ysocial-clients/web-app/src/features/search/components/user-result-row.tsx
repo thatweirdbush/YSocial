@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { HighlightText } from "@/components/shared/highlight-text";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { FollowButton, useUser } from "@/features/profile";
 import { useTranslation } from "@/hooks/use-translation";
 
@@ -24,10 +24,7 @@ export function UserResultRow({ userId, tokens = [] }: UserResultRowProps) {
   return (
     <div className="flex min-h-[72px] items-center gap-3 px-4 py-3 transition-colors hover:bg-zinc-50 motion-reduce:transition-none dark:hover:bg-zinc-950">
       <Link href={`/@${user.username}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <Avatar className="size-10 shrink-0 border border-zinc-100 dark:border-zinc-900">
-          <AvatarImage src={user.avatarUrl} alt="" />
-          <AvatarFallback className="bg-zinc-200 text-xs font-semibold dark:bg-zinc-800">{user.displayName.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <UserAvatar src={user.avatarUrl} name={user.displayName} className="size-10 shrink-0 border border-zinc-100 dark:border-zinc-900" />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-sm font-semibold text-zinc-950 dark:text-zinc-50">
             <HighlightText text={user.displayName} tokens={tokens} />
