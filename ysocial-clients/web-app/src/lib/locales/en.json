@@ -458,6 +458,11 @@
     "fontLg": "Large",
     "reducedMotion": "Reduced motion",
     "motionSystem": "Follow system",
-    "motionReduce": "Always reduce"
+    "motionReduce": "Always reduce",
+    "content": "Content",
+    "hideLikeCounts": "Hide like counts",
+    "hideShareCounts": "Hide share counts",
+    "mutedLink": "Muted accounts",
+    "privacyLinks": "Blocked & close friends"
   }
 }

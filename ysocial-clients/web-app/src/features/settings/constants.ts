@@ -1,4 +1,4 @@
-import { Ban, Bell, Languages, Lock, Palette, Star, VolumeX } from "lucide-react";
+import { Ban, Bell, Languages, Lock, MessageSquareText, Palette, Star, VolumeX } from "lucide-react";
 import { hasCapability } from "@/lib/capabilities";
 import type { SettingsSection } from "./types";
 
@@ -11,6 +11,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { href: "/settings/close-friends", titleKey: "settings.closeFriends", icon: Star, capability: "closeFriendsUi" },
   { href: "/settings/appearance", titleKey: "settings.appearance", icon: Palette },
   { href: "/settings/language", titleKey: "settings.language", icon: Languages },
+  { href: "/settings/content", titleKey: "settings.content", icon: MessageSquareText },
 ];
 
 /** Sections whose capability is on (a section without capability is always shown); read per call. */

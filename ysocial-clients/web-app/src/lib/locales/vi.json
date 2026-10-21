@@ -458,6 +458,11 @@
     "fontLg": "Lớn",
     "reducedMotion": "Giảm chuyển động",
     "motionSystem": "Theo hệ thống",
-    "motionReduce": "Luôn giảm"
+    "motionReduce": "Luôn giảm",
+    "content": "Nội dung",
+    "hideLikeCounts": "Ẩn số lượt thích",
+    "hideShareCounts": "Ẩn số lượt chia sẻ",
+    "mutedLink": "Danh sách đã ẩn",
+    "privacyLinks": "Danh sách chặn & bạn thân"
   }
 }

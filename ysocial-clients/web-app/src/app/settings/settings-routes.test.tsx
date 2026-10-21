@@ -5,6 +5,7 @@ import SectionsLayout from "./(sections)/layout";
 import { metadata as appearanceMetadata } from "./(sections)/appearance/page";
 import { metadata as blockedMetadata } from "./(sections)/blocked/page";
 import { metadata as closeFriendsMetadata } from "./(sections)/close-friends/page";
+import { metadata as contentMetadata } from "./(sections)/content/page";
 import { metadata as languageMetadata } from "./(sections)/language/page";
 import { metadata as mutedMetadata } from "./(sections)/muted/page";
 import { metadata as notificationsMetadata } from "./(sections)/notifications/page";
@@ -58,8 +59,9 @@ describe("settings route metadata", () => {
       closeFriendsMetadata,
       appearanceMetadata,
       languageMetadata,
+      contentMetadata,
     ].map((metadata) => String(metadata.title));
-    expect(new Set(titles).size).toBe(8);
+    expect(new Set(titles).size).toBe(9);
     expect(titles.every((title) => title.endsWith("• YSocial"))).toBe(true);
   });
 });
@@ -90,10 +92,10 @@ describe("root settings layout", () => {
 });
 
 describe("/settings index page", () => {
-  it("lists the 7 sections in the center column and uses the default right sidebar (no SettingsNav)", () => {
+  it("lists the 8 sections in the center column and uses the default right sidebar (no SettingsNav)", () => {
     render(<SettingsPage />);
 
-    expect(settingsLinks()).toHaveLength(7);
+    expect(settingsLinks()).toHaveLength(8);
     expect(screen.queryByRole("navigation")).toBeNull();
     expect(shell.props.every((props) => !props.hasAside)).toBe(true);
   });
