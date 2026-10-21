@@ -16,4 +16,6 @@ public sealed class UnavailableMediaStorage : IMediaStorage
         => throw new MediaStorageUnavailableException(Reason);
 
     public bool OwnsUrl(string? url) => false;
+
+    public bool IsAvailable => false;
 }

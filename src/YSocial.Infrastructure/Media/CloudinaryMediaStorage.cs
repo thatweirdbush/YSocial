@@ -174,4 +174,6 @@ public sealed class CloudinaryMediaStorage : IMediaStorage
     #endregion
 
     public bool OwnsUrl(string? url) => CloudinaryUrl.Owns(url, _cloudName);
+
+    public bool IsAvailable => true;
 }

@@ -77,6 +77,9 @@ public static class DependencyInjection
                 : new UnavailableMediaStorage();
         });
 
+        services.AddSingleton<MediaCleanupProcessor>();
+        services.AddHostedService<MediaCleanupJob>();
+
         // Message & Notifications
         services.AddScoped<IEmailSender, MockEmailSender>();
         services.AddScoped<ISmsSender, MockSmsSender>();

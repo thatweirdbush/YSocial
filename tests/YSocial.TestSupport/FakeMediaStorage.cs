@@ -89,6 +89,8 @@ public sealed class FakeMediaStorage : IMediaStorage
 
     public bool OwnsUrl(string? url) => CloudinaryUrl.Owns(url, CloudName);
 
+    public bool IsAvailable => true;
+
     public void Reset()
     {
         _files.Clear();

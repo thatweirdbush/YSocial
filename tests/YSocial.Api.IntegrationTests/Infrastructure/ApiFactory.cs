@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using YSocial.Application.Abstractions.Media;
 using YSocial.Application.CQRS.Results;
+using YSocial.Infrastructure.Media;
 using YSocial.Infrastructure.Notifications.Outbox;
 using YSocial.TestSupport;
 
@@ -47,6 +48,13 @@ public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Pro
             var job = services.Where(d => d.ImplementationType == typeof(ProcessNotificationOutboxJob)
                                           && d.ServiceType == typeof(IHostedService)).ToList();
             foreach (var descriptor in job)
+            {
+                services.Remove(descriptor);
+            }
+
+            // The sweep is run by tests explicitly (it would delete rows under test)
+            foreach (var descriptor in services.Where(d => d.ImplementationType == typeof(MediaCleanupJob)
+                                                           && d.ServiceType == typeof(IHostedService)).ToList())
             {
                 services.Remove(descriptor);
             }

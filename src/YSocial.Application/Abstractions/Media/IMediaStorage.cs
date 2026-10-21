@@ -22,6 +22,11 @@ public interface IMediaStorage
     /// True only for urls of OUR storage (strict parse, never a prefix check).
     /// </summary>
     bool OwnsUrl(string? url);
+
+    /// <summary>
+    /// False for the stand-in used when the provider keys are missing (uploads and the sweep skip the provider).
+    /// </summary>
+    bool IsAvailable { get; }
 }
 
 /// <param name="PublicId">Remote key derived from the asset id before the upload.</param>

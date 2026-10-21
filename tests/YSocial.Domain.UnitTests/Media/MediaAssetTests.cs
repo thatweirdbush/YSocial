@@ -199,6 +199,39 @@ public class MediaAssetTests
         => ShouldBreak(() => At(from).RecordCleanupFailure(Now), ErrorCodes.Conflict, RuleViolationKind.Conflict);
     #endregion
 
+    #region Sweep eligibility
+    // Cut-offs in the future make every row "old"; in the past none is
+    private static MediaSweepWindow Window(DateTime cutOff) => new(cutOff, cutOff, cutOff, cutOff);
+
+    [Theory]
+    [InlineData("Uploading", true)]
+    [InlineData("Pending", true)]
+    [InlineData("Released", true)]
+    [InlineData("Deleting", true)]
+    [InlineData("Attached", false)]
+    public void IsSweepable_WhenOlderThanCutOff_OnlyAttachedIsNever(string status, bool expected)
+        => At(status).IsSweepable(Window(DateTime.UtcNow.AddHours(1))).Should().Be(expected);
+
+    [Theory]
+    [InlineData("Uploading")]
+    [InlineData("Pending")]
+    [InlineData("Released")]
+    [InlineData("Deleting")]
+    [InlineData("Attached")]
+    public void IsSweepable_WhenNewerThanCutOff_IsFalse(string status)
+        => At(status).IsSweepable(Window(DateTime.UtcNow.AddHours(-1))).Should().BeFalse();
+
+    [Fact]
+    public void IsSweepable_UsesTheCutOffOfTheCurrentStatusOnly()
+    {
+        var old = DateTime.UtcNow.AddHours(1);
+        var fresh = DateTime.UtcNow.AddHours(-1);
+
+        Pending().IsSweepable(new MediaSweepWindow(old, fresh, old, old)).Should().BeFalse();
+        Pending().IsSweepable(new MediaSweepWindow(fresh, old, fresh, fresh)).Should().BeTrue();
+    }
+    #endregion
+
     private static MediaAsset At(string status) => status switch
     {
         "Uploading" => Uploading(),
@@ -219,7 +252,7 @@ public class MediaAssetTests
     private static MediaAsset DeletingAsset()
     {
         var asset = Pending();
-        asset.Claim(Now);
+        asset.Claim(DateTime.UtcNow);
         return asset;
     }
 }

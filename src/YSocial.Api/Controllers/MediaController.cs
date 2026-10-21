@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using YSocial.Api.Infrastructure.Filters;
 using YSocial.Api.Models.Media;
 using YSocial.Application.Features.Media;
+using YSocial.Application.Features.Media.DiscardMedia;
 using YSocial.Application.Features.Media.UploadMedia;
 using YSocial.Application.Models;
 
@@ -36,6 +37,19 @@ public class MediaController : ApiController
 
         return HandleCreated(result, media => media);
     }
+
+    /// <summary>
+    /// Discards one of the caller's own <c>Pending</c> assets (best effort cleanup of a removed attachment or abandoned composer).
+    /// </summary>
+    /// <remarks>Foreign, unknown, attached, released or already deleted assets all answer the same 404.</remarks>
+    [HttpDelete("{id:guid}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Discard(Guid id, CancellationToken cancellationToken)
+        => HandleResult(await Mediator.Send(new DiscardMediaCommand(id), cancellationToken));
 
     // Only for messages: never a path, never long
     private static string DisplayName(string fileName)

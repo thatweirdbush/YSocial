@@ -119,6 +119,19 @@ public class MediaAsset : AggregateRoot<MediaAssetId>
         CleanupAttempts++;
     }
 
+    /// <summary>
+    /// The sweep re-checks each row with fresh data before claiming it (Attached is never sweepable).
+    /// </summary>
+    public bool IsSweepable(MediaSweepWindow window)
+    {
+        if (Status == MediaAssetStatus.Uploading) return StatusChangedAt < window.UploadingBefore;
+        if (Status == MediaAssetStatus.Pending) return StatusChangedAt < window.PendingBefore;
+        if (Status == MediaAssetStatus.Released) return StatusChangedAt < window.ReleasedBefore;
+        if (Status == MediaAssetStatus.Deleting) return StatusChangedAt < window.DeletingBefore;
+
+        return false;
+    }
+
     private void Transition(MediaAssetStatus to, bool allowed, DateTime? now = null)
     {
         CheckRule(new MediaStatusTransitionRule(Status.Name, to.Name, allowed));
