@@ -155,6 +155,12 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Schema & seed. Migrate: Development default (opt in elsewhere). Seed holds well-known passwords: Development ONLY
+// Missing Cloudinary keys never stop the app: media endpoints answer 503, /health reports Degraded
+if (!app.Services.GetRequiredService<IMediaStorage>().IsAvailable)
+{
+    app.Logger.LogWarning("Media storage is not configured (Cloudinary:CloudName, ApiKey, ApiSecret): uploads answer 503 and /health reports Degraded");
+}
+
 await DatabaseInitializer.InitializeAsync(app.Services, new DatabaseInitOptions(
     Migrate: builder.Configuration.GetValue("Database:AutoMigrate", builder.Environment.IsDevelopment()),
     SeedData: builder.Environment.IsDevelopment() && builder.Configuration.GetValue("Database:SeedData", true)));
@@ -217,6 +223,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

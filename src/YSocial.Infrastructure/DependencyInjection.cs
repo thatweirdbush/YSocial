@@ -77,6 +77,8 @@ public static class DependencyInjection
                 : new UnavailableMediaStorage();
         });
 
+        services.AddHealthChecks().AddCheck<MediaStorageHealthCheck>(MediaStorageHealthCheck.Name);
+
         services.AddSingleton<MediaCleanupProcessor>();
         services.AddHostedService<MediaCleanupJob>();
 

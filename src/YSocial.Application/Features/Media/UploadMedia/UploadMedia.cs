@@ -134,6 +134,12 @@ internal sealed class UploadMediaCommandHandler(
             return Result<IReadOnlyList<MediaDto>>.Unauthorized();
         }
 
+        // Without provider keys there is nothing to reserve: answer 503 before any row exists
+        if (!storage.IsAvailable)
+        {
+            throw new MediaStorageUnavailableException("Media storage is not configured.");
+        }
+
         var ownerId = new UserId(userContext.UserId);
         MediaPurposes.TryParse(command.Purpose, out var purpose);
 

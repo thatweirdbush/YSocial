@@ -55,7 +55,7 @@ public sealed class UploadMediaHandlerTests : IDisposable
         }
     }
 
-    private UploadMediaCommandHandler NewHandler(UserId? user = null, MediaUploadGate? gate = null, bool authenticated = true, Barrier? barrier = null)
+    private UploadMediaCommandHandler NewHandler(UserId? user = null, MediaUploadGate? gate = null, bool authenticated = true, Barrier? barrier = null, IMediaStorage? storage = null)
     {
         var db = _database.NewContext();
         var realUnitOfWork = new UnitOfWork(db, Substitute.For<IDomainEventsDispatcher>());
@@ -65,7 +65,7 @@ public sealed class UploadMediaHandlerTests : IDisposable
         userContext.UserId.Returns((user ?? Owner).Value);
 
         return new UploadMediaCommandHandler(
-            new MediaAssetRepository(db, realUnitOfWork), unitOfWork, _storage, userContext, gate ?? _gate, _options, TimeProvider.System, NullLogger<UploadMediaCommandHandler>.Instance);
+            new MediaAssetRepository(db, realUnitOfWork), unitOfWork, storage ?? _storage, userContext, gate ?? _gate, _options, TimeProvider.System, NullLogger<UploadMediaCommandHandler>.Instance);
     }
 
     private static UploadFile Png(string name = "a.png") => new(name, 1000, () => new MemoryStream(MediaSamples.Png(800, 600, padding: 900)));
@@ -148,6 +148,15 @@ public sealed class UploadMediaHandlerTests : IDisposable
         _storage.UploadAttempts.Should().Be(0);
     }
     #endregion
+
+    [Fact]
+    public async Task UnavailableStorage_Throws503_WithoutCreatingAnyRow()
+    {
+        var act = () => NewHandler(storage: new YSocial.Infrastructure.Media.UnavailableMediaStorage()).Handle(Command("post", Png()), default);
+
+        await act.Should().ThrowAsync<MediaStorageUnavailableException>();
+        Rows().Should().BeEmpty("with no keys there is nothing to reserve");
+    }
 
     #region Compensation
     [Fact]

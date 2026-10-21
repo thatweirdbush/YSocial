@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -13,7 +14,9 @@ using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
-public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Program>
+/// <param name="useFakeStorage">False keeps the production storage choice with the Cloudinary keys forced EMPTY (the real keys of the
+/// developer machine must never be reachable from tests): the host then runs on <c>UnavailableMediaStorage</c>.</param>
+public class ApiFactory(SqliteTestDatabase database, bool useFakeStorage = true) : WebApplicationFactory<Program>
 {
     /// <summary>
     /// Every log message of the host (redaction tests).
@@ -29,6 +32,17 @@ public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Pro
     {
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
 
+        if (!useFakeStorage)
+        {
+            // Added after user-secrets & env vars, so it wins over them
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Cloudinary:CloudName"] = "",
+                ["Cloudinary:ApiKey"] = "",
+                ["Cloudinary:ApiSecret"] = ""
+            }));
+        }
+
         // appsettings.Development.json opts into raw OTP logging for manual dev: redaction tests need it off
         builder.UseSetting("Messaging:LogOtpInDevelopment", "false");
 
@@ -41,8 +55,11 @@ public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Pro
             // Never the real (Postgres) database
             database.ReplaceDatabaseOf(services);
 
-            services.RemoveAll<IMediaStorage>();
-            services.AddSingleton<IMediaStorage>(Storage);
+            if (useFakeStorage)
+            {
+                services.RemoveAll<IMediaStorage>();
+                services.AddSingleton<IMediaStorage>(Storage);
+            }
 
             // Background polling job mutates shared state: outbox tests process messages directly
             var job = services.Where(d => d.ImplementationType == typeof(ProcessNotificationOutboxJob)
