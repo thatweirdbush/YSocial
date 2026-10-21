@@ -13,7 +13,7 @@ using YSocial.Domain.Users;
 namespace YSocial.Infrastructure.Persistence.Seeding;
 
 /// <summary>
-/// Rich, deterministic demo data for local development: 12 accounts (13 profiles, 2 private), posts with images,
+/// Rich, deterministic demo data for local development: 12 accounts (13 profiles, 2 private), posts (no stock images),
 /// threaded comments, likes, saved posts, a follow graph (pending requests, close friends), mutes, blocks & notifications.
 /// Every stored counter (likes, saves, followers, following) matches the rows. Every account uses
 /// <see cref="SeedIds.TestPassword"/>. Written directly (no events dispatched). Development ONLY.
@@ -76,6 +76,15 @@ public static class DevelopmentSeeder
 
     public static async Task SeedAsync(YSocialDbContext db, CancellationToken cancellationToken = default)
     {
+        await SeedBaseAsync(db, cancellationToken);
+        await DiscoverySeeder.SeedAsync(db, cancellationToken);
+    }
+
+    /// <summary>
+    /// Stage 1: base dataset (own sentinel).
+    /// </summary>
+    internal static async Task SeedBaseAsync(YSocialDbContext db, CancellationToken cancellationToken = default)
+    {
         if (await db.Accounts.AnyAsync(a => a.Id == SeedIds.Account(1), cancellationToken))
         {
             return;
@@ -131,15 +140,15 @@ public static class DevelopmentSeeder
         users.Add(CreateUser(phuc.Id, "phuc_ho_art", "Phuc Ho Art", "Sketches only.", isPrivate: false, isDefault: false, SeedIds.User(users.Count + 1), 10));
     }
 
-    private static User CreateUser(AccountId accountId, string username, string displayName, string bio, bool isPrivate, bool isDefault, UserId id, int index)
+    internal static User CreateUser(AccountId accountId, string username, string displayName, string bio, bool isPrivate, bool isDefault, UserId id, int index)
     {
         var user = SeedFactory.Pin(User.Create(accountId, username, Country.Vietnam, isDefault), id, SeedIds.BaseTime.AddHours(index));
 
         user.UpdateProfile(new UserProfileInfo(
             displayName,
             bio,
-            $"https://i.pravatar.cc/150?u={username}",
-            $"https://picsum.photos/seed/{username}/1200/400",
+            null,
+            null,
             index % 2 == 0 ? Gender.Female : Gender.Male,
             new DateTime(1990 + index % 12, 1 + index % 12, 1 + index % 27),
             ProfileType.Personal));
@@ -169,8 +178,7 @@ public static class DevelopmentSeeder
             foreach (var author in authors)
             {
                 var n = posts.Count;
-                var imageUrl = n % 4 == 0 ? $"https://picsum.photos/seed/ysocial-{n}/800/600" : null;
-                var post = Post.Create(author, PostTexts[n % PostTexts.Length], imageUrl);
+                var post = Post.Create(author, PostTexts[n % PostTexts.Length]);
 
                 posts.Add(SeedFactory.Pin(post, SeedIds.Post(n + 3), SeedIds.BaseTime.AddDays(1).AddMinutes(n * 37)));
             }
