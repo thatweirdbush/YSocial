@@ -2,8 +2,10 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import SectionsLayout from "./(sections)/layout";
+import { metadata as appearanceMetadata } from "./(sections)/appearance/page";
 import { metadata as blockedMetadata } from "./(sections)/blocked/page";
 import { metadata as closeFriendsMetadata } from "./(sections)/close-friends/page";
+import { metadata as languageMetadata } from "./(sections)/language/page";
 import { metadata as mutedMetadata } from "./(sections)/muted/page";
 import { metadata as notificationsMetadata } from "./(sections)/notifications/page";
 import { metadata as privacyMetadata } from "./(sections)/privacy/page";
@@ -47,8 +49,17 @@ describe("settings route metadata", () => {
   it("keeps every settings route out of search engines and titles each page uniquely", () => {
     expect(settingsMetadata.robots).toEqual({ index: false, follow: false });
 
-    const titles = [indexMetadata, privacyMetadata, notificationsMetadata, blockedMetadata, mutedMetadata, closeFriendsMetadata].map((metadata) => String(metadata.title));
-    expect(new Set(titles).size).toBe(6);
+    const titles = [
+      indexMetadata,
+      privacyMetadata,
+      notificationsMetadata,
+      blockedMetadata,
+      mutedMetadata,
+      closeFriendsMetadata,
+      appearanceMetadata,
+      languageMetadata,
+    ].map((metadata) => String(metadata.title));
+    expect(new Set(titles).size).toBe(8);
     expect(titles.every((title) => title.endsWith("• YSocial"))).toBe(true);
   });
 });
@@ -79,10 +90,10 @@ describe("root settings layout", () => {
 });
 
 describe("/settings index page", () => {
-  it("lists the 5 sections in the center column and uses the default right sidebar (no SettingsNav)", () => {
+  it("lists the 7 sections in the center column and uses the default right sidebar (no SettingsNav)", () => {
     render(<SettingsPage />);
 
-    expect(settingsLinks()).toHaveLength(5);
+    expect(settingsLinks()).toHaveLength(7);
     expect(screen.queryByRole("navigation")).toBeNull();
     expect(shell.props.every((props) => !props.hasAside)).toBe(true);
   });

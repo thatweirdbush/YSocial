@@ -444,6 +444,20 @@
     "notifyReplies": "Trả lời",
     "notifyRepliesHint": "Trả lời bài viết của bạn.",
     "notifyFollows": "Theo dõi",
-    "notifyFollowsHint": "Người theo dõi mới, yêu cầu theo dõi và yêu cầu được chấp nhận."
+    "notifyFollowsHint": "Người theo dõi mới, yêu cầu theo dõi và yêu cầu được chấp nhận.",
+    "appearance": "Giao diện",
+    "language": "Ngôn ngữ",
+    "onThisDevice": "Chỉ áp dụng trên thiết bị này",
+    "theme": "Chủ đề",
+    "themeLight": "Sáng",
+    "themeDark": "Tối",
+    "themeSystem": "Theo hệ thống",
+    "fontSize": "Cỡ chữ",
+    "fontSm": "Nhỏ",
+    "fontMd": "Vừa",
+    "fontLg": "Lớn",
+    "reducedMotion": "Giảm chuyển động",
+    "motionSystem": "Theo hệ thống",
+    "motionReduce": "Luôn giảm"
   }
 }

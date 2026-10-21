@@ -46,6 +46,15 @@ describe("MainLayout account menu", () => {
     expect(screen.getByRole("link", { name: "Cài đặt" })).toHaveAttribute("href", "/settings");
   });
 
+  it("no longer carries theme or language items (they live in settings now); the mobile bar keeps a quick language toggle", async () => {
+    render(<MainLayout>content</MainLayout>);
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Ngôn ngữ|Language/ })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /Dark Mode|Light Mode/ })).toBeNull();
+    expect(screen.getByText("vi", { selector: "button" })).toBeInTheDocument();
+  });
+
   it("hides the settings link from a guest", async () => {
     useAuthStore.setState({ user: null });
     render(<MainLayout>content</MainLayout>);

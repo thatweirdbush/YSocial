@@ -1,4 +1,6 @@
 export { PrivacySettings } from "./components/privacy-settings";
+export { AppearanceSection } from "./components/appearance-section";
+export { LanguageSection } from "./components/language-section";
 export { SettingsEffects } from "./components/settings-effects";
 export { SettingsGuestGate } from "./components/settings-guest-gate";
 export { SettingsIndex } from "./components/settings-index";

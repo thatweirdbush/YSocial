@@ -3,7 +3,6 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import {
   Home,
   Search,
@@ -11,9 +10,6 @@ import {
   Bell,
   User,
   Bookmark,
-  Sun,
-  Moon,
-  Languages,
   LogOut,
   MoreHorizontal,
   ChevronRight,
@@ -48,7 +44,6 @@ interface MainLayoutProps {
 export function MainLayout({ children, aside }: MainLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
   const { t } = useTranslation();
 
   const locale = useLocale();
@@ -228,40 +223,6 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
                       </Link>
                     </DropdownMenuItem>
                   )}
-
-                  <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
-
-                  {/* Locale Toggle Item in drop menu */}
-                  <DropdownMenuItem onClick={handleLanguageToggle} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
-                    <div className="flex items-center justify-between w-full text-sm">
-                      <span className="flex items-center gap-2">
-                        <Languages className="h-4 w-4 text-zinc-400" />
-                        {t("common.language")}
-                      </span>
-                      <span className="text-[10px] font-bold uppercase bg-zinc-100 dark:bg-zinc-900 px-2 py-0.5 rounded text-zinc-600 dark:text-zinc-400">
-                        {locale}
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
-
-                  {/* Dark Mode Switcher inside Dropdown */}
-                  <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="rounded-xl px-3 py-2 cursor-pointer focus:bg-zinc-100 dark:focus:bg-zinc-900">
-                    <div className="flex items-center justify-between w-full text-sm">
-                      <span className="flex items-center gap-2">
-                        {theme === "dark" ? (
-                          <>
-                            <Sun className="h-4 w-4 text-amber-500" />
-                            Light Mode
-                          </>
-                        ) : (
-                          <>
-                            <Moon className="h-4 w-4 text-indigo-500" />
-                            Dark Mode
-                          </>
-                        )}
-                      </span>
-                    </div>
-                  </DropdownMenuItem>
 
                   <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
                   <DropdownMenuItem onClick={handleLogout} className="rounded-xl px-3 py-2 cursor-pointer text-red-650 focus:text-red-650 focus:bg-red-50 dark:focus:bg-red-950/20">
