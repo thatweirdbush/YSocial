@@ -55,7 +55,7 @@ updated: 2026-10-20
 
 ### Phase 4 - Settings & Account (P1)
 - [ ] **4.1 Settings hub** `/settings`, 2-col layout (desktop) / stack (mobile), child routes:
-  - `account` (email, username, birth date, gender - match `UpdateProfileRequest`), `privacy` (private account, who can reply/mention), `notifications`, `appearance` (theme, font size, reduced motion - moved from dropdown), `language`, `blocked`, `muted`, `close-friends`, `sessions` (device list, remote logout - UI), `danger` (deactivate/delete account UI + confirm)
+  - `account` (email, username, birth date, gender - match `UpdateProfileRequest`), `privacy` (private account, who can reply/mention, `blocked`, `close-friends`), `notifications`, `appearance` (theme, font size, reduced motion - moved from dropdown), `language`, `liked` content preferences (`muted`, hide like & share count), `time-management` (daily average, chart), `sessions` (device list, remote logout - UI), `danger` (deactivate/delete account UI + confirm)
 - [ ] **4.2 `settings-store`** persisted to localStorage, `useShallow` when selecting multiple fields
 
 ### Phase 5 - Direct Messages (P2)
