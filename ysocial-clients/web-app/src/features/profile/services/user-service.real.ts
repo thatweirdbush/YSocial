@@ -48,7 +48,9 @@ export async function updateProfile(id: string, patch: ProfilePatch, actorId: st
   const updated = await apiClient.put<UserProfileDto>("/api/users/profiles/me", {
     displayName: patch.displayName.trim(),
     bio: patch.bio?.trim() || null,
-    avatarUrl: patch.avatarUrl || null,
+    // D34: an uploaded avatar travels as `avatarMediaId` WITHOUT the avatarUrl key (both = 400); otherwise avatarUrl
+    // is the stored url (keep) or null (remove): omitting the key would clear the avatar
+    ...(patch.avatarMediaId ? { avatarMediaId: patch.avatarMediaId } : { avatarUrl: patch.avatarUrl || null }),
     coverUrl: current.coverUrl ?? null,
   });
   return toUserProfile(updated);

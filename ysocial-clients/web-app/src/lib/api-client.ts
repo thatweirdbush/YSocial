@@ -122,6 +122,9 @@ export const apiClient = {
     apiFetch<T>(path, { ...options, method: "GET" }),
   post: <T = unknown>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, "method" | "body">) =>
     apiFetch<T>(path, { ...options, method: "POST", ...withBody(body) }),
+  /** Multipart upload: the form is sent untouched (no JSON, no manual Content-Type), same auth & refresh path. */
+  postForm: <T = unknown>(path: string, form: FormData, options?: Omit<ApiRequestOptions, "method" | "body">) =>
+    apiFetch<T>(path, { ...options, method: "POST", body: form }),
   put: <T = unknown>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, "method" | "body">) =>
     apiFetch<T>(path, { ...options, method: "PUT", ...withBody(body) }),
   patch: <T = unknown>(path: string, body?: unknown, options?: Omit<ApiRequestOptions, "method" | "body">) =>

@@ -150,6 +150,41 @@ describe("writes", () => {
     expect(body(calls[0])).toEqual({ content: "hi", imageUrl: "https://x/1.png" });
   });
 
+  describe("media (D33)", () => {
+    const MEDIA_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const MEDIA_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+    it("sends the uploaded media ids in order", async () => {
+      const calls = useFetch([{ status: 201, body: dto(ROOT) }]);
+      await createPost({ content: "hi", images: [], mediaIds: [MEDIA_B, MEDIA_A], audience: "anyone" }, author);
+      expect(body(calls[0])).toEqual({ content: "hi", mediaIds: [MEDIA_B, MEDIA_A] });
+    });
+
+    it("media-only post: empty content is sent as is", async () => {
+      const calls = useFetch([{ status: 201, body: dto(ROOT) }]);
+      await createPost({ content: "", images: [], mediaIds: [MEDIA_A], audience: "anyone" }, author);
+      expect(body(calls[0])).toEqual({ content: "", mediaIds: [MEDIA_A] });
+    });
+
+    it("never sends an external imageUrl together with mediaIds (the BE refuses both)", async () => {
+      const calls = useFetch([{ status: 201, body: dto(ROOT) }]);
+      await createPost({ content: "hi", images: ["https://media.giphy.com/x.gif"], mediaIds: [MEDIA_A], audience: "anyone" }, author);
+      expect(body(calls[0])).toEqual({ content: "hi", mediaIds: [MEDIA_A] });
+    });
+
+    it("an external GIF alone still goes as imageUrl", async () => {
+      const calls = useFetch([{ status: 201, body: dto(ROOT) }]);
+      await createPost({ content: "", images: ["https://media.giphy.com/x.gif"], audience: "anyone" }, author);
+      expect(body(calls[0])).toEqual({ content: "", imageUrl: "https://media.giphy.com/x.gif" });
+    });
+
+    it("maps the media of the answer", async () => {
+      useFetch([{ status: 201, body: dto(ROOT, { media: [{ id: MEDIA_A, kind: "image", url: "https://res.cloudinary.com/demo/image/upload/v1/a.jpg", width: 10, height: 20, bytes: 5 }] }) }]);
+      const post = await createPost({ content: "hi", images: [], mediaIds: [MEDIA_A], audience: "anyone" }, author);
+      expect(post.media).toEqual([{ id: MEDIA_A, kind: "image", url: "https://res.cloudinary.com/demo/image/upload/v1/a.jpg", width: 10, height: 20 }]);
+    });
+  });
+
   it("reply to root post: postId = root, no parentCommentId", async () => {
     const calls = useFetch([{ status: 201, body: dto(COMMENT, { kind: "comment", postId: ROOT, parentId: ROOT }) }]);
     const reply = await createReply(rootRef, { content: "re", images: [], audience: "anyone" }, author);

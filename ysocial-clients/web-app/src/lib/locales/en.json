@@ -508,6 +508,24 @@
     "play": "Play",
     "pause": "Pause",
     "openImage": "Open image {n}",
-    "openVideo": "Open video {n}"
+    "openVideo": "Open video {n}",
+    "optimizing": "Optimizing...",
+    "uploading": "Uploading...",
+    "uploadFailed": "Upload failed",
+    "retry": "Retry",
+    "remove": "Remove",
+    "unavailable": "Uploads are unavailable right now. You can still post text.",
+    "busy": "Another upload is in progress. Retry in a moment.",
+    "network": "Network problem. Check your connection and retry.",
+    "tooManyFiles": "You can attach up to {n} files.",
+    "imageTooBig": "Images must be under {n} MB.",
+    "videoTooBig": "Videos must be under {n} MB.",
+    "aggregateTooBig": "Files together must be under {n} MB.",
+    "unsupported": "Unsupported file. Use jpeg, png, gif, webp, mp4, mov or webm.",
+    "waitUploads": "Wait for the uploads to finish.",
+    "fixUploads": "Retry or remove the failed uploads first.",
+    "avatarChange": "Change photo",
+    "avatarRemove": "Remove photo",
+    "avatarUploading": "Uploading photo..."
   }
 }

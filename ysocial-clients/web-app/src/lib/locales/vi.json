@@ -508,6 +508,24 @@
     "play": "Phát",
     "pause": "Tạm dừng",
     "openImage": "Mở ảnh {n}",
-    "openVideo": "Mở video {n}"
+    "openVideo": "Mở video {n}",
+    "optimizing": "Đang tối ưu...",
+    "uploading": "Đang tải lên...",
+    "uploadFailed": "Tải lên thất bại",
+    "retry": "Thử lại",
+    "remove": "Xóa",
+    "unavailable": "Hiện chưa thể tải tệp lên. Bạn vẫn đăng được văn bản.",
+    "busy": "Đang có một lượt tải lên khác. Thử lại sau giây lát.",
+    "network": "Lỗi mạng. Kiểm tra kết nối rồi thử lại.",
+    "tooManyFiles": "Chỉ đính kèm tối đa {n} tệp.",
+    "imageTooBig": "Ảnh phải nhỏ hơn {n} MB.",
+    "videoTooBig": "Video phải nhỏ hơn {n} MB.",
+    "aggregateTooBig": "Tổng dung lượng các tệp phải nhỏ hơn {n} MB.",
+    "unsupported": "Tệp không được hỗ trợ. Dùng jpeg, png, gif, webp, mp4, mov hoặc webm.",
+    "waitUploads": "Chờ tải lên xong đã nhé.",
+    "fixUploads": "Hãy thử lại hoặc xóa các tệp lỗi trước.",
+    "avatarChange": "Đổi ảnh",
+    "avatarRemove": "Xóa ảnh",
+    "avatarUploading": "Đang tải ảnh lên..."
   }
 }

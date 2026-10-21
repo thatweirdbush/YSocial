@@ -12,7 +12,7 @@ import { usePostActions } from "../store/post-store";
 interface PostCreatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPostSubmitted?: (content: string, images: string[], audience: PostAudience, visibility: PostVisibility) => Promise<void>;
+  onPostSubmitted?: (content: string, images: string[], audience: PostAudience, visibility: PostVisibility, mediaIds?: string[]) => Promise<void>;
 }
 
 export function PostCreatorDialog({
@@ -26,8 +26,8 @@ export function PostCreatorDialog({
   const { prependPost } = usePostActions();
 
   // Default when the caller supplies no handler (sidebar "Create post"): publish to the mock feed.
-  const submitPost = onPostSubmitted ?? (async (content: string, images: string[], audience: PostAudience, visibility: PostVisibility) => {
-    const post = await createPost({ content, images, audience, ...(visibility === "closeFriends" ? { visibility } : {}) }, author);
+  const submitPost = onPostSubmitted ?? (async (content: string, images: string[], audience: PostAudience, visibility: PostVisibility, mediaIds?: string[]) => {
+    const post = await createPost({ content, images, audience, ...(mediaIds?.length ? { mediaIds } : {}), ...(visibility === "closeFriends" ? { visibility } : {}) }, author);
     prependPost("forYou", post);
   });
 
@@ -97,8 +97,8 @@ export function PostCreatorDialog({
             onCancel={() => onOpenChange(false)}
             onPopoverStateChange={setIsSubPopoverOpen}
             onStateChange={setHasUnsavedChanges}
-            onPostSubmitted={async (content, images, audience, visibility) => {
-              await submitPost(content, images, audience, visibility);
+            onPostSubmitted={async (content, images, audience, visibility, mediaIds) => {
+              await submitPost(content, images, audience, visibility, mediaIds);
               onOpenChange(false);
             }}
           />

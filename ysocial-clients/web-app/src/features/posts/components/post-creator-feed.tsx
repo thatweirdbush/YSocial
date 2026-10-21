@@ -15,9 +15,16 @@ export function PostCreatorFeed({ onSuccess }: PostCreatorFeedProps) {
     content: string,
     images: string[],
     audience: PostAudience,
-    visibility: PostVisibility
+    visibility: PostVisibility,
+    mediaIds?: string[]
   ) => {
-    await onSuccess?.({ content, images, audience, ...(visibility === "closeFriends" ? { visibility } : {}) });
+    await onSuccess?.({
+      content,
+      images,
+      audience,
+      ...(mediaIds?.length ? { mediaIds } : {}),
+      ...(visibility === "closeFriends" ? { visibility } : {}),
+    });
   };
 
   useEffect(() => {

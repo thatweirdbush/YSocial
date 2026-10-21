@@ -1,15 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useActorId, useAuthActions, useAuthUser } from "@/features/auth";
+import { useMediaUploadQueue } from "@/hooks/use-media-upload-queue";
 import { useTranslation } from "@/hooks/use-translation";
+import { hasCapability } from "@/lib/capabilities";
+import { describeMediaProblem } from "@/lib/media/media-messages";
+import { kindOfFile } from "@/lib/media/media-limits";
 import type { TranslationKey } from "@/lib/i18n/translate";
 import { updateProfile } from "../services/user-service";
 import { useUserActions } from "../store/user-store";
@@ -41,6 +47,8 @@ interface EditProfileDialogProps {
 }
 
 const LABEL = "pl-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400";
+/** Avatars are pictures: no videos (the BE refuses them too). */
+const AVATAR_ACCEPT = "image/jpeg,image/png,image/gif,image/webp";
 const FIELD =
   "rounded-xl border-zinc-200/70 focus-visible:border-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:border-zinc-900 dark:bg-black";
 
@@ -69,6 +77,50 @@ function EditProfileForm({ user, onDone }: { user: UserProfile; onDone: () => vo
   const { updateUser } = useAuthActions();
   const { upsertUsers } = useUserActions();
 
+  // Real BE: the photo is uploaded on select (Pending asset) and saved as `avatarMediaId`; mock mode keeps the url field
+  const uploadsReal = hasCapability("mediaUpload");
+  const queue = useMediaUploadQueue({
+    purpose: "avatar",
+    onReject: (rejection) => toast.error(describeMediaProblem(rejection, t)),
+  });
+  const [avatarRemoved, setAvatarRemoved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const discardRef = useRef(queue.discardAll);
+
+  // Closed any other way than Save (outside click, Escape): the pending upload goes back to the BE.
+  // After Save the queue was cleared, so there is nothing left to discard.
+  useEffect(() => {
+    const discard = discardRef;
+    return () => discard.current();
+  }, []);
+
+  const picked = queue.items[0];
+  const avatarPreview = picked ? picked.previewUrl : avatarRemoved ? undefined : user.avatarUrl;
+
+  const pickPhoto = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+
+    if (kindOfFile(file) !== "image") {
+      toast.error(describeMediaProblem({ code: "unsupported" }, t));
+      return;
+    }
+
+    queue.discardAll();
+    setAvatarRemoved(false);
+    queue.addFiles([file]);
+  };
+
+  const removePhoto = () => {
+    queue.discardAll();
+    setAvatarRemoved(true);
+  };
+
+  const cancel = () => {
+    queue.discardAll();
+    onDone();
+  };
+
   const {
     register,
     handleSubmit,
@@ -79,13 +131,28 @@ function EditProfileForm({ user, onDone }: { user: UserProfile; onDone: () => vo
   });
 
   const onSubmit = async (values: EditProfileFormValues) => {
-    const patch: ProfilePatch = {
-      displayName: values.displayName,
-      bio: values.bio || undefined,
-      avatarUrl: values.avatarUrl || undefined,
-    };
+    if (uploadsReal && queue.isBusy) {
+      toast.info(t("media.waitUploads"));
+      return;
+    }
+    if (uploadsReal && queue.hasError) {
+      toast.error(t("media.fixUploads"));
+      return;
+    }
+
+    const patch: ProfilePatch = { displayName: values.displayName, bio: values.bio || undefined };
+    if (!uploadsReal) {
+      patch.avatarUrl = values.avatarUrl || undefined;
+    } else if (queue.mediaIds[0]) {
+      patch.avatarMediaId = queue.mediaIds[0];
+    } else if (!avatarRemoved) {
+      // Keep: the stored url is re-sent, omitting it would clear the avatar
+      patch.avatarUrl = user.avatarUrl || undefined;
+    }
+
     try {
       const updated = await updateProfile(user.id, patch, actorId);
+      queue.clear();
       upsertUsers([updated], actorId);
       // Keep the sidebar account widget (auth store) in step; the cookie only carries { id, username }
       if (authUser?.id === user.id) {
@@ -123,25 +190,52 @@ function EditProfileForm({ user, onDone }: { user: UserProfile; onDone: () => vo
         {errors.bio && <span className="pl-1 text-xs font-semibold text-red-500">{errors.bio.message}</span>}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="edit-avatar-url" className={LABEL}>
-          {t("profile.editAvatarUrl")}
-        </label>
-        <Input
-          id="edit-avatar-url"
-          {...register("avatarUrl")}
-          placeholder="https://example.com/avatar.jpg"
-          aria-invalid={!!errors.avatarUrl}
-          className={FIELD}
-        />
-        {errors.avatarUrl && <span className="pl-1 text-xs font-semibold text-red-500">{errors.avatarUrl.message}</span>}
-      </div>
+      {uploadsReal ? (
+        <div className="flex items-center gap-4">
+          <UserAvatar src={avatarPreview} name={user.displayName} className="size-20 shrink-0 border border-zinc-200 dark:border-zinc-800" fallbackClassName="text-xl font-bold" />
+          <div className="flex flex-col items-start gap-1.5">
+            <input ref={fileInputRef} type="file" accept={AVATAR_ACCEPT} onChange={(e) => pickPhoto(e.target.files)} className="hidden" />
+            <Button type="button" variant="ghost" onClick={() => fileInputRef.current?.click()} className="min-h-11 rounded-full px-4 font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-900">
+              {t("media.avatarChange")}
+            </Button>
+            {avatarPreview && (
+              <Button type="button" variant="ghost" onClick={removePhoto} className="min-h-11 rounded-full px-4 font-semibold text-red-500 hover:bg-zinc-100 dark:hover:bg-zinc-900">
+                {t("media.avatarRemove")}
+              </Button>
+            )}
+            {queue.isBusy && (
+              <span role="status" className="pl-1 text-xs font-semibold text-zinc-500">
+                {t("media.avatarUploading")}
+              </span>
+            )}
+            {picked?.status === "error" && picked.error && (
+              <span role="alert" className="pl-1 text-xs font-semibold text-red-500">
+                {describeMediaProblem(picked.error, t)}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="edit-avatar-url" className={LABEL}>
+            {t("profile.editAvatarUrl")}
+          </label>
+          <Input
+            id="edit-avatar-url"
+            {...register("avatarUrl")}
+            placeholder="https://example.com/avatar.jpg"
+            aria-invalid={!!errors.avatarUrl}
+            className={FIELD}
+          />
+          {errors.avatarUrl && <span className="pl-1 text-xs font-semibold text-red-500">{errors.avatarUrl.message}</span>}
+        </div>
+      )}
 
       <div className="flex justify-end gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-900">
         <Button
           type="button"
           variant="ghost"
-          onClick={onDone}
+          onClick={cancel}
           className="min-h-11 rounded-full px-5 py-2 font-semibold hover:bg-zinc-100 dark:hover:bg-zinc-900"
         >
           {t("profile.editCancel")}

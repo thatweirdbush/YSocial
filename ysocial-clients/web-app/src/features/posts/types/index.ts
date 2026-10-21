@@ -189,7 +189,10 @@ export interface TagPage extends HashtagStat {
 
 export interface CreatePostInput {
   content: string;
+  /** Local previews & external urls (GIF picker); uploaded files travel as `mediaIds`. */
   images: string[];
+  /** Pending assets uploaded through `POST /api/media` (real BE only), in display order. */
+  mediaIds?: string[];
   audience: PostAudience;
   visibility?: PostVisibility;
 }

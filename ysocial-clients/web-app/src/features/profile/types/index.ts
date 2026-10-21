@@ -106,7 +106,10 @@ export interface FollowListPage {
 export interface ProfilePatch {
   displayName: string;
   bio?: string;
+  /** Keep = the current url; absent = remove. Ignored when `avatarMediaId` is set. */
   avatarUrl?: string;
+  /** A just uploaded Pending avatar asset (real BE): sent WITHOUT `avatarUrl`. */
+  avatarMediaId?: string;
 }
 
 export type ViewerUserInput = Pick<UserProfileBase, "id" | "username" | "displayName"> &

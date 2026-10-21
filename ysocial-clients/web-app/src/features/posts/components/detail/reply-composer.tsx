@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useIsAuthenticated } from "@/features/auth/store/auth-store";
 import { useTranslation } from "@/hooks/use-translation";
 import { useCurrentAuthor } from "../../hooks/use-current-author";
@@ -111,12 +111,7 @@ export function ReplyComposer({ parent, replyToUsername }: ReplyComposerProps) {
           className="w-full min-h-11 flex items-center gap-3 text-left text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors cursor-text"
         >
           <span aria-hidden="true">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={author.avatarUrl} alt="" />
-              <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-semibold">
-                {author.displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <UserAvatar src={author.avatarUrl} name={author.displayName} className="h-8 w-8" />
           </span>
           <span>{placeholder}</span>
         </button>

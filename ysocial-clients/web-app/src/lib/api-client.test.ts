@@ -85,6 +85,42 @@ describe("apiFetch basics", () => {
   });
 });
 
+describe("postForm (multipart)", () => {
+  it("sends the FormData as-is: no manual Content-Type (the browser adds the boundary), same Bearer", async () => {
+    const calls = useFetch([{ status: 201, body: [{ id: "m1" }] }]);
+    const form = new FormData();
+    form.append("purpose", "post");
+
+    expect(await apiClient.postForm("/api/media", form)).toEqual([{ id: "m1" }]);
+
+    expect(calls[0].init?.body).toBe(form);
+    expect(calls[0].init?.method).toBe("POST");
+    expect(new Headers(calls[0].init?.headers).has("Content-Type")).toBe(false);
+    expect(authHeader(calls[0])).toBe("Bearer A1");
+  });
+
+  it("retries once after a silent refresh with the SAME form (single-flight refresh path)", async () => {
+    refresh.mockResolvedValue({ status: "refreshed", accessToken: "A2", refreshToken: "R2" } as RefreshOutcome);
+    const calls = useFetch([problem(401, "Unauthenticated"), { status: 201, body: [] }]);
+    const form = new FormData();
+
+    await apiClient.postForm("/api/media", form);
+
+    expect(calls).toHaveLength(2);
+    expect(calls[1].init?.body).toBe(form);
+    expect(authHeader(calls[1])).toBe("Bearer A2");
+  });
+
+  it("passes the abort signal through", async () => {
+    const calls = useFetch([{ status: 201, body: [] }]);
+    const controller = new AbortController();
+
+    await apiClient.postForm("/api/media", new FormData(), { signal: controller.signal });
+
+    expect(calls[0].init?.signal).toBe(controller.signal);
+  });
+});
+
 describe("401 interceptor", () => {
   it("401 then refreshed -> original retried once with new token", async () => {
     const calls = useFetch([problem(401, "Unauthenticated"), { status: 200, body: { ok: 1 } }]);

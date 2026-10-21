@@ -20,7 +20,9 @@ import {
   Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { MediaImage } from "@/components/shared/media-image";
+import { MediaQueuePreview } from "@/components/shared/media-queue-preview";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { useTranslation } from "@/hooks/use-translation";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { useDrafts, useDraftActions } from "../store/post-draft-store";
@@ -30,6 +32,9 @@ import { DiscardWarningDialog } from "./discard-warning-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { hasCapability } from "@/lib/capabilities";
+import { useMediaUploadQueue } from "@/hooks/use-media-upload-queue";
+import { ACCEPT_ATTRIBUTE } from "@/lib/media/media-limits";
+import { describeMediaProblem } from "@/lib/media/media-messages";
 
 const postSchema = z.object({
   content: z.string().max(500, "Content exceeds 500 characters limit"),
@@ -44,7 +49,8 @@ export interface PostCreatorCoreRef {
 
 interface PostCreatorCoreProps {
   draftId?: string;
-  onPostSubmitted?: (content: string, images: string[], audience: PostAudience, visibility: PostVisibility) => Promise<void>;
+  /** `mediaIds`: uploaded Pending assets (real BE only); passed only when there are some. */
+  onPostSubmitted?: (content: string, images: string[], audience: PostAudience, visibility: PostVisibility, mediaIds?: string[]) => Promise<void>;
   onCancel?: () => void;
   onPopoverStateChange?: (isOpen: boolean) => void;
   onStateChange?: (hasUnsavedChanges: boolean) => void;
@@ -58,22 +64,18 @@ const SUGGESTED_PROFILES = [
   {
     username: "anquoc.dev",
     displayName: "Trần Anh Quốc",
-    avatarUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
   },
   {
     username: "hamy_cute",
     displayName: "Nguyễn Hà My",
-    avatarUrl: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80",
   },
   {
     username: "ysocial_member",
     displayName: "YSocial Member",
-    avatarUrl: "",
   },
   {
     username: "chong_iu",
     displayName: "Chồng Iu",
-    avatarUrl: "",
   },
 ];
 
@@ -229,11 +231,7 @@ const ImagePreviewList = React.memo(({
           key={img + idx}
           className="relative shrink-0 w-44 h-44 rounded-2xl overflow-hidden border border-zinc-150 dark:border-zinc-900 shadow-sm transition-all"
         >
-          <img
-            src={img}
-            alt={`Preview ${idx + 1}`}
-            className="w-full h-full object-cover pointer-events-none"
-          />
+          <MediaImage src={img} alt={`Preview ${idx + 1}`} fill sizes="176px" className="object-cover pointer-events-none" />
           <button
             type="button"
             onClick={() => onRemoveImage(idx)}
@@ -267,6 +265,15 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   const user = useAuthUser();
   const drafts = useDrafts();
   const { saveDraft, deleteDraft } = useDraftActions();
+
+  // Real BE: files are uploaded as Pending assets through the queue; mock mode keeps blob previews in `images`.
+  // Replies carry no media on the real BE (comments have no media model).
+  const uploadsReal = hasCapability("mediaUpload");
+  const canAttach = hasCapability("multiImage") && (!isReplyMode || !uploadsReal);
+  const queue = useMediaUploadQueue({
+    purpose: "post",
+    onReject: (rejection) => toast.error(describeMediaProblem(rejection, t)),
+  });
 
   // Core Form State
   const [activeDraftId, setActiveDraftId] = useState<string | undefined>(initialDraftId);
@@ -325,7 +332,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   });
 
   const contentValue = watch("content");
-  const isValid = contentValue.trim().length > 0 || images.length > 0;
+  const isValid = contentValue.trim().length > 0 || images.length > 0 || queue.items.length > 0;
 
   const { ref: contentRef, ...contentRegister } = register("content");
 
@@ -555,6 +562,12 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     if (!e.target.files) return;
     const filesArray = Array.from(e.target.files);
 
+    if (uploadsReal) {
+      queue.addFiles(filesArray);
+      e.target.value = "";
+      return;
+    }
+
     // Add files to binary ref
     selectedFilesRef.current = [...selectedFilesRef.current, ...filesArray];
 
@@ -569,7 +582,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
       }
     }, 100);
-  }, []);
+  }, [uploadsReal, queue]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => {
@@ -624,6 +637,9 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setPreviewUrls([]);
     selectedFilesRef.current = [];
 
+    // Drafts keep text & audience, NOT uploaded media (the BE would sweep it): give the assets back
+    queue.discardAll();
+
     reset();
     setImages([]);
     setLocation(null);
@@ -633,7 +649,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     toast.success(t("creator.draftSaved"));
     textareaRef.current?.blur();
     onCancel?.();
-  }, [images, audience, visibility, activeDraftId, saveDraft, reset, onCancel, t]);
+  }, [images, audience, visibility, activeDraftId, saveDraft, reset, onCancel, t, queue]);
 
   const handleDiscardAndClose = useCallback(() => {
     if (activeDraftId) {
@@ -645,6 +661,8 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     setPreviewUrls([]);
     selectedFilesRef.current = [];
 
+    queue.discardAll();
+
     reset();
     setImages([]);
     setLocation(null);
@@ -653,7 +671,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
 
     textareaRef.current?.blur();
     onCancel?.();
-  }, [activeDraftId, deleteDraft, reset, onCancel]);
+  }, [activeDraftId, deleteDraft, reset, onCancel, queue]);
 
   const handleRestoreDraft = useCallback((draft: PostDraft) => {
     setValue("content", draft.content);
@@ -668,11 +686,28 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
   // Submit creator content
   const handleFormSubmit = async (data: PostFormValues) => {
     if (!isValid || isSubmitting) return;
+
+    // Uploads must be finished and healthy: an unfinished file would be silently left out of the post
+    if (queue.isBusy) {
+      toast.info(t("media.waitUploads"));
+      return;
+    }
+    if (queue.hasError) {
+      toast.error(t("media.fixUploads"));
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (onPostSubmitted) {
-        await onPostSubmitted(data.content, images, audience, visibility);
+        if (queue.mediaIds.length > 0) {
+          await onPostSubmitted(data.content, images, audience, visibility, queue.mediaIds);
+        } else {
+          await onPostSubmitted(data.content, images, audience, visibility);
+        }
       }
+      // Attached to the post now: forget them locally WITHOUT discarding
+      queue.clear();
       if (activeDraftId) {
         deleteDraft(activeDraftId);
       }
@@ -823,7 +858,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                         onClick={() => handleAddGif(gif.url)}
                         className="rounded-xl overflow-hidden h-20 border border-zinc-100 dark:border-zinc-900 hover:border-zinc-400 dark:hover:border-zinc-650 cursor-pointer transition-all shrink-0"
                       >
-                        <img src={gif.url} className="w-full h-full object-cover" alt={gif.name} />
+                        <MediaImage src={gif.url} alt={gif.name} width={160} height={80} className="w-full h-full object-cover" />
                       </button>
                     ))}
                   </div>
@@ -1036,10 +1071,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
       onKeyDown={handleKeyDown}
       className="w-full flex gap-3 items-start relative select-none"
     >
-      <Avatar className="h-10 w-10 border border-zinc-150 dark:border-zinc-850 shrink-0">
-        <AvatarImage src={user?.avatarUrl || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80"} />
-        <AvatarFallback className="bg-zinc-200 dark:bg-zinc-800 text-xs font-bold">Y</AvatarFallback>
-      </Avatar>
+      <UserAvatar src={user?.avatarUrl} name={user?.displayName ?? "Y"} className="h-10 w-10 border border-zinc-150 dark:border-zinc-850 shrink-0" />
 
       <div className="grow flex flex-col min-w-0 relative">
         <form onSubmit={handleSubmit(handleFormSubmit)} className="flex flex-col gap-2">
@@ -1081,10 +1113,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                   onClick={() => handleSelectMention(profile.username)}
                   className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-900 text-left transition-colors cursor-pointer"
                 >
-                  <Avatar className="size-6 shrink-0 border border-zinc-100 dark:border-zinc-800">
-                    <AvatarImage src={profile.avatarUrl} />
-                    <AvatarFallback className="text-[10px] font-bold">U</AvatarFallback>
-                  </Avatar>
+                  <UserAvatar name={profile.displayName} className="size-6 shrink-0 border border-zinc-100 dark:border-zinc-800" fallbackClassName="text-[10px] font-bold" />
                   <div className="flex flex-col min-w-0">
                     <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">{profile.displayName}</span>
                     <span className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate">@{profile.username}</span>
@@ -1105,16 +1134,19 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
             onWheel={handleWheel}
           />
 
+          {/* Uploads in progress / done (real BE) */}
+          <MediaQueuePreview items={queue.items} onRemove={queue.remove} onRetry={queue.retry} />
+
           {/* Tools Menu Bar */}
           <div className="flex items-center gap-1 border-t border-zinc-100 dark:border-zinc-900/60 pt-2.5">
             {/* Native image uploader input and trigger: local files become blob URLs, the real BE has no upload API yet */}
-            {hasCapability("multiImage") && (
+            {canAttach && (
               <>
             <input
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*"
+              accept={uploadsReal ? ACCEPT_ATTRIBUTE : "image/*"}
               onChange={handleFileChange}
               className="hidden"
             />
@@ -1132,7 +1164,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
             )}
 
             {/* GIF Popover: a GIF is an image attachment, which the real BE keeps only on root posts (one per post) */}
-            {(!isReplyMode || hasCapability("multiImage")) && (
+            {canAttach && (
             <div className="relative">
               <Popover open={isGifOpen} onOpenChange={setIsGifOpen}>
                 <PopoverTrigger asChild>

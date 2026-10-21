@@ -91,6 +91,51 @@ describe("updateProfile", () => {
     expect(updated).toMatchObject({ displayName: "New name", bio: "hi" });
   });
 
+  describe("avatar payloads (D34 matrix)", () => {
+    const MEDIA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const STORED = "https://res.cloudinary.com/demo/image/upload/v1/ysocial/dev/avatars/old.jpg";
+
+    let calls: ReturnType<typeof useFetch>;
+    beforeEach(() => {
+      calls = useFetch([
+        { status: 200, body: profile({ id: ME, avatarUrl: STORED }) },
+        { status: 200, body: profile({ id: ME }) },
+      ]);
+    });
+
+    const put = async (patch: Parameters<typeof updateProfile>[1]) => {
+      await updateProfile(ME, patch, ME);
+      return body(calls[1]) as Record<string, unknown>;
+    };
+
+    it("new upload: avatarMediaId and NO avatarUrl key at all", async () => {
+      const sent = await put({ displayName: "N", avatarMediaId: MEDIA });
+
+      expect(sent.avatarMediaId).toBe(MEDIA);
+      expect(sent).not.toHaveProperty("avatarUrl");
+    });
+
+    it("new upload wins over a stale avatarUrl in the patch (never both: the BE answers 400)", async () => {
+      const sent = await put({ displayName: "N", avatarMediaId: MEDIA, avatarUrl: STORED });
+
+      expect(sent).not.toHaveProperty("avatarUrl");
+    });
+
+    it("keep / unrelated edit: the current stored url is re-sent (omission would clear it)", async () => {
+      const sent = await put({ displayName: "N", avatarUrl: STORED });
+
+      expect(sent.avatarUrl).toBe(STORED);
+      expect(sent).not.toHaveProperty("avatarMediaId");
+    });
+
+    it("remove: avatarUrl null, no media id", async () => {
+      const sent = await put({ displayName: "N" });
+
+      expect(sent.avatarUrl).toBeNull();
+      expect(sent).not.toHaveProperty("avatarMediaId");
+    });
+  });
+
   it("ProfileFieldInvalid surfaces ApiError", async () => {
     useFetch([{ status: 200, body: profile({ id: ME }) }, problem(400, "ProfileFieldInvalid")]);
     await expect(updateProfile(ME, { displayName: "Name" }, ME)).rejects.toMatchObject({ code: "ProfileFieldInvalid" });

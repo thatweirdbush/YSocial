@@ -64,11 +64,21 @@ export async function fetchSavedPosts(_actorId: string, page: number): Promise<S
   return { posts, nextPage };
 }
 
-/** Text + first http(s) image only: the BE post has a single `imageUrl` & no audience/visibility choice yet. */
+/**
+ * Text + uploaded media (`mediaIds`, D33) OR one external http(s) image (GIF picker): the BE refuses both together, and a
+ * blob: preview is never a real url. No audience/visibility choice yet.
+ */
 export async function createPost(input: CreatePostInput, _author: PostAuthor): Promise<PostItem> {
-  // Local uploads are blob: URLs (no upload API): only real http(s) URLs (e.g. GIFs) may be sent
-  const image = input.images.find((url) => /^https?:\/\//i.test(url));
-  return toPostItem(await apiClient.post<PostDto>("/api/posts", { content: input.content, ...(image ? { imageUrl: image } : {}) }));
+  const mediaIds = input.mediaIds ?? [];
+  const image = mediaIds.length === 0 ? input.images.find((url) => /^https?:\/\//i.test(url)) : undefined;
+
+  return toPostItem(
+    await apiClient.post<PostDto>("/api/posts", {
+      content: input.content,
+      ...(mediaIds.length > 0 ? { mediaIds } : {}),
+      ...(image ? { imageUrl: image } : {}),
+    }),
+  );
 }
 
 /** Replies always target the ROOT post; replying to a comment adds `parentCommentId`. */
