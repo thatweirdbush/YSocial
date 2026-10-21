@@ -20,6 +20,13 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
     public int LikeCount { get; private set; }
     public int SavedCount { get; private set; }
 
+    private readonly List<PostHashtag> _hashtags = [];
+
+    /// <summary>
+    /// Tags of the content; loaded only by repo members that include them.
+    /// </summary>
+    public IReadOnlyList<PostHashtag> Hashtags => _hashtags;
+
 #pragma warning disable CS8618
     private Post() { }
 #pragma warning restore CS8618
@@ -46,6 +53,7 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
         CheckRule(new PostContentLengthLimitRule(content));
 
         var post = new Post(authorId, content, imageUrl, visibility, allowComments);
+        post.SyncHashtags(content);
 
         post.AddDomainEvent(new PostCreatedEvent(post.Id, post.AuthorId));
 
@@ -60,8 +68,23 @@ public class Post : AggregateRoot<PostId>, ISoftDeletable
 
         Content = newContent;
         UpdatedAt = DateTime.UtcNow;
+        SyncHashtags(newContent);
 
         AddDomainEvent(new PostUpdatedEvent(Id));
+    }
+
+    // Keeps surviving rows (display refreshed), drops missing, adds new: same save as the content change
+    private void SyncHashtags(string content)
+    {
+        var wanted = HashtagParser.Extract(content);
+        _hashtags.RemoveAll(existing => wanted.All(w => w.Key != existing.Key));
+
+        foreach (var (key, display) in wanted)
+        {
+            var kept = _hashtags.Find(existing => existing.Key == key);
+            if (kept is null) _hashtags.Add(PostHashtag.Create(key, display));
+            else kept.Rename(display);
+        }
     }
 
     public void UpdateSettings(PostVisibility visibility, bool allowComments)

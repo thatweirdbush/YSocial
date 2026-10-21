@@ -1,0 +1,23 @@
+[
+  { "name": "casing", "content": "hello #SAIGON", "tags": [{ "key": "saigon", "display": "SAIGON" }] },
+  { "name": "start of text", "content": "#start of text", "tags": [{ "key": "start", "display": "start" }] },
+  { "name": "after newline and tab", "content": "a\n#second\t#third", "tags": [{ "key": "second", "display": "second" }, { "key": "third", "display": "third" }] },
+  { "name": "glued hash is not a tag", "content": "a#b c", "tags": [] },
+  { "name": "url fragment", "content": "see https://x.com/#frag", "tags": [] },
+  { "name": "lone hash", "content": "# # #", "tags": [] },
+  { "name": "hash then space", "content": "# space", "tags": [] },
+  { "name": "digits", "content": "#123 #a1", "tags": [{ "key": "123", "display": "123" }, { "key": "a1", "display": "a1" }] },
+  { "name": "underscore kept, dash ends tag", "content": "#a_b #c-d", "tags": [{ "key": "a_b", "display": "a_b" }, { "key": "c", "display": "c" }] },
+  { "name": "dot comma end tag", "content": "#a.b #c, #d!", "tags": [{ "key": "a", "display": "a" }, { "key": "c", "display": "c" }, { "key": "d", "display": "d" }] },
+  { "name": "dedupe first casing wins", "content": "#Tag1 #tag1 #TAG1", "tags": [{ "key": "tag1", "display": "Tag1" }] },
+  { "name": "vietnamese d-stroke", "content": "#ĐàLạt #đẹp", "tags": [{ "key": "dalat", "display": "ĐàLạt" }, { "key": "dep", "display": "đẹp" }] },
+  { "name": "dedupe across stroke and marks", "content": "#ĐàLạt #dalat #DALAT", "tags": [{ "key": "dalat", "display": "ĐàLạt" }] },
+  { "name": "decomposed input folds equal", "content": "#DàLaṭ", "tags": [{ "key": "dalat", "display": "DàLaṭ" }] },
+  { "name": "stacked combining marks", "content": "#ệ", "tags": [{ "key": "e", "display": "ệ" }] },
+  { "name": "cyrillic", "content": "#Москва", "tags": [{ "key": "москва", "display": "Москва" }] },
+  { "name": "cjk", "content": "#東京 #한국", "tags": [{ "key": "東京", "display": "東京" }, { "key": "\u1112\u1161\u11ab\u1100\u116e\u11a8", "display": "한국" }] },
+  { "name": "emoji ends tag", "content": "#fun😀 #x", "tags": [{ "key": "fun", "display": "fun" }, { "key": "x", "display": "x" }] },
+  { "name": "nbsp separates", "content": "a #nb", "tags": [{ "key": "nb", "display": "nb" }] },
+  { "name": "length 50 ok", "content": "#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "tags": [{ "key": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "display": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }] },
+  { "name": "length 51 ignored", "content": "#bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb #ok", "tags": [{ "key": "ok", "display": "ok" }] }
+]
