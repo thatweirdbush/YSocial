@@ -467,6 +467,22 @@
     "timeManagement": "Quản lý thời gian",
     "usageToday": "Hôm nay",
     "usageAverage": "Trung bình 7 ngày",
-    "usageEmpty": "Chưa có dữ liệu"
+    "usageEmpty": "Chưa có dữ liệu",
+    "account": "Tài khoản",
+    "email": "Email",
+    "username": "Tên người dùng",
+    "usernameLocked": "Không thể đổi",
+    "gender": "Giới tính",
+    "genderUnspecified": "Không nêu",
+    "genderMale": "Nam",
+    "genderFemale": "Nữ",
+    "genderOther": "Khác",
+    "birthDate": "Ngày sinh",
+    "birthDateInvalid": "Ngày sinh không hợp lệ",
+    "save": "Lưu",
+    "saved": "Đã lưu",
+    "saveFailed": "Không lưu được",
+    "loadFailed": "Không tải được thông tin tài khoản",
+    "retry": "Thử lại"
   }
 }

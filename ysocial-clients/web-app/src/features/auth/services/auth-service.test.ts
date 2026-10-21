@@ -4,7 +4,7 @@ import { mockFetchSequence, problem, setRealSlices, type MockStep } from "@/test
 import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import { useAuthStore } from "../store/auth-store";
 import { getRegisterSchema, type MeDto } from "../types";
-import { authService, RegisteredLoginFailedError, toAuthUser } from "./auth-service";
+import { authService, fetchMe, RegisteredLoginFailedError, toAuthUser } from "./auth-service";
 
 const PROFILE_ID = "0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10";
 const me: MeDto = {
@@ -30,6 +30,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+describe("fetchMe", () => {
+  it("reads GET /api/users/me with owner-only demographics", async () => {
+    const calls = useFetch([{ status: 200, body: { ...me, gender: "male", dateOfBirth: "1999-05-20" } }]);
+
+    const result = await fetchMe();
+
+    expect(path(calls[0])).toBe("/api/users/me");
+    expect(result).toMatchObject({ email: "real@ysocial.dev", gender: "male", dateOfBirth: "1999-05-20" });
+  });
 });
 
 describe("toAuthUser", () => {

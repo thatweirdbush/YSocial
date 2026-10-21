@@ -1,9 +1,10 @@
-import { Ban, Bell, Languages, Lock, MessageSquareText, Palette, Star, Timer, VolumeX } from "lucide-react";
+import { Ban, Bell, Languages, Lock, MessageSquareText, Palette, Star, Timer, UserRound, VolumeX } from "lucide-react";
 import { hasCapability } from "@/lib/capabilities";
 import type { SettingsSection } from "./types";
 
 /** Settings sections available now; roadmap 4.1 adds the remaining routes. */
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
+  { href: "/settings/account", titleKey: "settings.account", icon: UserRound, capability: "accountUi" },
   { href: "/settings/privacy", titleKey: "settings.privacy", icon: Lock, capability: "privacyUi" },
   { href: "/settings/notifications", titleKey: "settings.notifications", icon: Bell, capability: "notificationSettings" },
   { href: "/settings/blocked", titleKey: "settings.blocked", icon: Ban, capability: "blockUi" },

@@ -467,6 +467,22 @@
     "timeManagement": "Time management",
     "usageToday": "Today",
     "usageAverage": "7-day average",
-    "usageEmpty": "No data yet"
+    "usageEmpty": "No data yet",
+    "account": "Account",
+    "email": "Email",
+    "username": "Username",
+    "usernameLocked": "Cannot be changed",
+    "gender": "Gender",
+    "genderUnspecified": "Unspecified",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "genderOther": "Other",
+    "birthDate": "Birth date",
+    "birthDateInvalid": "Invalid birth date",
+    "save": "Save",
+    "saved": "Saved",
+    "saveFailed": "Could not save",
+    "loadFailed": "Could not load your account details",
+    "retry": "Try again"
   }
 }

@@ -1,4 +1,5 @@
 export { PrivacySettings } from "./components/privacy-settings";
+export { AccountSection } from "./components/account-section";
 export { AppearanceSection } from "./components/appearance-section";
 export { ContentSection } from "./components/content-section";
 export { LanguageSection } from "./components/language-section";

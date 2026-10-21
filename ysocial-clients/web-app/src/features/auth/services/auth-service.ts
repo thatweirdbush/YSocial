@@ -26,6 +26,9 @@ const AUTH_CALL = { skipAuthRefresh: true } as const;
 const actions = () => useAuthStore.getState().actions;
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** `GET /api/users/me`: active profile, email, switcher list & owner-only demographics. Real BE only. */
+export const fetchMe = (): Promise<MeDto> => apiClient.get<MeDto>("/api/users/me");
+
 /** `MeDto` (profile + email) -> persisted viewer snapshot; nullable DTO fields become `undefined`. */
 export function toAuthUser(me: MeDto): AuthUser {
   const profile = me.profile;
@@ -94,7 +97,7 @@ async function realLogin(loginId: string, password: string): Promise<AuthUser> {
   }
   actions().setTokens(tokens.accessToken, tokens.refreshToken);
   try {
-    const user = toAuthUser(await apiClient.get<MeDto>("/api/users/me"));
+    const user = toAuthUser(await fetchMe());
     actions().updateUser(user);
     return user;
   } catch (error) {

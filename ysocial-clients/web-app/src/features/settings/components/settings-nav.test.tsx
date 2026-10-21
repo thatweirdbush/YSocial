@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setRealSlices } from "@/test/api-test-utils";
 import { SettingsIndex } from "./settings-index";
 import { SettingsNav } from "./settings-nav";
 import { SettingsPageHeader } from "./settings-page-header";
@@ -27,7 +28,7 @@ beforeEach(() => {
 });
 
 describe("SettingsNav", () => {
-  it("links to the 9 sections and marks the active one", () => {
+  it("links to the 9 sections (mock mode: no account section) and marks the active one", () => {
     render(<SettingsNav />);
 
     const nav = screen.getByRole("navigation", { name: "Cài đặt" });
@@ -42,6 +43,18 @@ describe("SettingsNav", () => {
     render(<SettingsNav />);
 
     expect(screen.queryAllByRole("link").some((link) => link.hasAttribute("aria-current"))).toBe(false);
+  });
+});
+
+describe("auth-gated sections", () => {
+  it("lists the account section first once the auth slice is real, in the nav and on the index", () => {
+    setRealSlices("auth");
+    const { unmount } = render(<SettingsNav />);
+
+    expect(within(screen.getByRole("navigation")).getAllByRole("link")[0]).toHaveAttribute("href", "/settings/account");
+    unmount();
+    render(<SettingsIndex />);
+    expect(screen.getAllByRole("link")[0]).toHaveAttribute("href", "/settings/account");
   });
 });
 

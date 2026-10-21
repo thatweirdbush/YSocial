@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import SectionsLayout from "./(sections)/layout";
+import { metadata as accountMetadata } from "./(sections)/account/page";
 import { metadata as appearanceMetadata } from "./(sections)/appearance/page";
 import { metadata as blockedMetadata } from "./(sections)/blocked/page";
 import { metadata as closeFriendsMetadata } from "./(sections)/close-friends/page";
@@ -62,8 +63,9 @@ describe("settings route metadata", () => {
       languageMetadata,
       contentMetadata,
       timeManagementMetadata,
+      accountMetadata,
     ].map((metadata) => String(metadata.title));
-    expect(new Set(titles).size).toBe(10);
+    expect(new Set(titles).size).toBe(11);
     expect(titles.every((title) => title.endsWith("• YSocial"))).toBe(true);
   });
 });
