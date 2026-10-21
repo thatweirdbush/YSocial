@@ -7,6 +7,7 @@ using YSocial.Application.Features.UserRelations.GetMutes;
 using YSocial.Application.Features.UserRelations.GetRelationSets;
 using YSocial.Application.Features.Users.DeleteProfile;
 using YSocial.Application.Features.Users.GetMe;
+using YSocial.Application.Features.Users.GetSuggestedUsers;
 using YSocial.Application.Features.Users.GetUserProfile;
 using YSocial.Application.Features.Users.SetDefaultProfile;
 using YSocial.Application.Features.Users.SwitchProfile;
@@ -97,6 +98,15 @@ public class UsersController : ApiController
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetRelationSets(CancellationToken cancellationToken)
         => HandleResult(await Mediator.Send(new GetRelationSetsQuery(), cancellationToken));
+
+    /// <summary>
+    /// Who to follow: mutual followees first, then popularity (anonymous allowed: popularity only)
+    /// </summary>
+    [HttpGet("suggestions")]
+    [ProducesResponseType(typeof(PagedResponse<UserProfileDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetSuggestions([FromQuery] int page = 1, [FromQuery] int pageSize = GetSuggestedUsersQuery.DefaultPageSize, CancellationToken cancellationToken = default)
+        => HandleResult(await Mediator.Send(new GetSuggestedUsersQuery(page, pageSize), cancellationToken));
 
     /// <summary>
     /// Own block list, newest block first (items carry isBlocked: true; search by username or display name)

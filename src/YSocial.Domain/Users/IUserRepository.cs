@@ -14,4 +14,9 @@ public interface IUserRepository : IRepository<User, UserId>
     Task<User?> GetByIdAndAccountIdAsync(UserId id, AccountId accountId, CancellationToken cancellationToken = default);
     Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<User>> GetUsersByIdsAsync(IEnumerable<UserId> ids, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every non-deleted profile (unordered; suggestion candidates, callers filter, score & page).
+    /// </summary>
+    Task<IReadOnlyList<User>> GetAllActiveAsync(CancellationToken cancellationToken = default);
 }

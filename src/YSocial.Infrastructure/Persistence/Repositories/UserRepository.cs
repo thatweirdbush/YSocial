@@ -21,6 +21,9 @@ internal sealed class UserRepository(YSocialDbContext db, IUnitOfWork unitOfWork
         return await Set.WhereNotDeleted().FirstOrDefaultAsync(u => u.Username.ToLower() == normalized, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<User>> GetAllActiveAsync(CancellationToken cancellationToken = default)
+        => await Set.WhereNotDeleted().ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<User>> GetUsersByIdsAsync(IEnumerable<UserId> ids, CancellationToken cancellationToken = default)
     {
         var wanted = ids.Distinct().ToList();
