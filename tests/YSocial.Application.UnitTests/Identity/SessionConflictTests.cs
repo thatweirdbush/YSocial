@@ -88,7 +88,7 @@ public class SessionConflictTests
     }
 
     [Fact]
-    public async Task Revoke_ConcurrencyConflict_Maps409()
+    public async Task Revoke_ConcurrencyConflict_Throws()
     {
         var handler = new RevokeSessionCommandHandler(_accounts, _lock, _unitOfWork, _userContext);
         var sessionId = _account.RefreshTokens.Single().Id.Value;

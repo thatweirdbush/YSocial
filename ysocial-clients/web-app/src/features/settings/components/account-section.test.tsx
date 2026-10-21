@@ -89,7 +89,9 @@ describe("AccountSection", () => {
     await user.type(birthDate(), "2999-01-01");
     await user.click(saveButton());
 
-    expect(await screen.findByText("Ngày sinh không hợp lệ")).toBeInTheDocument();
+    const error = await screen.findByText("Ngày sinh không hợp lệ");
+    expect(birthDate()).toHaveAttribute("aria-describedby", error.id);
+    expect(error.id).not.toBe("");
     expect(service.saveAccountProfile).not.toHaveBeenCalled();
   });
 

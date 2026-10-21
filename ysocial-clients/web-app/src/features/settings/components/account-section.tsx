@@ -148,11 +148,12 @@ function AccountForm({ initial }: { initial: MeDto }) {
           min="1900-01-01"
           max={maxDate}
           aria-invalid={errors.dateOfBirth ? true : undefined}
+          aria-describedby={errors.dateOfBirth ? "account-birth-date-error" : undefined}
           className={cn("h-11", errors.dateOfBirth && "border-destructive")}
           {...register("dateOfBirth")}
         />
         {errors.dateOfBirth && (
-          <p role="alert" className="text-sm text-destructive">
+          <p id="account-birth-date-error" role="alert" className="text-sm text-destructive">
             {errors.dateOfBirth.message}
           </p>
         )}

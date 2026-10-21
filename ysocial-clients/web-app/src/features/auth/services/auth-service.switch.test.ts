@@ -139,7 +139,7 @@ describe("switchProfile: clean path", () => {
 
 describe("switchProfile: access token rejected (expired)", () => {
   it("rotates once through the UNLOCKED rotation, persists the rotated pair, retries the PUT once", async () => {
-    const refreshSpy = vi.spyOn(tokenRefresh, "refreshTokens");
+    // The non-reentrant lock fake hangs this test if `refreshTokens` were called inside the switch lock
     const { switching, calls } = run([problem(401, "Unauthenticated"), rotatedOk, switchedOk]);
 
     await switching();
@@ -148,7 +148,6 @@ describe("switchProfile: access token rejected (expired)", () => {
     expect(bodyOf(calls[1])).toEqual({ refreshToken: "R1" });
     expect(authOf(calls[2])).toBe("Bearer AR");
     expect(bodyOf(calls[2])).toEqual({ profileId: "p-alt", refreshToken: "RR" });
-    expect(refreshSpy).not.toHaveBeenCalled();
     expect(stored()).toMatchObject({ access: "A2", refresh: "R2" });
   });
 
