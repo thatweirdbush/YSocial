@@ -21,6 +21,8 @@ interface AuthState {
   actions: {
     setTokens: (accessToken: string, refreshToken: string) => void;
     updateUser: (user: AuthUser) => void;
+    /** Profile switch: tokens & user replaced together (one storage block, ONE store update). */
+    replaceSession: (accessToken: string, refreshToken: string, user: AuthUser) => void;
     clearAuth: () => void;
     /** Applies persisted auth (localStorage) and syncs the identity cookie. Client-only, idempotent. */
     hydrate: () => void;
@@ -65,6 +67,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       writeMockSessionCookie(toMockSession(user));
       set({ user });
+    },
+    replaceSession: (accessToken, refreshToken, user) => {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+        localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(user));
+      }
+      writeMockSessionCookie(toMockSession(user));
+      set({ accessToken, refreshToken, user, isAuthenticated: true });
     },
     clearAuth: () => {
       if (typeof window !== "undefined") {

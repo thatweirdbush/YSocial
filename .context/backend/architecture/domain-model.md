@@ -28,7 +28,7 @@ updated: 2026-10-20
 
 | Aggregate root | Children / value objects | Soft-delete | Repo contract | Notes |
 |---|---|---|---|---|
-| `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens are child rows of aggregate (`RefreshTokens` / `PasswordResetTokens` tables, cascade); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
+| `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`, `UserAgent` max 256; family = session, `SessionInfo`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens are child rows of aggregate (`RefreshTokens` / `PasswordResetTokens` tables, cascade); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
 | `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `NotificationPreferences` (VO: likes, replies, follows; default all on), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
 | `Post` | - | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
 | `Comment` | - | yes | `ICommentRepository` | nested via `ParentCommentId`; counts inline |
@@ -158,7 +158,7 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 
 ### 5.6 Account / Profile
 - `Register` -> uniqueness checks (email, username) -> `Account.Create` + `AccountCreatedEvent(username)` -> first profile created (default)
-- `Login` -> verify password -> `EnsureCanLogin` -> `AddRefreshToken(deviceId, userId)` (evicts oldest at 5)
+- `Login` -> verify password -> `EnsureCanLogin` -> `AddRefreshToken(deviceId, userId, userAgent?)` (evicts oldest at 5)
 - `Refresh` -> rotate (old revoked, `ReplacedByTokenId`), same profile; `Logout` -> revoke token (+ active successors)
 - `SwitchProfile(profileId, refreshToken)` -> rotates refresh token bound to chosen profile, issues new JWT (profile must belong to JWT's account, else 403)
 - `DeleteProfile` soft-deletes non-default profile; `DeleteAccount` soft-deletes account & (via event) every profile; posts/relations/comments remain but are hidden (D20)

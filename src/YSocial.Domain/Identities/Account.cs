@@ -131,7 +131,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
     /// Issues a refresh token bound to a profile; at the session cap the oldest active one is evicted (no error).
     /// Callers MUST hold the account session lock.
     /// </summary>
-    public RefreshToken AddRefreshToken(string deviceId, UserId userId)
+    public RefreshToken AddRefreshToken(string deviceId, UserId userId, string? userAgent = null)
     {
         RemoveExpiredTokens();
 
@@ -141,7 +141,7 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
             evicted.Revoke();
         }
 
-        return AddRefreshTokenInternal(deviceId, userId);
+        return AddRefreshTokenInternal(deviceId, userId, userAgent);
     }
 
     /// <summary>
@@ -169,22 +169,100 @@ public class Account : AggregateRoot<AccountId>, ISoftDeletable
 
         refreshToken!.Revoke();
 
-        var successor = AddRefreshTokenInternal(refreshToken.DeviceId, newUserId ?? refreshToken.UserId);
+        var successor = AddRefreshTokenInternal(refreshToken.DeviceId, newUserId ?? refreshToken.UserId, refreshToken.UserAgent);
         refreshToken.MarkReplacedBy(successor.Id);
 
         return successor;
     }
 
-    private RefreshToken AddRefreshTokenInternal(string deviceId, UserId userId)
+    private RefreshToken AddRefreshTokenInternal(string deviceId, UserId userId, string? userAgent)
     {
         var tokenValue = Guid.NewGuid().ToString();
         var expiryTime = DateTime.UtcNow.AddDays(DefaultRefreshTokenExpiryDays);
 
-        var refreshTokenEntity = RefreshToken.Create(Id, userId, tokenValue, expiryTime, deviceId);
+        var refreshTokenEntity = RefreshToken.Create(Id, userId, tokenValue, expiryTime, deviceId, userAgent);
         _refreshTokens.Add(refreshTokenEntity);
 
         return refreshTokenEntity;
     }
+
+    #region Sessions
+    /// <summary>
+    /// One entry per active token family (its active head), newest token issue first; ties by sign-in time then head id.
+    /// </summary>
+    public IReadOnlyList<SessionInfo> GetSessions()
+    {
+        var tokens = _refreshTokens.ToList();
+
+        return tokens
+            .Where(t => t.IsActive)
+            .Select(head => new SessionInfo(head.Id, head.UserId, head.UserAgent, FindRoot(tokens, head).CreatedAt, head.CreatedAt))
+            .OrderByDescending(s => s.LastTokenIssuedAt)
+            .ThenByDescending(s => s.CreatedAt)
+            .ThenBy(s => s.HeadId.Value)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Ends the family of ANY member id (a rotated id resolves to its family). False = id is not in this account;
+    /// true also when the family had already ended. Callers MUST hold the account session lock.
+    /// </summary>
+    public bool RevokeSession(RefreshTokenId tokenId)
+    {
+        var current = _refreshTokens.FirstOrDefault(t => t.Id == tokenId);
+        if (current is null)
+        {
+            return false;
+        }
+
+        for (var hops = 0; current is not null && hops <= _refreshTokens.Count; hops++)
+        {
+            current.Revoke();
+            var successorId = current.ReplacedByTokenId;
+            current = successorId is null ? null : _refreshTokens.FirstOrDefault(t => t.Id == successorId);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// True when <paramref name="probe"/> is the head of the session or one of its rotated ancestors.
+    /// </summary>
+    public bool BelongsToSession(RefreshTokenId headId, RefreshTokenId probe)
+    {
+        var current = _refreshTokens.FirstOrDefault(t => t.Id == probe);
+
+        for (var hops = 0; current is not null && hops <= _refreshTokens.Count; hops++)
+        {
+            if (current.Id == headId)
+            {
+                return true;
+            }
+
+            var successorId = current.ReplacedByTokenId;
+            current = successorId is null ? null : _refreshTokens.FirstOrDefault(t => t.Id == successorId);
+        }
+
+        return false;
+    }
+
+    private static RefreshToken FindRoot(IReadOnlyList<RefreshToken> tokens, RefreshToken head)
+    {
+        var root = head;
+        for (var hops = 0; hops < tokens.Count; hops++)
+        {
+            var predecessor = tokens.FirstOrDefault(t => t.ReplacedByTokenId == root.Id);
+            if (predecessor is null)
+            {
+                break;
+            }
+
+            root = predecessor;
+        }
+
+        return root;
+    }
+    #endregion
 
     public void RevokeAllRefreshTokens()
     {

@@ -24,6 +24,7 @@ updated: 2026-10-19
 - `src/lib/token-refresh.ts`: lock `ysocial-refresh` via `navigator.locks`; inside lock re-read storage, stored access != sent -> `adopted`; 401 `InvalidRefreshToken` + stored refresh unchanged -> `unauthorized`
 - No `navigator.locks` (insecure context, jsdom) -> in-tab shared promise only; cross-tab race mitigated by adoption, not prevented
 - Outcome success variants also carry `refreshToken` (store sync; same-tab writes fire no `storage` event)
+- `withRefreshLock(fn)` + unlocked `rotateTokens`: a holder of the lock (profile switch) must NEVER call `refreshTokens`/`apiClient` inside (lock is not re-entrant, 401 refresh would hang); without locks everything shares one in-tab chain. Details & switch failure classes: `features/settings.md`
 
 ### Auth store & service
 - `AUTH_STORAGE_KEYS`, `registerAuthStorageSync()` (mounted in `Providers`): any auth-key `storage` event re-reads all keys & applies once, never writes back
@@ -31,7 +32,8 @@ updated: 2026-10-19
 - `getDeviceId()`: UUID in `ysocial_device_id`, memory fallback
 - `authService` (`features/auth/services/auth-service.ts`): adapter per call (`isRealApi("auth")`); real = register+login, login+`GET me` (`toAuthUser`), best-effort logout, forgot/reset; mock keeps seed demo account & simulated delays
 - `authErrorKey` / `authFieldErrors` map BE `code` & `errors` to vi/en messages; `RegisteredLoginFailedError` -> `/login` with notice
-- Forms use `useSubmitGuard` (buttons stay enabled, re-submit ignored)
+- Forms use `useSubmitGuard` (buttons stay enabled, re-submit ignored; exported through the auth barrel, needs `"use client"`)
+- `authService.switchProfile` (real only) + `auth-store.replaceSession` (tokens + user + cookie in ONE update): see `features/settings.md`
 - Mixed mode: real viewer (`MeDto.profile`) is registered as runtime user in mock user DB by `ViewerSync`; `ysocial_mock_user` cookie stays mock bridge for `/@username`
 
 ## Design Decisions
@@ -111,4 +113,4 @@ updated: 2026-10-19
 - Post delete moved CP1 -> Phase C (no real post ids while posts were mocked)
 - Follow/unfollow moved CP3 -> Phase C; feed read moved CP4 -> Phase C (mock ids must not reach real routes); mute stayed CP4
 - Slice switch is cumulative (`auth` -> `content` -> `graph` -> `activity`)
-- Profile switcher (FE roadmap 2.7) is not mock replacement: build real-first
+- Profile switcher (FE roadmap 2.7) is not mock replacement: built real-first, DONE (`features/settings.md`)

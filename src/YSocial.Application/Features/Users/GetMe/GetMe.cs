@@ -47,6 +47,10 @@ internal sealed class GetMeQueryHandler(
             .Select(p => new ProfileSummaryDto(p.Id.Value, p.Username, p.ProfileInfo.DisplayName, p.ProfileInfo.AvatarUrl, p.IsDefault))
             .ToList();
 
-        return Result<MeDto>.Success(new MeDto(projected[0], account.Email, switcher));
+        var info = profile.ProfileInfo;
+        var gender = char.ToLowerInvariant(info.Gender.Name[0]) + info.Gender.Name[1..];
+        var dateOfBirth = info.DateOfBirth.HasValue ? DateOnly.FromDateTime(info.DateOfBirth.Value) : (DateOnly?)null;
+
+        return Result<MeDto>.Success(new MeDto(projected[0], account.Email, switcher, gender, dateOfBirth));
     }
 }

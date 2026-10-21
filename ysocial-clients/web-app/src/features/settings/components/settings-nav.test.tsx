@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { setRealSlices } from "@/test/api-test-utils";
 import { SettingsIndex } from "./settings-index";
 import { SettingsNav } from "./settings-nav";
 import { SettingsPageHeader } from "./settings-page-header";
@@ -10,14 +11,24 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
 }));
 
-const SECTION_HREFS = ["/settings/privacy", "/settings/notifications", "/settings/blocked", "/settings/muted", "/settings/close-friends"];
+const SECTION_HREFS = [
+  "/settings/privacy",
+  "/settings/notifications",
+  "/settings/blocked",
+  "/settings/muted",
+  "/settings/close-friends",
+  "/settings/appearance",
+  "/settings/language",
+  "/settings/content",
+  "/settings/time-management",
+];
 
 beforeEach(() => {
   navigation.pathname = "/settings/blocked";
 });
 
 describe("SettingsNav", () => {
-  it("links to the 5 sections and marks the active one", () => {
+  it("links to the 9 sections (mock mode: no account section) and marks the active one", () => {
     render(<SettingsNav />);
 
     const nav = screen.getByRole("navigation", { name: "Cài đặt" });
@@ -35,8 +46,20 @@ describe("SettingsNav", () => {
   });
 });
 
+describe("auth-gated sections", () => {
+  it("lists the account section first once the auth slice is real, in the nav and on the index", () => {
+    setRealSlices("auth");
+    const { unmount } = render(<SettingsNav />);
+
+    expect(within(screen.getByRole("navigation")).getAllByRole("link")[0]).toHaveAttribute("href", "/settings/account");
+    unmount();
+    render(<SettingsIndex />);
+    expect(screen.getAllByRole("link")[0]).toHaveAttribute("href", "/settings/account");
+  });
+});
+
 describe("SettingsIndex", () => {
-  it("renders a title and the 5 section links, without the section nav landmark", () => {
+  it("renders a title and the 9 section links, without the section nav landmark", () => {
     navigation.pathname = "/settings";
     render(<SettingsIndex />);
 

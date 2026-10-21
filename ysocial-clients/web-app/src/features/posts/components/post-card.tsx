@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ensureUser, FollowButton, useUser, UserHoverCard } from "@/features/profile";
+import { useDisplayPrefs } from "@/features/settings/store/settings-store";
 import { useTranslation } from "@/hooks/use-translation";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -85,7 +86,8 @@ function PostCardView({
   const [isEditing, setIsEditing] = useState(false);
   const isLiked = live.isLikedByCurrentUser;
   // null = owner hid the count from this viewer
-  const likesCount = getVisibleLikeCount(live, viewerId);
+  const { hideLikeCounts, hideShareCounts } = useDisplayPrefs();
+  const likesCount = hideLikeCounts ? null : getVisibleLikeCount(live, viewerId);
   const likesHiddenForOthers = isOwner && live.hideLikeCount === true;
   const isBookmarked = live.isBookmarkedByCurrentUser;
   const bookmarksCount = isBookmarked ? 12 : 11;
@@ -417,7 +419,7 @@ function PostCardView({
                 <Share2 className="size-4.5" />
               )}
             </button>
-            {sharesCount > 0 && (
+            {sharesCount > 0 && !hideShareCounts && (
               <span className={`text-xs font-semibold ${shareCopied ? "text-green-500 dark:text-green-450" : ""}`}>
                 {sharesCount}
               </span>

@@ -10,6 +10,7 @@ internal sealed class UserContext(IHttpContextAccessor httpContextAccessor) : IU
     public Guid UserId => GetGuidFromClaim("user_id");
     public Guid AccountId => GetGuidFromClaim(JwtRegisteredClaimNames.Sub);
     public string? Email => httpContextAccessor.HttpContext?.User?.FindFirstValue(JwtRegisteredClaimNames.Email);
+    public Guid SessionId => GetGuidFromClaim(JwtProvider.SessionClaim);
     public bool IsAuthenticated => httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false;
 
     private Guid GetGuidFromClaim(string claimType)

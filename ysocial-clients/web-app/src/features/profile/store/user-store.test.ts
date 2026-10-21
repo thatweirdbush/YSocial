@@ -196,6 +196,21 @@ describe("clearViewerFollows", () => {
     expect(getFollowedIds("v1")).toEqual({ ids: new Set(["fresh"]), loaded: true });
   });
 
+  it("a late follow graph answer for viewer A after the switch to B writes A's slot only", async () => {
+    let answerA!: (ids: string[]) => void;
+    vi.spyOn(service, "fetchFollowedIds").mockImplementation((actorId) =>
+      actorId === "A" ? new Promise<string[]>((resolve) => (answerA = resolve)) : Promise.resolve(["b-follows"]),
+    );
+
+    const loadA = ensureFollowGraph("A");
+    await ensureFollowGraph("B");
+    answerA(["a-follows"]);
+    await loadA;
+
+    expect(getFollowedIds("B")).toEqual({ ids: new Set(["b-follows"]), loaded: true });
+    expect(getFollowedIds("A")).toEqual({ ids: new Set(["a-follows"]), loaded: true });
+  });
+
   it("creates a versioned slot for a viewer without one so an in-flight load from version 0 is discarded", () => {
     clearViewerFollows("nobody");
 

@@ -10,7 +10,10 @@ using YSocial.Domain.Users;
 
 namespace YSocial.Application.Features.Identities.Login;
 
-public sealed record LoginCommand(string LoginId, string Password, string DeviceId) : ResultCommand<LoginResponse>;
+/// <summary>
+/// <see cref="UserAgent"/> is set by the controller from the request header, never from the body.
+/// </summary>
+public sealed record LoginCommand(string LoginId, string Password, string DeviceId, string? UserAgent = null) : ResultCommand<LoginResponse>;
 
 internal sealed class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
@@ -68,8 +71,6 @@ internal sealed class LoginCommandHandler(
             return Result<LoginResponse>.Fail("No user profile found for this account.", ErrorType.Business);
         }
 
-        var accessToken = jwtProvider.GenerateToken(targetUser, found);
-
         await using var _ = await sessionLock.AcquireAsync(found.Id, cancellationToken);
 
         var account = await accountRepository.GetByIdAsync(found.Id, cancellationToken);
@@ -78,7 +79,8 @@ internal sealed class LoginCommandHandler(
             return InvalidCredentials();
         }
 
-        var refreshToken = account.AddRefreshToken(request.DeviceId, targetUser.Id);
+        var refreshToken = account.AddRefreshToken(request.DeviceId, targetUser.Id, request.UserAgent);
+        var accessToken = jwtProvider.GenerateToken(targetUser, account, refreshToken.Id);
         accountRepository.Update(account);
 
         // Saved INSIDE the lock: the next login must see this session when it applies the cap

@@ -90,6 +90,42 @@ describe("auth-store", () => {
     expect(decodeURIComponent(readCookie() ?? "")).not.toContain("bio");
   });
 
+  it("replaceSession swaps tokens, user & cookie in ONE store update (never new tokens with the old user)", async () => {
+    const { useAuthStore } = await freshStore();
+    useAuthStore.getState().actions.setTokens("old-access", "old-refresh");
+    useAuthStore.getState().actions.updateUser(USER);
+    const seen: Array<{ access: string | null; user: string | undefined }> = [];
+    const off = useAuthStore.subscribe((state) => seen.push({ access: state.accessToken, user: state.user?.id }));
+
+    useAuthStore.getState().actions.replaceSession("new-access", "new-refresh", { id: "2", email: USER.email, username: "alt", displayName: "Alt" });
+    off();
+
+    expect(seen).toEqual([{ access: "new-access", user: "2" }]);
+    expect(localStorage.getItem("ysocial_access_token")).toBe("new-access");
+    expect(localStorage.getItem("ysocial_refresh_token")).toBe("new-refresh");
+    expect(JSON.parse(localStorage.getItem("ysocial_user") ?? "{}")).toMatchObject({ id: "2", username: "alt" });
+    expect(parseMockSession(readCookie())).toEqual({ id: "2", username: "alt" });
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it("replaceSession swaps tokens, user & cookie in ONE store update (never new tokens with the old user)", async () => {
+    const { useAuthStore } = await freshStore();
+    useAuthStore.getState().actions.setTokens("old-access", "old-refresh");
+    useAuthStore.getState().actions.updateUser(USER);
+    const seen: Array<{ access: string | null; user: string | undefined }> = [];
+    const off = useAuthStore.subscribe((state) => seen.push({ access: state.accessToken, user: state.user?.id }));
+
+    useAuthStore.getState().actions.replaceSession("new-access", "new-refresh", { id: "2", email: USER.email, username: "alt", displayName: "Alt" });
+    off();
+
+    expect(seen).toEqual([{ access: "new-access", user: "2" }]);
+    expect(localStorage.getItem("ysocial_access_token")).toBe("new-access");
+    expect(localStorage.getItem("ysocial_refresh_token")).toBe("new-refresh");
+    expect(JSON.parse(localStorage.getItem("ysocial_user") ?? "{}")).toMatchObject({ id: "2", username: "alt" });
+    expect(parseMockSession(readCookie())).toEqual({ id: "2", username: "alt" });
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
   it("clearAuth clears the cookie", async () => {
     const { useAuthStore } = await freshStore();
     useAuthStore.getState().actions.updateUser(USER);

@@ -59,7 +59,7 @@ internal sealed class RefreshTokenCommandHandler(
         }
 
         var newRefreshToken = account.RotateRefreshToken(request.RefreshToken);
-        var accessToken = jwtProvider.GenerateToken(profile, account);
+        var accessToken = jwtProvider.GenerateToken(profile, account, newRefreshToken.Id);
         accountRepository.Update(account);
 
         // Saved INSIDE the lock: the next request for this account must see the rotation

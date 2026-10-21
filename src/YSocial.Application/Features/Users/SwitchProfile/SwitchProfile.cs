@@ -59,7 +59,7 @@ internal sealed class SwitchProfileCommandHandler(
 
         // Token must be one of THIS account's active tokens, else InvalidRefreshToken rule (401)
         var newRefreshToken = account.RotateRefreshToken(request.RefreshToken, targetUser.Id);
-        var newAccessToken = jwtProvider.GenerateToken(targetUser, account);
+        var newAccessToken = jwtProvider.GenerateToken(targetUser, account, newRefreshToken.Id);
 
         accountRepository.Update(account);
 

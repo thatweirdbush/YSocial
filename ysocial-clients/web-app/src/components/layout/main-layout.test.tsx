@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
 import { resetNotificationStore, useNotificationStore } from "@/features/notifications/store/notification-store";
+import { __clearResourceCache } from "@/hooks/use-cached-resource";
+import { setRealSlices } from "@/test/api-test-utils";
 import { MainLayout } from "./main-layout";
 
 vi.mock("./right-sidebar", () => ({ RightSidebar: () => <div data-testid="right-sidebar" /> }));
@@ -44,6 +46,50 @@ describe("MainLayout account menu", () => {
     await openMenu();
 
     expect(screen.getByRole("link", { name: "Cài đặt" })).toHaveAttribute("href", "/settings");
+  });
+
+  it("no longer carries theme or language items (they live in settings now); the mobile bar keeps a quick language toggle", async () => {
+    render(<MainLayout>content</MainLayout>);
+    await openMenu();
+
+    expect(screen.queryByRole("menuitem", { name: /Ngôn ngữ|Language/ })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: /Dark Mode|Light Mode/ })).toBeNull();
+    expect(screen.getByText("vi", { selector: "button" })).toBeInTheDocument();
+  });
+
+  it("lists the other profiles of the account when the auth slice is real (loaded when the menu opens)", async () => {
+    __clearResourceCache();
+    setRealSlices("auth");
+    const me = {
+      email: "member@ysocial.dev",
+      profile: { id: "1" },
+      profiles: [
+        { id: "1", username: "ysocial_member", displayName: "YSocial Member", isDefault: true },
+        { id: "2", username: "alt_user", displayName: "Alt User", isDefault: false },
+      ],
+    };
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(me), { status: 200, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<MainLayout>content</MainLayout>);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await openMenu();
+
+    expect(await screen.findByRole("menuitem", { name: /Alt User/ })).toBeInTheDocument();
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/api/users/me");
+    vi.unstubAllGlobals();
+  });
+
+  it("makes no profile request in mock mode", async () => {
+    __clearResourceCache();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<MainLayout>content</MainLayout>);
+
+    await openMenu();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 
   it("hides the settings link from a guest", async () => {

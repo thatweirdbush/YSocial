@@ -6,6 +6,8 @@ namespace YSocial.Domain.Identities;
 
 public class RefreshToken : Entity<RefreshTokenId>
 {
+    public const int MaxUserAgentLength = 256;
+
     public AccountId AccountId { get; private set; }
 
     /// <summary>
@@ -15,6 +17,15 @@ public class RefreshToken : Entity<RefreshTokenId>
     public string Token { get; private set; }
     public DateTime ExpiryTime { get; private set; }
     public string DeviceId { get; private set; }
+
+    /// <summary>
+    /// <c>User-Agent</c> captured at login, copied on rotation (truncated to <see cref="MaxUserAgentLength"/>).
+    /// </summary>
+    public string? UserAgent { get; private set; }
+
+    /// <summary>
+    /// Set once at construction, never mutated (rotation issues a NEW token).
+    /// </summary>
     public DateTime CreatedAt { get; private set; }
     public DateTime? RevokedAt { get; private set; }
 
@@ -29,7 +40,7 @@ public class RefreshToken : Entity<RefreshTokenId>
     private RefreshToken() { }
 #pragma warning restore CS8618
 
-    internal RefreshToken(AccountId accountId, UserId userId, string token, DateTime expiryTime, string deviceId)
+    internal RefreshToken(AccountId accountId, UserId userId, string token, DateTime expiryTime, string deviceId, string? userAgent)
     {
         Id = RefreshTokenId.New();
         AccountId = accountId;
@@ -37,16 +48,20 @@ public class RefreshToken : Entity<RefreshTokenId>
         Token = token;
         ExpiryTime = expiryTime;
         DeviceId = deviceId;
+        UserAgent = Truncate(userAgent);
         CreatedAt = DateTime.UtcNow;
     }
 
-    internal static RefreshToken Create(AccountId accountId, UserId userId, string token, DateTime expiryTime, string deviceId)
+    internal static RefreshToken Create(AccountId accountId, UserId userId, string token, DateTime expiryTime, string deviceId, string? userAgent = null)
     {
         CheckRule(new RefreshTokenValueNotEmptyRule(token));
         CheckRule(new RefreshTokenMustNotBeExpiredRule(expiryTime));
 
-        return new RefreshToken(accountId, userId, token, expiryTime, deviceId);
+        return new RefreshToken(accountId, userId, token, expiryTime, deviceId, userAgent);
     }
+
+    private static string? Truncate(string? userAgent)
+        => userAgent is { Length: > MaxUserAgentLength } ? userAgent[..MaxUserAgentLength] : userAgent;
 
     internal void Revoke()
     {

@@ -17,6 +17,8 @@ const BE_LESS: Capability[] = [
   "followingTabGuest",
 ];
 const GRAPH: Capability[] = ["followLists", "blockUi", "closeFriendsUi", "privacyUi", "followRequestsUi"];
+/** Need a real identity (no mock adapter): follow the auth slice only */
+const AUTH_ONLY: Capability[] = ["accountUi", "profileSwitcher"];
 
 const ALL = Object.keys(CAPABILITY_RULES) as Capability[];
 
@@ -31,16 +33,28 @@ const STATES: Array<[string, boolean, boolean, boolean]> = [
 
 describe("capability table", () => {
   it("covers exactly the known capabilities", () => {
-    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, "muteUi", "notificationSettings", "mentionNotifications"].sort());
+    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, ...AUTH_ONLY, "muteUi", "notificationSettings", "mentionNotifications"].sort());
   });
 
   it.each(STATES)("slices %j", (slices, content, graph, activity) => {
     setRealSlices(slices);
     for (const capability of BE_LESS) expect(hasCapability(capability), capability).toBe(!content);
     for (const capability of GRAPH) expect(hasCapability(capability), capability).toBe(!content || graph);
+    for (const capability of AUTH_ONLY) expect(hasCapability(capability), capability).toBe(slices.includes("auth"));
     expect(hasCapability("muteUi")).toBe(!content || activity);
     expect(hasCapability("notificationSettings")).toBe(!content || activity);
     expect(hasCapability("mentionNotifications")).toBe(!content && !activity);
+  });
+
+  it("auth-only capabilities: unset env = on, none = off, auth only = on", () => {
+    for (const capability of AUTH_ONLY) {
+      setRealSlices(undefined);
+      expect(hasCapability(capability), `${capability} unset`).toBe(true);
+      setRealSlices("none");
+      expect(hasCapability(capability), `${capability} none`).toBe(false);
+      setRealSlices("auth");
+      expect(hasCapability(capability), `${capability} auth`).toBe(true);
+    }
   });
 
   it("mentions rule names its data source: hidden when either the BE list or the content slice is real", () => {

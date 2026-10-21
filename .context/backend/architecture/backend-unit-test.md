@@ -11,9 +11,9 @@ updated: 2026-10-20
 
 | Project | Layer | Tests (all passing) |
 |---|---|---|
-| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos) | 77 |
-| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes | 73 |
-| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 468 |
+| `tests/YSocial.Domain.UnitTests` | Domain: aggregates, rules, services (substituted repos) | 88 |
+| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes | 74 |
+| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 494 |
 | `tests/YSocial.TestSupport` (no tests) | shared harness: `SqliteTestDatabase`, `Store` facade | - |
 
 - **All:** net8.0
@@ -238,7 +238,7 @@ updated: 2026-10-20
 
 # 3. APPLICATION TEST MATRIX (`YSocial.Application.UnitTests`)
 
-## 3.1 Existing (73)
+## 3.1 Existing (74)
 - `Access/ViewerAccessPolicyTests` (16): owner/anonymous/pending/accepted vs private, block either direction, deleted author, FollowersOnly & Private posts, dormant close-friend flag, comment under inaccessible root, filter helpers, `GetContext_CallsEachRepoOnce_For50Candidates`
 - `Posts/PostProjectorTests` (7): post/comment kind & parent, viewer flags per kind, anonymous = no viewer lookups, fixed repo calls per page, dropped inaccessible items, direct-children counting
 - `Cqrs/EventDispatchUnitTests` (6): dispatcher max passes, drain-until-empty, failure discards remaining; `TransactionBehavior` success commits, failed `Result`/exception skips commit & discards
@@ -270,7 +270,7 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 # 4. VERIFICATION PLAN
 
 - [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
-- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (77 pass)
-- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (73 pass)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (468 pass, serialized, identical seed per test)
+- [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (88 pass)
+- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (74 pass)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (494 pass, serialized, identical seed per test)
 - [x] **All:** `dotnet test YSocial.sln`

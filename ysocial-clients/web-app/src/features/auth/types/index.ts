@@ -16,6 +16,8 @@ export type ForgotPasswordRequest = Schemas["ForgotPasswordRequest"];
 export type ResetPasswordRequest = Schemas["ResetPasswordRequest"];
 export type LoginResponse = Schemas["LoginResponse"];
 export type MeDto = Schemas["MeDto"];
+/** Profile switcher entry (`MeDto.profiles`). */
+export type ProfileSummary = Schemas["ProfileSummaryDto"];
 // #endregion
 
 // #region Domain models

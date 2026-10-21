@@ -4,6 +4,7 @@ import { FeatureUnavailable } from "@/components/shared/feature-unavailable";
 import { hasCapability } from "@/lib/capabilities";
 import { BlockedUserList, CloseFriendsList, FollowRequestList, MutedUserList } from "@/features/profile";
 import { NotificationSettings } from "./notification-settings";
+import { PrivacyLinks } from "./privacy-links";
 import { PrivacySettings } from "./privacy-settings";
 import { SettingsPageHeader } from "./settings-page-header";
 
@@ -14,6 +15,7 @@ export function PrivacySection() {
     <>
       <SettingsPageHeader title="settings.privacy" />
       <PrivacySettings />
+      <PrivacyLinks />
       <section id="requests" className="border-t border-zinc-200/60 dark:border-zinc-900/60">
         <FollowRequestList />
       </section>

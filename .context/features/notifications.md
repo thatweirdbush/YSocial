@@ -16,7 +16,7 @@ GET /api/notifications?kind -> notification-service -> notification-store (byId 
 NotificationContainer (tabs, mark-on-view) | NotificationNavBadge (unread) | NotificationSettings (preferences)
 ```
 - **Store** (`store/notification-store.ts`): `byId` (1 record per notification) + `lists: Record<NotificationFilter, {ids, nextPage, status, loadingMore}>` (`all|mentions|replies|follows|likes`) + `unreadCount`. Items shared by lists, so reading in 1 tab reads everywhere. Hooks: `useNotificationItems(filter)`, `useNotificationList(filter)`, `useUnreadCount()`
-- **Preferences store** (`store/notification-preferences-store.ts`): server state in Zustand, NOT in future localStorage `settings-store` (4.2). Reset together with notification store (logout, account switch)
+- **Preferences store** (`store/notification-preferences-store.ts`): server state in Zustand, NOT in localStorage `settings-store` (per device, `features/settings.md`). Reset together with notification store (logout, account switch)
 - **Service** (`services/notification-service.ts`): real adapter + stateful mock adapter (read marks, preferences; `resetMockNotificationState()` for tests)
 
 ## BE contract used

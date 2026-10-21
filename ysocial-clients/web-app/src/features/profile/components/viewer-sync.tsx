@@ -11,7 +11,7 @@ import { toViewerUserInput } from "../utils/viewer-user";
 /**
  * Registers the signed-in mock account in the mock user DB once per session id, only after auth hydration, and
  * keeps every viewer-dependent cache in step with the active account (spec D25). On an account switch: bumps the
- * viewer generation, resets the viewer-dependent feed state, drops the new viewer's follow projection (another
+ * viewer generation, resets the viewer-dependent feed state & the like/bookmark flags of cached posts, drops the new viewer's follow projection (another
  * account may have changed its edges meanwhile) and reloads its relation sets. Renders nothing; mounted by `Providers`.
  */
 export function ViewerSync(): null {
@@ -29,6 +29,7 @@ export function ViewerSync(): null {
       previousActorId.current = actorId;
       bumpViewerGeneration();
       getPostActions().resetViewerFeeds();
+      getPostActions().resetViewerFlags();
       invalidateViewerProjection(actorId);
       ensureFollowGraph(actorId).catch(() => undefined);
     }

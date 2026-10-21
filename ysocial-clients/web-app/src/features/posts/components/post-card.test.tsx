@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth/store/auth-store";
 import { makeUserProfile } from "@/features/profile/mocks/user-fixtures";
 import { resetUserStore, useUserStore } from "@/features/profile/store/user-store";
+import { resetSettingsStore, useSettingsStore } from "@/features/settings/store/settings-store";
 import * as service from "../services/post-service";
 import { resetPostStore, usePostStore } from "../store/post-store";
 import type { PostItem } from "../types";
@@ -371,5 +372,39 @@ describe("PostCard close friends badge", () => {
     const { container } = render(<PostCard post={post} />);
 
     expect(avatarOf(container)).toHaveClass("ring-emerald-500");
+  });
+});
+
+describe("PostCard viewer display preferences (settings-store)", () => {
+  beforeEach(() => resetSettingsStore());
+
+  it("hideLikeCounts hides the like count in the action bar and the detail stats", () => {
+    useSettingsStore.getState().actions.setHideLikeCounts(true);
+
+    render(<PostCard post={post} variant="detail" />);
+
+    expect(screen.queryByText("5")).toBeNull();
+    expect(screen.queryByText(/lượt thích/)).toBeNull();
+    expect(screen.getByText(/câu trả lời/)).toBeInTheDocument();
+  });
+
+  it("hideShareCounts hides the share count only", () => {
+    render(<PostCard post={post} />);
+    expect(screen.getByText("14")).toBeInTheDocument();
+
+    act(() => useSettingsStore.getState().actions.setHideShareCounts(true));
+
+    expect(screen.queryByText("14")).toBeNull();
+    expect(screen.getByText("5")).toBeInTheDocument();
+  });
+
+  it("keeps the owner hideLikeCount hint (per-post setting) independent of the display preference", () => {
+    useAuthStore.setState({ user: { id: "u1", email: "u1@ysocial.dev" } });
+    useSettingsStore.getState().actions.setHideLikeCounts(true);
+
+    render(<PostCard post={{ ...post, hideLikeCount: true }} />);
+
+    expect(screen.queryByText("5")).toBeNull();
+    expect(screen.getByTitle("Chỉ bạn thấy số lượt thích")).toBeInTheDocument();
   });
 });

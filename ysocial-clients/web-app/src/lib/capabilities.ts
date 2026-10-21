@@ -21,7 +21,9 @@ export type Capability =
   | "followRequestsUi"
   | "muteUi"
   | "notificationSettings"
-  | "mentionNotifications";
+  | "mentionNotifications"
+  | "accountUi"
+  | "profileSwitcher";
 
 type Slices = ReadonlySet<ApiSlice>;
 
@@ -29,6 +31,9 @@ type Slices = ReadonlySet<ApiSlice>;
 const unlessContentReal = (slices: Slices): boolean => !slices.has("content");
 /** Graph features: off while content is real & graph is still mock (mock ids would reach real routes). */
 const unlessGraphPending = (slices: Slices): boolean => !slices.has("content") || slices.has("graph");
+
+/** Needs a real identity (account, sessions, danger, profile switcher have no mock adapter): follows the auth slice only. */
+const whenAuthReal = (slices: Slices): boolean => slices.has("auth");
 
 export const CAPABILITY_RULES: Record<Capability, (slices: Slices) => boolean> = {
   search: unlessContentReal,
@@ -56,6 +61,8 @@ export const CAPABILITY_RULES: Record<Capability, (slices: Slices) => boolean> =
   // Mention notifications exist only in the mock seed (BE has no mention model): on only when NEITHER the activity list
   // (real BE, no mentions) NOR content (seed hidden) is real
   mentionNotifications: (slices) => !slices.has("activity") && !slices.has("content"),
+  accountUi: whenAuthReal,
+  profileSwitcher: whenAuthReal,
 };
 
 /** Whether `capability` is usable with the current `NEXT_PUBLIC_REAL_API_SLICES` (read per call). */
