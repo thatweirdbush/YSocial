@@ -483,6 +483,14 @@
     "saved": "Đã lưu",
     "saveFailed": "Không lưu được",
     "loadFailed": "Không tải được thông tin tài khoản",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "sessions": "Phiên đăng nhập",
+    "sessionCurrent": "Thiết bị này",
+    "sessionSignedIn": "Đăng nhập lúc",
+    "sessionTokenIssued": "Cấp token lần cuối",
+    "sessionRevoke": "Đăng xuất phiên",
+    "sessionRevokeConfirm": "Đăng xuất phiên này?",
+    "sessionRevokeNote": "Thiết bị đó có thể vẫn dùng được tối đa 15 phút cho đến khi token hết hạn",
+    "sessionUnknownDevice": "Thiết bị không xác định"
   }
 }

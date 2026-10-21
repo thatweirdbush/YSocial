@@ -1,9 +1,10 @@
 import type { MeDto } from "@/features/auth";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GENDER_TO_INT, parseGender, saveAccountProfile } from "./account-service";
+import { fetchSessions, GENDER_TO_INT, parseGender, revokeSession, saveAccountProfile } from "./account-service";
 
-const put = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/api-client", () => ({ apiClient: { put } }));
+const api = vi.hoisted(() => ({ put: vi.fn(), get: vi.fn(), delete: vi.fn() }));
+const put = api.put;
+vi.mock("@/lib/api-client", () => ({ apiClient: api }));
 
 const me: MeDto = {
   email: "real@ysocial.dev",
@@ -20,6 +21,8 @@ const me: MeDto = {
 };
 
 beforeEach(() => {
+  api.get.mockReset();
+  api.delete.mockReset().mockResolvedValue(undefined);
   put.mockReset();
   put.mockResolvedValue({ id: "x" });
 });
@@ -64,5 +67,35 @@ describe("parseGender", () => {
     expect(parseGender("MALE")).toBe("unspecified");
     expect(parseGender(null)).toBe("unspecified");
     expect(parseGender(undefined)).toBe("unspecified");
+  });
+});
+
+describe("sessions", () => {
+  it("maps the DTO to a strict item, keeps the BE order & drops entries without an id", async () => {
+    api.get.mockResolvedValue([
+      { id: "a", userAgent: "UA", profileUsername: "u", createdAt: "2026-10-20T08:00:00Z", lastTokenIssuedAt: "2026-10-21T08:00:00Z", isCurrent: true },
+      { userAgent: "no id" },
+      { id: "b", userAgent: null },
+    ]);
+
+    const sessions = await fetchSessions();
+
+    expect(api.get).toHaveBeenCalledWith("/api/identities/sessions");
+    expect(sessions).toEqual([
+      { id: "a", userAgent: "UA", profileUsername: "u", createdAt: "2026-10-20T08:00:00Z", lastTokenIssuedAt: "2026-10-21T08:00:00Z", isCurrent: true },
+      { id: "b", userAgent: null, profileUsername: null, createdAt: "", lastTokenIssuedAt: "", isCurrent: false },
+    ]);
+  });
+
+  it("tolerates an empty body", async () => {
+    api.get.mockResolvedValue(undefined);
+
+    expect(await fetchSessions()).toEqual([]);
+  });
+
+  it("revokes by session id", async () => {
+    await revokeSession("0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10");
+
+    expect(api.delete).toHaveBeenCalledWith("/api/identities/sessions/0b8f1c52-6a3e-4c53-9b42-5f9d6f7a1e10");
   });
 });

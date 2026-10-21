@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -10,11 +10,12 @@ import { FeatureUnavailable } from "@/components/shared/feature-unavailable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { type MeDto, useSubmitGuard, useViewerId } from "@/features/auth";
+import { type MeDto, useSubmitGuard } from "@/features/auth";
 import { fetchMe } from "@/features/auth/services/auth-service";
 import { type TranslationKey, useTranslation } from "@/hooks/use-translation";
 import { hasCapability } from "@/lib/capabilities";
 import { cn } from "@/lib/utils";
+import { useViewerResource } from "../hooks/use-viewer-resource";
 import { GENDER_VALUES, type GenderValue, parseGender, saveAccountProfile } from "../services/account-service";
 import { isPastBirthDate, maxBirthDate } from "../utils/birth-date";
 import { SettingsPageHeader } from "./settings-page-header";
@@ -35,8 +36,6 @@ const createAccountSchema = (t: (key: TranslationKey) => string, birthDateRequir
 
 type AccountFormValues = z.infer<ReturnType<typeof createAccountSchema>>;
 
-type Snapshot = { status: "loading" } | { status: "error" } | { status: "ready"; me: MeDto };
-
 const fieldClass = "h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 /** `/settings/account`: email & username (read-only), gender & birth date. Real BE only (no mock adapter). */
@@ -47,48 +46,27 @@ export function AccountSection() {
 
 function AccountLoader() {
   const { t } = useTranslation();
-  const viewerId = useViewerId();
-  const [attempt, setAttempt] = useState(0);
-  const [result, setResult] = useState<{ key: string; snapshot: Snapshot } | null>(null);
-
-  // Reload when the viewer changes (switch profile) or on retry; an answer for an older key is dropped
-  const key = `${viewerId}:${attempt}`;
-  useEffect(() => {
-    let cancelled = false;
-    fetchMe().then(
-      (me) => {
-        if (!cancelled) setResult({ key, snapshot: { status: "ready", me } });
-      },
-      () => {
-        if (!cancelled) setResult({ key, snapshot: { status: "error" } });
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [key]);
-
-  const snapshot: Snapshot = result?.key === key ? result.snapshot : { status: "loading" };
+  const { state, key, retry } = useViewerResource(fetchMe);
 
   return (
     <>
       <SettingsPageHeader title="settings.account" />
-      {snapshot.status === "loading" && (
+      {state.status === "loading" && (
         <section className="flex flex-col gap-6 p-4" role="status" aria-busy="true">
           <Skeleton className="h-11 w-full" />
           <Skeleton className="h-11 w-full" />
           <Skeleton className="h-11 w-full" />
         </section>
       )}
-      {snapshot.status === "error" && (
+      {state.status === "error" && (
         <section className="flex flex-col items-center gap-4 px-4 py-16 text-center">
           <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">{t("settings.loadFailed")}</p>
-          <Button type="button" variant="outline" onClick={() => setAttempt((value) => value + 1)} className="min-h-11 rounded-full px-5">
+          <Button type="button" variant="outline" onClick={retry} className="min-h-11 rounded-full px-5">
             {t("settings.retry")}
           </Button>
         </section>
       )}
-      {snapshot.status === "ready" && <AccountForm key={key} initial={snapshot.me} />}
+      {state.status === "ready" && <AccountForm key={key} initial={state.data} />}
     </>
   );
 }

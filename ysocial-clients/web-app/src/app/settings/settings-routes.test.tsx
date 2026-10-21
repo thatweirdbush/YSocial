@@ -11,6 +11,7 @@ import { metadata as languageMetadata } from "./(sections)/language/page";
 import { metadata as mutedMetadata } from "./(sections)/muted/page";
 import { metadata as notificationsMetadata } from "./(sections)/notifications/page";
 import { metadata as privacyMetadata } from "./(sections)/privacy/page";
+import { metadata as sessionsMetadata } from "./(sections)/sessions/page";
 import { metadata as timeManagementMetadata } from "./(sections)/time-management/page";
 import SettingsLayout, { metadata as settingsMetadata } from "./layout";
 import SettingsPage, { metadata as indexMetadata } from "./page";
@@ -64,8 +65,9 @@ describe("settings route metadata", () => {
       contentMetadata,
       timeManagementMetadata,
       accountMetadata,
+      sessionsMetadata,
     ].map((metadata) => String(metadata.title));
-    expect(new Set(titles).size).toBe(11);
+    expect(new Set(titles).size).toBe(12);
     expect(titles.every((title) => title.endsWith("• YSocial"))).toBe(true);
   });
 });

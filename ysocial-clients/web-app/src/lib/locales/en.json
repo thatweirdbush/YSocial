@@ -483,6 +483,14 @@
     "saved": "Saved",
     "saveFailed": "Could not save",
     "loadFailed": "Could not load your account details",
-    "retry": "Try again"
+    "retry": "Try again",
+    "sessions": "Sessions",
+    "sessionCurrent": "This device",
+    "sessionSignedIn": "Signed in",
+    "sessionTokenIssued": "Token last issued",
+    "sessionRevoke": "Sign out session",
+    "sessionRevokeConfirm": "Sign out this session?",
+    "sessionRevokeNote": "That device may keep working for up to 15 minutes until its token expires",
+    "sessionUnknownDevice": "Unknown device"
   }
 }

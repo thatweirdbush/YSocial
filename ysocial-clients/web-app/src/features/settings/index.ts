@@ -3,6 +3,7 @@ export { AccountSection } from "./components/account-section";
 export { AppearanceSection } from "./components/appearance-section";
 export { ContentSection } from "./components/content-section";
 export { LanguageSection } from "./components/language-section";
+export { SessionsSection } from "./components/sessions-section";
 export { SettingsEffects } from "./components/settings-effects";
 export { TimeManagementSection } from "./components/time-management-section";
 export { UsageTrackerMount } from "./components/usage-tracker-mount";

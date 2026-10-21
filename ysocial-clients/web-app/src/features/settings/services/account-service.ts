@@ -1,6 +1,7 @@
 import type { MeDto } from "@/features/auth";
 import type { UserProfileDto } from "@/features/profile/types";
 import { apiClient } from "@/lib/api-client";
+import type { SessionDto, SessionItem } from "../types";
 import { toWireBirthDate } from "../utils/birth-date";
 
 /** Request enum values (`UpdateProfileRequest.gender`); reads come back as the lowercase names. */
@@ -33,4 +34,27 @@ export async function saveAccountProfile(me: MeDto, patch: AccountPatch): Promis
     gender: GENDER_TO_INT[patch.gender],
     ...(patch.dateOfBirth ? { dateOfBirth: toWireBirthDate(patch.dateOfBirth) } : {}),
   });
+}
+
+const toSessionItem = (dto: SessionDto): SessionItem | null =>
+  dto.id
+    ? {
+        id: dto.id,
+        userAgent: dto.userAgent ?? null,
+        profileUsername: dto.profileUsername ?? null,
+        createdAt: dto.createdAt ?? "",
+        lastTokenIssuedAt: dto.lastTokenIssuedAt ?? "",
+        isCurrent: dto.isCurrent === true,
+      }
+    : null;
+
+/** Active sign-ins of the account, newest token issue first (the BE order is kept). */
+export async function fetchSessions(): Promise<SessionItem[]> {
+  const sessions = await apiClient.get<SessionDto[]>("/api/identities/sessions");
+  return (sessions ?? []).map(toSessionItem).filter((session): session is SessionItem => session !== null);
+}
+
+/** Ends the session of ANY of its token ids (204; 404 unknown or foreign). The revoked device's access token lives until expiry. */
+export async function revokeSession(id: string): Promise<void> {
+  await apiClient.delete(`/api/identities/sessions/${id}`);
 }
