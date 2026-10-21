@@ -284,6 +284,40 @@ describe("switchProfile: ambiguous failures (no response / 5xx: the BE may have 
     expect(stored()).toEqual({ access: null, refresh: null, user: null });
   });
 
+  it("the retry meets an expired access token: rotation says the refresh token is dead -> session lost", async () => {
+    const { switching } = run([timedOut, problem(401, "Unauthenticated"), problem(401, "InvalidRefreshToken")]);
+
+    await expect(switching()).rejects.toBeInstanceOf(SwitchSessionLostError);
+
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it("the retry meets an expired access token and rotation works: unconfirmed, rotated pair kept in store + storage", async () => {
+    const { switching } = run([timedOut, problem(401, "Unauthenticated"), rotatedOk]);
+
+    await expect(switching()).rejects.toBeInstanceOf(SwitchUnconfirmedError);
+
+    expect(stored()).toMatchObject({ access: "AR", refresh: "RR" });
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: "AR", refreshToken: "RR", user: USER });
+  });
+
+  it("the retry meets an expired access token: rotation says the refresh token is dead -> session lost", async () => {
+    const { switching } = run([timedOut, problem(401, "Unauthenticated"), problem(401, "InvalidRefreshToken")]);
+
+    await expect(switching()).rejects.toBeInstanceOf(SwitchSessionLostError);
+
+    expect(useAuthStore.getState().user).toBeNull();
+  });
+
+  it("the retry meets an expired access token and rotation works: unconfirmed, rotated pair kept in store + storage", async () => {
+    const { switching } = run([timedOut, problem(401, "Unauthenticated"), rotatedOk]);
+
+    await expect(switching()).rejects.toBeInstanceOf(SwitchUnconfirmedError);
+
+    expect(stored()).toMatchObject({ access: "AR", refresh: "RR" });
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: "AR", refreshToken: "RR", user: USER });
+  });
+
   it("a second ambiguous failure leaves state untouched & asks the user to check", async () => {
     const before = storage();
     const { switching, calls } = run([networkDown, problem(502, "BadGateway")]);

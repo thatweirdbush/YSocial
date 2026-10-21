@@ -97,6 +97,32 @@ describe("401 interceptor", () => {
     expect(useAuthStore.getState().refreshToken).toBe("R2");
   });
 
+  it("401 then adopted, but the stored session now belongs to ANOTHER profile -> never replayed as that profile", async () => {
+    useAuthStore.getState().actions.updateUser({ id: "profile-A", email: "a@ysocial.dev" });
+    const calls = useFetch([problem(401, "Unauthenticated")]);
+    refresh.mockImplementation(async () => {
+      localStorage.setItem("ysocial_user", JSON.stringify({ id: "profile-B", email: "a@ysocial.dev" }));
+      return { status: "adopted", accessToken: "A2", refreshToken: "R2" };
+    });
+
+    await expect(apiFetch("/api/posts/1/like", { method: "PUT" })).rejects.toBeInstanceOf(ApiError);
+
+    expect(calls).toHaveLength(1);
+  });
+
+  it("401 then adopted, but the stored session now belongs to ANOTHER profile -> never replayed as that profile", async () => {
+    useAuthStore.getState().actions.updateUser({ id: "profile-A", email: "a@ysocial.dev" });
+    const calls = useFetch([problem(401, "Unauthenticated")]);
+    refresh.mockImplementation(async () => {
+      localStorage.setItem("ysocial_user", JSON.stringify({ id: "profile-B", email: "a@ysocial.dev" }));
+      return { status: "adopted", accessToken: "A2", refreshToken: "R2" };
+    });
+
+    await expect(apiFetch("/api/posts/1/like", { method: "PUT" })).rejects.toBeInstanceOf(ApiError);
+
+    expect(calls).toHaveLength(1);
+  });
+
   it("401 then adopted -> retried with adopted token", async () => {
     const calls = useFetch([problem(401, "Unauthenticated"), { status: 200, body: {} }]);
     refresh.mockResolvedValue({ status: "adopted", accessToken: "A9", refreshToken: "R9" });

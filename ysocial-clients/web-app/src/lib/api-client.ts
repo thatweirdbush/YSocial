@@ -59,11 +59,21 @@ async function readBody<T>(response: Response): Promise<T> {
   }
 }
 
+/** Viewer id of the persisted session (localStorage is the cross-tab truth, the store may lag one storage event). */
+function storedViewerId(): string | undefined {
+  try {
+    return (JSON.parse(localStorage.getItem(AUTH_STORAGE_KEYS.user) ?? "null") as { id?: string } | null)?.id;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Typed BE call: JSON as-is, failures as `ApiError`, silent token refresh on 401 (retry once, never loops). */
 export async function apiFetch<T = unknown>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const url = buildUrl(path, options.params);
   const { actions } = useAuthStore.getState();
   const sentToken = useAuthStore.getState().accessToken;
+  const sentViewerId = useAuthStore.getState().user?.id;
 
   let response = await send(url, options, sentToken);
 
@@ -87,6 +97,12 @@ export async function apiFetch<T = unknown>(path: string, options: ApiRequestOpt
         actions.clearAuth();
         authRedirect.toLogin();
       }
+      throw original;
+    }
+    // The wait for the refresh lock may have been a profile switch (this or another tab): the pair now belongs to
+    // ANOTHER viewer, and this request was made as the previous one, so it must not be replayed
+    if (sentViewerId && storedViewerId() !== sentViewerId) {
+      actions.setTokens(tokens.accessToken, tokens.refreshToken);
       throw original;
     }
     actions.setTokens(tokens.accessToken, tokens.refreshToken);

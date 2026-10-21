@@ -129,6 +129,16 @@ async function switchInsideLock(target: ProfileSummary, email: string, deps?: Re
     // Safe: at-most-once. The same PUT either succeeds now, or answers 401 InvalidRefreshToken (it did rotate before)
     result = await send(tokens, profileId, deps);
     if (result.kind === "ambiguous") throw new SwitchUnconfirmedError();
+    if (result.kind === "access-rejected") {
+      // The access token expired during the ambiguity: only a rotation tells whether the refresh token survived
+      const outcome = await rotateTokens(tokens.accessToken, deps);
+      if (outcome.status === "unauthorized") {
+        actions.clearAuth();
+        throw new SwitchSessionLostError();
+      }
+      if (outcome.status !== "transient") actions.setTokens(outcome.accessToken, outcome.refreshToken);
+      throw new SwitchUnconfirmedError();
+    }
   }
 
   switch (result.kind) {
