@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microservice.BuildingBlocks.Domain.Events;
-using Microsoft.EntityFrameworkCore;
 using NSubstitute;
 using Xunit;
 using YSocial.Application.Abstractions.Persistence;

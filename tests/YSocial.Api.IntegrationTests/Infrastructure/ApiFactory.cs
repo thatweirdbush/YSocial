@@ -14,9 +14,24 @@ using YSocial.TestSupport;
 
 namespace YSocial.Api.IntegrationTests.Infrastructure;
 
-/// <param name="useFakeStorage">False keeps the production storage choice with the Cloudinary keys forced EMPTY (the real keys of the
-/// developer machine must never be reachable from tests): the host then runs on <c>UnavailableMediaStorage</c>.</param>
-public class ApiFactory(SqliteTestDatabase database, bool useFakeStorage = true) : WebApplicationFactory<Program>
+/// <summary>
+/// Which media storage the test host runs on.
+/// </summary>
+public enum StorageMode
+{
+    /// <summary>In-memory fake with fault injection (every normal test).</summary>
+    Fake,
+
+    /// <summary>Production selection with the Cloudinary keys forced EMPTY: the stand-in that answers 503.</summary>
+    Unavailable,
+
+    /// <summary>Production selection with the REAL keys of user-secrets: ONLY the opt-in manual smoke.</summary>
+    Real
+}
+
+/// <param name="storage">The real keys of the developer machine must never be reachable from normal tests: only
+/// <see cref="StorageMode.Real"/> (opt-in smoke) leaves the configuration untouched.</param>
+public class ApiFactory(SqliteTestDatabase database, StorageMode storage = StorageMode.Fake) : WebApplicationFactory<Program>
 {
     /// <summary>
     /// Every log message of the host (redaction tests).
@@ -32,7 +47,7 @@ public class ApiFactory(SqliteTestDatabase database, bool useFakeStorage = true)
     {
         builder.ConfigureLogging(logging => logging.AddProvider(Logs));
 
-        if (!useFakeStorage)
+        if (storage == StorageMode.Unavailable)
         {
             // Added after user-secrets & env vars, so it wins over them
             builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(new Dictionary<string, string?>
@@ -55,7 +70,7 @@ public class ApiFactory(SqliteTestDatabase database, bool useFakeStorage = true)
             // Never the real (Postgres) database
             database.ReplaceDatabaseOf(services);
 
-            if (useFakeStorage)
+            if (storage == StorageMode.Fake)
             {
                 services.RemoveAll<IMediaStorage>();
                 services.AddSingleton<IMediaStorage>(Storage);

@@ -16,7 +16,7 @@ namespace YSocial.Api.IntegrationTests.Media;
 [Collection(ApiCollection.Name)]
 public class MediaHealthTests
 {
-    private static ApiFactory WithoutKeys() => new(Store.Database, useFakeStorage: false);
+    private static ApiFactory WithoutKeys() => new(Store.Database, StorageMode.Unavailable);
 
     [Fact]
     public async Task Health_WithStorage_IsHealthy_Anonymous()

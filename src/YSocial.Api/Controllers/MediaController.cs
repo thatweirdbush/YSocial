@@ -4,7 +4,6 @@ using YSocial.Api.Models.Media;
 using YSocial.Application.Features.Media;
 using YSocial.Application.Features.Media.DiscardMedia;
 using YSocial.Application.Features.Media.UploadMedia;
-using YSocial.Application.Models;
 
 namespace YSocial.Api.Controllers;
 

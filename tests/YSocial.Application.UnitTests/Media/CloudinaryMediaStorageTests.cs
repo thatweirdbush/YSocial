@@ -15,12 +15,12 @@ public class CloudinaryMediaStorageTests
     // Pins what Cloudinary receives: a change here changes what is stored (and the EXIF/GPS stripping claim)
     [Fact]
     public void ImageIncomingTransformation_LimitsSizeAndStripsProfile()
-        => CloudinaryMediaStorage.IncomingTransformation(MediaKind.Image, MediaPurpose.Post).Generate()
+        => CloudinaryMediaStorage.IncomingTransformation(MediaKind.Image, MediaPurpose.Post)!.Generate()
             .Should().Be("c_limit,fl_strip_profile,h_2048,w_2048");
 
     [Fact]
     public void AvatarIncomingTransformation_CropsSquareAndStripsProfile()
-        => CloudinaryMediaStorage.IncomingTransformation(MediaKind.Image, MediaPurpose.Avatar).Generate()
+        => CloudinaryMediaStorage.IncomingTransformation(MediaKind.Image, MediaPurpose.Avatar)!.Generate()
             .Should().Be("c_fill,fl_strip_profile,g_auto,h_512,w_512");
 
     [Fact]

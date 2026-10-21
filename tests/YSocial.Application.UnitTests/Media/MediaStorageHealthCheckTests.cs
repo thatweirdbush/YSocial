@@ -1,6 +1,5 @@
 using FluentAssertions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using YSocial.Infrastructure.Media;
 using YSocial.TestSupport;

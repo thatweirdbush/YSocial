@@ -1,6 +1,5 @@
 using Microservice.BuildingBlocks.Domain.AggregateRoots;
 using Microservice.BuildingBlocks.Domain.Entities;
-using YSocial.Domain.Media;
 using YSocial.Domain.Posts.Events;
 using YSocial.Domain.Posts.Rules;
 using YSocial.Domain.Users;

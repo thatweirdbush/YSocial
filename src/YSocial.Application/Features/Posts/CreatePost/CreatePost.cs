@@ -4,7 +4,6 @@ using YSocial.Application.Abstractions.Identity;
 using YSocial.Application.Abstractions.Media;
 using YSocial.Application.CQRS.Requests;
 using YSocial.Application.CQRS.Results;
-using YSocial.Application.Features.Media;
 using YSocial.Application.Features.Posts.Projection;
 using YSocial.Application.Models;
 using YSocial.Domain.Media;
@@ -45,7 +44,7 @@ internal sealed partial class CreatePostCommandValidator : AbstractValidator<Cre
         RuleFor(command => command.MediaIds)
             .Must(ids => ids!.Count <= MaxMedia)
             .WithMessage($"A post can carry at most {MaxMedia} media items.")
-            .Must(ids => ids!.Distinct().Count() == ids.Count)
+            .Must(ids => ids!.Distinct().Count() == ids!.Count)
             .WithMessage("'Media Ids' must be distinct.")
             .Must(ids => ids!.All(id => id != Guid.Empty))
             .WithMessage("'Media Ids' must be valid ids.")

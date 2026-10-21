@@ -1,7 +1,6 @@
 using FluentAssertions;
 using Microservice.BuildingBlocks.Domain.Events;
 using Microservice.BuildingBlocks.Domain.UnitOfWorks;
-using Microservice.BuildingBlocks.Domain.UnitOfWorks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
@@ -16,7 +15,6 @@ using YSocial.Application.Features.Media.UploadMedia;
 using YSocial.Application.Models;
 using YSocial.Domain.Media;
 using YSocial.Domain.Users;
-using YSocial.Infrastructure.Persistence;
 using YSocial.Infrastructure.Persistence.Repositories;
 using YSocial.Infrastructure.Persistence.Seeding;
 using YSocial.Infrastructure.Persistence.UnitOfWork;

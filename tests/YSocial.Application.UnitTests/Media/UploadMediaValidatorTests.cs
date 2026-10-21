@@ -1,7 +1,6 @@
 using FluentAssertions;
 using FluentValidation.Results;
 using Xunit;
-using YSocial.Application.Features.Media;
 using YSocial.Application.Features.Media.UploadMedia;
 using YSocial.TestSupport;
 
