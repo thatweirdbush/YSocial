@@ -7,7 +7,7 @@ revision: 2 (after user review of rev 1)
 # Media - design (FE + BE vertical slice, sub-project A of media-discovery)
 
 ## 0. Status & intent
-- **Status:** APPROVED (rev 2, user said Execute on 2026-10-21); implementation in progress
+- **Status:** IMPLEMENTED (rev 2, approved by Execute on 2026-10-21); as-built `.context/features/media.md`, deviations in plan mismatch log
 - **Depends on:** sub-project B (done, `2026-10-21-discovery-design.md`)
 - **Intent:** users upload several images & videos per post and an avatar; media lives in Cloudinary behind `IMediaStorage` (swappable); no stock images; Next `Image` renders everything; video sound is a session preference applied to the next videos scrolled into view; abandoned uploads never pile up in Cloudinary
 - **Classification:** vertical (BE-gap-first, then FE)

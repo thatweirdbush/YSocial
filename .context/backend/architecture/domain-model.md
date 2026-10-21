@@ -30,12 +30,13 @@ updated: 2026-10-20
 |---|---|---|---|---|
 | `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`, `UserAgent` max 256; family = session, `SessionInfo`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens are child rows of aggregate (`RefreshTokens` / `PasswordResetTokens` tables, cascade); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
 | `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `NotificationPreferences` (VO: likes, replies, follows; default all on), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
-| `Post` | `PostHashtag` (child rows `(PostId, Key)` + `Display`, not auto-loaded) | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
+| `Post` | `PostHashtag` (child rows `(PostId, Key)` + `Display`, not auto-loaded), `PostMedia` (owned rows `(PostId, Position)`: `MediaId`, `Kind`, `Url`, `PosterUrl`, `Width`, `Height`, `DurationSeconds`, `Bytes`; ALWAYS loaded, <= 10, immutable after create) | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
 | `Comment` | - | yes | `ICommentRepository` | nested via `ParentCommentId`; counts inline |
 | `Like` | - | no | `ILikeRepository` | polymorphic target (`LikeTargetType` Post/Comment) |
 | `SavedItem` | - | yes | `ISavedItemRepository` | polymorphic target (`SavedItemTargetType`) |
 | `UserRelation` | - | yes | `IUserRelationRepository` | directed edge observer -> target; also carries observer's `IsCloseFriend` & `IsMuted` (+ `MutedAt`) flags, so `None` edge can exist only to hold mute |
 | `UserBlock` | - | no | `IUserBlockRepository` | standalone, directed |
+| `MediaAsset` | - | no (rows are deleted for real after the remote delete) | `IMediaAssetRepository` | write-ahead record of one Cloudinary file (`OwnerId`, `Kind`, `Purpose`, deterministic `PublicId`, `Url`, `Status`, `CleanupAttempts`, `Version` = EF concurrency token); owner shadow token `User.MediaQuotaVersion` serializes quota reserves; linked to posts by id only (`PostMedia.MediaId`) |
 | `Notification` | - | no | `INotificationRepository` | `TargetId` (Guid?, post/comment/follower id for FE navigation), `IsRead`/`ReadAt`; types `FollowRequested`, `FollowAccepted`, `NewComment`, `NewLike`, `NewFollow` |
 
 - Cross-aggregate links are by id only (no navigation): comment -> `PostId`, `UserId`; relation -> `UserId` x2
@@ -136,14 +137,20 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 - Single definition: `IViewerAccessPolicy` (reads) & `InteractionGuard` (writes), see conventions/backend.md
 
 ### 5.3 Post
-- `Create` (Public, AllowComments true, no input for either; text-only allowed, optional single `imageUrl`) -> `PostCreatedEvent` (log-only handler)
+- `Create` (Public, AllowComments true, no input for either; text-only allowed, optional external `imageUrl` OR up to 10 `PostMedia` snapshots with `Position` = request order; content may be empty when media or `imageUrl` exists) -> `PostCreatedEvent` (log-only handler); rules `PostMediaLimitRule` (> 10 -> 400 `PostContentInvalid`), `PostContentMustNotBeEmptyRule(content, hasMedia)`
 - **Hashtags (D31):** `Create` & `UpdateContent` re-extract tags with `HashtagParser` (FE `lib/text.ts` parity, golden fixture `docs/fixtures/hashtag-parity.json`): `Key` = folded (NFD, marks dropped, `đ` -> `d`, lowercase), `Display` = first casing in the post, tag <= 50 UTF-16 units, <= 30 distinct per post; edit keeps surviving rows (display refreshed), drops missing, adds new, all in the content save; callers MUST load the post with `GetByIdWithHashtagsAsync` before editing
-- `UpdateContent` (author; text only; `ImageUrl` immutable) -> `PostUpdatedEvent` (no handler); non-author who cannot see post gets 404, who can see it gets 403
+- `UpdateContent` (author; text only; `ImageUrl` & media immutable; empty text allowed when the post has media or `ImageUrl`) -> `PostUpdatedEvent` (no handler); non-author who cannot see post gets 404, who can see it gets 403
 - `Delete` (author) -> soft; hidden from every read; `PostDeletedEvent` -> saved items soft-removed in same request; comments & likes untouched
 - `Restore` (author, deleted) -> `PostRestoredEvent` (no handler); not-deleted -> 400 `PostNotDeleted`; saved items are not restored
 - Delete already-deleted post -> `GetByIdAsync` hides it -> 404 (not idempotent)
 - `UpdateSettings(visibility, allowComments)` exists, **no use case**
 - **Read accessibility:** author discoverable & content visible & `Visibility` allows & not deleted (`IViewerAccessPolicy`, plan §4.4)
+
+### 5.3.1 MediaAsset (`MediaAsset.cs`, tests `MediaAssetTests`)
+- **States:** `Uploading` -> `Pending` -> `Attached` -> `Released`; deletion via `Deleting` from `Uploading` (expired), `Pending` (expired or discarded), `Released` (grace over) or `Deleting` (lease expired, re-claim); `Attached` is NEVER claimed
+- **Transitions (each bumps `Version`, stamps `StatusChangedAt`):** `MarkUploaded` (Uploading -> Pending, fills url/size), `MarkAttached(requester, purpose)` (Pending -> Attached; foreign, wrong purpose or not pending = rule `MediaMustBePendingForOwnerRule`, kind NotFound, ONE answer), `Release` (Attached -> Released), `Discard(requester, now)` (own Pending -> Deleting), `Claim(now)` (-> Deleting), `RecordCleanupFailure(now)` (stays Deleting, attempts++, lease restarts); illegal moves = `MediaStatusTransitionRule` (Conflict 409)
+- **Race:** attach vs discard vs release vs sweep claim are decided by `Version` in the database (`ConcurrencyConflictException` -> 409 or skipped); quota: `IMediaAssetRepository.BumpQuotaTokenAsync` + `CountReservedAsync` (<= 30 `Uploading` + `Pending` per user)
+- `IsSweepable(window)` re-checks a row with fresh data before the sweep claims it; `PublicId` = `ysocial/{env}/{posts|avatars}/{id:N}`
 
 ### 5.4 Comment
 - `Create` (post exists, accessible & not deleted; parent unknown/deleted/inaccessible -> 404, parent of another post -> 400 `ParentCommentMismatch`) -> `CommentCreatedEvent` -> notification to **post author** (self-comment notifies self)
@@ -207,6 +214,7 @@ Pending --decline (respond follow-request)--> soft-deleted (no event, no count c
 | `ILikeRepository` | `GetByUserAndTargetAsync`, `GetLikedTargetIdsAsync(user, targetIds, type)` | viewer flags in 1 call per page |
 | `ICommentRepository` | `GetTopLevelCommentsByPostIdsAsync(postIds)`, `GetChildCommentsByParentIdsAsync(parentIds)` (both return `CommentChildRow(ParentKey, CommentId, AuthorId)`), `GetTopLevelByPostIdAsync(postId)`, `GetChildrenAsync(parentIds)` | typed on purpose: post ids & comment ids never mixed |
 | `INotificationRepository` | `GetByRecipientAsync(recipient)` (all, unordered) | `AccessibleNotifications` filters by sender access, orders & pages |
+| `IMediaAssetRepository` | `GetByIdsAsync(ids)` (tracked), `CountReservedAsync(owner)`, `GetSweepBatchAsync(window, batch)` (oldest first), `GetAttachedAvatarAsync(owner, url)`, `BumpQuotaTokenAsync(owner)` (false = user gone) | sweep & attach re-check each row after loading |
 
 - Unit of Work: `IUnitOfWork` (BuildingBlocks) implemented by `Infrastructure/Persistence/UnitOfWork/UnitOfWork.cs` (dispatch events, then 1 `SaveChanges`); repos are scoped & load TRACKED, except advisory lookups
 - **Untracked advisory lookups:** `IAccountRepository.GetByRefreshTokenAsync`, `GetAccountWithProfilesByIdentifierAsync`, `GetIdByIdentifierAsync` (re-load by id under session lock before mutating, BG §6.4)

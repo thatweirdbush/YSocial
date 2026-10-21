@@ -86,7 +86,8 @@ updated: 2026-10-21
 - **Open for user/BE owner:** M12 BE option (nullable-reference swagger, wide type churn, no functional gain)
 - **BE gaps for FE-built features:** tabs `replies`/`media`, pin, hide-like-count, close-friends audience (D17); register: BG §10
 - **Persistence:** DONE (EF Core + PostgreSQL, migrations, rich dev seed, SQLite test harness; BG §7); open debt: SQL-side paging, multi-instance lock/outbox (BG §10)
-- **Needs BE design first (DB ready):** search, media upload (spec `docs/specs/2026-10-21-media-design.md`)
+- **Needs BE design first (DB ready):** search
+- **Done (D33, D34):** media upload (multi image + video per post, avatar), Cloudinary behind `IMediaStorage`, sweep, `/health`: `features/media.md`; deferred: cover upload, alt text, profile Media tab on real BE, streaming/direct upload, purge job (BG §10 #33-37)
 - **Done (D31, D32):** hashtags, trending, tag page, suggestions: `features/discovery.md`
 - **No FE counterpart yet:** DMs, reposts, polls, report, onboarding
 - **Settings deferrals (Phase 4):** reply / mention policy, deactivate, clear birth date (BE), others: register in `features/settings.md` Deferred

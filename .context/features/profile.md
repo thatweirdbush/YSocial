@@ -7,7 +7,7 @@ plan: ysocial-clients/web-app/docs/plans/2026-10-07-profile-core.md
 
 # Profile Core
 
-`/@username`: header, follow, edit (own), tabs Threads / Replies / Media / Saved(own), followers/following dialog, share (link + QR). Services dispatch per function to `*.real.ts` adapters (`user-service.real.ts`, `relation-service.real.ts`) via `isRealApi(slice)`: env `NEXT_PUBLIC_REAL_API_SLICES` unset = all real, `none` = mock mode (mock adapters + `src/mocks/*`; points below marked "mock mode"). Replies / Media tabs have no BE: hidden while content is real (`profileRepliesMedia` capability, `lib/capabilities.ts`). As-built of integration: `backend/integration/fe-be-integration.md`
+`/@username`: header, follow, edit (own), tabs Threads / Replies / Media / Saved(own), followers/following dialog, share (link + QR). Services dispatch per function to `*.real.ts` adapters (`user-service.real.ts`, `relation-service.real.ts`) via `isRealApi(slice)`: env `NEXT_PUBLIC_REAL_API_SLICES` unset = all real, `none` = mock mode (mock adapters + `src/mocks/*`; points below marked "mock mode"). Edit dialog avatar: real BE = photo picker (upload on select, `avatarMediaId`, remove, discard on close; payload matrix in `features/media.md` §3), mock mode keeps the URL field. Replies / Media tabs have no BE: hidden while content is real (`profileRepliesMedia` capability, `lib/capabilities.ts`). As-built of integration: `backend/integration/fe-be-integration.md`
 
 ## Data flow
 ```

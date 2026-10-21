@@ -331,7 +331,7 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 - **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
 
 ## 11. Tests
-- 3 test projects + `TestSupport`, 734 tests run, all passing (+3 PostgreSQL opt-in tests, skipped unless `YSOCIAL_TEST_POSTGRES` holds a disposable server's admin connection string): `Domain.UnitTests` 130, `Application.UnitTests` 81 (incl. persistence: repos, hashtag rows, model snapshot guard, seeders incl. discovery stage, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 523 (incl. `Discovery/`: trending, tag posts, suggestions)
+- 3 test projects + `TestSupport`, 1064 tests run, all passing (+7 PostgreSQL opt-in tests, skipped unless `YSOCIAL_TEST_POSTGRES` holds a disposable server's admin connection string): `Domain.UnitTests` 185, `Application.UnitTests` 255 (incl. media sniffer/limits/upload/discard/sweep, persistence: repos, hashtag rows, model snapshot guard, seeders incl. discovery stage, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 624 (incl. `Discovery/` and `Media/`: upload table, discard, post media, avatar matrix, health; + 1 opt-in real Cloudinary smoke)
 - Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth); data layer runs on SQLite there, real PostgreSQL is verified manually (§7.3)
 

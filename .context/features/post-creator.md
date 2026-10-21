@@ -7,12 +7,12 @@ updated: 2026-10-19
 
 # 0. REAL vs MOCK MODE
 
-Post creation hits real BE by default (`createPost` -> `post-service.real.ts`, `NEXT_PUBLIC_REAL_API_SLICES` unset). BE has no media upload, multi-image or post audience, so composer is trimmed via `src/lib/capabilities.ts` (`hasCapability`, read per render). Mock mode (`none`) keeps full composer
+Post creation hits real BE by default (`createPost` -> `post-service.real.ts`, `NEXT_PUBLIC_REAL_API_SLICES` unset). BE has media upload (D33, `features/media.md`) but no post audience, so composer is trimmed via `src/lib/capabilities.ts` (`hasCapability`, read per render). Mock mode (`none`) keeps full composer
 
 | Control | Real (`content` real) | Mock |
 |---|---|---|
-| Local image upload (`multiImage`) | hidden (blob URLs unusable by BE) | shown, multiple images |
-| GIF picker | shown in post mode, hidden in reply mode; BE keeps ONLY first http(s) image (`createPost` sends 1 `imageUrl`, drops blob URLs); picker itself does not cap count | shown, also in replies |
+| Local file upload (`multiImage` + `mediaUpload`) | shown in post mode (hidden in reply mode): images & videos uploaded through `useMediaUploadQueue`, submit sends `mediaIds` | shown, multiple images as blob previews |
+| GIF picker | shown in post mode, hidden in reply mode; external GIF = `imageUrl`, never together with `mediaIds` (`createPost` drops it when media ids exist) | shown, also in replies |
 | Audience + Close friends toggle (`postAudience`) | hidden; `audience` / `visibility` are not sent | shown (post mode) |
 | Drafts picker | shown in post mode (not capability-gated); restoring draft resets audience to `anyone` & visibility to `public` | shown; restore keeps draft audience / visibility |
 | Emoji, Location, Mention | shown; static mock lists (see 2.3), location is never sent | same |
@@ -46,7 +46,7 @@ graph TD
 - Visual ring & counter: `length / 500`
 
 ## 2.2 Image Gallery & Upload (Memory-Safe)
-- **Upload (mock mode only, `multiImage`):** `<input type="file" multiple accept="image/*" />`
+- **Upload:** real BE = queue (`accept` = BE types, previews with progress/error/retry/remove, submit blocked while busy or failed, `onPostSubmitted(..., mediaIds)` as OPTIONAL 5th arg only when non-empty, close/discard gives assets back, drafts keep NO media); mock mode only: `<input type="file" multiple accept="image/*" />`
 - **Preview:** map via `URL.createObjectURL`. MUST call `URL.revokeObjectURL` on unmount to prevent memory leaks
 - **Scroll handlers:**
   - **Grab-drag:** `onMouseDown`, `onMouseMove`, `onMouseUp` -> `scrollLeft`
@@ -64,7 +64,7 @@ graph TD
 
 # 3. ESCAPE SHIELD & DRAFT LOGIC
 
-**Dirty condition:** `content.trim().length > 0 || images.length > 0`
+**Dirty condition:** `content.trim().length > 0 || images.length > 0 || queue.items.length > 0` (a media-only post is valid)
 
 ## 3.1 `Escape` Key Hierarchy
 1. **Sub-popover shield:** IF any popover (Emoji, GIF, Mention, Location, Audience, Drafts) open -> `Escape` ONLY closes that popover. NEVER trigger discard warning

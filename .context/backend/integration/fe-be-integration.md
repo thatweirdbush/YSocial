@@ -56,7 +56,7 @@ updated: 2026-10-19
 - `post-mapper.ts` / `user-mapper.ts`: swagger has NO required fields (everything optional/nullable): missing id/postId/createdAt = `ApiError` (contract breach), counts/flags default 0/false, unknown `visibility` -> `private`, unknown `followStatus` -> `none`
 - `fetchFollowedIds`: pages `GET users/{viewer}/following` (cap 20 pages), never partial
 - Relation facade (`relation-service`): content real & graph mock -> reads empty, writes refused (real ids must not enter mock graph)
-- Capability table (`lib/capabilities.ts`, `CAPABILITY_RULES`): BE-less features off while content is real (search, tags, trending, suggestions, pin, hide-likes, upload & audience, replies/media tabs, new-posts pill/stream, close-friends badge, guest following tab); graph/mute UI off until Phase G/N; settings sections, followers dialog trigger, notifications mock list gated
+- Capability table (`lib/capabilities.ts`, `CAPABILITY_RULES`): BE-less features off while content is real (search, tags, trending, suggestions, pin, hide-likes, audience (media upload is real: `mediaUpload` on when content is real, `multiImage` always on; `apiClient.postForm` sends multipart, see `features/media.md`), replies/media tabs, new-posts pill/stream, close-friends badge, guest following tab); graph/mute UI off until Phase G/N; settings sections, followers dialog trigger, notifications mock list gated
 
 ### Server pages
 - `/@username`: anonymous `serverApiFetch`, only BE 404 -> `notFound()`, other failures -> `error.tsx`; `cache()` shares 1 call between metadata & page; usernames over 30 chars -> 404 without call
