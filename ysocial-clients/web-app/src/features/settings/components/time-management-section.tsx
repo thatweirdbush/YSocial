@@ -2,7 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "@/hooks/use-translation";
-import { dailyAverage, localDateKey, parseUsage, readUsageRaw, subscribeUsage, usageForLastDays } from "../utils/usage-tracker";
+import { dailyAverage, parseUsage, readUsageSnapshot, subscribeUsage, usageForLastDays } from "../utils/usage-tracker";
 import { SettingsPageHeader } from "./settings-page-header";
 
 const DAYS = 7;
@@ -20,11 +20,14 @@ const formatDuration = (seconds: number): string => {
 export function TimeManagementSection() {
   const { t, locale } = useTranslation();
   // Server & first client render see "no data"; the real value arrives right after hydration
-  const raw = useSyncExternalStore(subscribeUsage, readUsageRaw, () => null);
-  const usage = useMemo(() => parseUsage(raw), [raw]);
+  const snapshot = useSyncExternalStore(subscribeUsage, readUsageSnapshot, () => null);
+  const { today, usage } = useMemo(() => {
+    if (snapshot === null) return { today: null, usage: {} };
+    const separator = snapshot.indexOf("|");
+    return { today: snapshot.slice(0, separator), usage: parseUsage(snapshot.slice(separator + 1)) };
+  }, [snapshot]);
 
-  const today = localDateKey(Date.now());
-  const days = usageForLastDays(usage, DAYS, today);
+  const days = today === null ? [] : usageForLastDays(usage, DAYS, today);
   const hasData = days.some(({ seconds }) => seconds > 0);
   const peak = Math.max(...days.map(({ seconds }) => seconds), 1);
   const dayFormat = new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-US", { weekday: "short", day: "numeric", month: "numeric" });
@@ -34,7 +37,7 @@ export function TimeManagementSection() {
       <SettingsPageHeader title="settings.timeManagement" />
       <section className="flex flex-col gap-6 p-4">
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{t("settings.onThisDevice")}</p>
-        {!hasData ? (
+        {today === null || !hasData ? (
           <p className="py-8 text-center text-sm font-medium text-zinc-400 dark:text-zinc-500">{t("settings.usageEmpty")}</p>
         ) : (
           <>

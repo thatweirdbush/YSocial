@@ -46,6 +46,9 @@ export function readUsageRaw(): string | null {
 
 export const readUsage = (): Usage => parseUsage(readUsageRaw());
 
+/** `<today>|<raw>`: one stable string, so the day rolling over re-renders a section that stays open. */
+export const readUsageSnapshot = (): string => `${localDateKey(Date.now())}|${readUsageRaw() ?? ""}`;
+
 /** Re-reads on other tabs' writes & periodically (this tab's own flushes do not fire `storage`). */
 export function subscribeUsage(onChange: () => void): () => void {
   const timer = setInterval(onChange, FLUSH_MS);
