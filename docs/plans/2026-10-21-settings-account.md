@@ -219,3 +219,5 @@ FE (modify): `lib/capabilities.ts`, `features/settings/{constants.ts,types/index
 
 ## Mismatch log (pre-noted)
 - Spec §4.3 "central registry" replaced by `ViewerSync` as single subscriber (P0 amends spec)
+- B0 baseline (2026-10-21, Windows, branch feat/settings-hub @ 0005738): BE Domain 77 / Application 73 / API integration 468, 0 failed 0 skipped (docs say 60/73/430: stale). FE: vitest 109 files / 1303 tests passed, typecheck clean, lint 0 errors 12 warnings (`no-img-element`). `api:check` FAILS on baseline ONLY because working copy `generated.ts` is CRLF (autocrlf) while generator emits LF; content identical when CR stripped. Ruling: compare CR-insensitively locally; git stores LF, so no committed drift
+- Postgres user-secret present (cloud Aiven); B4 can run API against it
