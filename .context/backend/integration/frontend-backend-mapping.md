@@ -9,7 +9,7 @@ roadmap: .context/roadmap.md
 
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
-- Decisions D1-D32 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
+- Decisions D1-D34 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
 - Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 494 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
 - Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE persists to PostgreSQL via EF Core (D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (BG §10); security hardening T4.3 done
@@ -112,7 +112,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/users/me/blocks` | JWT | `?page&pageSize(20)&query` -> 200 `PagedResponse<UserProfileDto>` (items `isBlocked: true`, no `locked`) | newest block first; deleted users omitted; `query` = RelationSearch (max 50, applied before paging) | `fetchBlockedUsers` |
 | `GET /api/users/me/mutes` | JWT | `?page&pageSize(20)&query` -> 200 `PagedResponse<UserProfileDto>` (items `isMuted: true`) | newest mute first (`MutedAt`); dormant mutes included; blocked/deleted users excluded BEFORE paging & `totalCount`; `query` <= 50 chars (relation search rule); 400 bad paging; 401 | `fetchMutedUsers` |
 | `PUT /api/users/profiles/me/privacy` | JWT | `{isPrivate}` -> 200 `{acceptedCount}` | going public accepts ONLY pending requests (count = transitions); going private/same value -> 0 | `setPrivateAccount` |
-| `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, coverUrl?, gender?(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; omitted `gender`/`dateOfBirth` keep stored values; request `dateOfBirth` = date-time, only date part stored (FE sends `yyyy-MM-ddT00:00:00Z`), future = 400 `ValidationFailed` (D29) (read DTO exposes neither); 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; urls are plain strings (no upload API) | `updateProfile` |
+| `PUT /api/users/profiles/me` | JWT | `{displayName, bio?, avatarUrl?, avatarMediaId?, coverUrl?, gender?(0..3), dateOfBirth?}` -> 200 `UserProfileDto` | edits JWT profile; omitted `gender`/`dateOfBirth` keep stored values; request `dateOfBirth` = date-time, only date part stored (FE sends `yyyy-MM-ddT00:00:00Z`), future = 400 `ValidationFailed` (D29) (read DTO exposes neither); 400 `ValidationFailed` / `ProfileFieldInvalid`; no username/email/privacy; **avatar (D34):** REPLACE semantics, omitted/`null` `avatarUrl` clears; new upload = `avatarMediaId` WITHOUT the `avatarUrl` key (both = 400 `errors.avatarUrl`); asset must be own, purpose avatar, Pending, else 404 (same body as unknown); `avatarUrl` = stored value keeps, else external absolute http(s) only: our storage urls = 400; replaced/cleared own avatar asset -> `Released` (swept after 60 min grace); profile + attach + release = 1 save, 409 on token race; cover stays a plain string | `updateProfile` |
 | `PUT /api/users/profiles/switch` | JWT | `{profileId, refreshToken}` -> 200 `LoginResponse` | rotates refresh token, new JWT; 403 `ProfileNotOwned` (foreign/deleted/unknown profile); 401 `InvalidRefreshToken` (replayed token = 401, never a second rotation: at-most-once); new JWT carries new `sid` | `auth-service.switchProfile` (`withRefreshLock`, Phase 4) |
 | `PATCH /api/users/profiles/{id}/default` | JWT | -> 204 | 403 `ProfileNotOwned`; 400 `AccountRequiresProfile` | none |
 | `DELETE /api/users/profiles/{id}` | JWT | -> 204 | 404 foreign/unknown; 400 `CannotDeleteDefaultProfile` / `AccountRequiresProfile` | none |
@@ -123,8 +123,8 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
 | `GET /api/posts/{id}` | anon | -> 200 `PostDto` | 404 unknown/deleted/hidden/blocked either way; viewer flags false for anonymous | `post-service.fetchPostThread` (via threads) |
-| `POST /api/posts` | JWT | `{content(<=2000), imageUrl?(abs http(s), <=2048)}` -> 201 `PostDto` + `Location: /api/posts/{id}` | text-only allowed; 400 `ValidationFailed`; single image URL only, no upload; no visibility/audience input (always `public`) | `createPost` + `PostCreatorCore` |
-| `PUT /api/posts/{id}` | JWT | `{content}` -> 200 `PostDto` (`isEdited` true) | 403 `NotPostAuthor`; 404 unknown or hidden from editor; 400 | `updatePostContent` |
+| `POST /api/posts` | JWT | `{content(<=2000), imageUrl?(abs http(s), <=2048), mediaIds?(<=10 distinct guids)}` -> 201 `PostDto` + `Location: /api/posts/{id}` | text-only allowed; `content` may be empty when `mediaIds` or `imageUrl` present; `imageUrl` = external only (GIF picker), with `mediaIds` = 400 `errors.imageUrl`, url of our storage = 400; each media must be OWN, purpose post, Pending else 404 for the WHOLE request (one answer for foreign/unknown/used); order kept as position; post insert + all attaches = 1 save, same asset in 2 requests: loser 409 (retry = 404); `PostDto.imageUrl` = first uploaded image or the external url; 400 `ValidationFailed`; no visibility/audience input (always `public`) | `createPost` + `PostCreatorCore` |
+| `PUT /api/posts/{id}` | JWT | `{content}` -> 200 `PostDto` (`isEdited` true) | 403 `NotPostAuthor`; 404 unknown or hidden from editor; 400 (empty text only allowed when the post has media or an external image: else 400 `errors.content`); media is immutable after create | `updatePostContent` |
 | `DELETE /api/posts/{id}` | JWT | -> 204 | soft-delete; 403 `NotPostAuthor` (visible post); 404 unknown/already deleted/hidden from non-author | `deletePost` (FE has no undo) |
 | `PUT /api/posts/{id}/restore` | JWT | -> 204 | author only (non-author gets 403 on live visible post, 404 on deleted or hidden one); 400 `PostNotDeleted`; saved items not restored | - |
 | `GET /api/posts/user/{userId}` | anon | `?page&pageSize(10)` -> 200 `UserPostsPageDto` | root posts newest first, filtered BEFORE paging & counting; private non-permitted = `locked: true`; 404 blocked/deleted; `userId` = profile id | `fetchUserPosts(userId, "threads", page)` (tabs `replies`/`media` not supported) |
@@ -206,6 +206,18 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 - Viewer = JWT `user_id` only; none of these routes accepts a viewer/actor id (query values are ignored)
 - Hashtag rules (shared with FE `lib/text.ts`, golden fixture `docs/fixtures/hashtag-parity.json`): `#` at start/after whitespace + letters, marks, digits, `_`; max 50 UTF-16 units (longer = not a tag), max 30 distinct tags per post; key = NFD, marks dropped, `đ` -> `d`, lowercase; root posts only; edit re-extracts; posts created before D31 have tags only after an edit
 
+### 2.10 Media & health (`MediaController`, `/health`)
+
+| Endpoint | Auth | Request -> Response | Rules & errors | FE |
+|---|---|---|---|---|
+| `POST /api/media` | JWT | `multipart/form-data`: `files` (1..10), `purpose` = `post` (default) \| `avatar` (case-insensitive) -> 201 `MediaDto[]` (assets `Pending`) | all-or-nothing (a failing file removes the request's uploads); magic bytes decide kind (jpeg, png, gif, webp, mp4, mov, webm; SVG, HEIC, AVIF, anything else = 400 `errors.files`); limits below; avatar = exactly 1 image; provider refusal = 400 `ValidationFailed`; 401; 409 (quota token race, retry); 413 `PayloadTooLarge`; 429 `TooManyRequests` + `Retry-After: 5` (per user 1 in-flight request, per instance `Media:MaxConcurrentUploads` 4); 503 `MediaStorageUnavailable` (keys missing: no rows created; provider down: compensated); D33 | `useMediaUploadQueue` |
+| `DELETE /api/media/{id}` | JWT | -> 204 | discards an OWN `Pending` asset (claim, remote delete, row removed); provider failure still 204 (row `Deleting`, swept); foreign, unknown, uploading, attached, released, deleting, already gone = 404 (one body); 503 when keys missing; D33 | best effort on remove / discard |
+| `GET /health` | anon | -> 200 `Healthy` \| `Degraded` (plain text, no details) | check `media-storage`: `Degraded` when `Cloudinary:*` keys are missing (app still serves everything except media); never calls the provider | ops |
+
+- **Limits (MiB = 1,048,576 B):** image 10, video 100, files per request 10, aggregate 100, body cap 102 (413 from `Content-Length` before binding; Kestrel also cuts chunked bodies), image <= 12000 px per side & 50 MP, video <= 4096 px per side & 10 min (checked after upload: asset deleted, 400), 30 `Uploading` + `Pending` assets per user (400)
+- **Lifecycle:** `Uploading` -> `Pending` -> `Attached` -> `Released`; deletion via `Deleting`; rows exist BEFORE the remote file (write-ahead); sweep every 10 min: `Uploading` > 30 min, `Pending` > 24 h, `Released` > 60 min, `Deleting` lease 10 min; `Attached` never deleted (BG §8.1)
+- **Delivery:** `MediaDto.url` = `secure_url` WITHOUT transformation; FE adds `f_auto,q_auto,c_limit,w_{n}` through its loader; stored images are re-encoded, capped (2048 px, avatar 512 square) and stripped of EXIF/GPS (`fl_strip_profile`)
+
 ## 3. DTO shapes (JSON as serialized)
 
 ```yaml
@@ -224,6 +236,16 @@ PostDto:                       # posts & comments (FE PostItem)
   isBookmarkedByCurrentUser: bool
   user: { id, username, displayName, avatarUrl: string|null, isVerified: false }
   visibility: public | followersOnly | private     # comments inherit root post; always public today
+  media: MediaDto[]            # ALWAYS present (empty for comments & text posts); display order; immutable after create
+MediaDto:                      # upload response & PostDto.media items
+  id: guid
+  kind: image | video
+  url: string                  # secure_url WITHOUT transformation
+  posterUrl: string | null     # videos only (frame 0 jpg)
+  width: int
+  height: int
+  durationSeconds: number | null   # videos only
+  bytes: int
 ThreadDto:
   post: PostDto                # requested item (post or comment)
   parent: PostDto | null       # comment: parent comment, or root post for top-level; null when inaccessible
@@ -344,10 +366,10 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D30 | Sessions: session = token family (`ReplacedByTokenId` chain), represented by active head token; `GET sessions` / `DELETE sessions/{id}`; JWT claim `sid` = refresh token id issued with the access token (login, refresh, switch); `RefreshToken.UserAgent` (max 256) from header at login, copied on rotation; `lastTokenIssuedAt` = head `CreatedAt` (not activity); revoke under `IAccountSessionLock` + `Account.Version` (409 on cross-instance race); revoked device's access token valid until expiry (D6); no new error codes | Implemented (BE) |
 | D31 | Hashtags, trending & tag posts: `Post.Hashtags` (folded key + display), `GET trending/tags` (7/30/365-day fallback, access policy before counting), `GET tags/{tag}/posts` (all-time count, unknown tag = 200 empty), FE parity pinned by golden fixture, viewer from JWT only, no new error codes | Implemented (BE) |
 | D32 | Suggestions: `GET users/suggestions` (10 per mutual + capped followers, deterministic ties, excludes self, own profiles, followed/requested, muted, blocked, deleted), anonymous allowed | Implemented (BE) |
-| D33 | Media (draft): `POST /api/media` multipart (`files` 1..10, `purpose` post\|avatar) -> `MediaDto[]` assets `Pending`; `DELETE /api/media/{id}` discards own pending; `PostDto.media[]`, `CreatePostRequest.mediaIds`, media-only posts; write-ahead asset rows + sweep (no Cloudinary litter); codes `PayloadTooLarge`, `TooManyRequests`, `MediaStorageUnavailable`; spec `docs/specs/2026-10-21-media-design.md` | Draft (A1) |
-| D34 | Avatar upload (draft): `PUT users/profiles/me` gains `avatarMediaId`; `avatarMediaId` + `avatarUrl` key together = 400; our storage urls rejected in `avatarUrl`/`imageUrl` (`OwnsUrl`); replaced avatar asset `Released` then swept; payload matrix in spec 2.4 | Draft (A1) |
+| D33 | Media: `POST /api/media` multipart (`files` 1..10, `purpose` post\|avatar) -> `MediaDto[]` assets `Pending`; `DELETE /api/media/{id}` discards own pending; `PostDto.media[]`, `CreatePostRequest.mediaIds`, media-only posts; write-ahead asset rows + sweep (no Cloudinary litter); codes `PayloadTooLarge`, `TooManyRequests`, `MediaStorageUnavailable`; spec `docs/specs/2026-10-21-media-design.md`; `PostDto.media[]` (snapshot incl. bytes), `/health` | Implemented (BE) |
+| D34 | Avatar upload: `PUT users/profiles/me` gains `avatarMediaId`; `avatarMediaId` + `avatarUrl` key together = 400; our storage urls rejected in `avatarUrl`/`imageUrl` (`OwnsUrl`); replaced avatar asset `Released` then swept; payload matrix in spec 2.4 (pinned by `AvatarTests`) | Implemented (BE) |
 
-- **Open:** media upload URL shape, search & mentions, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
+- **Open:** search & mentions, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 
 ## 8. Evidence
 - Probes of original behavior (T0.2) & their current results: `../architecture/backend-guide.md` §12

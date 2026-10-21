@@ -190,6 +190,68 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         properties.Should().BeEquivalentTo(["id", "userAgent", "profileUsername", "createdAt", "lastTokenIssuedAt", "isCurrent"]);
     }
 
+    [Fact]
+    public async Task Swagger_UploadMedia_IsMultipart_WithFilesAndPurpose_AndTypedResponses()
+    {
+        var document = await SwaggerAsync();
+        var post = document.GetProperty("paths").GetProperty("/api/media").GetProperty("post");
+
+        var multipart = post.GetProperty("requestBody").GetProperty("content").GetProperty("multipart/form-data").GetProperty("schema");
+        var properties = multipart.GetProperty("properties");
+        properties.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(["files", "purpose"]);
+        properties.GetProperty("files").GetProperty("type").GetString().Should().Be("array");
+        properties.GetProperty("files").GetProperty("items").GetProperty("format").GetString().Should().Be("binary");
+
+        post.GetProperty("responses").EnumerateObject().Select(r => r.Name).Should()
+            .BeEquivalentTo(["201", "400", "401", "409", "413", "429", "500", "503"]);
+        var created = post.GetProperty("responses").GetProperty("201").GetProperty("content").EnumerateObject().First().Value.GetProperty("schema");
+        created.GetProperty("type").GetString().Should().Be("array");
+        created.GetProperty("items").GetProperty("$ref").GetString().Should().EndWith("MediaDto");
+    }
+
+    [Fact]
+    public async Task Swagger_DiscardMedia_Is204_With401_404_503()
+    {
+        var document = await SwaggerAsync();
+
+        var responses = document.GetProperty("paths").GetProperty("/api/media/{id}").GetProperty("delete").GetProperty("responses");
+
+        responses.EnumerateObject().Select(r => r.Name).Should().BeEquivalentTo(["204", "401", "404", "500", "503"]);
+    }
+
+    [Fact]
+    public async Task Swagger_MediaDto_MatchesContract()
+    {
+        var document = await SwaggerAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("MediaDto").GetProperty("properties")
+            .EnumerateObject().Select(p => p.Name);
+
+        properties.Should().BeEquivalentTo(["id", "kind", "url", "posterUrl", "width", "height", "durationSeconds", "bytes"]);
+    }
+
+    [Fact]
+    public async Task Swagger_CreatePostRequest_HasMediaIds()
+    {
+        var document = await SwaggerAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("CreatePostRequest").GetProperty("properties");
+
+        properties.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo(["content", "imageUrl", "mediaIds"]);
+        properties.GetProperty("mediaIds").GetProperty("type").GetString().Should().Be("array");
+    }
+
+    [Fact]
+    public async Task Swagger_UpdateProfileRequest_AdvertisesAvatarMediaId_ButNotTheInternalPresenceFlag()
+    {
+        var document = await SwaggerAsync();
+
+        var properties = document.GetProperty("components").GetProperty("schemas").GetProperty("UpdateProfileRequest").GetProperty("properties")
+            .EnumerateObject().Select(p => p.Name);
+
+        properties.Should().BeEquivalentTo(["displayName", "bio", "avatarUrl", "avatarMediaId", "coverUrl", "gender", "dateOfBirth"]);
+    }
+
     /// <summary>
     /// Writes the document to the path in <c>YSOCIAL_EXPORT_SWAGGER</c> (FE copy, same content as <c>npm run api:fetch</c> without touching a real database).
     /// </summary>

@@ -115,6 +115,12 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | `BusinessRuleValidationException` + `IClassifiedRule` | `Kind`: Invalid 400, Forbidden 403, NotFound 404, Conflict 409, Unauthorized 401 | per Kind | rule `Code` |
 | `BusinessRuleValidationException` | unclassified rule / string ctor | 400 | `BusinessRuleViolated` |
 | `EntityNotFoundException` | any | 404 | `NotFound` |
+| `ConcurrencyConflictException` | optimistic token lost (account, media asset, media quota) | 409 | `Conflict` |
+| `MediaStorageUnavailableException` | provider keys missing or provider unusable | 503 | `MediaStorageUnavailable` |
+| `MediaRejectedException` | provider refuses the file / kind mismatch | 400 | `ValidationFailed` |
+| `TooManyUploadsException` | upload concurrency gate full (+ `Retry-After: 5`) | 429 | `TooManyRequests` |
+| `BadHttpRequestException` 413 / resource filter | body over the cap | 413 | `PayloadTooLarge` |
+| `OperationCanceledException` | client aborted (`RequestAborted`) | 499, no body | none |
 | any other exception | unexpected | 500 | `InternalError` (`detail` generic outside Development; logged at Error) |
 | framework | model binding, malformed JSON, bad enum int (`InvalidModelStateResponseFactory`) | 400 | `ValidationFailed` + `errors` |
 | framework | JWT missing/invalid on `[Authorize]` / authorization denied / route not matched (`UseStatusCodePages`) | 401 / 403 / 404 | `Unauthenticated` / `Forbidden` / `NotFound` |
@@ -269,11 +275,24 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 - **HTTPS:** `UseHttpsRedirection` active; `launchSettings.json` https `49895` (matches FE)
 - **Cancellation:** every controller action forwards request `CancellationToken` to `Mediator.Send` & on to EF queries
 - **Pagination (D16):** offset envelope `PagedResponse`, counts after access filter; defaults, limits & beyond-last behavior: MAP §1
-- **Rate limiting, health checks, request size limits, structured logging:** not found
+- **Request size limits:** only `POST /api/media` raises the body cap (102 MiB, see §8.1); every other action keeps Kestrel's 30 MB default
+- **Health:** `GET /health` anonymous, plain text, check `media-storage` (Healthy | Degraded, HTTP 200 both)
+- **Rate limiting, structured logging:** not found (upload has its own concurrency gates, §8.1)
+
+### 8.1 Media pipeline & deployment notes (D33, D34)
+- **Flow (write-ahead):** validate (count, sizes, aggregate, magic bytes, pixel header) -> gates (429) -> tx 1 (`CommitAsync` INSIDE the handler: reserve rows `Uploading` under `User.MediaQuotaVersion`, durable even when the request fails) -> upload file by file -> tx 2 (rows `Pending`) -> on any failure: claim own rows, delete remote files, remove rows, bounded 10 s with `CancellationToken.None`; leftovers stay `Deleting` for the sweep
+- **No orphan files:** the row always precedes the remote file (deterministic `public_id` `ysocial/{env}/{posts|avatars}/{id:N}`), so the sweep can delete by id; only a lost or restored-to-older database can orphan files (runbook: list the Cloudinary prefix `ysocial/{env}/` through the Admin API and delete ids without a row)
+- **Concurrency:** `MediaAsset.Version` (EF token) decides attach vs discard vs release vs sweep claim: one wins, loser = 409 or skipped; per-user in-flight gate & per-instance `Media:MaxConcurrentUploads` are process-local, across instances the quota token decides
+- **Sweep:** `MediaCleanupProcessor` (singleton) via hosted `MediaCleanupJob` (first run 30 s after start, then every `Media:SweepIntervalMinutes`); per row own scope: reload, re-check, claim under token; ONE provider delete for all claimed rows (missing = success); row removed only after a confirmed delete; failure = stays `Deleting`, `CleanupAttempts++`, error log from the 10th attempt, never dropped; skipped with 1 warning per run when keys are missing
+- **Config (`Media:*`, defaults):** `MaxConcurrentUploads` 4, `PendingTtlHours` 24, `ReleasedGraceMinutes` 60, `UploadingLeaseMinutes` 30, `DeletingLeaseMinutes` 10, `SweepIntervalMinutes` 10, `SweepBatchSize` 50, `Environment` (default = host environment name, lowercase); keys `Cloudinary:CloudName|ApiKey|ApiSecret` ONLY in user-secrets / env (`appsettings.json` keeps empty strings); empty = `UnavailableMediaStorage` (startup warning, `/health` Degraded, uploads & discard 503, sweep skipped)
+- **Buffering is NOT streaming:** `IFormFile` binding buffers the multipart body (64 KiB in memory per file, beyond that a TEMP FILE under `Path.GetTempPath()` BEFORE the action runs); Cloudinary upload reads each part from there. Worst case temp disk per instance = `MaxConcurrentUploads` x 102 MiB = about 408 MiB: the deployment MUST provide it; temp files are deleted when the request ends (also on client abort)
+- **Proxy / server limits:** reverse proxy body limit >= 102 MiB (nginx `client_max_body_size 102m`, IIS `maxAllowedContentLength`), read/send timeouts >= 10 min on `/api/media`, request buffering allowed; Kestrel `MinRequestBodyDataRate` stays default (240 B/s: stalled clients are cut); Cloudinary SDK timeout 10 min per file; videos over 20 MiB use the chunked `UploadLarge`
+- **Validation layers:** magic bytes (name & content type never trusted, names never reach the key), header-parsed pixels (jpeg segments walked by seeking, png, gif, webp lossy/lossless/extended), provider response must agree with the sniffed kind and stay inside video limits, images re-encoded by Cloudinary (`c_limit,w_2048,h_2048,fl_strip_profile`; avatar `c_fill,g_auto,w_512,h_512`); NOT provided: malware scanning, full decode of every format
+- **`OwnsUrl`:** parsed, never prefix/`Contains`: https, no user-info, default port, host exactly `res.cloudinary.com` (after Uri normalization), first segment = configured cloud name (case-sensitive), then `image|video`, `upload`, no `.`/`..`/encoded slash/backslash/empty segments; applied to avatar and post `imageUrl` (our assets enter ONLY through `avatarMediaId` / `mediaIds`)
 
 ## 9. Implementation boundaries (what exists vs not)
 - **Use-case-less domain behavior (no handler/endpoint):** `Post.UpdateSettings`, `Account.Deactivate/Activate/AssignRole`, `Account.ChangePassword` (only via reset)
-- **Not found (no code):** search, mentions, reposts, pin, hide-like-count, media upload, DMs, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
+- **Not found (no code):** search, mentions, reposts, pin, hide-like-count, DMs, cover upload, comment media, username change, create-profile, close-friends audience, profile tabs `replies`/`media`
 - **Planned (comments/dead code only):** cache/search-index hooks, push-notification service
 
 ## 10. Known limitations & technical debt (single live register)
@@ -293,6 +312,11 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 
 | 31 | Discovery (D31, D32) loads window rows (`GetWithHashtagsSinceAsync`, 365 days max), every active profile & accepted edge (suggestions) and aggregates IN MEMORY; hashtag rows load only through explicit includes | DEBT: SQL group-by, cached suggestions |
 | 32 | Posts created before D31 have no tag rows until edited (no backfill job, no production data) | ACCEPTED |
+| 33 | Media upload buffers the multipart body to a temp file (no end-to-end streaming): temp disk = `MaxConcurrentUploads` x 102 MiB per instance, API bandwidth carries every upload | DEBT: `MultipartReader` streaming (validate while reading) or signed direct-to-Cloudinary upload |
+| 34 | Media of soft-deleted posts and deleted accounts stays (restore must work); no purge job | DEBT: purge after a retention period |
+| 35 | Restoring the database to an older point can orphan remote files (rows are the source of truth) | ACCEPTED: manual prefix-listing runbook (§8.1) |
+| 36 | No virus scanning, no full decode of every uploaded format (magic bytes + header + provider re-encode only); videos are stored as uploaded (no transcoding profile) | ACCEPTED |
+| 37 | Upload gates (per user, per instance) are process-local; `Media:*` knobs need a restart | ACCEPTED |
 
 ### 10.2 Deferred (minor / waits on others)
 
@@ -302,7 +326,7 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 | 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
 | 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change (session list done, D30) | design (re-activation, username reuse) |
 | 28 | Token families grow without bound while a session stays active (~96 rotations/day, ancestors kept by `RemoveExpiredTokens`); `GetSessions`/`FindRoot`/`BelongsToSession` scan the list per hop (quadratic). Fix: dictionaries per call + prune ancestors older than access lifetime (carry family sign-in time forward) | OPEN (found in settings review) |
-| 27 | Features without BE: search, mentions, pin, hide-like-count, reposts, polls, drafts, DMs, report, media upload & multi-image, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
+| 27 | Features without BE: search, mentions, pin, hide-like-count, reposts, polls, drafts, DMs, report, cover upload, comment media, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
 - **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
 

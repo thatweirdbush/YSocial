@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace YSocial.Api.Models.Media;
 
 /// <summary>
@@ -5,7 +7,9 @@ namespace YSocial.Api.Models.Media;
 /// </summary>
 public sealed class UploadMediaRequest
 {
+    [FromForm(Name = "files")]
     public IFormFileCollection Files { get; set; } = new FormFileCollection();
 
+    [FromForm(Name = "purpose")]
     public string? Purpose { get; set; }
 }

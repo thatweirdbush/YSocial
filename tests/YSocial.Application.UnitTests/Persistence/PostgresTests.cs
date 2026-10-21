@@ -35,7 +35,7 @@ public sealed class PostgresFactAttribute : FactAttribute
 /// </summary>
 public sealed class PostgresTests
 {
-    private sealed class TempDatabase : IAsyncDisposable
+    internal sealed class TempDatabase : IAsyncDisposable
     {
         private readonly string _admin = Environment.GetEnvironmentVariable(PostgresFactAttribute.EnvironmentVariable)!;
         private readonly string _name = $"ysocial_test_{Guid.NewGuid():N}";
