@@ -220,7 +220,7 @@ updated: 2026-10-20
 
 ### `Notifications/NotificationKindTests.cs` (10), `NotificationPreferencesTests.cs` (7)
 - `NotificationKind.Of` maps all 5 types & covers every declared type, `TryParse` case-insensitive (blank/unknown/null rejected)
-- `NotificationPreferences`: default all on, `Allows` false only for the disabled kind (3 kinds x types), `User.UpdateNotificationPreferences` replaces
+- `NotificationPreferences`: default all on, `Allows` false only for disabled kind (3 kinds x types), `User.UpdateNotificationPreferences` replaces
 
 ### API `Notifications/` (D26-D28)
 - `NotificationKindFilterTests` (14): each kind, absent/empty/blank = all, case-insensitive, unknown/malformed 400 + `errors.kind`, repeated param observed (1 value), paging counts follow filtered list, blocked senders still excluded, `unreadCount` overall

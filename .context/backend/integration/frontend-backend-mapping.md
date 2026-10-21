@@ -170,9 +170,9 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/notifications` | JWT | `?page&pageSize(20)&kind` -> 200 `NotificationPageDto` | newest first; notifications of blocked/deleted senders excluded BEFORE paging, `totalCount` & `unreadCount`; `kind` (D26) = `like` \| `reply` \| `follow` narrows list & `totalCount` (access filter, then kind, then count, then page) while `unreadCount` stays OVERALL; `kind` absent, empty or whitespace = all (MVC binds blank to null), case-insensitive, unknown value -> 400 `ValidationFailed` + `errors.kind`; repeated `kind=a&kind=b` binds ONE value (no custom binder, do not rely on it); 400 bad paging; 401 | `notification-service.fetchNotifications(page, filter)` + `notification-store` (`/notifications`) |
 | `GET /api/notifications/unread-count` | JWT | -> 200 `{count}` | same sender filter as list | `fetchUnreadCount` via `syncUnreadCount` (store) & `NotificationNavBadge` |
 | `PUT /api/notifications/{id}/read` | JWT | no body -> 204 | idempotent; 403 `NotNotificationRecipient` (foreign notification); 404 unknown; 401 | `commitMarkRead` (item open) |
-| `PUT /api/notifications/read-all` | JWT | `?upToId` (optional guid) no body -> 204 | idempotent; marks only own; `upToId` (D28) bounds it to that notification and older (`CreatedAt <=`, ties included) so rows created after the client's last view stay unread; unknown id -> 404; foreign id -> 403 `NotNotificationRecipient`; id lookup skips the sender access filter (sender may be blocked after page load); hidden senders' rows never touched | `commitMarkAllRead` (always sends newest loaded id) |
+| `PUT /api/notifications/read-all` | JWT | `?upToId` (optional guid) no body -> 204 | idempotent; marks only own; `upToId` (D28) bounds it to that notification & older (`CreatedAt <=`, ties included) so rows created after client's last view stay unread; unknown id -> 404; foreign id -> 403 `NotNotificationRecipient`; id lookup skips sender access filter (sender may be blocked after page load); hidden senders' rows never touched | `commitMarkAllRead` (always sends newest loaded id) |
 | `GET /api/notifications/preferences` | JWT | -> 200 `NotificationPreferencesDto` | per active profile; defaults all `true`; 401 | `getNotificationPreferences` (D27) |
-| `PUT /api/notifications/preferences` | JWT | `{likes, replies, follows}` all required bool -> 200 `NotificationPreferencesDto` | full replace; missing or null field -> 400 `ValidationFailed` (nothing changed); `likes` = `NewLike` (posts AND replies), `replies` = `NewComment` (notifies the POST author only), `follows` = `NewFollow`, `FollowRequested`, `FollowAccepted`; off = no row and no push from then on, no backfill when re-enabled; 401 | `updateNotificationPreferences` (settings section) |
+| `PUT /api/notifications/preferences` | JWT | `{likes, replies, follows}` all required bool -> 200 `NotificationPreferencesDto` | full replace; missing or null field -> 400 `ValidationFailed` (nothing changed); `likes` = `NewLike` (posts & replies), `replies` = `NewComment` (notifies POST author only), `follows` = `NewFollow`, `FollowRequested`, `FollowAccepted`; off = no row & no push from then on, no backfill when re-enabled; 401 | `updateNotificationPreferences` (settings section) |
 
 | Item | Actual | FE counterpart |
 |---|---|---|
@@ -180,7 +180,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Event | `ReceiveNotification` with 1 `NotificationDto` (same item shape as list) | FE `NotificationPayload` = `NotificationDto`; `toNotificationItem` groups by `kind` (unknown -> generic `other`), `NotificationLiveSync` pushes into `notification-store` |
 | Types | `NewLike`, `NewComment`, `NewFollow` (public follow, notifies followed user), `FollowRequested`, `FollowAccepted` (notifies REQUESTER) | FE `NotificationKind` like \| follow \| reply = `kind` |
 | Self events | no notification (self like, self comment) | - |
-| Persistence | notification rows in DB (saved with the change that caused them); delivered outbox rows deleted; push reaches only active profile connection | - |
+| Persistence | notification rows in DB (saved with change that caused them); delivered outbox rows deleted; push reaches only active profile connection | - |
 
 - Gaps: no `postContentPreview` for replies (FE shows snippet; fetch comment via `/api/threads/{targetId}`)
 
@@ -282,7 +282,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | CP | Slice unblocked | BE state |
 |---|---|---|
 | CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests); FE (Phase F) |
-| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12); FE auth (Phase F), post delete moves to FE Phase C |
+| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified (BG §12); FE auth (Phase F), post delete moves to FE Phase C |
 | CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | FE (Phase C, follow & feed read moved here); reached (tests, swagger verified) |
 | CP3 | private account, follow requests, followers dialog, block list, close friends | FE (Phase G); reached (tests, swagger regenerated) |
 | CP4 | feed, notifications, mute | FE (feed in Phase C, mute & notifications in Phase N); reached (tests, swagger regenerated) |
@@ -316,7 +316,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D25 | Persistence: PostgreSQL via EF Core; 1 DB transaction per request (failed request saves nothing); data & sessions survive restarts; optimistic concurrency on `Account` (multi-instance only: refresh/switch 401, logout/forgot-password 204, other account writes 409 `Conflict`); routes, DTOs & codes UNCHANGED (FE impact: none, refresh tokens now outlive BE restarts) | Implemented |
 | D26 | Notification list `kind` filter: `like\|reply\|follow` (case-insensitive), order access filter -> kind -> count -> page, `unreadCount` overall, blank = all, unknown = 400 `ValidationFailed`; no new code | Implemented |
 | D27 | Notification preferences: per-profile `{likes, replies, follows}` (owned VO on `User`, migration default `true`), full-replace PUT with required fields, disabled kind skipped at publish (no row, no push, no backfill) | Implemented |
-| D28 | Bounded read-all: `PUT read-all?upToId` marks that notification & older only (id not timestamp: JS ms vs Postgres microseconds); 404 unknown, 403 foreign, sender access filter skipped for the lookup | Implemented |
+| D28 | Bounded read-all: `PUT read-all?upToId` marks that notification & older only (id not timestamp: JS ms vs Postgres microseconds); 404 unknown, 403 foreign, sender access filter skipped for lookup | Implemented |
 
 - **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 
