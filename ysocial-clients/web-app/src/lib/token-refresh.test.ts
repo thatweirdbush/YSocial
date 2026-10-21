@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { AUTH_STORAGE_KEYS } from "@/features/auth/store/auth-store";
 import { createLockFake, mockFetchSequence, problem } from "@/test/api-test-utils";
 import { API_BASE_URL } from "./api-config";
-import { getRefreshCoordination, refreshTokens } from "./token-refresh";
+import { getRefreshCoordination, refreshTokens, rotateTokens, withRefreshLock } from "./token-refresh";
 
 const seed = (access: string | null, refresh: string | null) => {
   localStorage.clear();
@@ -120,5 +120,86 @@ describe("getRefreshCoordination", () => {
   it("reflects lock availability", () => {
     expect(getRefreshCoordination({ locks: createLockFake() })).toBe("cross-tab");
     expect(getRefreshCoordination({ locks: null })).toBe("in-tab");
+  });
+});
+
+const gate = () => {
+  let open: () => void = () => undefined;
+  const opened = new Promise<void>((resolve) => (open = resolve));
+  return { open, opened };
+};
+const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 20));
+
+describe("withRefreshLock", () => {
+  it("serializes with refreshTokens: a refresh waits for the holder, then adopts what it stored", async () => {
+    const { fetchFn, calls } = mockFetchSequence([]);
+    const locks = createLockFake();
+    const { open, opened } = gate();
+
+    const holder = withRefreshLock(async () => {
+      await opened;
+      localStorage.setItem(AUTH_STORAGE_KEYS.access, "A8");
+      localStorage.setItem(AUTH_STORAGE_KEYS.refresh, "R8");
+      return "done";
+    }, { locks });
+    const refresh = refreshTokens("A1", { locks, fetchFn });
+    await tick();
+    expect(calls).toHaveLength(0);
+
+    open();
+
+    expect(await holder).toBe("done");
+    expect(await refresh).toMatchObject({ status: "adopted", accessToken: "A8", refreshToken: "R8" });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("rotateTokens (unlocked) inside withRefreshLock does not deadlock", async () => {
+    const { fetchFn, calls } = mockFetchSequence([rotated]);
+    const locks = createLockFake();
+
+    const outcome = await withRefreshLock(() => rotateTokens("A1", { locks, fetchFn }), { locks });
+
+    expect(outcome).toMatchObject({ status: "refreshed", accessToken: "A2" });
+    expect(calls).toHaveLength(1);
+  });
+
+  it("refreshTokens inside withRefreshLock hangs on a non-re-entrant lock (why the switch must never call it)", async () => {
+    const { fetchFn } = mockFetchSequence([rotated]);
+    const locks = createLockFake();
+
+    const outcome = await Promise.race([
+      withRefreshLock(() => refreshTokens("A1", { locks, fetchFn }), { locks }),
+      new Promise<string>((resolve) => setTimeout(() => resolve("hung"), 100)),
+    ]);
+
+    expect(outcome).toBe("hung");
+  });
+
+  it("without locks the holder & in-tab refreshes share one chain", async () => {
+    const { fetchFn, calls } = mockFetchSequence([]);
+    const { open, opened } = gate();
+
+    const holder = withRefreshLock(async () => {
+      await opened;
+      localStorage.setItem(AUTH_STORAGE_KEYS.access, "A8");
+      localStorage.setItem(AUTH_STORAGE_KEYS.refresh, "R8");
+    }, { locks: null });
+    const refresh = refreshTokens("A1", { locks: null, fetchFn });
+    await tick();
+    expect(calls).toHaveLength(0);
+
+    open();
+    await holder;
+
+    expect(await refresh).toMatchObject({ status: "adopted", accessToken: "A8" });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("a rejected holder does not poison the chain", async () => {
+    const { fetchFn } = mockFetchSequence([rotated]);
+
+    await expect(withRefreshLock(async () => Promise.reject(new Error("boom")), { locks: null })).rejects.toThrow("boom");
+
+    expect(await refreshTokens("A1", { locks: null, fetchFn })).toMatchObject({ status: "refreshed" });
   });
 });

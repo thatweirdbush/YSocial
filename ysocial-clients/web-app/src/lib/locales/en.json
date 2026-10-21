@@ -6,9 +6,12 @@
     "notifications": "Notifications",
     "saved": "Saved",
     "profile": "Profile",
-    "switchProfile": "Switch accounts",
+    "switchProfile": "Switch profile",
     "logout": "Log out",
-    "settings": "Settings"
+    "settings": "Settings",
+    "switchFailed": "Could not switch profile",
+    "switchUnconfirmed": "Could not confirm the switch; sign in again if you are signed out",
+    "switchSessionLost": "Session expired, please sign in again"
   },
   "feed": {
     "forYou": "For you",

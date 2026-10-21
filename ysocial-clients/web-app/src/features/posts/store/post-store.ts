@@ -74,6 +74,8 @@ interface PostStoreActions {
   setExcludedAuthors: (excluded: ExcludedAuthors) => void;
   /** Viewer switch: clears feeds, paging, buffer & exclusions; cached posts stay (spec D25). */
   resetViewerFeeds: () => void;
+  /** Viewer switch: the previous viewer's like & bookmark flags must not stay on cached posts (nothing else changes). */
+  resetViewerFlags: () => void;
 }
 
 interface PostStoreState extends PostStoreData {
@@ -581,6 +583,18 @@ export const usePostStore = create<PostStoreState>((set, get) => ({
     setExcludedAuthors: (excludedAuthors) => set((state) => ({ excludedAuthors, ...dropExcluded(state, excludedAuthors) })),
 
     resetViewerFeeds: () => set(viewerFeedData()),
+
+    resetViewerFlags: () =>
+      set((state) => ({
+        posts: Object.fromEntries(
+          Object.entries(state.posts).map(([id, post]) => [
+            id,
+            post.isLikedByCurrentUser || post.isBookmarkedByCurrentUser
+              ? { ...post, isLikedByCurrentUser: false, isBookmarkedByCurrentUser: false }
+              : post,
+          ]),
+        ),
+      })),
   },
 }));
 

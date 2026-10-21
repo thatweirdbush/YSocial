@@ -11,7 +11,7 @@ export type RefreshOutcome =
   | { status: "unauthorized" }
   | { status: "transient"; error: ApiError };
 
-interface RefreshDeps {
+export interface RefreshDeps {
   /** `null` forces in-tab coordination; omitted = `navigator.locks` when present. */
   locks?: LockManagerLike | null;
   storage?: Storage;
@@ -39,6 +39,25 @@ export function getRefreshCoordination(deps?: RefreshDeps): "cross-tab" | "in-ta
 
 let inTabFlight: Promise<RefreshOutcome> | null = null;
 
+/** Without `navigator.locks` everything that takes the refresh lock runs through this one chain (mitigation, not a cross-tab lock). */
+let inTabChain: Promise<unknown> = Promise.resolve();
+
+function runInTab<T>(callback: () => Promise<T>): Promise<T> {
+  const run = inTabChain.then(callback, callback);
+  inTabChain = run.catch(() => undefined);
+  return run;
+}
+
+/**
+ * Runs `callback` while holding the refresh lock (`navigator.locks`, else the in-tab chain). The lock is NOT re-entrant:
+ * inside `callback` never call `refreshTokens` or `apiClient` (a 401 there refreshes through the same lock & hangs);
+ * use `rotateTokens` instead.
+ */
+export function withRefreshLock<T>(callback: () => Promise<T>, deps?: RefreshDeps): Promise<T> {
+  const locks = resolveLocks(deps);
+  return locks ? locks.request(LOCK_NAME, callback) : runInTab(callback);
+}
+
 /**
  * Rotates the token pair once per rotation: inside the lock the stored tokens are re-read, so a caller whose sent
  * access token is stale adopts what another tab already stored. 401 `InvalidRefreshToken` ends the session only
@@ -46,16 +65,17 @@ let inTabFlight: Promise<RefreshOutcome> | null = null;
  */
 export async function refreshTokens(sentAccessToken: string | null, deps?: RefreshDeps): Promise<RefreshOutcome> {
   const locks = resolveLocks(deps);
-  if (locks) return locks.request(LOCK_NAME, () => rotate(sentAccessToken, deps));
+  if (locks) return locks.request(LOCK_NAME, () => rotateTokens(sentAccessToken, deps));
   if (!inTabFlight) {
-    inTabFlight = rotate(sentAccessToken, deps).finally(() => {
+    inTabFlight = runInTab(() => rotateTokens(sentAccessToken, deps)).finally(() => {
       inTabFlight = null;
     });
   }
   return inTabFlight;
 }
 
-async function rotate(sentAccessToken: string | null, deps?: RefreshDeps): Promise<RefreshOutcome> {
+/** The rotation itself, WITHOUT the lock: only for callers that already hold it (see `withRefreshLock`). */
+export async function rotateTokens(sentAccessToken: string | null, deps?: RefreshDeps): Promise<RefreshOutcome> {
   const storage = deps?.storage ?? localStorage;
   const fetchFn = deps?.fetchFn ?? fetch;
 

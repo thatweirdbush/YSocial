@@ -6,9 +6,12 @@
     "notifications": "Thông báo",
     "saved": "Đã lưu",
     "profile": "Trang cá nhân",
-    "switchProfile": "Chuyển tài khoản",
+    "switchProfile": "Chuyển hồ sơ",
     "logout": "Đăng xuất",
-    "settings": "Cài đặt"
+    "settings": "Cài đặt",
+    "switchFailed": "Không chuyển được hồ sơ",
+    "switchUnconfirmed": "Chưa xác nhận được việc chuyển; nếu bị đăng xuất hãy đăng nhập lại",
+    "switchSessionLost": "Phiên đã hết hiệu lực, vui lòng đăng nhập lại"
   },
   "feed": {
     "forYou": "Cho bạn",

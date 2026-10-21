@@ -1,7 +1,8 @@
 import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useAuthStore } from "@/features/auth";
+import { registerAuthStorageSync, useAuthStore } from "@/features/auth";
+import { dispatchStorage } from "@/test/api-test-utils";
 import { getPostActions } from "@/features/posts";
 import { resetPostStore, usePostStore } from "@/features/posts/store/post-store";
 import * as relationService from "../services/relation-service";
@@ -101,6 +102,36 @@ describe("ViewerSync viewer switch", () => {
     expect(getViewerGeneration()).toBe(generation + 1);
     expect(usePostStore.getState().feedMeta.forYou.loaded).toBe(false);
     expect(store.ensureFollowGraph).toHaveBeenCalledWith("2");
+  });
+
+  it("clears the previous viewer's like & bookmark flags on the cached posts when the account switches", () => {
+    vi.spyOn(relationStore, "ensureRelationSets").mockResolvedValue();
+    const reset = vi.spyOn(getPostActions(), "resetViewerFlags");
+    render(<ViewerSync />);
+
+    act(() => useAuthStore.setState({ user: USER_2 }));
+
+    expect(reset).toHaveBeenCalledTimes(1);
+  });
+
+  it("a switch made in ANOTHER tab (storage event) takes the same reset path", () => {
+    vi.spyOn(relationStore, "ensureRelationSets").mockResolvedValue();
+    const invalidate = vi.spyOn(relationStore, "invalidateViewerProjection");
+    const resetFeeds = vi.spyOn(getPostActions(), "resetViewerFeeds");
+    const resetFlags = vi.spyOn(getPostActions(), "resetViewerFlags");
+    localStorage.setItem("ysocial_access_token", "A2");
+    localStorage.setItem("ysocial_refresh_token", "R2");
+    localStorage.setItem("ysocial_user", JSON.stringify(USER_2));
+    render(<ViewerSync />);
+    const off = registerAuthStorageSync();
+
+    act(() => dispatchStorage("ysocial_user", JSON.stringify(USER_2)));
+    off();
+
+    expect(useAuthStore.getState().user?.id).toBe("2");
+    expect(resetFeeds).toHaveBeenCalledTimes(1);
+    expect(resetFlags).toHaveBeenCalledTimes(1);
+    expect(invalidate).toHaveBeenCalledWith("2");
   });
 
   it("does not reset again when the same account updates", () => {

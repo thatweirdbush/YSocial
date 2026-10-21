@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuthStore } from "@/features/auth";
@@ -112,6 +112,17 @@ describe("NotificationSettings", () => {
     expect(save).toHaveBeenLastCalledWith({ likes: true, replies: true, follows: false });
     expect(switchOf(/Lượt thích/)).toBeChecked();
     expect(switchOf(/Theo dõi/)).not.toBeChecked();
+  });
+
+  it("a profile switch while the page is open reloads the preferences of the new profile", async () => {
+    const load = vi.spyOn(service, "fetchNotificationPreferences").mockResolvedValue(ON);
+    render(<NotificationSettings />);
+    await screen.findByRole("switch", { name: "Lượt thích" });
+    expect(load).toHaveBeenCalledTimes(1);
+
+    act(() => useAuthStore.setState({ user: { id: "viewer-2", email: "v@x.dev" } }));
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   });
 
   it("states what likes and replies cover", async () => {

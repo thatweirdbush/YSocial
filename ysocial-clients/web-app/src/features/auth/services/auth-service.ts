@@ -3,8 +3,10 @@ import { isRealApi } from "@/lib/api-config";
 import { ApiError } from "@/lib/api-error";
 import { SEED_DEMO_ACCOUNT } from "@/mocks/seed-authors";
 import { useAuthStore } from "../store/auth-store";
-import type { AuthUser, LoginResponse, MeDto, RegisterInput, ResetPasswordInput } from "../types";
+import type { RefreshDeps } from "@/lib/token-refresh";
+import type { AuthUser, LoginResponse, MeDto, ProfileSummary, RegisterInput, ResetPasswordInput } from "../types";
 import { getDeviceId } from "../utils/device-id";
+import { switchProfile as switchProfileOnBackend } from "./switch-profile";
 
 /** Register succeeded but the automatic login did not: caller sends the user to the login page. */
 export class RegisteredLoginFailedError extends Error {
@@ -20,6 +22,8 @@ interface AuthAdapter {
   logout(): Promise<void>;
   forgotPassword(loginId: string): Promise<void>;
   resetPassword(input: ResetPasswordInput): Promise<void>;
+  /** Real BE only: moves the session to another profile of the account (see `switch-profile.ts`). */
+  switchProfile(target: ProfileSummary, deps?: RefreshDeps): Promise<AuthUser>;
 }
 
 const AUTH_CALL = { skipAuthRefresh: true } as const;
@@ -82,6 +86,9 @@ const mockAdapter: AuthAdapter = {
   async resetPassword() {
     await delay(1500);
   },
+  switchProfile() {
+    return Promise.reject(new Error("Switching profiles needs the real BE"));
+  },
 };
 // #endregion
 
@@ -103,6 +110,16 @@ async function realLogin(loginId: string, password: string): Promise<AuthUser> {
   } catch (error) {
     actions().clearAuth();
     throw error;
+  }
+}
+
+/** Fresh `GET me` after a switch: applied only while the viewer is still that profile; any failure changes nothing. */
+async function refreshSnapshot(expectedId: string): Promise<void> {
+  try {
+    const user = toAuthUser(await fetchMe());
+    if (user.id === expectedId && useAuthStore.getState().user?.id === expectedId) actions().updateUser(user);
+  } catch {
+    // Keep the summary-derived user
   }
 }
 
@@ -136,6 +153,12 @@ const realAdapter: AuthAdapter = {
   async resetPassword(input) {
     await apiClient.post("/api/identities/reset-password", input, AUTH_CALL);
   },
+  async switchProfile(target, deps) {
+    const user = await switchProfileOnBackend(target, deps);
+    // Best effort, after the lock is released: the commit already made identity & tokens consistent
+    void refreshSnapshot(user.id);
+    return user;
+  },
 };
 // #endregion
 
@@ -148,4 +171,7 @@ export const authService: AuthAdapter = {
   logout: () => adapter().logout(),
   forgotPassword: (loginId) => adapter().forgotPassword(loginId),
   resetPassword: (input) => adapter().resetPassword(input),
+  switchProfile: (target, deps) => adapter().switchProfile(target, deps),
 };
+
+export { SwitchInProgressError, SwitchSessionLostError, SwitchUnconfirmedError } from "./switch-profile";

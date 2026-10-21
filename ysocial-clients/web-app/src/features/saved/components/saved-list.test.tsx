@@ -112,6 +112,26 @@ describe("SavedList (real BE)", () => {
     expect(screen.queryByText(`saved ${A.slice(0, 4)}`)).not.toBeInTheDocument();
   });
 
+  it("a late answer for the previous viewer is dropped after an account switch", async () => {
+    let answerA!: (response: Response) => void;
+    const fresh = mockFetchSequence([page([B])]);
+    let calls = 0;
+    vi.stubGlobal("fetch", ((...args: Parameters<typeof fetch>) => {
+      calls += 1;
+      return calls === 1 ? new Promise<Response>((resolve) => (answerA = resolve)) : fresh.fetchFn(...args);
+    }) as typeof fetch);
+    render(<SavedList />);
+
+    act(() => {
+      useAuthStore.getState().actions.updateUser({ id: "33333333-3333-4333-8333-333333333333", email: "x@ysocial.dev", username: "x" });
+    });
+    expect(await screen.findByText(`saved ${B.slice(0, 4)}`)).toBeInTheDocument();
+    await act(async () => answerA(new Response(JSON.stringify({ items: [{ id: A }], page: 1, pageSize: 20, totalCount: 1, hasNextPage: false }), { status: 200, headers: { "content-type": "application/json" } })));
+
+    expect(screen.queryByText(`saved ${A.slice(0, 4)}`)).not.toBeInTheDocument();
+    expect(screen.getByText(`saved ${B.slice(0, 4)}`)).toBeInTheDocument();
+  });
+
   it("logout empties the list instead of keeping the last viewer's items", async () => {
     vi.stubGlobal("fetch", mockFetchSequence([page([A])]).fetchFn);
     render(<SavedList />);

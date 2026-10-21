@@ -115,6 +115,21 @@ describe("NotificationLiveSync", () => {
     expect(useNotificationStore.getState().byId).toEqual({});
   });
 
+  it("an account switch stops the hub before it starts again and drops the previous viewer's list (no push of A reaches B)", () => {
+    signIn();
+    render(<NotificationLiveSync />);
+    openList();
+    act(() => hub.emit(push()));
+    expect(items()).toHaveLength(1);
+
+    act(() => useAuthStore.setState({ user: { id: "viewer-2", email: "v@x.dev", username: "alt", displayName: "Alt" } }));
+
+    expect(hub.start).toHaveBeenCalledTimes(2);
+    expect(hub.stop).toHaveBeenCalledTimes(1);
+    expect(hub.stop.mock.invocationCallOrder[0]).toBeLessThan(hub.start.mock.invocationCallOrder[1]);
+    expect(items()).toEqual([]);
+  });
+
   it("push inserts the item at the top & bumps unread", () => {
     signIn();
     openList();

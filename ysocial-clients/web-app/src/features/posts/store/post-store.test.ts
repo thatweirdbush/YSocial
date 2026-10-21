@@ -743,6 +743,21 @@ describe("author exclusion", () => {
     expect(state().posts.b1).toBeDefined();
   });
 
+  it("resetViewerFlags clears the viewer's like & bookmark flags on every cached post and touches nothing else", () => {
+    seedFeeds();
+    const flagged = { ...state().posts.b1, isLikedByCurrentUser: true, isBookmarkedByCurrentUser: true, likesCount: 7 };
+    usePostStore.setState((current) => ({ posts: { ...current.posts, b1: flagged } }));
+
+    actions().resetViewerFlags();
+
+    const { b1 } = state().posts;
+    expect(b1.isLikedByCurrentUser).toBe(false);
+    expect(b1.isBookmarkedByCurrentUser).toBe(false);
+    expect({ ...b1, isLikedByCurrentUser: true, isBookmarkedByCurrentUser: true }).toEqual(flagged);
+    expect(state().feedIds).toEqual(usePostStore.getState().feedIds);
+    expect(Object.values(state().posts).every((post) => !post.isLikedByCurrentUser && !post.isBookmarkedByCurrentUser)).toBe(true);
+  });
+
   it("useIsAuthorBlocked reflects only the blocked reason", () => {
     const { result } = renderHook(() => useIsAuthorBlocked("a"));
     expect(result.current).toBe(false);

@@ -29,6 +29,7 @@ import { useTranslation } from "@/hooks/use-translation";
 import { LAYOUT } from "@/lib/constants/layout";
 import { useComposerOpen, useLocale, useIsCollapsed, useUIActions } from "@/lib/store/ui-store";
 import { hasCapability } from "@/lib/capabilities";
+import { ProfileSwitcher } from "@/features/auth/components/profile-switcher";
 import { authService } from "@/features/auth/services/auth-service";
 import { useAuthUser } from "@/features/auth/store/auth-store";
 import { RightSidebar } from "./right-sidebar";
@@ -223,6 +224,8 @@ export function MainLayout({ children, aside }: MainLayoutProps) {
                       </Link>
                     </DropdownMenuItem>
                   )}
+
+                  {user && <ProfileSwitcher />}
 
                   <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-900" />
                   <DropdownMenuItem onClick={handleLogout} className="rounded-xl px-3 py-2 cursor-pointer text-red-650 focus:text-red-650 focus:bg-red-50 dark:focus:bg-red-950/20">
