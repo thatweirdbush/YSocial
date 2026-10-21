@@ -43,6 +43,8 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         });
         builder.Navigation(u => u.NotificationPreferences).IsRequired();
 
+        builder.Property<int>(YSocialDbContext.MediaQuotaVersion).IsConcurrencyToken();
+
         builder.HasIndex(u => u.Username).IsUnique();
         builder.HasIndex(u => u.AccountId);
     }

@@ -26,6 +26,19 @@ internal sealed class PostConfiguration : IEntityTypeConfiguration<Post>
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(p => p.Hashtags).HasField("_hashtags");
+
+        // Attached media snapshots: owned, so EVERY post query loads them (each projection needs them, at most 10 rows)
+        builder.OwnsMany(p => p.Media, media =>
+        {
+            media.ToTable("PostMedia");
+            media.WithOwner().HasForeignKey("PostId");
+            media.HasKey("PostId", nameof(PostMedia.Position));
+
+            media.Property(m => m.Position).ValueGeneratedNever();
+            media.Property(m => m.Url).HasMaxLength(2048).IsRequired();
+            media.Property(m => m.PosterUrl).HasMaxLength(2048);
+        });
+        builder.Navigation(p => p.Media).HasField("_media");
     }
 }
 

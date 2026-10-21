@@ -9,6 +9,7 @@ using YSocial.Application.Abstractions.Persistence;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
+using YSocial.Domain.Media;
 using YSocial.Domain.Notifications;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
@@ -33,6 +34,7 @@ public class YSocialDbContext(DbContextOptions<YSocialDbContext> options)
 
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<Post> Posts => Set<Post>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<Like> Likes => Set<Like>();
@@ -50,6 +52,11 @@ public class YSocialDbContext(DbContextOptions<YSocialDbContext> options)
     /// Shadow concurrency token of <see cref="Account"/> (bumped when the account or its tokens change).
     /// </summary>
     internal const string AccountVersion = "Version";
+
+    /// <summary>
+    /// Shadow concurrency token of <see cref="User"/>: bumped by every media reserve so concurrent reserves cannot both pass the quota.
+    /// </summary>
+    internal const string MediaQuotaVersion = nameof(MediaQuotaVersion);
 
     private static readonly Type[] DomainTypes = typeof(Account).Assembly.GetTypes();
 

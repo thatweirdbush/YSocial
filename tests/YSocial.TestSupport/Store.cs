@@ -4,6 +4,7 @@ using System.Collections;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
+using YSocial.Domain.Media;
 using YSocial.Domain.Notifications;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
@@ -44,6 +45,7 @@ public static class Store
     public static StoreSet<UserRelation, UserRelationId> UserRelations { get; } = [];
     public static StoreSet<UserBlock, UserBlockId> UserBlocks { get; } = [];
     public static StoreSet<Notification, NotificationId> Notifications { get; } = [];
+    public static StoreSet<MediaAsset, MediaAssetId> MediaAssets { get; } = [];
 
     /// <summary>
     /// Undelivered outbox messages, oldest first.

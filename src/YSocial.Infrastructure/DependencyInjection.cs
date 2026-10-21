@@ -11,6 +11,7 @@ using YSocial.Application.Abstractions.Persistence;
 using YSocial.Domain.Comments;
 using YSocial.Domain.Identities;
 using YSocial.Domain.Likes;
+using YSocial.Domain.Media;
 using YSocial.Domain.Notifications;
 using YSocial.Domain.Posts;
 using YSocial.Domain.SavedItems;
@@ -56,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IUserRelationRepository, UserRelationRepository>();
         services.AddScoped<IUserBlockRepository, UserBlockRepository>();
         services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
 
         services.AddScoped<IUserContext, UserContext>();
         services.AddSingleton<IJwtProvider, JwtProvider>();
