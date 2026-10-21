@@ -35,6 +35,14 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         });
         builder.Navigation(u => u.PrivacySettings).IsRequired();
 
+        builder.OwnsOne(u => u.NotificationPreferences, preferences =>
+        {
+            preferences.Property(p => p.Likes).HasColumnName("NotifyLikes");
+            preferences.Property(p => p.Replies).HasColumnName("NotifyReplies");
+            preferences.Property(p => p.Follows).HasColumnName("NotifyFollows");
+        });
+        builder.Navigation(u => u.NotificationPreferences).IsRequired();
+
         builder.HasIndex(u => u.Username).IsUnique();
         builder.HasIndex(u => u.AccountId);
     }

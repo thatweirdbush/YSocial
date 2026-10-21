@@ -46,11 +46,12 @@ updated: 2026-10-20
 - [x] **2.6 Share profile:** copy link + QR code dialog
 - [ ] **2.7 Multi-profile switcher** (match `SwitchProfileRequest`): switch account in sidebar dropdown *(Phase C done: build real-first now, `backend/integration/fe-be-integration.md`)*
 
-### Phase 3 - Notifications & Activity (P1)
-- [ ] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"
-- [ ] **3.2 Unread badge** on nav, Zustand `notification-store` exists since integration Phase N with `unreadCount`, mark-read & mark-all-read: only badge UI & mark-on-view remain
-- [ ] **3.3 Simulated realtime:** timer fires mock notification (prepare SignalR plug-in point)
-- [ ] **3.4 Notification settings** (toggle per type) - shares store with Settings
+### Phase 3 - Notifications (P1)
+> Closed: `features/notifications.md`
+- [x] **3.1 Filter tabs:** All / Mentions / Replies / Follows / Likes; group "X & 12 others liked"
+- [x] **3.2 Unread badge** on nav + mark-on-view, server-authoritative count, bounded read-all
+- [x] **3.3 Simulated realtime:** real SignalR push (`NotificationLiveSync`)
+- [x] **3.4 Notification settings** (toggle per kind: likes, replies, follows)
 
 ### Phase 4 - Settings & Account (P1)
 - [ ] **4.1 Settings hub** `/settings`, 2-col layout (desktop) / stack (mobile), child routes:
@@ -88,6 +89,7 @@ updated: 2026-10-20
 - **Persistence:** DONE (EF Core + PostgreSQL, migrations, rich dev seed, SQLite test harness; BG §7); open debt: SQL-side paging, multi-instance lock/outbox (BG §10)
 - **Needs BE design first (DB ready):** search/tags/trending, media upload
 - **No FE counterpart yet:** DMs, reposts, polls, report, onboarding, session list
+- **Notifications follow-ups (BE):** mention notifications, "N others" aggregation over unloaded pages, reply preview text
 
 ---
 

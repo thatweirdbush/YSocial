@@ -37,12 +37,7 @@ public sealed record NotificationDto(
         sender?.Username,
         sender?.ProfileInfo.AvatarUrl);
 
-    private static string KindOf(NotificationType type)
-    {
-        if (type == NotificationType.NewLike) return "like";
-        if (type == NotificationType.NewComment) return "reply";
-        return "follow";
-    }
+    private static string KindOf(NotificationType type) => NotificationKind.Of(type) ?? NotificationKind.Follow;
 }
 
 /// <summary>
@@ -52,6 +47,15 @@ public sealed record NotificationPageDto(IReadOnlyList<NotificationDto> Items, i
     : PagedResponse<NotificationDto>(Items, Page, PageSize, TotalCount);
 
 public sealed record UnreadCountDto(int Count);
+
+/// <summary>
+/// Kinds the active profile receives: likes = NewLike (posts and replies), replies = NewComment (on own posts), follows = every follow type.
+/// </summary>
+public sealed record NotificationPreferencesDto(bool Likes, bool Replies, bool Follows)
+{
+    public static NotificationPreferencesDto From(NotificationPreferences preferences)
+        => new(preferences.Likes, preferences.Replies, preferences.Follows);
+}
 
 /// <summary>
 /// Outbox content: routing target plus the pushed payload.

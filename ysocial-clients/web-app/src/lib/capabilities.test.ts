@@ -31,7 +31,7 @@ const STATES: Array<[string, boolean, boolean, boolean]> = [
 
 describe("capability table", () => {
   it("covers exactly the known capabilities", () => {
-    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, "muteUi"].sort());
+    expect([...ALL].sort()).toEqual([...BE_LESS, ...GRAPH, "muteUi", "notificationSettings", "mentionNotifications"].sort());
   });
 
   it.each(STATES)("slices %j", (slices, content, graph, activity) => {
@@ -39,6 +39,16 @@ describe("capability table", () => {
     for (const capability of BE_LESS) expect(hasCapability(capability), capability).toBe(!content);
     for (const capability of GRAPH) expect(hasCapability(capability), capability).toBe(!content || graph);
     expect(hasCapability("muteUi")).toBe(!content || activity);
+    expect(hasCapability("notificationSettings")).toBe(!content || activity);
+    expect(hasCapability("mentionNotifications")).toBe(!content && !activity);
+  });
+
+  it("mentions rule names its data source: hidden when either the BE list or the content slice is real", () => {
+    // Slices are cumulative in practice (activity implies content); the rule must not rely on that
+    expect(CAPABILITY_RULES.mentionNotifications(new Set(["auth", "activity"]))).toBe(false);
+    expect(CAPABILITY_RULES.mentionNotifications(new Set(["auth", "content"]))).toBe(false);
+    expect(CAPABILITY_RULES.mentionNotifications(new Set(["auth"]))).toBe(true);
+    expect(CAPABILITY_RULES.mentionNotifications(new Set())).toBe(true);
   });
 
   it("rules derive only from the parsed slice set", () => {

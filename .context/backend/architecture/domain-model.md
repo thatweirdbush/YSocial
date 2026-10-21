@@ -29,7 +29,7 @@ updated: 2026-10-20
 | Aggregate root | Children / value objects | Soft-delete | Repo contract | Notes |
 |---|---|---|---|---|
 | `Account` | `RefreshToken` (entity, `RefreshTokenId`; bound to `UserId`, `ReplacedByTokenId`), `PasswordResetToken` (entity, Guid), `PasswordHash` (VO), `UserRole` | yes | `IAccountRepository` | tokens are child rows of aggregate (`RefreshTokens` / `PasswordResetTokens` tables, cascade); `Email` unique via `IUserRepository.IsEmailUniqueAsync` (includes deleted) |
-| `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
+| `User` (profile) | `UserProfileInfo` (VO), `PrivacySettings` (VO), `NotificationPreferences` (VO: likes, replies, follows; default all on), `Country` (enumeration), counters | yes | `IUserRepository` | `Address` VO exists, unused by `User`; stored `FollowersCount`/`FollowingCount` kept by events but NOT exposed (profile counts computed on read) |
 | `Post` | - | yes | `IPostRepository` | `Visibility`, `AllowComments`, `LikeCount`, `SavedCount`; no comment counter (`commentsCount` computed on read) |
 | `Comment` | - | yes | `ICommentRepository` | nested via `ParentCommentId`; counts inline |
 | `Like` | - | no | `ILikeRepository` | polymorphic target (`LikeTargetType` Post/Comment) |

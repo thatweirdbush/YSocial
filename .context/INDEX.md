@@ -19,6 +19,8 @@
 - [Profile Core Spec](features/profile.md) - `/@username` on mocks: server-resolved route + real 404 (session cookie bridge), SSR-safe auth hydration, viewer/actor identity split, graph-derived counts & fans, profile tab controller, followers dialog, share link + QR
 - [Relationship Controls Spec](features/relationship-controls.md) - private account & follow requests, close friends, block / mute on mocks: relation-graph + visibility contract, op-ledger ordering, viewer-switch invalidation, `/settings` shell
 
+- [Notifications Spec](features/notifications.md) - list tabs = server `kind` filters (D26), like grouping (24h, loaded members only), server-authoritative unread count (`countSeq`), bounded mark-all (D28) & mark-on-view, nav badge, per-kind preferences (D27, coalesced edits), stateful mock adapter
+
 ## Backend Audit (`.context/backend/`)
 - [BE Guide](backend/architecture/backend-guide.md) - request lifecycle & behavior order, DI, error pipeline (ProblemDetails + `code`), auth lifecycle (refresh/logout/switch, session lock), UoW & event dispatch semantics, EF Core + PostgreSQL persistence (model, migrations, seeds, DB ops §7), single live debt & deferred register §10, notifications pipeline, probes ledger
 - [Domain Model](backend/architecture/domain-model.md) - aggregates, identity semantics (`sub` vs `user_id`), rules with code & kind, follow/block/post state machines, events (all live), repo contracts (set-based members)

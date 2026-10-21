@@ -9,8 +9,8 @@ roadmap: .context/roadmap.md
 
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
-- Decisions D1-D24 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
-- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 430 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
+- Decisions D1-D28 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
+- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 468 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
 - Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE persists to PostgreSQL via EF Core (D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (BG §10); security hardening T4.3 done
 
@@ -167,10 +167,12 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 
 | Endpoint | Auth | Request -> success | Errors / constraints | FE counterpart |
 |---|---|---|---|---|
-| `GET /api/notifications` | JWT | `?page&pageSize(20)` -> 200 `NotificationPageDto` | newest first; notifications of blocked/deleted senders excluded BEFORE paging, `totalCount` & `unreadCount`; 400 bad paging; 401 | `notification-service.fetchNotifications` + `notification-store` (`/notifications`) |
-| `GET /api/notifications/unread-count` | JWT | -> 200 `{count}` | same sender filter as list | `fetchUnreadCount` (badge UI: FE roadmap 3.2) |
+| `GET /api/notifications` | JWT | `?page&pageSize(20)&kind` -> 200 `NotificationPageDto` | newest first; notifications of blocked/deleted senders excluded BEFORE paging, `totalCount` & `unreadCount`; `kind` (D26) = `like` \| `reply` \| `follow` narrows list & `totalCount` (access filter, then kind, then count, then page) while `unreadCount` stays OVERALL; `kind` absent, empty or whitespace = all (MVC binds blank to null), case-insensitive, unknown value -> 400 `ValidationFailed` + `errors.kind`; repeated `kind=a&kind=b` binds ONE value (no custom binder, do not rely on it); 400 bad paging; 401 | `notification-service.fetchNotifications(page, filter)` + `notification-store` (`/notifications`) |
+| `GET /api/notifications/unread-count` | JWT | -> 200 `{count}` | same sender filter as list | `fetchUnreadCount` via `syncUnreadCount` (store) & `NotificationNavBadge` |
 | `PUT /api/notifications/{id}/read` | JWT | no body -> 204 | idempotent; 403 `NotNotificationRecipient` (foreign notification); 404 unknown; 401 | `commitMarkRead` (item open) |
-| `PUT /api/notifications/read-all` | JWT | no body -> 204 | idempotent; marks only own | `commitMarkAllRead` |
+| `PUT /api/notifications/read-all` | JWT | `?upToId` (optional guid) no body -> 204 | idempotent; marks only own; `upToId` (D28) bounds it to that notification & older (`CreatedAt <=`, ties included) so rows created after client's last view stay unread; unknown id -> 404; foreign id -> 403 `NotNotificationRecipient`; id lookup skips sender access filter (sender may be blocked after page load); hidden senders' rows never touched | `commitMarkAllRead` (always sends newest loaded id) |
+| `GET /api/notifications/preferences` | JWT | -> 200 `NotificationPreferencesDto` | per active profile; defaults all `true`; 401 | `getNotificationPreferences` (D27) |
+| `PUT /api/notifications/preferences` | JWT | `{likes, replies, follows}` all required bool -> 200 `NotificationPreferencesDto` | full replace; missing or null field -> 400 `ValidationFailed` (nothing changed); `likes` = `NewLike` (posts & replies), `replies` = `NewComment` (notifies POST author only), `follows` = `NewFollow`, `FollowRequested`, `FollowAccepted`; off = no row & no push from then on, no backfill when re-enabled; 401 | `updateNotificationPreferences` (settings section) |
 
 | Item | Actual | FE counterpart |
 |---|---|---|
@@ -178,7 +180,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | Event | `ReceiveNotification` with 1 `NotificationDto` (same item shape as list) | FE `NotificationPayload` = `NotificationDto`; `toNotificationItem` groups by `kind` (unknown -> generic `other`), `NotificationLiveSync` pushes into `notification-store` |
 | Types | `NewLike`, `NewComment`, `NewFollow` (public follow, notifies followed user), `FollowRequested`, `FollowAccepted` (notifies REQUESTER) | FE `NotificationKind` like \| follow \| reply = `kind` |
 | Self events | no notification (self like, self comment) | - |
-| Persistence | notification rows in DB (saved with the change that caused them); delivered outbox rows deleted; push reaches only active profile connection | - |
+| Persistence | notification rows in DB (saved with change that caused them); delivered outbox rows deleted; push reaches only active profile connection | - |
 
 - Gaps: no `postContentPreview` for replies (FE shows snippet; fetch comment via `/api/threads/{targetId}`)
 
@@ -231,7 +233,8 @@ PrivacyUpdatedDto: { acceptedCount }
 LoginResponse: { accessToken, refreshToken, refreshTokenExpiry }
 FollowUserResponse: { followStatus: accepted | pending }
 NotificationDto: { id, type, kind: like|reply|follow, title, message, createdAt, isRead, targetId: guid|null, senderId, senderName: string|null, senderUsername: string|null, senderAvatar: string|null }
-NotificationPageDto: PagedResponse<NotificationDto> + { unreadCount }
+NotificationPageDto: PagedResponse<NotificationDto> + { unreadCount }   # unreadCount = overall, never per kind
+NotificationPreferencesDto: { likes, replies, follows }
 UnreadCountDto: { count }
 SharePostLinkResponse: { postId, sharedUrl }
 ```
@@ -263,6 +266,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | Restrict | Unsupported | no concept |
 | Visibility / viewer-scoped content rules | Done server-side | FE close-friends audience has no BE value |
 | Notifications list, unread, mark read, realtime | Done | HTTP API + push of 5 types; no reply preview text |
+| Notification filter tabs (like/reply/follow), bounded mark-all, per-kind preferences | Done | D26-D28; Mentions tab unsupported (no mention model, mock only) |
 | Profile switcher | Done | `GET me` + `PUT profiles/switch` (replace both tokens, reset viewer stores) |
 | Settings: sessions, language, deactivate | Unsupported | delete account exists |
 | DMs, report, onboarding | Unsupported | no code |
@@ -278,7 +282,7 @@ SharePostLinkResponse: { postId, sharedUrl }
 | CP | Slice unblocked | BE state |
 |---|---|---|
 | CP0 | FE plumbing: base URL, ProblemDetails normalizer (`code` switch), JWT `user_id` decoder, login redirect `/login` | reached (tests); FE (Phase F) |
-| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified 2026-10-15 (BG §12); FE auth (Phase F), post delete moves to FE Phase C |
+| CP1 | auth (login, register with username, forgot/reset, logout, silent refresh), post delete | reached (tests); manual login -> refresh -> logout smoke verified (BG §12); FE auth (Phase F), post delete moves to FE Phase C |
 | CP2 | profile header & edit, switcher (`GET me`), post create/edit, post detail + thread, profile threads tab, saved page, like/bookmark | FE (Phase C, follow & feed read moved here); reached (tests, swagger verified) |
 | CP3 | private account, follow requests, followers dialog, block list, close friends | FE (Phase G); reached (tests, swagger regenerated) |
 | CP4 | feed, notifications, mute | FE (feed in Phase C, mute & notifications in Phase N); reached (tests, swagger regenerated) |
@@ -310,6 +314,9 @@ SharePostLinkResponse: { postId, sharedUrl }
 | D23 | Notifications: 1 `NotificationDto` for HTTP & push, `NewFollow` type, self notifications skipped, foreign mark-read 403, blocked/deleted senders filtered before paging | Implemented (T4.2) |
 | D24 | Security: log redaction by member name/attribute, JWT key required outside Development, seed & dev token Development-only | Implemented (T4.3) |
 | D25 | Persistence: PostgreSQL via EF Core; 1 DB transaction per request (failed request saves nothing); data & sessions survive restarts; optimistic concurrency on `Account` (multi-instance only: refresh/switch 401, logout/forgot-password 204, other account writes 409 `Conflict`); routes, DTOs & codes UNCHANGED (FE impact: none, refresh tokens now outlive BE restarts) | Implemented |
+| D26 | Notification list `kind` filter: `like\|reply\|follow` (case-insensitive), order access filter -> kind -> count -> page, `unreadCount` overall, blank = all, unknown = 400 `ValidationFailed`; no new code | Implemented |
+| D27 | Notification preferences: per-profile `{likes, replies, follows}` (owned VO on `User`, migration default `true`), full-replace PUT with required fields, disabled kind skipped at publish (no row, no push, no backfill) | Implemented |
+| D28 | Bounded read-all: `PUT read-all?upToId` marks that notification & older only (id not timestamp: JS ms vs Postgres microseconds); 404 unknown, 403 foreign, sender access filter skipped for lookup | Implemented |
 
 - **Open:** media upload URL shape, feed ranking (`forYou` chronological), notification reply preview, access-token revocation, audience `CloseFriends`, search/tags/trending, process-local session lock & outbox poller, in-memory feed paging, counter concurrency (restart no longer wipes state; dev seed ids stay deterministic) full register: BG §10
 

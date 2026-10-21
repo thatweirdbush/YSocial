@@ -10,14 +10,14 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
 }));
 
-const SECTION_HREFS = ["/settings/privacy", "/settings/blocked", "/settings/muted", "/settings/close-friends"];
+const SECTION_HREFS = ["/settings/privacy", "/settings/notifications", "/settings/blocked", "/settings/muted", "/settings/close-friends"];
 
 beforeEach(() => {
   navigation.pathname = "/settings/blocked";
 });
 
 describe("SettingsNav", () => {
-  it("links to the 4 sections and marks the active one", () => {
+  it("links to the 5 sections and marks the active one", () => {
     render(<SettingsNav />);
 
     const nav = screen.getByRole("navigation", { name: "Cài đặt" });
@@ -36,7 +36,7 @@ describe("SettingsNav", () => {
 });
 
 describe("SettingsIndex", () => {
-  it("renders a title and the 4 section links, without the section nav landmark", () => {
+  it("renders a title and the 5 section links, without the section nav landmark", () => {
     navigation.pathname = "/settings";
     render(<SettingsIndex />);
 

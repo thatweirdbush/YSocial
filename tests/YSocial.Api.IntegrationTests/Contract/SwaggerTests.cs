@@ -67,6 +67,8 @@ public class SwaggerTests(ApiFixture fixture) : ApiTestBase(fixture)
         ["/api/users/me/mutes", "get", "200", "UserProfileDtoPagedResponse"],
         ["/api/feed", "get", "200", "PostDtoPagedResponse"],
         ["/api/notifications", "get", "200", "NotificationPageDto"],
+        ["/api/notifications/preferences", "get", "200", "NotificationPreferencesDto"],
+        ["/api/notifications/preferences", "put", "200", "NotificationPreferencesDto"],
         ["/api/notifications/unread-count", "get", "200", "UnreadCountDto"],
         ["/api/notifications/{id}/read", "put", "204", ""],
         ["/api/notifications/read-all", "put", "204", ""],

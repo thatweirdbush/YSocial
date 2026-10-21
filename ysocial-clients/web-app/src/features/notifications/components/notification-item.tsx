@@ -2,23 +2,27 @@
 
 import React from "react";
 import Link from "next/link";
-import { Heart, User, MessageCircle } from "lucide-react";
+import { AtSign, Heart, User, MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/hooks/use-translation";
 import type { NotificationItemData, NotificationUser } from "../types";
+import { formatNotificationTime } from "./format-notification-time";
 
 interface NotificationItemProps {
   item: NotificationItemData;
   onFollowToggle: (user: NotificationUser) => void;
   /** Called when the item is opened (marks it read). */
   onOpen?: (item: NotificationItemData) => void;
+  /** Highlight + dot: unread now, or unread when the page was opened. Defaults to `!item.isRead`. */
+  isNew?: boolean;
 }
 
 export const NotificationItem: React.FC<NotificationItemProps> = ({
   item,
   onFollowToggle,
   onOpen,
+  isNew = !item.isRead,
 }) => {
   const { t } = useTranslation();
 
@@ -28,17 +32,6 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
     if (item.kind === "other") return "/notifications";
     return `/posts/${item.postId || ""}`;
   })();
-
-  // ISO timestamps (real) are shown relative; mock seed strings are already display text
-  const formatTime = (value: string) => {
-    const created = new Date(value).getTime();
-    if (Number.isNaN(created)) return value;
-    const minutes = Math.max(1, Math.floor((new Date().getTime() - created) / 60000));
-    if (minutes < 60) return t("card.minutesAgo", { n: minutes });
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return t("card.hoursAgo", { n: hours });
-    return t("card.daysAgo", { n: Math.floor(hours / 24) });
-  };
 
   // Get action text localized
   const getActionText = () => {
@@ -51,6 +44,8 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         return t("notifications.actionFollow");
       case "reply":
         return t("notifications.actionReply");
+      case "mention":
+        return t("notifications.actionMention");
       default:
         return item.message ?? "";
     }
@@ -79,15 +74,21 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
             <MessageCircle className="size-3 fill-zinc-500 text-zinc-500" />
           </div>
         );
+      case "mention":
+        return (
+          <div className={overlapIconClass}>
+            <AtSign className="size-3 text-zinc-500" />
+          </div>
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="relative px-4 py-4 flex gap-4 items-center justify-between
-                    after:absolute after:bottom-0 after:left-18 after:right-0 
-                    after:border-b after:border-zinc-200/80 dark:after:border-zinc-900/40"
+    <div className={`relative px-4 py-4 flex gap-4 items-center justify-between
+                    after:absolute after:bottom-0 after:left-18 after:right-0
+                    after:border-b after:border-zinc-200/80 dark:after:border-zinc-900/40 ${isNew ? "bg-zinc-50 dark:bg-zinc-900/30" : ""}`}
     >
       <div className="w-full flex gap-4 items-center justify-between">
         <Link href={redirectUrl} onClick={() => onOpen?.(item)} className="flex gap-4 items-start flex-1 min-w-0 hover:opacity-95 transition-opacity">
@@ -113,8 +114,8 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
               </span>
             </div>
 
-            {/* Reply Content Preview */}
-            {item.kind === "reply" && item.postContentPreview && (
+            {/* Reply / mention content preview */}
+            {(item.kind === "reply" || item.kind === "mention") && item.postContentPreview && (
               <div className="border-l-2 border-zinc-200 dark:border-zinc-800 pl-2 mt-1.5 text-sm text-zinc-550 dark:text-zinc-400 line-clamp-2 leading-relaxed">
                 {item.postContentPreview}
               </div>
@@ -123,10 +124,10 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
             {/* Timestamp and isRead unread badge */}
             <div className="flex items-center gap-1.5 mt-1">
               <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                {formatTime(item.createdAt)}
+                {formatNotificationTime(item.createdAt, t)}
               </span>
-              {!item.isRead && (
-                <span className="size-1.5 rounded-full bg-blue-500 shrink-0" aria-hidden="true" />
+              {isNew && (
+                <span className="size-1.5 rounded-full bg-blue-500 shrink-0" role="img" aria-label={t("notifications.unread")} />
               )}
             </div>
           </div>

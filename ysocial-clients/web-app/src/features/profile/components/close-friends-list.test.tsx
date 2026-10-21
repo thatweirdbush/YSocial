@@ -57,6 +57,8 @@ describe("CloseFriendsList", () => {
   it("toggles a row through the service and updates the count", async () => {
     render(<CloseFriendsList />);
     await screen.findByText("Elena Vance", {}, WAIT);
+    // The count needs the accepted-follow graph (loaded separately from the list): wait for the baseline first
+    await screen.findByText("1 bạn thân", {}, WAIT);
 
     await userEvent.click(within(row("Elena Vance")).getByRole("button", { name: "Thêm" }));
 

@@ -6,10 +6,12 @@ using YSocial.Domain.Users;
 namespace YSocial.Application.Features.Notifications;
 
 /// <summary>
-/// Single place that turns a domain event into a stored notification plus an outbox push. Skips self notifications.
+/// Single place that turns a domain event into a stored notification plus an outbox push. Skips self notifications &
+/// kinds the recipient switched off (no row, no push).
 /// </summary>
 internal sealed class NotificationPublisher(
     INotificationRepository notificationRepository,
+    IUserRepository userRepository,
     INotificationOutboxService outboxService)
 {
     public async Task PublishAsync(
@@ -22,6 +24,12 @@ internal sealed class NotificationPublisher(
         CancellationToken cancellationToken)
     {
         if (recipientId == sender.Id)
+        {
+            return;
+        }
+
+        var recipient = await userRepository.GetByIdAsync(recipientId, cancellationToken);
+        if (recipient is null || !recipient.NotificationPreferences.Allows(type))
         {
             return;
         }
