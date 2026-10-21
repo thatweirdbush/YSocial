@@ -159,6 +159,32 @@ describe("PostCreatorCore media - real BE (uploads)", () => {
   });
 });
 
+describe("PostCreatorCore media - GIF and uploads exclude each other (real BE)", () => {
+  beforeEach(() => setRealSlices("auth,content"));
+
+  it("disables the GIF picker while uploaded files are queued", async () => {
+    const { container } = render(<PostCreatorCore />);
+    await act(async () => {
+      fireEvent.change(fileInput(container)!, { target: { files: [png()] } });
+    });
+
+    expect(screen.getByRole("button", { name: "GIF" })).toBeDisabled();
+  });
+
+  it("refuses new files while a GIF is attached, with a message, instead of dropping the GIF later", async () => {
+    const { container } = render(<PostCreatorCore />);
+    await userEvent.click(screen.getByRole("button", { name: "GIF" }));
+    const gif = (await screen.findAllByRole("img")).find((image) => image.getAttribute("src")?.startsWith("http"));
+    await userEvent.click(gif!.closest("button")!);
+
+    await act(async () => {
+      fireEvent.change(fileInput(container)!, { target: { files: [png()] } });
+    });
+
+    expect(api.uploadMedia).not.toHaveBeenCalled();
+  });
+});
+
 describe("PostCreatorCore media - mock mode keeps blob previews", () => {
   it("accepts any image, shows blob previews and never calls the upload API", async () => {
     const onPostSubmitted = vi.fn().mockResolvedValue(undefined);

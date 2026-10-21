@@ -29,6 +29,21 @@ interface Options {
   onReject?: (rejection: MediaRejection) => void;
 }
 
+/** 429 = the BE still holds this user's upload slot (e.g. while it cleans up an aborted one): wait `Retry-After` and try again. */
+const BUSY_RETRY_MS = 5_000;
+const BUSY_RETRIES = 3;
+
+const sleep = (ms: number, signal: AbortSignal) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(done, ms);
+    function done() {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", done);
+      resolve();
+    }
+    signal.addEventListener("abort", done);
+  });
+
 /** First message of the BE validation answer (`errors.files`), else its detail. */
 const serverMessage = (error: { errors?: Record<string, string[]>; detail?: string }): string | undefined => error.errors?.files?.[0] ?? error.detail;
 
@@ -99,22 +114,34 @@ export function useMediaUploadQueue({ purpose, onReject }: Options) {
       patch(localId, { status: "uploading", error: undefined, size: toUpload.size });
 
       try {
-        const media = await uploadMedia(toUpload, purpose, controller.signal);
+        for (let attempt = 0; ; attempt++) {
+          try {
+            const media = await uploadMedia(toUpload, purpose, controller.signal);
 
-        if (cancelled.current.has(localId)) {
-          // Removed while uploading: the asset exists now, so clean it up
-          void discardMedia(media.id);
-          return;
+            if (cancelled.current.has(localId)) {
+              // Removed while uploading: the asset exists now, so clean it up
+              void discardMedia(media.id);
+              return;
+            }
+
+            setUnavailable(false);
+            patch(localId, { status: "ready", media });
+            return;
+          } catch (error) {
+            if (cancelled.current.has(localId)) return;
+
+            const failure = classify(error);
+            if (failure.code === "busy" && attempt < BUSY_RETRIES) {
+              await sleep(BUSY_RETRY_MS, controller.signal);
+              if (cancelled.current.has(localId)) return;
+              continue;
+            }
+
+            if (failure.code === "unavailable") setUnavailable(true);
+            patch(localId, { status: "error", error: failure });
+            return;
+          }
         }
-
-        setUnavailable(false);
-        patch(localId, { status: "ready", media });
-      } catch (error) {
-        if (cancelled.current.has(localId)) return;
-
-        const failure = classify(error);
-        if (failure.code === "unavailable") setUnavailable(true);
-        patch(localId, { status: "error", error: failure });
       } finally {
         aborts.current.delete(localId);
       }
@@ -212,7 +239,10 @@ export function useMediaUploadQueue({ purpose, onReject }: Options) {
 
   // The page is going away: tell the BE with keepalive, it outlives the unload
   useEffect(() => {
-    const onPageHide = () => {
+    const onPageHide = (event: PageTransitionEvent) => {
+      // Going to the back/forward cache: the page may come back with these items, so they must stay valid
+      if (event.persisted) return;
+
       for (const item of itemsRef.current) {
         if (item.media) void discardMedia(item.media.id, { keepalive: true });
       }
@@ -222,10 +252,14 @@ export function useMediaUploadQueue({ purpose, onReject }: Options) {
     return () => window.removeEventListener("pagehide", onPageHide);
   }, []);
 
-  // Unmount: previews only (explicit discard paths decide about the assets)
+  // Unmount (navigated away, composer closed): previews go, and assets nobody used go back to the BE; after a successful
+  // post `clear()` already emptied the list, so nothing attached is ever discarded here
   useEffect(
     () => () => {
-      for (const item of itemsRef.current) URL.revokeObjectURL(item.previewUrl);
+      for (const item of itemsRef.current) {
+        URL.revokeObjectURL(item.previewUrl);
+        if (item.media) void discardMedia(item.media.id, { keepalive: true });
+      }
     },
     [],
   );

@@ -169,17 +169,56 @@ describe("useMediaUploadQueue", () => {
       expect(result.current.mediaIds).toEqual([]);
     });
 
-    it("429 is a busy error that retry can fix", async () => {
+    it("429 waits for Retry-After (5 s) and retries by itself", async () => {
+      vi.useFakeTimers();
       api.uploadMedia.mockRejectedValueOnce(problem(429, "TooManyRequests"));
       const { result } = setup();
 
       await act(async () => result.current.addFiles([file("a.png")]));
-      await waitFor(() => expect(result.current.items[0].status).toBe("error"));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_100);
+      });
+
+      expect(api.uploadMedia).toHaveBeenCalledTimes(2);
+      expect(result.current.items[0].status).toBe("ready");
+      vi.useRealTimers();
+    });
+
+    it("gives up with a busy error after 3 automatic retries, and manual retry still works", async () => {
+      vi.useFakeTimers();
+      api.uploadMedia.mockRejectedValue(problem(429, "TooManyRequests"));
+      const { result } = setup();
+
+      await act(async () => result.current.addFiles([file("a.png")]));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_100 * 4);
+      });
+
+      expect(api.uploadMedia).toHaveBeenCalledTimes(4);
       expect(result.current.items[0].error).toEqual({ code: "busy" });
 
+      api.uploadMedia.mockImplementation(async (input: File) => uploaded(`id-${input.name}`));
       await act(async () => result.current.retry(result.current.items[0].localId));
-      await waitFor(() => expect(result.current.items[0].status).toBe("ready"));
-      expect(result.current.mediaIds).toEqual(["id-a.png"]);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      expect(result.current.items[0].status).toBe("ready");
+      vi.useRealTimers();
+    });
+
+    it("removing an item while it waits for the retry cancels it", async () => {
+      vi.useFakeTimers();
+      api.uploadMedia.mockRejectedValue(problem(429, "TooManyRequests"));
+      const { result } = setup();
+      await act(async () => result.current.addFiles([file("a.png")]));
+
+      act(() => result.current.remove(result.current.items[0].localId));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(20_000);
+      });
+
+      expect(api.uploadMedia).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
     });
 
     it("a 400 shows the server message and can be removed", async () => {
@@ -273,6 +312,39 @@ describe("useMediaUploadQueue", () => {
       });
 
       expect(api.discardMedia).toHaveBeenCalledWith("id-a.png", { keepalive: true });
+    });
+
+    it("unmounting with ready assets discards them (keepalive): they would hold quota for 24 h", async () => {
+      const { result, unmount } = setup();
+      await act(async () => result.current.addFiles([file("a.png")]));
+      await waitFor(() => expect(result.current.mediaIds).toHaveLength(1));
+
+      unmount();
+
+      expect(api.discardMedia).toHaveBeenCalledWith("id-a.png", { keepalive: true });
+    });
+
+    it("unmounting after clear() (successful post) discards nothing", async () => {
+      const { result, unmount } = setup();
+      await act(async () => result.current.addFiles([file("a.png")]));
+      await waitFor(() => expect(result.current.mediaIds).toHaveLength(1));
+      act(() => result.current.clear());
+
+      unmount();
+
+      expect(api.discardMedia).not.toHaveBeenCalled();
+    });
+
+    it("a pagehide that goes to the bfcache (persisted) keeps the assets", async () => {
+      const { result } = setup();
+      await act(async () => result.current.addFiles([file("a.png")]));
+      await waitFor(() => expect(result.current.mediaIds).toHaveLength(1));
+
+      act(() => {
+        window.dispatchEvent(new PageTransitionEvent("pagehide", { persisted: true }));
+      });
+
+      expect(api.discardMedia).not.toHaveBeenCalled();
     });
 
     it("revokes every preview on unmount", async () => {

@@ -526,6 +526,7 @@
     "fixUploads": "Hãy thử lại hoặc xóa các tệp lỗi trước.",
     "avatarChange": "Đổi ảnh",
     "avatarRemove": "Xóa ảnh",
-    "avatarUploading": "Đang tải ảnh lên..."
+    "avatarUploading": "Đang tải ảnh lên...",
+    "gifOrFiles": "Một bài viết chỉ đi kèm GIF hoặc tệp tải lên, không dùng cả hai."
   }
 }

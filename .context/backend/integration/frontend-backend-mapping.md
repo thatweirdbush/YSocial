@@ -10,7 +10,7 @@ roadmap: .context/roadmap.md
 - Execution semantics (pipeline, error mechanism, auth lifecycle, events): `../architecture/backend-guide.md` (cited as BG §n)
 - Aggregates, rules & state machines: `../architecture/domain-model.md` (cited as DM §n)
 - Decisions D1-D34 (table §7 owns outcome; rationale in plan §4) & task history: `../plans/2026-10-15-backend-recovery-&-fe-integration.md` (plan)
-- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 624 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
+- Acceptance = integration tests over real HTTP pipeline (`tests/YSocial.Api.IntegrationTests`, 625 tests, layers in `.context/backend/architecture/backend-unit-test.md`); Swagger != source of truth (copy regenerated at T2.6 & after T3: `swagger.json`, typed `ProducesResponseType`, `Swagger_*` contract tests)
 - Paths: BE = BE-repo-relative (`src/...`); FE = relative to `ysocial-clients/web-app/`
 - Status: BE contract frozen for CP0-CP4 (reached by tests): auth, profile, posts, threads, saved, graph, mute, feed, notifications; FE adopted every slice (CP = BE ready; FE slices F, C, G, N real by default, mock mode = `NEXT_PUBLIC_REAL_API_SLICES=none`); BE persists to PostgreSQL via EF Core (D25); NOT production-ready: process-local session lock & outbox poller, in-memory feed paging (BG §10); security hardening T4.3 done
 
@@ -130,7 +130,7 @@ Legend: **Auth** = effective requirement (`JWT` = `[Authorize]`; `handler` = no 
 | `GET /api/posts/user/{userId}` | anon | `?page&pageSize(10)` -> 200 `UserPostsPageDto` | root posts newest first, filtered BEFORE paging & counting; private non-permitted = `locked: true`; 404 blocked/deleted; `userId` = profile id | `fetchUserPosts(userId, "threads", page)` (tabs `replies`/`media` not supported) |
 | `POST /api/posts/{id}/share-link` | JWT | no body -> 200 `{postId, sharedUrl}` | URL `{App:FrontendUrl}/posts/{id}` (FE route); 404 unknown/deleted/hidden/blocked; legacy `?username=` ignored; 401 | client-built links in `PostCard` |
 
-- Not found: search, pin, hide-like-count, multi-image, media upload, drafts (`searchPosts`, `setPostPinned`, `setHideLikeCount` stay mock)
+- Not found: search, pin, hide-like-count, drafts (`searchPosts`, `setPostPinned`, `setHideLikeCount` stay mock)
 
 ### 2.4 Threads & comments (FE models replies as posts: `PostDto` for both kinds)
 

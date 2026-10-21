@@ -526,6 +526,7 @@
     "fixUploads": "Retry or remove the failed uploads first.",
     "avatarChange": "Change photo",
     "avatarRemove": "Remove photo",
-    "avatarUploading": "Uploading photo..."
+    "avatarUploading": "Uploading photo...",
+    "gifOrFiles": "A post takes either a GIF or uploaded files, not both."
   }
 }

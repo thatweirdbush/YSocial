@@ -12,8 +12,8 @@ updated: 2026-10-20
 | Project | Layer | Tests (all passing) |
 |---|---|---|
 | `tests/YSocial.Domain.UnitTests` | Domain: aggregates (incl. `MediaAsset` status machine, `PostMedia`), rules, services (substituted repos), hashtag parser parity | 185 |
-| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes; media: `OwnsUrl` table, magic-byte sniffer, limit table (validator), write-ahead upload handler with fault injection (compensation, quota race, gates, cancellation), discard races, sweep processor (windows, claim races, retry, crash scenarios), storage selection, health check | 255 (+7 PostgreSQL opt-in, skipped without `YSOCIAL_TEST_POSTGRES`: 3 discovery, 4 media) |
-| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 624 (+1 real Cloudinary smoke, skipped without `YSOCIAL_SMOKE_CLOUDINARY_DIR`) |
+| `tests/YSocial.Application.UnitTests` | Application & pipeline: access policy, projector, dispatcher/behaviors, session lock, log redaction; persistence over SQLite: repos, model snapshot guard, seeders, connection strings, notification outbox; session conflict outcomes; media: `OwnsUrl` table, magic-byte sniffer, limit table (validator), write-ahead upload handler with fault injection (compensation, quota race, gates, cancellation), discard races, sweep processor (windows, claim races, retry, crash scenarios), storage selection, health check | 276 (+7 PostgreSQL opt-in, skipped without `YSOCIAL_TEST_POSTGRES`: 3 discovery, 4 media) |
+| `tests/YSocial.Api.IntegrationTests` | real HTTP pipeline over `WebApplicationFactory<Program>` & SQLite (see 1.3) | 625 (+1 real Cloudinary smoke, skipped without `YSOCIAL_SMOKE_CLOUDINARY_DIR`) |
 | `tests/YSocial.TestSupport` (no tests) | shared harness: `SqliteTestDatabase`, `Store` facade, `FakeMediaStorage` (fault injection), `MediaSamples` (header-correct files), `ManualTimeProvider` | - |
 
 - **All:** net8.0
@@ -271,6 +271,6 @@ Mock deps (`IUserContext`, repos, Domain Services) via NSubstitute. Assert retur
 
 - [x] **Build:** `dotnet build YSocial.sln` (0 errors, 0 warnings)
 - [x] **Domain:** `dotnet test tests/YSocial.Domain.UnitTests` (185 pass)
-- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (255 pass, 7 PostgreSQL opt-in skipped)
-- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (624 pass, 1 smoke skipped, serialized, identical seed per test; `ApiFactory` modes: `Fake` storage, `Unavailable` (keys forced empty), `Real` (opt-in smoke only))
+- [x] **Application:** `dotnet test tests/YSocial.Application.UnitTests` (276 pass, 7 PostgreSQL opt-in skipped)
+- [x] **API integration:** `dotnet test tests/YSocial.Api.IntegrationTests` (625 pass, 1 smoke skipped, serialized, identical seed per test; `ApiFactory` modes: `Fake` storage, `Unavailable` (keys forced empty), `Real` (opt-in smoke only))
 - [x] **All:** `dotnet test YSocial.sln`

@@ -563,8 +563,13 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
     const filesArray = Array.from(e.target.files);
 
     if (uploadsReal) {
-      queue.addFiles(filesArray);
       e.target.value = "";
+      // The BE takes uploaded media OR one external image: the GIF would be dropped silently otherwise
+      if (images.length > 0) {
+        toast.info(t("media.gifOrFiles"));
+        return;
+      }
+      queue.addFiles(filesArray);
       return;
     }
 
@@ -582,7 +587,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
         scrollContainerRef.current.scrollLeft = scrollContainerRef.current.scrollWidth;
       }
     }, 100);
-  }, [uploadsReal, queue]);
+  }, [uploadsReal, queue, images.length, t]);
 
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => {
@@ -1177,6 +1182,7 @@ export const PostCreatorCore = forwardRef<PostCreatorCoreRef, PostCreatorCorePro
                       : "border-zinc-205 dark:border-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-900 text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100"
                       }`}
                     title={t("creator.addMockGif")}
+                    disabled={uploadsReal && queue.items.length > 0}
                   >
                     GIF
                   </Button>
