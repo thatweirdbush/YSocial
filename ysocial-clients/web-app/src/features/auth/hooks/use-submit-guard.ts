@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo, useRef } from "react";
 
 /** Ignores re-submits while a request is pending, so submit buttons can stay enabled. */
