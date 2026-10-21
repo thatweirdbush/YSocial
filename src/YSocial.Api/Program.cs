@@ -8,6 +8,7 @@ using YSocial.Api.Infrastructure.Errors;
 using YSocial.Api.Infrastructure.Serialization;
 using YSocial.Api.Infrastructure.Swagger;
 using YSocial.Application;
+using YSocial.Application.Abstractions.Media;
 using YSocial.Application.Abstractions.Identity;
 using YSocial.Infrastructure;
 using YSocial.Infrastructure.Identity;
@@ -125,6 +126,15 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 builder.Services.AddHttpContextAccessor();
+
+// Media knobs (Media:*): the key segment defaults to the host environment so environments never share remote paths
+var mediaOptions = builder.Configuration.GetSection(MediaOptions.Section).Get<MediaOptions>() ?? new MediaOptions();
+if (string.IsNullOrWhiteSpace(builder.Configuration[$"{MediaOptions.Section}:{nameof(MediaOptions.Environment)}"]))
+{
+    mediaOptions.Environment = builder.Environment.EnvironmentName.ToLowerInvariant();
+}
+
+builder.Services.AddSingleton(mediaOptions);
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);

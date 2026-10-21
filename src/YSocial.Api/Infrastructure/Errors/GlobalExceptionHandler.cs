@@ -2,6 +2,7 @@ using FluentValidation;
 using Microservice.BuildingBlocks.Domain.BusinessRules;
 using Microservice.BuildingBlocks.Domain.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
+using YSocial.Application.Abstractions.Media;
 using YSocial.Application.Abstractions.Persistence;
 using YSocial.Domain.Common.Errors;
 using YSocial.Domain.Common.Rules;
@@ -18,6 +19,14 @@ public sealed class GlobalExceptionHandler(
 {
     public async ValueTask<bool> TryHandleAsync(HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
     {
+        // The client went away mid-request (e.g. closed the tab during an upload): nobody reads the answer
+        if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogInformation("Request aborted by the client on {Path}", httpContext.Request.Path);
+            httpContext.Response.StatusCode = ClientClosedRequest;
+            return true;
+        }
+
         var problem = Map(httpContext, exception);
 
         if (problem.Status == StatusCodes.Status500InternalServerError)
@@ -38,6 +47,9 @@ public sealed class GlobalExceptionHandler(
             Exception = exception
         });
     }
+
+    private const int ClientClosedRequest = 499;
+    private const string RetryAfterSeconds = "5";
 
     private ProblemDetails Map(HttpContext context, Exception exception)
     {
@@ -60,6 +72,21 @@ public sealed class GlobalExceptionHandler(
             case ConcurrencyConflictException:
                 return ApiProblems.Create(context, StatusCodes.Status409Conflict, ErrorCodes.Conflict,
                     "The resource was changed by another request. Retry.");
+
+            case MediaStorageUnavailableException:
+                return ApiProblems.Create(context, StatusCodes.Status503ServiceUnavailable, ErrorCodes.MediaStorageUnavailable,
+                    "Media storage is unavailable. Posting text still works.");
+
+            case MediaRejectedException rejected:
+                return ApiProblems.Create(context, StatusCodes.Status400BadRequest, ErrorCodes.ValidationFailed, rejected.Message);
+
+            case TooManyUploadsException tooMany:
+                context.Response.Headers.RetryAfter = RetryAfterSeconds;
+                return ApiProblems.Create(context, StatusCodes.Status429TooManyRequests, ErrorCodes.TooManyRequests, tooMany.Message);
+
+            // Servers that enforce [RequestSizeLimit] (Kestrel) cut a chunked body with this
+            case BadHttpRequestException { StatusCode: StatusCodes.Status413PayloadTooLarge }:
+                return ApiProblems.Create(context, StatusCodes.Status413PayloadTooLarge, ErrorCodes.PayloadTooLarge, "The request body is too large.");
 
             default:
                 var detail = environment.IsDevelopment() ? exception.Message : "An unexpected error occurred.";

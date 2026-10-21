@@ -15,6 +15,7 @@ public abstract class ApiTestBase
         Store.Use(fixture.Database);
         Store.Reset();
         Factory.Logs.Clear();
+        Factory.Storage.Reset();
         Client = Factory.CreateApiClient();
     }
 

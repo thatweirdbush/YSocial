@@ -37,13 +37,14 @@ internal sealed class MediaAssetRepository(YSocialDbContext db, IUnitOfWork unit
                                               && a.Status == MediaAssetStatus.Attached
                                               && a.Url == url, cancellationToken);
 
-    public async Task BumpQuotaTokenAsync(UserId ownerId, CancellationToken cancellationToken = default)
+    public async Task<bool> BumpQuotaTokenAsync(UserId ownerId, CancellationToken cancellationToken = default)
     {
         var user = await Db.Users.FindAsync([ownerId], cancellationToken);
-        if (user is null) return;
+        if (user is null) return false;
 
         var token = Db.Entry(user).Property<int>(YSocialDbContext.MediaQuotaVersion);
         token.CurrentValue += 1;
         token.IsModified = true;
+        return true;
     }
 }

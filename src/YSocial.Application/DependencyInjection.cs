@@ -23,6 +23,10 @@ public static class DependencyInjection
 
         services.TryAddSingleton(TimeProvider.System);
 
+        // Media: options default here, hosts replace them from configuration; the gate is process-wide
+        services.TryAddSingleton(new Abstractions.Media.MediaOptions());
+        services.AddSingleton<Features.Media.IMediaUploadGate, Features.Media.MediaUploadGate>();
+
         // Fluent Validation
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly, includeInternalTypes: true);
 

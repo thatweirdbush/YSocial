@@ -2,8 +2,10 @@ using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using YSocial.Application.Abstractions.Media;
 using YSocial.Application.CQRS.Results;
 using YSocial.Infrastructure.Notifications.Outbox;
 using YSocial.TestSupport;
@@ -16,6 +18,11 @@ public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Pro
     /// Every log message of the host (redaction tests).
     /// </summary>
     public CapturingLoggerProvider Logs { get; } = new();
+
+    /// <summary>
+    /// The media storage of the host (never the real Cloudinary): files, faults and calls are inspectable.
+    /// </summary>
+    public FakeMediaStorage Storage { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -32,6 +39,9 @@ public class ApiFactory(SqliteTestDatabase database) : WebApplicationFactory<Pro
         {
             // Never the real (Postgres) database
             database.ReplaceDatabaseOf(services);
+
+            services.RemoveAll<IMediaStorage>();
+            services.AddSingleton<IMediaStorage>(Storage);
 
             // Background polling job mutates shared state: outbox tests process messages directly
             var job = services.Where(d => d.ImplementationType == typeof(ProcessNotificationOutboxJob)

@@ -27,9 +27,9 @@ public interface IMediaAssetRepository : IRepository<MediaAsset, MediaAssetId>
     Task<MediaAsset?> GetAttachedAvatarAsync(UserId ownerId, string url, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bumps the owner's quota token so a concurrent reserve fails on save (<c>ConcurrencyConflictException</c>).
+    /// Bumps the owner's quota token so a concurrent reserve fails on save (<c>ConcurrencyConflictException</c>); false when the user is gone.
     /// </summary>
-    Task BumpQuotaTokenAsync(UserId ownerId, CancellationToken cancellationToken = default);
+    Task<bool> BumpQuotaTokenAsync(UserId ownerId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
