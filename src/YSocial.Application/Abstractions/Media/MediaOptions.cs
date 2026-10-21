@@ -19,6 +19,11 @@ public sealed class MediaOptions
 
     public int PendingTtlHours { get; set; } = 24;
 
+    /// <summary>
+    /// Upper bound of the whole upload phase of one request; MUST stay well under <see cref="UploadingLeaseMinutes"/>.
+    /// </summary>
+    public TimeSpan UploadBudget { get; set; } = TimeSpan.FromMinutes(20);
+
     public int ReleasedGraceMinutes { get; set; } = 60;
 
     /// <summary>

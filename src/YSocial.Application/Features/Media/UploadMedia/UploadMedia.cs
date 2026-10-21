@@ -119,7 +119,6 @@ internal sealed class UploadMediaCommandHandler(
     IUnitOfWork unitOfWork,
     IMediaStorage storage,
     IUserContext userContext,
-    IMediaUploadGate gate,
     MediaOptions options,
     TimeProvider time,
     ILogger<UploadMediaCommandHandler> logger)
@@ -143,11 +142,15 @@ internal sealed class UploadMediaCommandHandler(
         var ownerId = new UserId(userContext.UserId);
         MediaPurposes.TryParse(command.Purpose, out var purpose);
 
-        using var lease = gate.TryEnter(ownerId) ?? throw new TooManyUploadsException();
-
         var sniffed = command.Files.Select(Sniff).ToList();
 
-        // Tx 1: the rows exist BEFORE any remote file (write-ahead), under the quota token
+        // Tx 1: the rows exist BEFORE any remote file (write-ahead), under the quota token. The token is read BEFORE the count:
+        // a reserve that committed in between then makes OUR save conflict instead of passing with a stale count
+        if (!await assets.BumpQuotaTokenAsync(ownerId, cancellationToken))
+        {
+            return Result<IReadOnlyList<MediaDto>>.Unauthorized();
+        }
+
         if (await assets.CountReservedAsync(ownerId, cancellationToken) + command.Files.Count > MediaLimits.MaxReservedPerUser)
         {
             return Result<IReadOnlyList<MediaDto>>.Validation($"At most {MediaLimits.MaxReservedPerUser} uploads can wait to be used. Use or remove some first.");
@@ -162,13 +165,13 @@ internal sealed class UploadMediaCommandHandler(
             await assets.AddAsync(row, cancellationToken);
         }
 
-        if (!await assets.BumpQuotaTokenAsync(ownerId, cancellationToken))
-        {
-            return Result<IReadOnlyList<MediaDto>>.Unauthorized();
-        }
-
         // Committed here, not by the pipeline: this state must outlive a failure of the upload (like the OTP attempt counter)
         await unitOfWork.CommitAsync(cancellationToken);
+
+        // The whole upload phase ends well before the sweep lease: a live upload is never mistaken for an abandoned one
+        using var budget = new CancellationTokenSource(options.UploadBudget);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, budget.Token);
+        var uploadToken = linked.Token;
 
         try
         {
@@ -179,7 +182,7 @@ internal sealed class UploadMediaCommandHandler(
                 await using var content = command.Files[i].OpenRead();
                 var result = await storage.UploadAsync(
                     new MediaUpload(rows[i].Id, rows[i].PublicId, rows[i].Kind, purpose, sniffed[i].ContentType, content),
-                    cancellationToken);
+                    uploadToken);
 
                 EnsureWithinVideoLimits(rows[i], result);
                 stored.Add(result);
@@ -198,6 +201,11 @@ internal sealed class UploadMediaCommandHandler(
         catch (Exception exception)
         {
             await CompensateAsync(rows);
+
+            if (exception is OperationCanceledException && budget.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                throw new MediaStorageUnavailableException("The upload took too long and was cancelled.", exception);
+            }
 
             if (exception is MediaRejectedException rejected)
             {
@@ -247,7 +255,16 @@ internal sealed class UploadMediaCommandHandler(
             }
 
             await unitOfWork.CommitAsync(budget.Token);
+        }
+        catch (Exception exception)
+        {
+            // Even when the claim could not be saved the remote delete is still tried: the client never received these ids,
+            // so nobody can use the files, and a leftover file is exactly what must not exist
+            logger.LogWarning("Upload compensation could not claim its rows ({ExceptionType})", exception.GetType().Name);
+        }
 
+        try
+        {
             await storage.DeleteAsync(rows.Select(r => new StoredMediaRef(r.PublicId, r.Kind)).ToList(), budget.Token);
 
             foreach (var row in rows)

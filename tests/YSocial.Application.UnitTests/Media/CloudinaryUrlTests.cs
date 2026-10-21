@@ -72,4 +72,34 @@ public class CloudinaryUrlTests
     public void PosterOf_UrlWithoutVersion_StillInsertsAfterUpload()
         => CloudinaryUrl.PosterOf("https://res.cloudinary.com/demo/video/upload/abc.mov")
             .Should().Be("https://res.cloudinary.com/demo/video/upload/so_0/abc.jpg");
+
+    // Deny guards (avatarUrl / imageUrl) must fail CLOSED: anything a browser would resolve to OUR cloud is ours
+    [Theory]
+    [InlineData("https://res.cloudinary.com/demo/image/upload/a.jpg")]
+    [InlineData("http://res.cloudinary.com/demo/image/upload/ysocial/production/posts/x")]
+    [InlineData("https://res.cloudinary.com/demo/image/upload/x/../ysocial/posts/x.jpg")]
+    [InlineData("https://res.cloudinary.com/demo/image/upload/%2e%2e/ysocial/x.jpg")]
+    [InlineData("https://res.cloudinary.com//demo/image/upload/a.jpg")]
+    [InlineData("https://res.cloudinary.com./demo/image/upload/a.jpg")]
+    [InlineData("https://RES.CLOUDINARY.COM:443/DEMO/image/upload/a.jpg")]
+    [InlineData("https://res.cloudinary.com:8443/demo/image/upload/a.jpg")]
+    [InlineData("https://res.cloudinary.com/demo/raw/upload/a.jpg")]
+    [InlineData("https://res.cloudinary.com/demo")]
+    public void Targets_IsLenient_ForTheDenyGuards(string url)
+        => CloudinaryUrl.Targets(url, Cloud).Should().BeTrue();
+
+    [Theory]
+    [InlineData("https://res.cloudinary.com/other/image/upload/a.jpg")]
+    [InlineData("https://res.cloudinary.com.evil.com/demo/image/upload/a.jpg")]
+    [InlineData("https://res.cloudinary.com@evil.com/demo/image/upload/a.jpg")]
+    [InlineData("https://media.giphy.com/media/x/giphy.gif")]
+    [InlineData("ftp://res.cloudinary.com/demo/image/upload/a.jpg")]
+    [InlineData("not a url")]
+    [InlineData("")]
+    public void Targets_LeavesForeignUrlsAlone(string url)
+        => CloudinaryUrl.Targets(url, Cloud).Should().BeFalse();
+
+    [Fact]
+    public void Targets_WithoutCloudName_IsFalse()
+        => CloudinaryUrl.Targets("https://res.cloudinary.com/demo/image/upload/a.jpg", "").Should().BeFalse();
 }

@@ -33,10 +33,6 @@ public sealed class UploadMediaHandlerTests : IDisposable
     private readonly SqliteTestDatabase _database = new();
     private readonly FakeMediaStorage _storage = new();
     private readonly MediaOptions _options = new() { Environment = "test" };
-    private readonly MediaUploadGate _gate;
-
-    public UploadMediaHandlerTests() => _gate = new MediaUploadGate(_options);
-
     public void Dispose() => _database.Dispose();
 
     #region Harness
@@ -53,17 +49,18 @@ public sealed class UploadMediaHandlerTests : IDisposable
         }
     }
 
-    private UploadMediaCommandHandler NewHandler(UserId? user = null, MediaUploadGate? gate = null, bool authenticated = true, Barrier? barrier = null, IMediaStorage? storage = null)
+    private UploadMediaCommandHandler NewHandler(UserId? user = null, bool authenticated = true, Func<int, IUnitOfWork, IUnitOfWork>? wrapUnitOfWork = null, Barrier? barrier = null, IMediaStorage? storage = null)
     {
         var db = _database.NewContext();
         var realUnitOfWork = new UnitOfWork(db, Substitute.For<IDomainEventsDispatcher>());
         IUnitOfWork unitOfWork = barrier is null ? realUnitOfWork : new SyncedUnitOfWork(realUnitOfWork, barrier);
+        if (wrapUnitOfWork is not null) unitOfWork = wrapUnitOfWork(0, unitOfWork);
         var userContext = Substitute.For<IUserContext>();
         userContext.IsAuthenticated.Returns(authenticated);
         userContext.UserId.Returns((user ?? Owner).Value);
 
         return new UploadMediaCommandHandler(
-            new MediaAssetRepository(db, realUnitOfWork), unitOfWork, storage ?? _storage, userContext, gate ?? _gate, _options, TimeProvider.System, NullLogger<UploadMediaCommandHandler>.Instance);
+            new MediaAssetRepository(db, realUnitOfWork), unitOfWork, storage ?? _storage, userContext, _options, TimeProvider.System, NullLogger<UploadMediaCommandHandler>.Instance);
     }
 
     private static UploadFile Png(string name = "a.png") => new(name, 1000, () => new MemoryStream(MediaSamples.Png(800, 600, padding: 900)));
@@ -298,8 +295,8 @@ public sealed class UploadMediaHandlerTests : IDisposable
 
         // Two instances (own gates): both read 25 and both would fit 4 more, the quota token lets one win
         var barrier = new Barrier(2);
-        var first = NewHandler(gate: new MediaUploadGate(_options), barrier: barrier);
-        var second = NewHandler(gate: new MediaUploadGate(_options), barrier: barrier);
+        var first = NewHandler(barrier: barrier);
+        var second = NewHandler(barrier: barrier);
 
         var outcomes = await Task.WhenAll(Race(first), Race(second));
 
@@ -323,62 +320,57 @@ public sealed class UploadMediaHandlerTests : IDisposable
     }
     #endregion
 
-    #region Gates
-    [Fact]
-    public async Task SecondConcurrentUploadOfTheSameUser_IsTooMany_ThenAllowedAgain()
+    #region Review fixes
+    // Fails the Nth commit of the request (1 = reserve, 2 = the compensation claim ...)
+    private sealed class FailingUnitOfWork(IUnitOfWork inner, int failOn) : IUnitOfWork
     {
-        var hold = new TaskCompletionSource();
-        var started = new TaskCompletionSource();
-        _storage.BeforeUpload = async (_, _) =>
-        {
-            started.TrySetResult();
-            await hold.Task;
-        };
+        private int _commits;
 
-        var first = NewHandler().Handle(Command("post", Png()), default);
-        await started.Task;
-
-        var second = () => NewHandler().Handle(Command("post", Png()), default);
-        await second.Should().ThrowAsync<TooManyUploadsException>();
-
-        hold.SetResult();
-        (await first).IsSuccess.Should().BeTrue();
-
-        _storage.BeforeUpload = null;
-        (await NewHandler().Handle(Command("post", Png()), default)).IsSuccess.Should().BeTrue();
+        public Task<int> CommitAsync(CancellationToken cancellationToken = default)
+            => ++_commits == failOn ? throw new ConcurrencyConflictException("injected") : inner.CommitAsync(cancellationToken);
     }
 
     [Fact]
-    public async Task InstanceGate_CapsConcurrentUploadsAcrossUsers()
+    public async Task QuotaToken_IsLoadedBeforeTheCount_SoAConcurrentReserveCannotSlipBetweenThem()
     {
-        var narrow = new MediaUploadGate(new MediaOptions { MaxConcurrentUploads = 1 });
-        var hold = new TaskCompletionSource();
-        var started = new TaskCompletionSource();
-        _storage.BeforeUpload = async (_, _) =>
+        var repository = Substitute.For<IMediaAssetRepository>();
+        repository.BumpQuotaTokenAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>()).Returns(true);
+        repository.CountReservedAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>()).Returns(0);
+        var userContext = Substitute.For<IUserContext>();
+        userContext.IsAuthenticated.Returns(true);
+        userContext.UserId.Returns(Owner.Value);
+        var handler = new UploadMediaCommandHandler(repository, Substitute.For<IUnitOfWork>(), _storage, userContext, _options, TimeProvider.System, NullLogger<UploadMediaCommandHandler>.Instance);
+
+        await handler.Handle(Command("post", Png()), default);
+
+        Received.InOrder(() =>
         {
-            started.TrySetResult();
-            await hold.Task;
-        };
-
-        var first = NewHandler(gate: narrow).Handle(Command("post", Png()), default);
-        await started.Task;
-
-        var other = () => NewHandler(SeedIds.DemoUser, narrow).Handle(Command("post", Png()), default);
-        await other.Should().ThrowAsync<TooManyUploadsException>();
-
-        hold.SetResult();
-        await first;
+            repository.BumpQuotaTokenAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>());
+            repository.CountReservedAsync(Arg.Any<UserId>(), Arg.Any<CancellationToken>());
+        });
     }
 
     [Fact]
-    public async Task Lease_IsReleasedWhenTheUploadFails()
+    public async Task Compensation_StillDeletesTheRemoteFiles_WhenTheClaimCannotBeSaved()
     {
-        _storage.BeforeUpload = (_, _) => throw new MediaStorageUnavailableException("down");
-        await NewHandler().Invoking(h => h.Handle(Command("post", Png()), default)).Should().ThrowAsync<MediaStorageUnavailableException>();
+        _storage.BeforeUpload = (_, attempt) => attempt == 2 ? throw new MediaStorageUnavailableException("second failed") : Task.CompletedTask;
 
-        _storage.BeforeUpload = null;
+        var act = () => NewHandler(wrapUnitOfWork: (_, inner) => new FailingUnitOfWork(inner, failOn: 2)).Handle(Command("post", Png(), Png()), default);
 
-        (await NewHandler().Handle(Command("post", Png()), default)).IsSuccess.Should().BeTrue();
+        await act.Should().ThrowAsync<MediaStorageUnavailableException>();
+        _storage.StoredIds.Should().BeEmpty("a file nobody can use must not outlive the request even when the claim was lost");
+    }
+
+    [Fact]
+    public async Task UploadPhase_IsBounded_ByTheBudget_AndEndsClean()
+    {
+        _options.UploadBudget = TimeSpan.FromMilliseconds(150);
+        _storage.BeforeUpload = (_, _) => Task.Delay(700);
+
+        var act = () => NewHandler().Handle(Command("post", Png()), default);
+
+        await act.Should().ThrowAsync<MediaStorageUnavailableException>().WithMessage("*too long*");
+        AssertNothingLeft();
     }
     #endregion
 

@@ -299,6 +299,32 @@ public class UploadMediaTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task Upload_GateAnswers429_BeforeTheBodyIsBound_SoNoTempFileIsWrittenForARejectedRequest()
+    {
+        var hold = new TaskCompletionSource();
+        var started = new TaskCompletionSource();
+        Factory.Storage.BeforeUpload = async (_, _) =>
+        {
+            started.TrySetResult();
+            await hold.Task;
+        };
+
+        var client = await LoginAsync(Seed.TestLogin);
+        using var firstForm = Form("post", Png());
+        var first = client.PostAsync("/api/media", firstForm);
+        await started.Task;
+
+        // An invalid file would be 400 if the body were bound & validated first
+        using var garbage = Form("post", ("junk.png", MediaSamples.Exe(), "image/png"));
+        var second = await client.PostAsync("/api/media", garbage);
+
+        await AssertProblemAsync(second, HttpStatusCode.TooManyRequests, "TooManyRequests");
+
+        hold.SetResult();
+        await first;
+    }
+
+    [Fact]
     public async Task Upload_QuotaOf30Pending_Is400()
     {
         for (var i = 0; i < 30; i++)

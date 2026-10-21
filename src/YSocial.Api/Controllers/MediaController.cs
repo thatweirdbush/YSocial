@@ -17,6 +17,7 @@ public class MediaController : ApiController
     [Authorize]
     [Consumes("multipart/form-data")]
     [RequestBodyLimitFilter(MediaLimits.MaxBodyBytes)]
+    [TypeFilter(typeof(UploadGateFilter), Order = UploadGateFilter.Order)]
     [RequestSizeLimit(MediaLimits.MaxBodyBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = MediaLimits.MaxBodyBytes)]
     [ProducesResponseType(typeof(MediaDto[]), StatusCodes.Status201Created)]

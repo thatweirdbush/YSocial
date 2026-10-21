@@ -33,6 +33,24 @@ public static class CloudinaryUrl
     }
 
     /// <summary>
+    /// LENIENT twin of <see cref="Owns"/> for the DENY guards (avatarUrl / imageUrl must not point at our assets): fails CLOSED.
+    /// Any http(s) url whose host is <c>res.cloudinary.com</c> (case-insensitive, trailing dot ignored, any port) and whose
+    /// path - after the normalization a browser applies (dot segments, encoded dots, repeated slashes) - starts with our cloud name
+    /// (case-insensitive) counts as ours. User-info urls resolve to the REAL host, so they are judged by it.
+    /// </summary>
+    public static bool Targets(string? url, string? cloudName)
+    {
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(cloudName)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) return false;
+        if (!string.Equals(uri.Host.TrimEnd('.'), Host, StringComparison.OrdinalIgnoreCase)) return false;
+
+        var first = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+
+        return string.Equals(first, cloudName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
     /// Frame 0 of a video as <c>.jpg</c>: <c>.../upload/so_0/{rest}.jpg</c>.
     /// </summary>
     public static string PosterOf(string videoUrl)

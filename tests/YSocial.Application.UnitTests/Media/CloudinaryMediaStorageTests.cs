@@ -34,6 +34,7 @@ public class CloudinaryMediaStorageTests
 
         storage.OwnsUrl("https://res.cloudinary.com/demo/image/upload/a.jpg").Should().BeTrue();
         storage.OwnsUrl("https://res.cloudinary.com/other/image/upload/a.jpg").Should().BeFalse();
+        storage.OwnsUrl("http://res.cloudinary.com/demo/image/upload/a.jpg").Should().BeTrue("the deny guard is lenient: http still points at our cloud");
     }
 
     [Theory]

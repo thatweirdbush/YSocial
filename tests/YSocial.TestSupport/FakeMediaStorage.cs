@@ -87,7 +87,7 @@ public sealed class FakeMediaStorage : IMediaStorage
         return Task.CompletedTask;
     }
 
-    public bool OwnsUrl(string? url) => CloudinaryUrl.Owns(url, CloudName);
+    public bool OwnsUrl(string? url) => CloudinaryUrl.Targets(url, CloudName);
 
     public bool IsAvailable => true;
 

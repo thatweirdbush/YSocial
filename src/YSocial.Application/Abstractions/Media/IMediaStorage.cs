@@ -19,7 +19,7 @@ public interface IMediaStorage
     Task DeleteAsync(IReadOnlyCollection<StoredMediaRef> refs, CancellationToken cancellationToken);
 
     /// <summary>
-    /// True only for urls of OUR storage (strict parse, never a prefix check).
+    /// True for any url that points at OUR storage (lenient, fails CLOSED: used to REJECT such urls in avatarUrl / imageUrl).
     /// </summary>
     bool OwnsUrl(string? url);
 
