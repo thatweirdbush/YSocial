@@ -30,8 +30,8 @@ graph TD
 ## 1.3 Endpoints & Contracts
 > Single owner: `.context/backend/integration/frontend-backend-mapping.md` (endpoint matrix MAP §2.2, §2.6, `UserProfileDto` & list DTOs MAP §3, error codes MAP §1.1). Not repeated here
 
-- **Profile read:** by id & by username (case-insensitive), anonymous allowed; blocked either way / deleted / unknown = 404 (anonymous SSR read cannot know a block: only unknown/deleted become `notFound()` there, blocked is resolved by viewer's own client read); private profile = 200 with same field set (counts visible, content `locked`)
-- **Follow state:** `followStatus` `none | pending | accepted` (lowercase), `isFollowing` derived; `{followStatus}` in the follow response
+- **Profile read:** by id & by username (case-insensitive), anonymous allowed; blocked either way / deleted / unknown = 404 (anonymous SSR read cannot know block: only unknown/deleted become `notFound()` there, blocked is resolved by viewer's own client read); private profile = 200 with same field set (counts visible, content `locked`)
+- **Follow state:** `followStatus` `none | pending | accepted` (lowercase), `isFollowing` derived; `{followStatus}` in follow response
 - **Counts:** computed on read from accepted edges whose other party is discoverable to viewer (equal to follow-list totals)
 - **Edit:** `PUT /api/users/profiles/me` returns updated `UserProfileDto` (no username/email/privacy); privacy has its own endpoint
 
@@ -57,12 +57,12 @@ All commands implicitly extract `ObserverId` via `IUserContext`.
 - **Soft-delete restoration:** unfollow sets `IsDeleted = true` to preserve metadata (`IsCloseFriend`). Re-follow restores soft-deleted entity, NEVER creates duplicate record
 - **Idempotency:** follow on already-followed account fails silently (returns current status, no mutation)
 - **Query batching:** bidirectional block validation uses `GetBlocksBetweenAsync` (A->B & B->A in 1 query); read paths use set-based members (`GetBlockedEitherWayAsync`, `GetRelationsAsync`, ...), never per-item lookups (conventions/backend.md)
-- **Blocks are total (D14):** blocked either way = 404 for every discovery, content & interaction path; own block list is the only exception
+- **Blocks are total (D14):** blocked either way = 404 for every discovery, content & interaction path; own block list is only exception
 
-### Event-Driven Pipeline (live: events dispatch in the same request, BG §7)
+### Event-Driven Pipeline (live: events dispatch in same request, BG §7)
 - `UpdateFollowCountsHandler`: listens `UserFollowAcceptedEvent` / `UserUnfollowedEvent` -> mutates stored `FollowersCount` & `FollowingCount` on `User` aggregates (`Count >= 0`); stored counters are NOT exposed (API counts are computed on read)
 - `RemoveFollowsWhenUserBlockedEventHandler`: listens `UserBlockedEvent` -> purges active bidirectional follow relations between both profiles
-- `CreateNotificationWhenFollow*`: follow requested/accepted notifications (accepted request notifies the requester)
+- `CreateNotificationWhenFollow*`: follow requested/accepted notifications (accepted request notifies requester)
 
 ## 2.2 Visual Spec (Luxury Minimalist Zinc)
 - Name: `text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50`

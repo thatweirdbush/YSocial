@@ -13,8 +13,8 @@ Spec: `docs/specs/2026-10-21-discovery-design.md`. Order: BE (domain -> infra ->
 - [x] **B8 As-built:** `.context` docs (BG, DM, MAP, features/discovery.md, roadmap, INDEX), deferred triage
 
 ## Mismatch log
-- Spec said hashtag rows auto-included only in discovery queries: modeled as a regular child entity (`HasMany`), because EF always auto-includes owned types
+- Spec said hashtag rows auto-included only in discovery queries: modeled as regular child entity (`HasMany`), because EF always auto-includes owned types
 - `ModelTests` FK guard widened to allow `Post -> PostHashtag` (aggregate -> own children)
-- Swagger copy exported through an opt-in test (`YSOCIAL_EXPORT_SWAGGER`) instead of `api:fetch`, so no real database was needed
+- Swagger copy exported through opt-in test (`YSOCIAL_EXPORT_SWAGGER`) instead of `api:fetch`, so no real DB was needed
 - Korean syllables fold to decomposed jamo in both JS & C# (fixture pins it)
 - PostgreSQL opt-in suite written, not run (no local PostgreSQL/Docker); manual real-DB smoke recorded in `features/discovery.md`

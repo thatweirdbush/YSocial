@@ -84,16 +84,16 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 | Lifetime | Registrations |
 |---|---|
-| Singleton | `JwtSettings` (instance from `Program.cs`), `IJwtProvider`, `IPasswordHasher`, `IAccountSessionLock` (`AccountSessionLock`), `IUserIdProvider`, `TimeProvider` (`TimeProvider.System`, replaced by tests that need a clock) |
+| Singleton | `JwtSettings` (instance from `Program.cs`), `IJwtProvider`, `IPasswordHasher`, `IAccountSessionLock` (`AccountSessionLock`), `IUserIdProvider`, `TimeProvider` (`TimeProvider.System`, replaced by tests that need clock) |
 | Scoped | `YSocialDbContext` (also as `IDataStorage` / `IDomainEventsProvider` / `IPendingDomainEvents`), all 9 repos (`PostRepository`...), `IUserContext`, `IEmailSender`/`ISmsSender` (mocks), `INotificationOutboxService`, `IDomainEventsDispatcher`, `IUnitOfWork`, `IViewerAccessPolicy`, `UserProfileProjector`, `PostProjector`, `InteractionGuard`, `AccessibleFollowRequests`, `NotificationPublisher`, `AccessibleNotifications`, `NotificationOutboxProcessor`, validators (FluentValidation default) |
 | Transient | domain services `LikeToggleService`, `CommentPostingService`, `SavedItemToggleService`, `UserProfileService`, `UserRelationManager`; MediatR handlers (default) |
 | Hosted | `ProcessNotificationOutboxJob` (runs 1 `NotificationOutboxProcessor` batch every 1s; removed by test host) |
 
 - **Assembly scanning:** `AddValidatorsFromAssembly(Application, includeInternalTypes: true)`; MediatR `RegisterServicesFromAssembly(Application)`; handlers, projectors & `InteractionGuard` are `internal sealed`
-- **Overrides:** none in production; tests replace database registration by SQLite (`SqliteTestDatabase.ReplaceDatabaseOf`)
-- **Config reads:** `Jwt:SecretKey|Issuer|Audience|AccessTokenMinutes` read ONCE by `JwtSettings.FromConfiguration` in `Program.cs` (singleton; key >= 32 chars REQUIRED outside Development, startup fails otherwise; Development falls back to constant `JwtSettings.DevelopmentSecretKey`; `AccessTokenMinutes` default 15), `Cors:AllowedOrigins` (array; `appsettings.json` empty, `appsettings.Development.json` = FE dev origin), `App:FrontendUrl`, `ConnectionStrings:DefaultConnection` (read lazily at first context use; Npgsql key=value OR `postgres://` URI, normalized by `ConnectionStrings.Normalize`; Development value lives in user-secrets, NEVER in files), `Database:AutoMigrate` (default = Development), `Database:SeedData` (Development ONLY, default true)
+- **Overrides:** none in production; tests replace DB registration by SQLite (`SqliteTestDatabase.ReplaceDatabaseOf`)
+- **Config reads:** `Jwt:SecretKey|Issuer|Audience|AccessTokenMinutes` read ONCE by `JwtSettings.FromConfiguration` in `Program.cs` (singleton; key >= 32 chars REQUIRED outside Development, startup fails otherwise; Development falls back to constant `JwtSettings.DevelopmentSecretKey`; `AccessTokenMinutes` default 15), `Cors:AllowedOrigins` (array; `appsettings.json` empty, `appsettings.Development.json` = FE dev origin), `App:FrontendUrl`, `ConnectionStrings:DefaultConnection` (read lazily at first context use; Npgsql key=value OR `postgres://` URI, normalized by `ConnectionStrings.Normalize`; Development value lives in user-secrets, NEVER in files), `DB:AutoMigrate` (default = Development), `DB:SeedData` (Development ONLY, default true)
 - **Hub:** `MapHub<NotificationHub>("/hubs/notifications")`
-- **Startup:** `Program.cs` runs `DatabaseInitializer` (migrate, then seed core + development dataset, both idempotent) BEFORE pipeline is built; Production never seeds & migrates only when `Database:AutoMigrate=true`
+- **Startup:** `Program.cs` runs `DatabaseInitializer` (migrate, then seed core + development dataset, both idempotent) BEFORE pipeline is built; Production never seeds & migrates only when `DB:AutoMigrate=true`
 
 ## 5. Errors, exceptions & `Result` mapping
 
@@ -117,9 +117,9 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 | `EntityNotFoundException` | any | 404 | `NotFound` |
 | `ConcurrencyConflictException` | optimistic token lost (account, media asset, media quota) | 409 | `Conflict` |
 | `MediaStorageUnavailableException` | provider keys missing or provider unusable | 503 | `MediaStorageUnavailable` |
-| `MediaRejectedException` | provider refuses the file / kind mismatch | 400 | `ValidationFailed` |
+| `MediaRejectedException` | provider refuses file / kind mismatch | 400 | `ValidationFailed` |
 | upload gate (`UploadGateFilter`, resource filter) | upload concurrency gate full (+ `Retry-After: 5`) | 429 | `TooManyRequests` |
-| `BadHttpRequestException` 413 / resource filter | body over the cap | 413 | `PayloadTooLarge` |
+| `BadHttpRequestException` 413 / resource filter | body over cap | 413 | `PayloadTooLarge` |
 | `OperationCanceledException` | client aborted (`RequestAborted`) | 499, no body | none |
 | any other exception | unexpected | 500 | `InternalError` (`detail` generic outside Development; logged at Error) |
 | framework | model binding, malformed JSON, bad enum int (`InvalidModelStateResponseFactory`) | 400 | `ValidationFailed` + `errors` |
@@ -137,7 +137,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 
 ### 6.1 JWT (`Api/Program.cs`, `Infrastructure/Identity/JwtProvider.cs`)
 - Scheme `JwtBearer`; validates issuer, audience, lifetime & signing key (HS256, symmetric); `DefaultMapInboundClaims = false` (claim names kept as issued)
-- **Claims:** `sub` = AccountId | `user_id` = UserId (profile) | `email` | `jti` | `sid` = id of refresh token issued with the access token (login, refresh, switch; D30); no role claim, no profile username
+- **Claims:** `sub` = AccountId | `user_id` = UserId (profile) | `email` | `jti` | `sid` = id of refresh token issued with access token (login, refresh, switch; D30); no role claim, no profile username
 - **Lifetime:** access token 15 min (`Jwt:AccessTokenMinutes`); refresh token 7 days (`Account.DefaultRefreshTokenExpiryDays`)
 - **No revocation check:** issued access tokens stay valid after logout/rotation/account delete/password change until expiry (D6, accepted; <= 15 min window); no per-request account or user lookup
 - **SignalR:** token accepted from query `access_token` only for paths starting `/hubs`
@@ -233,7 +233,7 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Duplicates:** unique indexes reject double like, double follow edge, double block, duplicate email/username/token (race surfaces as 500 `DbUpdateException`; sequential duplicates are handled idempotently by handlers)
 
 ### 7.3 Persistence
-- **Provider:** PostgreSQL (Npgsql) in app; tests run SAME model on SQLite: keep LINQ provider-neutral (`ToLower()` compares, no `ILike`/provider functions); `jsonb` for outbox content is set only when `Database.IsNpgsql()`; split queries (`AutoInclude` of 2 child collections on `Account`)
+- **Provider:** PostgreSQL (Npgsql) in app; tests run SAME model on SQLite: keep LINQ provider-neutral (`ToLower()` compares, no `ILike`/provider functions); `jsonb` for outbox content is set only when `DB.IsNpgsql()`; split queries (`AutoInclude` of 2 child collections on `Account`)
 - **Model (`YSocialDbContext`):** per-aggregate `IEntityTypeConfiguration` in `Persistence/Configurations` (+ outbox config next to its class); conventions in context: every key client-generated (`ValueGeneratedNever`), strongly-typed ids & `Enumeration` types (int; `Country` = ISO code) detected by shape/base type (new id or enumeration needs NO mapping code), `DateTime` = `timestamptz` UTC (`DateOfBirth` = `date`, no shifting), `DomainEvents` ignored
 - **Mapping:** `User.ProfileInfo` & `PrivacySettings` = owned value objects (inline columns); `PasswordHash` = converted string; `Account` owns `RefreshTokens` & `PasswordResetTokens` (cascade, `AutoInclude`, backing fields)
 - **Integrity:** NO cross-aggregate foreign keys (ids only, DM §2); only Account -> its tokens. Unique: `Account.Email`, `User.Username` (registered lowercase), `RefreshToken.Token`, `Like(user,type,target)`, `UserRelation(observer,target)`, `UserBlock(observer,target)`; indexes for reads by author, post, parent, recipient, target
@@ -241,21 +241,21 @@ HTTP -> UseExceptionHandler (GlobalExceptionHandler) -> UseStatusCodePages -> [D
 - **Queries:** set-based repo members (DM §7) translate to SQL; paging, ordering & policy filtering stay in memory (DEBT §10)
 - **Migrations:** `Infrastructure/Persistence/Migrations` (Npgsql SQL only); `ModelTests.Model_MatchesLatestMigrationSnapshot` fails when model changed without migration
 - **Seeds (`Persistence/Seeding`):** `CoreSeeder` = deterministic test baseline (3 accounts, 4 profiles, 2 posts, ids in `SeedIds`); `DevelopmentSeeder` = rich demo dataset (12 accounts / 13 profiles, 2 private, ~48 posts with images, threaded comments, likes, saves, follow graph with pending requests & close friends, 2 blocks, mutes, notifications; every stored counter matches rows); both idempotent, written directly without events, passwords NOT repeated here (see `SeedIds`); bcrypt work factor 4
-- **Discovery seed stage (`DiscoverySeeder`, D31/D32):** runs after the base stage on fresh AND already-seeded DBs, own sentinel `Account(100)`: removes the old stage 1 stock image URLs (seed ids + exact patterns only), adds 18 profiles (3 private), 72 tagged posts over 12 days, likes & a follow graph with mutuals; counters match rows; seeds no longer carry stock images (avatar/cover/post image null)
+- **Discovery seed stage (`DiscoverySeeder`, D31/D32):** runs after base stage on fresh & already-seeded DBs, own sentinel `Account(100)`: removes old stage 1 stock image URLs (seed ids + exact patterns only), adds 18 profiles (3 private), 72 tagged posts over 12 days, likes & follow graph with mutuals; counters match rows; seeds no longer carry stock images (avatar/cover/post image null)
 - **Restart:** state & sessions survive restarts (refresh tokens are rows)
 - **Real DB verification:** Development run against hosted PostgreSQL: migrate + seed, login, feed, refresh rotation, concurrent refresh x6 -> exactly 1 x 200
 
-### 7.4 Database operations
+### 7.4 DB operations
 ```
 dotnet tool restore
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<npgsql string or postgres:// URI>" --project src/YSocial.Api
 dotnet dotnet-ef migrations add <Name> -p src/YSocial.Infrastructure -s src/YSocial.Api -o Persistence/Migrations
-dotnet dotnet-ef database update -p src/YSocial.Infrastructure -s src/YSocial.Api
-dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.Api
+dotnet dotnet-ef DB update -p src/YSocial.Infrastructure -s src/YSocial.Api
+dotnet dotnet-ef DB update 0 -p src/YSocial.Infrastructure -s src/YSocial.Api
 ```
-- **Run API in Development:** migrates & seeds automatically (`Database:AutoMigrate`, `Database:SeedData`)
-- **Design-time connection:** `migrations add` needs none (`YSocialDbContextFactory` placeholder); `database update` reads env `YSOCIAL_DESIGN_CONNECTION` (never put real string in files)
-- **Reset dev data:** `database update 0` drops every table, next API start re-creates & re-seeds
+- **Run API in Development:** migrates & seeds automatically (`DB:AutoMigrate`, `DB:SeedData`)
+- **Design-time connection:** `migrations add` needs none (`YSocialDbContextFactory` placeholder); `DB update` reads env `YSOCIAL_DESIGN_CONNECTION` (never put real string in files)
+- **Reset dev data:** `DB update 0` drops every table, next API start re-creates & re-seeds
 - **Tests never touch PostgreSQL:** host & unit tests use `SqliteTestDatabase`; guard `Host_UsesTheSqliteTestDatabase_NeverPostgres`
 
 ### 7.5 Notifications pipeline
@@ -275,20 +275,20 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 - **HTTPS:** `UseHttpsRedirection` active; `launchSettings.json` https `49895` (matches FE)
 - **Cancellation:** every controller action forwards request `CancellationToken` to `Mediator.Send` & on to EF queries
 - **Pagination (D16):** offset envelope `PagedResponse`, counts after access filter; defaults, limits & beyond-last behavior: MAP §1
-- **Request size limits:** only `POST /api/media` raises the body cap (102 MiB, see §8.1); every other action keeps Kestrel's 30 MB default
+- **Request size limits:** only `POST /api/media` raises body cap (102 MiB, see §8.1); every other action keeps Kestrel's 30 MB default
 - **Health:** `GET /health` anonymous, plain text, check `media-storage` (Healthy | Degraded, HTTP 200 both)
 - **Rate limiting, structured logging:** not found (upload has its own concurrency gates, §8.1)
 
 ### 8.1 Media pipeline & deployment notes (D33, D34)
-- **Flow (write-ahead):** gates (429, resource filter BEFORE the body is bound, so a refused request never writes a temp file) -> validate (count, sizes, aggregate, magic bytes, pixel header) -> tx 1 (`CommitAsync` INSIDE the handler: load the quota token FIRST, then count, then reserve rows `Uploading` under `User.MediaQuotaVersion`, durable even when the request fails) -> upload file by file (whole phase bounded by `Media:UploadBudget`, 20 min, well under the 30 min `Uploading` lease: over it = 503) -> tx 2 (rows `Pending`) -> on any failure: claim own rows (if the claim cannot be saved the remote delete is STILL tried), delete remote files, remove rows, bounded 10 s with `CancellationToken.None`; leftovers stay `Deleting` for the sweep
-- **No orphan files:** the row always precedes the remote file (deterministic `public_id` `ysocial/{env}/{posts|avatars}/{id:N}`), so the sweep can delete by id; only a lost or restored-to-older database can orphan files (runbook: list the Cloudinary prefix `ysocial/{env}/` through the Admin API and delete ids without a row)
-- **Concurrency:** `MediaAsset.Version` (EF token) decides attach vs discard vs release vs sweep claim: one wins, loser = 409 or skipped; per-user in-flight gate & per-instance `Media:MaxConcurrentUploads` are process-local, across instances the quota token decides
-- **Sweep:** `MediaCleanupProcessor` (singleton) via hosted `MediaCleanupJob` (first run 30 s after start, then every `Media:SweepIntervalMinutes`); per row own scope: reload, re-check, claim under token; ONE provider delete for all claimed rows (missing = success); row removed only after a confirmed delete; failure = stays `Deleting`, `CleanupAttempts++`, error log from the 10th attempt, never dropped; skipped with 1 warning per run when keys are missing
+- **Flow (write-ahead):** gates (429, resource filter BEFORE body is bound, so refused request never writes temp file) -> validate (count, sizes, aggregate, magic bytes, pixel header) -> tx 1 (`CommitAsync` INSIDE handler: load quota token FIRST, then count, then reserve rows `Uploading` under `User.MediaQuotaVersion`, durable even when request fails) -> upload file by file (whole phase bounded by `Media:UploadBudget`, 20 min, well under 30 min `Uploading` lease: over it = 503) -> tx 2 (rows `Pending`) -> on any failure: claim own rows (if claim cannot be saved remote delete is STILL tried), delete remote files, remove rows, bounded 10 s with `CancellationToken.None`; leftovers stay `Deleting` for sweep
+- **No orphan files:** row always precedes remote file (deterministic `public_id` `ysocial/{env}/{posts|avatars}/{id:N}`), so sweep can delete by id; only lost or restored-to-older DB can orphan files (runbook: list Cloudinary prefix `ysocial/{env}/` through Admin API & delete ids without row)
+- **Concurrency:** `MediaAsset.Version` (EF token) decides attach vs discard vs release vs sweep claim: 1 wins, loser = 409 or skipped; per-user in-flight gate & per-instance `Media:MaxConcurrentUploads` are process-local, across instances quota token decides
+- **Sweep:** `MediaCleanupProcessor` (singleton) via hosted `MediaCleanupJob` (first run 30 s after start, then every `Media:SweepIntervalMinutes`); per row own scope: reload, re-check, claim under token; 1 provider delete for all claimed rows (missing = success); row removed only after confirmed delete; failure = stays `Deleting`, `CleanupAttempts++`, error log from 10th attempt, never dropped; skipped with 1 warning per run when keys are missing
 - **Config (`Media:*`, defaults):** `MaxConcurrentUploads` 4, `PendingTtlHours` 24, `ReleasedGraceMinutes` 60, `UploadingLeaseMinutes` 30, `DeletingLeaseMinutes` 10, `SweepIntervalMinutes` 10, `SweepBatchSize` 50, `Environment` (default = host environment name, lowercase); keys `Cloudinary:CloudName|ApiKey|ApiSecret` ONLY in user-secrets / env (`appsettings.json` keeps empty strings); empty = `UnavailableMediaStorage` (startup warning, `/health` Degraded, uploads & discard 503, sweep skipped)
-- **Buffering is NOT streaming:** `IFormFile` binding buffers the multipart body (64 KiB in memory per file, beyond that a TEMP FILE under `Path.GetTempPath()` BEFORE the action runs); Cloudinary upload reads each part from there. Worst case temp disk per instance = `MaxConcurrentUploads` x 102 MiB = about 408 MiB: the deployment MUST provide it; temp files are deleted when the request ends (also on client abort)
-- **Proxy / server limits:** reverse proxy body limit >= 102 MiB (nginx `client_max_body_size 102m`, IIS `maxAllowedContentLength`), read/send timeouts >= 10 min on `/api/media`, request buffering allowed; Kestrel `MinRequestBodyDataRate` stays default (240 B/s: stalled clients are cut); Cloudinary SDK timeout 10 min per file; videos over 20 MiB use the chunked `UploadLarge`
-- **Validation layers:** magic bytes (name & content type never trusted, names never reach the key), header-parsed pixels (jpeg segments walked by seeking, png, gif, webp lossy/lossless/extended), provider response must agree with the sniffed kind and stay inside video limits, images re-encoded by Cloudinary (`c_limit,w_2048,h_2048,fl_strip_profile`; avatar `c_fill,g_auto,w_512,h_512`); NOT provided: malware scanning, full decode of every format
-- **`OwnsUrl`** (deny guard for avatar and post `imageUrl`: our assets enter ONLY through `avatarMediaId` / `mediaIds`) fails CLOSED: `CloudinaryUrl.Targets` = any http(s) url whose host is `res.cloudinary.com` (case-insensitive, trailing dot and port ignored) and whose path, after the normalization a browser applies (dot segments, `%2e`, repeated slashes), starts with our cloud name (case-insensitive); user-info urls are judged by the real host. `CloudinaryUrl.Owns` (strict: https, default port, exact shape) stays for positive use and has an FE twin (`isCloudinaryUrl`) for the delivery loader
+- **Buffering is NOT streaming:** `IFormFile` binding buffers multipart body (64 KiB in memory per file, beyond that TEMP FILE under `Path.GetTempPath()` BEFORE action runs); Cloudinary upload reads each part from there. Worst case temp disk per instance = `MaxConcurrentUploads` x 102 MiB = about 408 MiB: deployment MUST provide it; temp files are deleted when request ends (also on client abort)
+- **Proxy / server limits:** reverse proxy body limit >= 102 MiB (nginx `client_max_body_size 102m`, IIS `maxAllowedContentLength`), read/send timeouts >= 10 min on `/api/media`, request buffering allowed; Kestrel `MinRequestBodyDataRate` stays default (240 B/s: stalled clients are cut); Cloudinary SDK timeout 10 min per file; videos over 20 MiB use chunked `UploadLarge`
+- **Validation layers:** magic bytes (name & content type never trusted, names never reach key), header-parsed pixels (jpeg segments walked by seeking, png, gif, webp lossy/lossless/extended), provider response must agree with sniffed kind & stay inside video limits, images re-encoded by Cloudinary (`c_limit,w_2048,h_2048,fl_strip_profile`; avatar `c_fill,g_auto,w_512,h_512`); NOT provided: malware scanning, full decode of every format
+- **`OwnsUrl`** (deny guard for avatar & post `imageUrl`: our assets enter ONLY through `avatarMediaId` / `mediaIds`) fails CLOSED: `CloudinaryUrl.Targets` = any http(s) url whose host is `res.cloudinary.com` (case-insensitive, trailing dot & port ignored) & whose path, after normalization browser applies (dot segments, `%2e`, repeated slashes), starts with our cloud name (case-insensitive); user-info urls are judged by real host. `CloudinaryUrl.Owns` (strict: https, default port, exact shape) stays for positive use & has FE twin (`isCloudinaryUrl`) for delivery loader
 
 ## 9. Implementation boundaries (what exists vs not)
 - **Use-case-less domain behavior (no handler/endpoint):** `Post.UpdateSettings`, `Account.Deactivate/Activate/AssignRole`, `Account.ChangePassword` (only via reset)
@@ -310,13 +310,13 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 | 29 | Stored counters (likes, saves, followers) are read-modify-write without concurrency token (lost update under concurrent writers); duplicate like/follow race = unique-index violation = 500 | ACCEPTED (map to 409 when it shows up) |
 | 30 | Outbox poller is single-instance (no row lock / `SKIP LOCKED`): >1 instance may push row twice | ACCEPTED |
 
-| 31 | Discovery (D31, D32) loads window rows (`GetWithHashtagsSinceAsync`, 365 days max), every active profile & accepted edge (suggestions) and aggregates IN MEMORY; hashtag rows load only through explicit includes | DEBT: SQL group-by, cached suggestions |
+| 31 | Discovery (D31, D32) loads window rows (`GetWithHashtagsSinceAsync`, 365 days max), every active profile & accepted edge (suggestions) & aggregates IN MEMORY; hashtag rows load only through explicit includes | DEBT: SQL group-by, cached suggestions |
 | 32 | Posts created before D31 have no tag rows until edited (no backfill job, no production data) | ACCEPTED |
-| 33 | Media upload buffers the multipart body to a temp file (no end-to-end streaming): temp disk = `MaxConcurrentUploads` x 102 MiB per instance, API bandwidth carries every upload | DEBT: `MultipartReader` streaming (validate while reading) or signed direct-to-Cloudinary upload |
-| 34 | Media of soft-deleted posts and deleted accounts stays (restore must work); no purge job | DEBT: purge after a retention period |
-| 35 | Restoring the database to an older point can orphan remote files (rows are the source of truth) | ACCEPTED: manual prefix-listing runbook (§8.1) |
+| 33 | Media upload buffers multipart body to temp file (no end-to-end streaming): temp disk = `MaxConcurrentUploads` x 102 MiB per instance, API bandwidth carries every upload | DEBT: `MultipartReader` streaming (validate while reading) or signed direct-to-Cloudinary upload |
+| 34 | Media of soft-deleted posts & deleted accounts stays (restore must work); no purge job | DEBT: purge after retention period |
+| 35 | Restoring DB to older point can orphan remote files (rows are source of truth) | ACCEPTED: manual prefix-listing runbook (§8.1) |
 | 36 | No virus scanning, no full decode of every uploaded format (magic bytes + header + provider re-encode only); videos are stored as uploaded (no transcoding profile) | ACCEPTED |
-| 37 | Upload gates (per user, per instance) are process-local; `Media:*` knobs need a restart | ACCEPTED |
+| 37 | Upload gates (per user, per instance) are process-local; `Media:*` knobs need restart | ACCEPTED |
 
 ### 10.2 Deferred (minor / waits on others)
 
@@ -325,13 +325,13 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 | 21 | Notification push: failed processing retried (max 5) without backoff; no reply preview text | minor |
 | 25 | `Post.UpdateSettings` & audience `CloseFriends` (D17): needs author -> viewer edge policy query | design |
 | 26 | Account lifecycle: `Deactivate/Activate/AssignRole/ChangePassword`, create-profile, username change (session list done, D30) | design (re-activation, username reuse) |
-| 28 | Token families grow without bound while a session stays active (~96 rotations/day, ancestors kept by `RemoveExpiredTokens`); `GetSessions`/`FindRoot`/`BelongsToSession` scan the list per hop (quadratic). Fix: dictionaries per call + prune ancestors older than access lifetime (carry family sign-in time forward) | OPEN (found in settings review) |
+| 28 | Token families grow without bound while session stays active (~96 rotations/day, ancestors kept by `RemoveExpiredTokens`); `GetSessions`/`FindRoot`/`BelongsToSession` scan list per hop (quadratic). Fix: dictionaries per call + prune ancestors older than access lifetime (carry family sign-in time forward) | OPEN (found in settings review) |
 | 27 | Features without BE: search, mentions, pin, hide-like-count, reposts, polls, drafts, DMs, report, cover upload, comment media, profile tabs `replies`/`media`, feed ranking | product decisions (§9, MAP §4) |
 
 - **Remaining blockers for real deployment:** multi-instance session lock & outbox (items 23, 30), SQL-side paging (28), access-token revocation (22), counter concurrency tokens (29)
 
 ## 11. Tests
-- 3 test projects + `TestSupport`, 1086 tests run, all passing (+7 PostgreSQL opt-in tests, skipped unless `YSOCIAL_TEST_POSTGRES` holds a disposable server's admin connection string): `Domain.UnitTests` 185, `Application.UnitTests` 276 (incl. media sniffer/limits/upload/discard/sweep, persistence: repos, hashtag rows, model snapshot guard, seeders incl. discovery stage, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 625 (incl. `Discovery/` and `Media/`: upload table, discard, post media, avatar matrix, health; + 1 opt-in real Cloudinary smoke)
+- 3 test projects + `TestSupport`, 1086 tests run, all passing (+7 PostgreSQL opt-in tests, skipped unless `YSOCIAL_TEST_POSTGRES` holds disposable server's admin connection string): `Domain.UnitTests` 185, `Application.UnitTests` 276 (incl. media sniffer/limits/upload/discard/sweep, persistence: repos, hashtag rows, model snapshot guard, seeders incl. discovery stage, connection strings, outbox; session conflict outcomes), `Api.IntegrationTests` 625 (incl. `Discovery/` & `Media/`: upload table, discard, post media, avatar matrix, health; + 1 opt-in real Cloudinary smoke)
 - Layers, harness, reset rules & per-area coverage: `.context/backend/architecture/backend-unit-test.md`
 - Acceptance of every contract in this guide = integration tests over real HTTP pipeline (Swagger is NOT source of truth); data layer runs on SQLite there, real PostgreSQL is verified manually (§7.3)
 
@@ -358,4 +358,4 @@ dotnet dotnet-ef database update 0 -p src/YSocial.Infrastructure -s src/YSocial.
 - Test class locations: `tests/YSocial.Api.IntegrationTests/{Characterization,Errors,Identities,Status,Events,Config}`
 
 ## 13. Deviations from existing docs
-- `features/identities.md` & `features/user-profile-and-relations.md`: endpoint content replaced by pointers to MAP (single owner); design decisions kept
+- `features/identities.md` & `features/user-profile-&-relations.md`: endpoint content replaced by pointers to MAP (single owner); design decisions kept
